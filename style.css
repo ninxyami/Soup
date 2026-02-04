@@ -13,6 +13,66 @@ body {
   line-height: 1.6;
 }
 
+/* Navigation */
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background-color: rgba(14, 14, 14, 0.85);
+  backdrop-filter: blur(6px);
+  border-bottom: 1px solid #1f1f1f;
+}
+
+.nav-inner {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0.75rem 1.5rem;
+  display: flex;
+  gap: 1.5rem;
+}
+
+.nav a {
+  text-decoration: none;
+  color: #9a9a9a;
+  font-size: 0.8rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.nav a:hover {
+  color: #e6e6e6;
+}
+
+.nav a.active {
+  color: #e6e6e6;
+}
+
+
+/* Hero */
+.hero {
+  min-height: 70vh;
+  background:
+    linear-gradient(to bottom, rgba(0,0,0,0.4), #0e0e0e),
+    url("assets/hero.png") center 55% / cover no-repeat;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+
+
+.hero-inner h1 {
+  font-size: 2.5rem;
+  letter-spacing: 0.25em;
+}
+
+.season {
+  margin-top: 0.5rem;
+  color: #cfcfcf;
+  font-size: 0.9rem;
+}
+
 /* Layout */
 .container {
   max-width: 720px;
@@ -20,30 +80,30 @@ body {
   padding: 4rem 1.5rem;
 }
 
-/* Hero */
-.hero h1 {
-  font-size: 3rem;
-  letter-spacing: 0.3em;
-  text-align: center;
-}
-
-.subtitle {
-  text-align: center;
-  margin-top: 0.5rem;
-  color: #9a9a9a;
-  font-size: 0.9rem;
-}
-
-/* Sections */
 section {
   margin: 2.5rem 0;
 }
 
+/* Divider */
 .divider {
   height: 1px;
   background-color: #222;
   margin: 3rem 0;
 }
+
+
+/* Visual section */
+.visual {
+  text-align: center;
+}
+
+.visual img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+  opacity: 0.95;
+}
+		
 
 /* Text */
 p {
@@ -51,11 +111,22 @@ p {
 }
 
 h2 {
-  font-size: 1.2rem;
-  margin-bottom: 1rem;
+  font-size: 1.1rem;
   letter-spacing: 0.15em;
   text-transform: uppercase;
+  margin-bottom: 1rem;
 }
+
+/* Links */
+a {
+  color: #e6e6e6;
+  text-decoration: underline;
+}
+
+a:hover {
+  color: #ffffff;
+}
+
 
 /* Lists */
 ul {
@@ -75,20 +146,19 @@ ul li::before {
   color: #666;
 }
 
-/* Zombita quote */
-.quote {
+/* Zombita */
+.zombita .quote {
   margin-top: 1.5rem;
   font-style: italic;
   color: #b0b0b0;
 }
 
-/* Footer */
-.footer {
+/* Closing */
+.closing {
   text-align: center;
 }
 
 .muted {
-  margin-top: 0.5rem;
   color: #777;
   font-size: 0.85rem;
 }
