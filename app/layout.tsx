@@ -6,6 +6,9 @@ import ZombitaWidget from "@/components/ZombitaWidget";
 export const metadata: Metadata = {
   title: "State of Undead Purge",
   description: "A long-term PVE-focused Project Zomboid server.",
+  icons: {
+    icon: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
