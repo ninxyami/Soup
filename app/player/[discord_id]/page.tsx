@@ -1,10 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
 import { API } from "@/lib/constants";
 
 export default function PlayerPage() {
-  const { discord_id } = useParams();
+  const [discordId, setDiscordId] = useState<string>("");
   const [stats, setStats] = useState<any>(null);
   const [ingame, setIngame] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -18,16 +17,23 @@ export default function PlayerPage() {
     if (d > 0) return `${d}d ${h}h`; if (h > 0) return `${h}h ${m}m`; return `${m}m`;
   };
 
+  // Read the player name/id from the URL on mount
   useEffect(() => {
-    if (!discord_id) return;
-    const id = String(discord_id);
+    const parts = window.location.pathname.replace(/\/$/, "").split("/");
+    const id = decodeURIComponent(parts[parts.length - 1] || "");
+    setDiscordId(id);
+  }, []);
+
+  // Load player data once we have the id
+  useEffect(() => {
+    if (!discordId) return;
 
     async function load() {
+      let resolvedId = discordId;
       // If it looks like a name (not all digits), resolve to discord_id first
-      let resolvedId = id;
-      if (!/^\d+$/.test(id)) {
+      if (!/^\d+$/.test(discordId)) {
         try {
-          const r = await fetch(`${API}/api/player/by-name/${encodeURIComponent(id)}`);
+          const r = await fetch(`${API}/api/player/by-name/${encodeURIComponent(discordId)}`);
           if (r.status === 404) { setNotFound(true); setLoading(false); return; }
           if (r.ok) { const d = await r.json(); resolvedId = String(d.discord_id); }
         } catch { setNotFound(true); setLoading(false); return; }
@@ -49,7 +55,7 @@ export default function PlayerPage() {
     }
 
     load().catch(() => setLoading(false));
-  }, [discord_id]);
+  }, [discordId]);
 
   if (loading) return <main className="max-w-[720px] mx-auto px-6 py-16"><p className="text-[#777] font-mono text-sm">loading...</p></main>;
   if (notFound || !stats) return (
