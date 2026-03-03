@@ -9,6 +9,7 @@ export const NAV_LINKS = [
   { href: "/mods", label: "Mods" },
   { href: "/seasons", label: "Season" },
   { href: "/leaderboard", label: "Leaderboard" },
+  { href: "/players", label: "Players" },
   { href: "/archive", label: "Archive" },
   { href: "/zombita", label: "Zombita" },
   { href: "/whitelist", label: "Whitelist" },

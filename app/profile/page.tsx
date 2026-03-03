@@ -9,6 +9,12 @@ export default function ProfilePage() {
   const [state, setState] = useState<State>("loading");
   const [user, setUser] = useState<User | null>(null);
   const [gameStats, setGameStats] = useState<any>(null);
+  const [ingameStats, setIngameStats] = useState<any>(null);
+  const [bio, setBio] = useState("");
+  const [editingBio, setEditingBio] = useState(false);
+  const [bioInput, setBioInput] = useState("");
+  const [bioSaving, setBioSaving] = useState(false);
+  const [bioFeedback, setBioFeedback] = useState("");
 
   useEffect(() => {
     fetch(`${API}/auth/me`, { credentials: "include" })
@@ -16,10 +22,25 @@ export default function ProfilePage() {
       .then(async (me) => {
         if (!me) { setState("guest"); return; }
         setUser(me);
-        // Load extra game stats
         try {
-          const sr = await fetch(`${API}/api/stats/player/${me.discord_id}`, { credentials: "include" });
+          const [sr, ir, pr] = await Promise.all([
+            fetch(`${API}/api/stats/player/${me.discord_id}`, { credentials: "include" }),
+            fetch(`${API}/api/rankings`),
+            fetch(`${API}/api/players`),
+          ]);
           if (sr.ok) setGameStats(await sr.json());
+          if (ir.ok) {
+            const rankings = await ir.json();
+            const p = (rankings.players || []).find((p: any) =>
+              String(p.discord_id) === String(me.discord_id) || p.name === me.username
+            );
+            if (p) setIngameStats(p);
+          }
+          if (pr.ok) {
+            const pd = await pr.json();
+            const me2 = (pd.players || []).find((p: any) => p.discord_id === String(me.discord_id));
+            if (me2) { setBio(me2.bio || ""); setBioInput(me2.bio || ""); }
+          }
         } catch {}
         setState("profile");
       })
@@ -31,8 +52,27 @@ export default function ProfilePage() {
     window.location.href = "/";
   };
 
+  const saveBio = async () => {
+    setBioSaving(true);
+    try {
+      const r = await fetch(`${API}/api/player/bio`, {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bio: bioInput }),
+      });
+      if (r.ok) { setBio(bioInput); setEditingBio(false); setBioFeedback("saved."); setTimeout(() => setBioFeedback(""), 2000); }
+      else setBioFeedback("failed to save.");
+    } catch { setBioFeedback("connection error."); }
+    finally { setBioSaving(false); }
+  };
+
   const pct = (wins: number, total: number) => total > 0 ? Math.round((wins / total) * 100) + "%" : "—";
   const net = (won: number, lost: number) => { const n = won - lost; return (n >= 0 ? "+" : "") + n.toLocaleString() + " 🟤"; };
+  const fmtTime = (s: number) => {
+    if (!s || s <= 0) return "—";
+    const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60);
+    if (d > 0) return `${d}d ${h}h`; if (h > 0) return `${h}h ${m}m`; return `${m}m`;
+  };
 
   return (
     <main className="max-w-[720px] mx-auto px-6 py-16">
@@ -55,17 +95,74 @@ export default function ProfilePage() {
             <div>
               <h1 className="text-2xl tracking-[0.1em]">{user.username}</h1>
               {user.player?.identity && (
-                <p className="text-[0.85rem] italic text-[#777] mt-1">{user.player.identity}</p>
+                <p className="text-[0.85rem] italic text-[#4a7c59] mt-1 font-mono">"{user.player.identity}"</p>
+              )}
+              {gameStats?.balance !== undefined && (
+                <p className="text-[0.85rem] text-[#555] mt-1 font-mono">{gameStats.balance.toLocaleString()} 🟤 coins</p>
               )}
             </div>
           </div>
 
+          {/* Bio */}
+          <div className="mt-4">
+            {!editingBio ? (
+              <div className="flex items-start gap-3">
+                <p className="text-[0.83rem] text-[#777] leading-relaxed flex-1 italic">
+                  {bio || "no bio yet. tell the survivors who you are."}
+                </p>
+                <button onClick={() => setEditingBio(true)}
+                  className="text-[0.65rem] text-[#444] hover:text-[#4a7c59] font-mono uppercase tracking-wider transition-colors cursor-pointer bg-transparent border-none flex-shrink-0">
+                  {bio ? "edit" : "+ add bio"}
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                <textarea value={bioInput} onChange={e => setBioInput(e.target.value.slice(0, 280))}
+                  placeholder="tell the survivors who you are... (280 chars)"
+                  rows={3}
+                  className="bg-[#0a0a0a] border border-[#222] text-[#e6e6e6] text-[0.83rem] px-3 py-2 font-mono placeholder:text-[#333] outline-none focus:border-[#4a7c59] transition-colors resize-none"
+                  style={{ fontFamily: "inherit" }}
+                />
+                <div className="flex items-center gap-3">
+                  <button onClick={saveBio} disabled={bioSaving}
+                    className="text-[0.7rem] px-3 py-1.5 border border-[#4a7c59] text-[#4a7c59] font-mono uppercase tracking-wider hover:bg-[#4a7c59] hover:text-black disabled:opacity-40 transition-all cursor-pointer bg-transparent">
+                    {bioSaving ? "saving..." : "save"}
+                  </button>
+                  <button onClick={() => { setEditingBio(false); setBioInput(bio); }}
+                    className="text-[0.7rem] text-[#444] hover:text-[#e6e6e6] font-mono uppercase tracking-wider transition-colors cursor-pointer bg-transparent border-none">
+                    cancel
+                  </button>
+                  <span className="text-[0.65rem] text-[#333] font-mono ml-auto">{bioInput.length}/280</span>
+                  {bioFeedback && <span className="text-[0.65rem] text-[#4a7c59] font-mono">{bioFeedback}</span>}
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="divider" />
 
-          {/* Werewolf */}
-          {user.player && user.player.games_played > 0 && (
+          {/* In-Game */}
+          {ingameStats && <>
             <section>
-              <h2>Werewolf — Season 1</h2>
+              <h2>⚔️ In-Game — Season 1</h2>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 mt-6">
+                <StatBlock value={(ingameStats.kills||0).toLocaleString()} label="Kills (this life)" />
+                <StatBlock value={(ingameStats.overallKills||0).toLocaleString()} label="All-Time Kills" />
+                <StatBlock value={ingameStats.deaths||0} label="Deaths" />
+                <StatBlock value={fmtTime(ingameStats.currentLife)} label="Current Life" />
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 mt-6">
+                <StatBlock value={fmtTime(ingameStats.longestLife)} label="Best Life" />
+                {ingameStats.faction && <StatBlock value={ingameStats.faction} label="Faction" />}
+              </div>
+            </section>
+            <div className="divider" />
+          </>}
+
+          {/* Werewolf */}
+          {user.player && user.player.games_played > 0 && <>
+            <section>
+              <h2>🐺 Werewolf — Season 1</h2>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 mt-6">
                 <StatBlock value={user.player.games_played} label="Games" />
                 <StatBlock value={user.player.games_won} label="Wins" />
@@ -73,57 +170,50 @@ export default function ProfilePage() {
                 <StatBlock value={pct(user.player.games_won, user.player.games_played)} label="Win Rate" />
               </div>
             </section>
-          )}
+            <div className="divider" />
+          </>}
 
           {/* Quizarium */}
-          {user.quiz && (
-            <>
-              <div className="divider" />
-              <section>
-                <h2>Quizarium — Season 1</h2>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 mt-6">
-                  <StatBlock value={user.quiz.rank ? `#${user.quiz.rank}` : "—"} label="Rank" />
-                  <StatBlock value={user.quiz.total_points} label="Points" />
-                  <StatBlock value={user.quiz.correct_answers} label="Correct" />
-                  <StatBlock value={user.quiz.games_played} label="Games" />
-                </div>
-              </section>
-            </>
-          )}
+          {user.quiz && <>
+            <section>
+              <h2>🧠 Quizarium — Season 1</h2>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 mt-6">
+                <StatBlock value={user.quiz.rank ? `#${user.quiz.rank}` : "—"} label="Rank" />
+                <StatBlock value={user.quiz.total_points} label="Points" />
+                <StatBlock value={user.quiz.correct_answers} label="Correct" />
+                <StatBlock value={user.quiz.games_played} label="Games" />
+              </div>
+            </section>
+            <div className="divider" />
+          </>}
 
           {/* RPS */}
-          {gameStats?.rps && (gameStats.rps.wins + gameStats.rps.losses + gameStats.rps.draws) > 0 && (
-            <>
-              <div className="divider" />
-              <section>
-                <h2>🪨📄✂️ Rock Paper Scissors</h2>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 mt-6">
-                  <StatBlock value={gameStats.rps.wins} label="PvP Wins" />
-                  <StatBlock value={pct(gameStats.rps.wins, gameStats.rps.wins + gameStats.rps.losses + gameStats.rps.draws)} label="Win Rate" />
-                  <StatBlock value={`${gameStats.rps.vs_zombita_wins}W`} label="vs Zombita" />
-                  <StatBlock value={net(gameStats.rps.coins_won, gameStats.rps.coins_lost)} label="Coins Net" />
-                </div>
-              </section>
-            </>
-          )}
+          {gameStats?.rps && (gameStats.rps.wins + gameStats.rps.losses + gameStats.rps.draws) > 0 && <>
+            <section>
+              <h2>🪨📄✂️ Rock Paper Scissors</h2>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 mt-6">
+                <StatBlock value={gameStats.rps.wins} label="PvP Wins" />
+                <StatBlock value={pct(gameStats.rps.wins, gameStats.rps.wins+gameStats.rps.losses+gameStats.rps.draws)} label="Win Rate" />
+                <StatBlock value={`${gameStats.rps.vs_zombita_wins}W`} label="vs Zombita" />
+                <StatBlock value={net(gameStats.rps.coins_won, gameStats.rps.coins_lost)} label="Coins Net" />
+              </div>
+            </section>
+            <div className="divider" />
+          </>}
 
           {/* Connect4 */}
-          {gameStats?.connect4 && (gameStats.connect4.wins + gameStats.connect4.losses + gameStats.connect4.draws) > 0 && (
-            <>
-              <div className="divider" />
-              <section>
-                <h2>🔴🟡 Connect Four</h2>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 mt-6">
-                  <StatBlock value={gameStats.connect4.wins} label="PvP Wins" />
-                  <StatBlock value={pct(gameStats.connect4.wins, gameStats.connect4.wins + gameStats.connect4.losses + gameStats.connect4.draws)} label="Win Rate" />
-                  <StatBlock value={`${gameStats.connect4.vs_zombita_wins}W`} label="vs Zombita" />
-                  <StatBlock value={net(gameStats.connect4.coins_won, gameStats.connect4.coins_lost)} label="Coins Net" />
-                </div>
-              </section>
-            </>
-          )}
-
-          <div className="divider" />
+          {gameStats?.connect4 && (gameStats.connect4.wins + gameStats.connect4.losses + gameStats.connect4.draws) > 0 && <>
+            <section>
+              <h2>🔴🟡 Connect Four</h2>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 mt-6">
+                <StatBlock value={gameStats.connect4.wins} label="PvP Wins" />
+                <StatBlock value={pct(gameStats.connect4.wins, gameStats.connect4.wins+gameStats.connect4.losses+gameStats.connect4.draws)} label="Win Rate" />
+                <StatBlock value={`${gameStats.connect4.vs_zombita_wins}W`} label="vs Zombita" />
+                <StatBlock value={net(gameStats.connect4.coins_won, gameStats.connect4.coins_lost)} label="Coins Net" />
+              </div>
+            </section>
+            <div className="divider" />
+          </>}
 
           <section className="flex items-center gap-4 flex-wrap">
             <a href="/whitelist" className="btn-submit no-underline" style={{ display: "inline-block" }}>Whitelist</a>

@@ -5,3 +5,4 @@ node_modules/
 .cloudflare/
 .vercel/
 out/
+wrangler.jsonc
