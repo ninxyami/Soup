@@ -17,20 +17,17 @@ export default function PlayerPage() {
     if (d > 0) return `${d}d ${h}h`; if (h > 0) return `${h}h ${m}m`; return `${m}m`;
   };
 
-  // Read the player name/id from the URL on mount
   useEffect(() => {
-    const parts = window.location.pathname.replace(/\/$/, "").split("/");
-    const id = decodeURIComponent(parts[parts.length - 1] || "");
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get("id") || "";
     setDiscordId(id);
   }, []);
 
-  // Load player data once we have the id
   useEffect(() => {
     if (!discordId) return;
 
     async function load() {
       let resolvedId = discordId;
-      // If it looks like a name (not all digits), resolve to discord_id first
       if (!/^\d+$/.test(discordId)) {
         try {
           const r = await fetch(`${API}/api/player/by-name/${encodeURIComponent(discordId)}`);
@@ -57,13 +54,22 @@ export default function PlayerPage() {
     load().catch(() => setLoading(false));
   }, [discordId]);
 
+  if (!discordId && !loading) return (
+    <main className="max-w-[720px] mx-auto px-6 py-16">
+      <h1 className="text-2xl tracking-[0.15em] uppercase mb-2">Unknown Survivor</h1>
+      <p className="text-[#777] text-[0.85rem]">No player specified.</p>
+      <div className="divider" />
+      <a href="/players" className="text-[#4a7c59] font-mono text-sm hover:underline">← all survivors</a>
+    </main>
+  );
+
   if (loading) return <main className="max-w-[720px] mx-auto px-6 py-16"><p className="text-[#777] font-mono text-sm">loading...</p></main>;
   if (notFound || !stats) return (
     <main className="max-w-[720px] mx-auto px-6 py-16">
       <h1 className="text-2xl tracking-[0.15em] uppercase mb-2">Unknown Survivor</h1>
       <p className="text-[#777] text-[0.85rem]">Zombita has no record of this person.</p>
       <div className="divider" />
-      <a href="/leaderboard" className="text-[#4a7c59] font-mono text-sm hover:underline">← back to leaderboard</a>
+      <a href="/players" className="text-[#4a7c59] font-mono text-sm hover:underline">← all survivors</a>
     </main>
   );
 
@@ -149,7 +155,7 @@ export default function PlayerPage() {
         <div className="divider" />
       </>}
 
-      <a href="/leaderboard" className="text-[#4a7c59] font-mono text-sm hover:underline">← back to leaderboard</a>
+      <a href="/players" className="text-[#4a7c59] font-mono text-sm hover:underline">← all survivors</a>
     </main>
   );
 }

@@ -90,7 +90,7 @@ export default function PlayersPage() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {filtered.map(p => (
-            <a key={p.discord_id} href={`/player/${encodeURIComponent(p.display_name)}`}
+            <a key={p.discord_id} href={`/player?id=${encodeURIComponent(p.display_name)}`}
               className="block bg-[#0a0a0a] border border-[#1a1a1a] p-4 hover:border-[#4a7c59] transition-all no-underline group">
 
               <div className="flex items-start gap-3">

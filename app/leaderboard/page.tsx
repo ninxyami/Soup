@@ -81,7 +81,7 @@ export default function LeaderboardPage() {
           {rows.map((p,i)=>(
             <tr key={i} className={`lb-row ${rc(i)}`}>
               <td className="text-center text-sm">{medal(i)}</td>
-              <td>{p.name}{p.faction&&<span className="text-[0.68rem] text-[#4a7c59] ml-2">[{p.faction}]</span>}</td>
+              <td><a href={`/player?id=${encodeURIComponent(p.name)}`} className="hover:text-[#4a7c59] transition-colors">{p.name}</a>{p.faction&&<span className="text-[0.68rem] text-[#4a7c59] ml-2">[{p.faction}]</span>}</td>
               <td className="text-right font-mono">{valueFn(p)}</td>
             </tr>
           ))}
@@ -99,7 +99,7 @@ export default function LeaderboardPage() {
           {rows.map((p,i)=>(
             <tr key={i} className={`lb-row ${rc(i)}`}>
               <td className="text-center text-sm">{medal(i)}</td>
-              <td>{p.name}</td>
+              <td><a href={`/player?id=${encodeURIComponent(p.name)}`} className="hover:text-[#4a7c59] transition-colors">{p.name}</a></td>
               <td className="text-right font-mono text-xs">{c1(p)}</td>
               <td className="text-right font-mono text-xs">{c2(p)}</td>
             </tr>
@@ -156,7 +156,7 @@ export default function LeaderboardPage() {
         {board==="wolf" && (wolf.filter((p:any)=>p.games_played>0).length
           ? <table className="lb-table"><thead><tr><th/><th>Player</th><th className="text-right">Wins</th><th className="text-right">Games</th><th className="text-right">Win %</th><th className="text-right">Survived</th></tr></thead>
               <tbody>{wolf.filter((p:any)=>p.games_played>0).map((p:any,i:number)=>(
-                <tr key={i} className={`lb-row ${rc(i)}`}><td className="text-center text-sm">{medal(i)}</td><td>{p.display_name}</td><td className="text-right font-mono">{p.games_won}</td><td className="text-right font-mono">{p.games_played}</td><td className="text-right font-mono">{Math.round((p.games_won/p.games_played)*100)}%</td><td className="text-right font-mono">{p.times_survived}</td></tr>
+                <tr key={i} className={`lb-row ${rc(i)}`}><td className="text-center text-sm">{medal(i)}</td><td><a href={`/player?id=${encodeURIComponent(p.display_name)}`} className="hover:text-[#4a7c59] transition-colors">{p.display_name}</a></td><td className="text-right font-mono">{p.games_won}</td><td className="text-right font-mono">{p.games_played}</td><td className="text-right font-mono">{Math.round((p.games_won/p.games_played)*100)}%</td><td className="text-right font-mono">{p.times_survived}</td></tr>
               ))}</tbody></table>
           : <p className="text-[#555] font-mono text-sm italic">No games recorded yet.</p>
         )}
@@ -164,7 +164,7 @@ export default function LeaderboardPage() {
         {board==="quiz" && (quiz.length
           ? <table className="lb-table"><thead><tr><th/><th>Player</th><th className="text-right">Points</th><th className="text-right">Wins</th><th className="text-right">Correct</th><th className="text-right">Accuracy</th></tr></thead>
               <tbody>{quiz.map((p:any,i:number)=>(
-                <tr key={i} className={`lb-row ${rc(i)}`}><td className="text-center text-sm">{medal(i)}</td><td>{p.display_name}</td><td className="text-right font-mono">{p.total_points}</td><td className="text-right font-mono">{p.games_won}</td><td className="text-right font-mono">{p.correct_answers}</td><td className="text-right font-mono">{p.total_answers>0?Math.round((p.correct_answers/p.total_answers)*100)+'%':'—'}</td></tr>
+                <tr key={i} className={`lb-row ${rc(i)}`}><td className="text-center text-sm">{medal(i)}</td><td><a href={`/player?id=${encodeURIComponent(p.display_name)}`} className="hover:text-[#4a7c59] transition-colors">{p.display_name}</a></td><td className="text-right font-mono">{p.total_points}</td><td className="text-right font-mono">{p.games_won}</td><td className="text-right font-mono">{p.correct_answers}</td><td className="text-right font-mono">{p.total_answers>0?Math.round((p.correct_answers/p.total_answers)*100)+'%':'—'}</td></tr>
               ))}</tbody></table>
           : <p className="text-[#555] font-mono text-sm italic">No quiz games yet.</p>
         )}
