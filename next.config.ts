@@ -1,12 +1,9 @@
 import type { NextConfig } from "next";
-
 const nextConfig: NextConfig = {
+  output: "export",
+  trailingSlash: true,
   images: {
-    remotePatterns: [
-      { protocol: "https", hostname: "cdn.discordapp.com" },
-      { protocol: "https", hostname: "api.stateofundeadpurge.site" },
-    ],
+    unoptimized: true,
   },
 };
-
 export default nextConfig;
