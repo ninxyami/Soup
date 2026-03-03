@@ -10,7 +10,6 @@ interface PlayerStats {
   first_seen: number;
   last_seen: number;
   message_count: number;
-  balance: number;
   werewolf?: {
     games_played: number;
     games_won: number;
@@ -44,8 +43,18 @@ interface PlayerStats {
     faction?: string;
   };
   identity?: string;
-  updatedAt?: number;
 }
+
+const NOT_FOUND_LINES = [
+  "never showed up. classic.",
+  "either dead or too scared to make an account.",
+  "doesn't exist. or maybe they do and they're hiding. wouldn't surprise me.",
+  "no record. either very new or very gone.",
+  "i looked. nothing. move on.",
+  "the apocalypse took them before the whitelist did.",
+  "ghost. and not the useful kind.",
+  "checked twice. still nobody.",
+];
 
 function formatDuration(secs: number): string {
   if (!secs) return "—";
@@ -68,45 +77,33 @@ function timeAgo(ts: number): string {
 export default function PlayerPage() {
   const [stats, setStats] = useState<PlayerStats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [playerId, setPlayerId] = useState<string | null>(null);
+  const [playerName, setPlayerName] = useState("");
+  const [notFoundLine] = useState(
+    () => NOT_FOUND_LINES[Math.floor(Math.random() * NOT_FOUND_LINES.length)]
+  );
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const id = params.get("id");
-    if (!id) {
-      setError("No player specified.");
-      setLoading(false);
-      return;
-    }
-    setPlayerId(id);
+    if (!id) { setLoading(false); return; }
+    setPlayerName(id);
 
-    // If id is numeric, fetch by discord_id directly
-    // Otherwise fetch by name lookup first
     const isNumeric = /^\d+$/.test(id);
 
     const fetchStats = async (discordId: string) => {
-      const res = await fetch(`${API}/api/stats/player/${discordId}`, {
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Player not found");
+      const res = await fetch(`${API}/api/stats/player/${discordId}`, { credentials: "include" });
+      if (!res.ok) throw new Error("not found");
       return res.json();
     };
 
     if (isNumeric) {
-      fetchStats(id)
-        .then(setStats)
-        .catch(() => setError("Player not found."))
-        .finally(() => setLoading(false));
+      fetchStats(id).then(setStats).catch(() => {}).finally(() => setLoading(false));
     } else {
-      // Name-based lookup
-      fetch(`${API}/api/player/by-name/${encodeURIComponent(id)}`, {
-        credentials: "include",
-      })
+      fetch(`${API}/api/player/by-name/${encodeURIComponent(id)}`, { credentials: "include" })
         .then((r) => (r.ok ? r.json() : Promise.reject()))
         .then((d) => fetchStats(String(d.discord_id)))
         .then(setStats)
-        .catch(() => setError("Player not found."))
+        .catch(() => {})
         .finally(() => setLoading(false));
     }
   }, []);
@@ -119,13 +116,22 @@ export default function PlayerPage() {
     );
   }
 
-  if (error || !stats) {
+  if (!stats) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-6">
-        <div className="text-6xl">💀</div>
-        <h1 className="font-mono text-2xl tracking-widest text-[#e05555]">SURVIVOR NOT FOUND</h1>
-        <p className="font-mono text-sm text-[#555]">{error || "This player doesn't exist."}</p>
-        <Link href="/players" className="font-mono text-xs text-[#9a9a9a] border border-[#2a2a2a] px-4 py-2 no-underline hover:border-[#4a7c59] hover:text-[#4a7c59] transition-all">
+      <div className="min-h-screen flex flex-col items-center justify-center gap-6 px-6 text-center">
+        <div className="text-6xl">🍲</div>
+        <div>
+          <p className="font-mono text-[0.7rem] text-[#555] tracking-widest uppercase mb-3">
+            Zombita on {playerName || "this survivor"}
+          </p>
+          <p className="font-mono text-lg text-[#9a9a9a] italic max-w-[420px]">
+            &ldquo;{notFoundLine}&rdquo;
+          </p>
+        </div>
+        <Link
+          href="/players"
+          className="font-mono text-xs text-[#9a9a9a] border border-[#2a2a2a] px-4 py-2 no-underline hover:border-[#4a7c59] hover:text-[#4a7c59] transition-all"
+        >
           ← All Survivors
         </Link>
       </div>
@@ -138,7 +144,6 @@ export default function PlayerPage() {
 
   return (
     <div className="max-w-[860px] mx-auto px-6 py-12">
-      {/* Back */}
       <Link href="/players" className="font-mono text-[0.72rem] text-[#555] no-underline hover:text-[#e6e6e6] tracking-widest transition-colors">
         ← SURVIVORS
       </Link>
@@ -152,7 +157,7 @@ export default function PlayerPage() {
           <h1 className="text-2xl tracking-[0.15em] uppercase">{stats.display_name}</h1>
           {stats.identity && (
             <p className="font-mono text-[0.75rem] text-[#4a7c59] mt-1 tracking-wide italic">
-              "{stats.identity}"
+              &ldquo;{stats.identity}&rdquo;
             </p>
           )}
           {stats.bio && (
@@ -168,15 +173,11 @@ export default function PlayerPage() {
             <span className="font-mono text-[0.7rem] text-[#555]">Last seen {timeAgo(stats.last_seen)}</span>
           </div>
         </div>
-        <div className="font-mono text-right">
-          <div className="text-[1.4rem] text-[#c8a84b]">{stats.balance} 🟤</div>
-          <div className="text-[0.65rem] text-[#555] tracking-widest mt-0.5">WALLET</div>
-        </div>
       </div>
 
       <div className="h-px bg-[#1a1a1a] mb-8" />
 
-      {/* In-Game Stats */}
+      {/* In-Game */}
       {stats.ingame && (
         <section className="mb-8">
           <h2 className="font-mono text-[0.72rem] uppercase tracking-[0.15em] text-[#555] mb-4">In-Game</h2>
