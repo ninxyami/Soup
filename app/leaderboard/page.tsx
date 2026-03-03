@@ -48,12 +48,15 @@ export default function LeaderboardPage() {
   useEffect(() => {
     Promise.all([
       fetch(`${API}/api/rankings`).then(r=>r.ok?r.json():null).catch(()=>null),
-      fetch(`${API}/api/leaderboard`).then(r=>r.ok?r.json():[]).catch(()=>[]),
-      fetch(`${API}/api/quiz/leaderboard`).then(r=>r.ok?r.json():[]).catch(()=>[]),
+      fetch(`${API}/api/leaderboard`).then(r=>r.ok?r.json():null).catch(()=>null),
+      fetch(`${API}/api/quiz/leaderboard`).then(r=>r.ok?r.json():null).catch(()=>null),
       fetch(`${API}/api/stats/rps`).then(r=>r.ok?r.json():null).catch(()=>null),
       fetch(`${API}/api/stats/connect4`).then(r=>r.ok?r.json():null).catch(()=>null),
     ]).then(([ing,wlf,qz,rp,c])=>{
-      setIngame(ing); setWolf(wlf||[]); setQuiz(qz||[]); setRps(rp); setC4(c); setLoading(false);
+      setIngame(ing);
+      setWolf(Array.isArray(wlf)?wlf:(wlf?.data||wlf?.players||[]));
+      setQuiz(Array.isArray(qz)?qz:(qz?.data||qz?.players||[]));
+      setRps(rp); setC4(c); setLoading(false);
     });
   }, []);
 
