@@ -5,6 +5,7 @@ import { API } from "@/lib/constants";
 interface Player {
   discord_id: string;
   display_name: string;
+  username: string;
   bio: string;
   identity: string;
   first_seen: number;
@@ -49,6 +50,7 @@ export default function PlayersPage() {
       const q = search.toLowerCase();
       list = list.filter(p =>
         p.display_name.toLowerCase().includes(q) ||
+        p.username.toLowerCase().includes(q) ||
         p.identity.toLowerCase().includes(q) ||
         p.bio.toLowerCase().includes(q)
       );
@@ -105,6 +107,9 @@ export default function PlayersPage() {
                       <span className="text-[0.6rem] text-[#4a7c59] border border-[#4a7c59] px-1 tracking-widest uppercase">veteran</span>
                     )}
                   </div>
+                  {p.username && (
+                    <p className="font-mono text-[0.65rem] text-[#444] mt-0.5">@{p.username}</p>
+                  )}
                   {/* Zombita's judgment */}
                   <p className="text-[0.72rem] text-[#4a7c59] font-mono italic mt-0.5">
                     "{p.identity}"

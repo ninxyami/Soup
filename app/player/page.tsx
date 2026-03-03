@@ -6,6 +6,7 @@ import { API } from "@/lib/constants";
 interface PlayerStats {
   discord_id: number;
   display_name: string;
+  username?: string;
   bio?: string;
   first_seen: number;
   last_seen: number;
@@ -155,6 +156,9 @@ export default function PlayerPage() {
         </div>
         <div className="flex-1">
           <h1 className="text-2xl tracking-[0.15em] uppercase">{stats.display_name}</h1>
+          {stats.username && (
+            <p className="font-mono text-[0.72rem] text-[#555] mt-0.5 tracking-wide">@{stats.username}</p>
+          )}
           {stats.identity && (
             <p className="font-mono text-[0.75rem] text-[#4a7c59] mt-1 tracking-wide italic">
               &ldquo;{stats.identity}&rdquo;

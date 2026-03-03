@@ -93,7 +93,8 @@ export default function ProfilePage() {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={user.avatar_url} alt={user.username} width={64} height={64} className="rounded-full opacity-90" />
             <div>
-              <h1 className="text-2xl tracking-[0.1em]">{user.username}</h1>
+              <h1 className="text-2xl tracking-[0.1em]">{gameStats?.display_name || user.username}</h1>
+              <p className="font-mono text-[0.7rem] text-[#444] mt-0.5">@{user.username}</p>
               {user.player?.identity && (
                 <p className="text-[0.85rem] italic text-[#4a7c59] mt-1 font-mono">"{user.player.identity}"</p>
               )}
