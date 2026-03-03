@@ -57,10 +57,10 @@ export default function WhitelistPage() {
       {state === "done" && (
         <>
           <h1 className="text-2xl tracking-[0.15em] uppercase mb-2">You&apos;re In</h1>
-          <p className="text-[#777] text-[0.85rem]">Zombita already knows you.</p>
+          <p className="text-[#777] text-[0.85rem] italic">&ldquo;yeah, I know you. you&apos;re <strong className="text-[#4a7c59]">{doneName}</strong>.&rdquo;</p>
           <div className="divider" />
-          <p>In-game name: <strong>{doneName}</strong></p>
-          <p>Connect to the server using the details on the <a href="/server">Server</a> page.</p>
+          <p className="text-[#9a9a9a] text-sm">You&apos;re whitelisted and ready to join the server.</p>
+          <p className="text-[#9a9a9a] text-sm">Connect using the details on the <a href="/server" className="text-[#4a7c59] hover:underline">Server</a> page.</p>
         </>
       )}
 
