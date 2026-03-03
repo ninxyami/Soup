@@ -7,6 +7,7 @@ interface PlayerStats {
   discord_id: number;
   display_name: string;
   username?: string;
+  ingame_name?: string;
   bio?: string;
   first_seen: number;
   last_seen: number;
@@ -94,7 +95,18 @@ export default function PlayerPage() {
     const fetchStats = async (discordId: string) => {
       const res = await fetch(`${API}/api/stats/player/${discordId}`, { credentials: "include" });
       if (!res.ok) throw new Error("not found");
-      return res.json();
+      const data = await res.json();
+      if (data.ingame_name) {
+        try {
+          const rr = await fetch(`${API}/api/rankings`);
+          if (rr.ok) {
+            const rankings = await rr.json();
+            const ig = (rankings.players || []).find((p: any) => p.name?.toLowerCase() === data.ingame_name?.toLowerCase());
+            if (ig) data.ingame = { kills: ig.kills||0, deaths: ig.deaths||0, longestLife: ig.longestLife||0, currentLife: ig.currentLife||0, overallKills: ig.overallKills||0, faction: ig.faction||null };
+          }
+        } catch {}
+      }
+      return data;
     };
 
     if (isNumeric) {
@@ -157,7 +169,7 @@ export default function PlayerPage() {
         <div className="flex-1">
           <h1 className="text-2xl tracking-[0.15em] uppercase">{stats.display_name}</h1>
           {stats.username && (
-            <p className="font-mono text-[0.72rem] text-[#555] mt-0.5 tracking-wide">@{stats.username}</p>
+            <p className="font-mono text-[0.72rem] text-[#444] mt-0.5">@{stats.username}</p>
           )}
           {stats.identity && (
             <p className="font-mono text-[0.75rem] text-[#4a7c59] mt-1 tracking-wide italic">
@@ -172,6 +184,9 @@ export default function PlayerPage() {
               <span className="font-mono text-[0.7rem] text-[#c8a84b] border border-[rgba(200,168,75,0.3)] px-2 py-0.5">
                 [{stats.ingame.faction}]
               </span>
+            )}
+            {stats.ingame_name && (
+              <span className="font-mono text-[0.7rem] text-[#555]">In-game: {stats.ingame_name}</span>
             )}
             <span className="font-mono text-[0.7rem] text-[#555]">Joined {joinDate}</span>
             <span className="font-mono text-[0.7rem] text-[#555]">Last seen {timeAgo(stats.last_seen)}</span>
@@ -211,6 +226,18 @@ export default function PlayerPage() {
               { label: "WINS", value: stats.werewolf.games_won },
               { label: "WIN RATE", value: `${stats.werewolf.win_rate}%` },
               { label: "SURVIVED", value: stats.werewolf.times_survived },
+            ].map((s) => (
+              <div key={s.label} className="bg-[#0f1318] border border-[#1e2530] p-4">
+                <div className="text-[1.4rem] font-semibold text-[#e6e6e6]">{s.value}</div>
+                <div className="font-mono text-[0.65rem] text-[#555] tracking-widest mt-1">{s.label}</div>
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 mt-3">
+            {[
+              { label: "TIMES WOLF", value: stats.werewolf.times_wolf },
+              { label: "TIMES LYNCHED", value: stats.werewolf.times_lynched },
+              { label: "WIN STREAK", value: stats.werewolf.streak },
             ].map((s) => (
               <div key={s.label} className="bg-[#0f1318] border border-[#1e2530] p-4">
                 <div className="text-[1.4rem] font-semibold text-[#e6e6e6]">{s.value}</div>
