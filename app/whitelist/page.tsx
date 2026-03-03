@@ -19,7 +19,7 @@ export default function WhitelistPage() {
         const ws = await fetch(`${API}/whitelist/status`, { credentials: "include" });
         if (ws.ok) {
           const wd = await ws.json();
-          if (wd.whitelisted) { setDoneName(wd.ingame_name || ""); setState("done"); }
+          if (wd.whitelisted) { setDoneName(wd.in_game_name || ""); setState("done"); }
           else setState("register");
         } else setState("register");
       })
