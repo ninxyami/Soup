@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 
 const API = "https://api.stateofundeadpurge.site:8443";
 
-/* ═══ NAV CONFIG — add new panels: one line each ═══ */
+/* ═══ NAV CONFIG ═══ */
 const NAV_SECTIONS = [
   { label:"COMMAND", items:[
     { key:"overview", icon:"📡", label:"Overview" },
@@ -25,6 +25,11 @@ const NAV_SECTIONS = [
     { key:"mods",     icon:"🔧", label:"Mods & Broadcast" },
   ]},
 ];
+
+// Real hunt types from treasure_hunt_data.py
+const HUNT_TYPES = ["food","medic","ammo","weapons","military","misc","beginner","horde"];
+// Real regions from LOCATIONS dict
+const HUNT_REGIONS = ["Irvington","Echo Creek","Ekron","Brandenburg","Riverside","Fallas Lake","Rosewood","March Ridge","Muldraugh","Westpoint","Valley Station","Louisville","Grapeseed","Maplewood","Near Foxtrot","Frog Town","Raccoon City"];
 
 /* ═══ CSS ═══ */
 const CSS = `
@@ -104,6 +109,7 @@ table.ap-t{width:100%;border-collapse:collapse}
 .ap-note{font-family:var(--mono);font-size:11px;color:var(--textdim);padding:10px 14px;background:rgba(200,168,75,0.04);border:1px solid rgba(200,168,75,0.12);border-radius:2px;margin-bottom:16px;line-height:1.7}
 .ap-note.danger{background:rgba(224,85,85,0.05);border-color:rgba(224,85,85,0.2);color:var(--red)}
 .ap-note.info{background:rgba(74,143,196,0.05);border-color:rgba(74,143,196,0.15);color:var(--blue)}
+.ap-note.success{background:rgba(76,175,125,0.05);border-color:rgba(76,175,125,0.2);color:var(--green)}
 
 .ap-2c{display:grid;grid-template-columns:1fr 1fr;gap:24px}
 .ap-3c{display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px}
@@ -125,6 +131,11 @@ table.ap-t{width:100%;border-collapse:collapse}
 .ap-ev-recycle{background:rgba(212,135,58,0.12);border:1px solid rgba(212,135,58,0.3);color:var(--orange)}
 .ap-ev-reset{background:rgba(200,168,75,0.12);border:1px solid rgba(200,168,75,0.3);color:var(--accent)}
 .ap-ev-adjust{background:rgba(74,143,196,0.12);border:1px solid rgba(74,143,196,0.3);color:var(--blue)}
+.ap-ev-admin_grant{background:rgba(76,175,125,0.15);border:1px solid rgba(76,175,125,0.3);color:var(--green)}
+.ap-ev-admin_take{background:rgba(224,85,85,0.12);border:1px solid rgba(224,85,85,0.3);color:var(--red)}
+.ap-ev-treasury_payout{background:rgba(76,175,125,0.15);border:1px solid rgba(76,175,125,0.3);color:var(--green)}
+.ap-ev-purchase{background:rgba(200,168,75,0.12);border:1px solid rgba(200,168,75,0.3);color:var(--accent)}
+.ap-ev-sell{background:rgba(212,135,58,0.12);border:1px solid rgba(212,135,58,0.3);color:var(--orange)}
 
 .ap-search{background:var(--bg);border:1px solid var(--border);color:var(--text);padding:7px 14px;font-family:var(--mono);font-size:12px;outline:none;border-radius:2px;width:220px;transition:border-color .15s}
 .ap-search:focus{border-color:var(--accent)}
@@ -252,7 +263,10 @@ const FB = ({title,children}) => <div className="ap-fb">{title&&<h4>{title}</h4>
 const Empty = ({text="No data"}) => <div className="ap-empty">{text}</div>;
 const Load = () => <div className="ap-load"><span>LOADING...</span></div>;
 const Toggle = ({on,onClick}) => <div className={`ap-tog ${on?"on":""}`} onClick={onClick}/>;
-const EvB = ({type}) => {const m={payout:"ap-ev-payout",burn:"ap-ev-burn",recycle:"ap-ev-recycle",reset:"ap-ev-reset",adjust:"ap-ev-adjust"};return<span className={`ap-ev ${m[type]||"ap-ev-adjust"}`}>{type}</span>};
+const EvBadge = ({type}) => {
+  const cls = `ap-ev ap-ev-${type}` ;
+  return <span className={cls}>{type}</span>;
+};
 
 /* ═══════════════════════════════════════════════════════════════════════════
    1. OVERVIEW
@@ -293,7 +307,7 @@ const OverviewPanel = ({toast}) => {
     </div>}
     <TW title="RECENT ACTIVITY" right={<B c="ghost" sm onClick={load}>↻ Refresh</B>}>
       {log.length?<div>{log.slice(0,12).map((e,i)=><div key={i} className="ap-lr">
-        <span className="ap-lr-t">{relTime(e.timestamp)}</span><EvB type={e.event_type}/>
+        <span className="ap-lr-t">{relTime(e.timestamp)}</span><EvBadge type={e.event_type}/>
         <span className="ap-lr-d">{e.reason||"—"}</span>
         <span className="ap-lr-p">{e.player||(e.discord_id?`#${e.discord_id}`:"—")}</span>
         <span className={`ap-lr-v ${["payout","burn"].includes(e.event_type)?"neg":e.amount>0?"pos":"neu"}`}>{["payout","burn"].includes(e.event_type)?"−":e.amount>0?"+":""}{fmt(Math.abs(e.amount))} 🟤</span>
@@ -310,136 +324,84 @@ const ServerPanel = ({toast}) => {
   const [serverUp,setServerUp]=useState(null);
   const [termLog,setTermLog]=useState([]);
   const [loading,setLoading]=useState(false);
+  const addLog=(text,type="ok")=>setTermLog(prev=>[...prev.slice(-49),{text,type}]);
 
   const checkHealth=useCallback(async()=>{try{const r=await fetch(`${API}/health`,{credentials:"include"});setServerUp(r.ok)}catch{setServerUp(false)}},[]);
-  useEffect(()=>{checkHealth();const iv=setInterval(checkHealth,15000);return()=>clearInterval(iv)},[checkHealth]);
-
-  const addLog=(text,type="ok")=>setTermLog(p=>[...p.slice(-30),{text,type,ts:Date.now()}]);
+  useEffect(()=>{checkHealth()},[checkHealth]);
 
   const serverAction=async(action)=>{
-    setLoading(true);addLog(`> server ${action}`,"cmd");
-    try{const res=await postApi(`/api/admin/server/${action}`,{});addLog(res.message||`${action} OK`,"ok");toast(`Server ${action} initiated`,"success");setTimeout(checkHealth,5000)}
+    setLoading(true);addLog(`> ${action}`,"cmd");
+    try{const res=await postApi(`/api/admin/server/${action}`,{});addLog(res.message||res.response||"OK","ok");toast(`${action} complete`,"success")}
     catch(e){addLog(`ERROR: ${e.message}`,"err");toast(`Failed: ${e.message}`,"error")}
     setLoading(false);
   };
 
-  const tabs=[{key:"status",icon:"📡",label:"Status"},{key:"controls",icon:"⚙️",label:"Controls"},{key:"players",icon:"👤",label:"Online Players"},{key:"rcon",icon:"💻",label:"RCON Console"},{key:"items",icon:"🎁",label:"Give Items"}];
-
+  const tabs=[{key:"status",icon:"📡",label:"Status"},{key:"controls",icon:"⚙️",label:"Controls"},{key:"rcon",icon:"💻",label:"RCON"},{key:"items",icon:"🎁",label:"Give Items"}];
   return(<>
-    <Title t="SERVER ADMIN" s="start · stop · restart · rcon · player management"/>
+    <Title t="SERVER ADMIN" s="status · rcon · player management"/>
     <div style={{display:"flex",gap:6,marginBottom:24}}>{tabs.map(t=><button key={t.key} className={`ap-ft ${sub===t.key?"act":""}`} onClick={()=>setSub(t.key)}>{t.icon} {t.label}</button>)}</div>
-    {sub==="status"&&<ServerStatus serverUp={serverUp} onRefresh={checkHealth}/>}
-    {sub==="controls"&&<ServerControls serverUp={serverUp} loading={loading} serverAction={serverAction} termLog={termLog} toast={toast}/>}
-    {sub==="players"&&<ServerPlayers toast={toast}/>}
-    {sub==="rcon"&&<RconConsole toast={toast} addLog={addLog} termLog={termLog}/>}
-    {sub==="items"&&<GiveItemPanel toast={toast}/>}
-  </>);
-};
-
-const ServerStatus = ({serverUp,onRefresh}) => (
-  <>
-    <div className="ap-sr" style={{gridTemplateColumns:"repeat(3,1fr)"}}>
-      <div className="ap-sc" style={{display:"flex",alignItems:"center",gap:16}}>
-        <div className={`ap-srv-dot ${serverUp===true?"running":serverUp===false?"stopped":"unknown"}`}/>
-        <div><div className="ap-sc-l">Game Server</div><div style={{fontFamily:"var(--display)",fontSize:24,letterSpacing:2,color:serverUp?"var(--green)":serverUp===false?"var(--red)":"var(--textdim)"}}>{serverUp===true?"ONLINE":serverUp===false?"OFFLINE":"CHECKING..."}</div></div>
+    {sub==="status"&&<>
+      <div className="ap-sr" style={{gridTemplateColumns:"repeat(3,1fr)"}}>
+        <div className="ap-sc" style={{display:"flex",alignItems:"center",gap:16}}>
+          <div className={`ap-srv-dot ${serverUp===true?"running":serverUp===false?"stopped":"unknown"}`}/>
+          <div><div className="ap-sc-l">Game Server</div><div style={{fontFamily:"var(--display)",fontSize:24,letterSpacing:2,color:serverUp?"var(--green)":serverUp===false?"var(--red)":"var(--textdim)"}}>{serverUp===true?"ONLINE":serverUp===false?"OFFLINE":"CHECKING..."}</div></div>
+        </div>
+        <SC label="Bot API" value="ONLINE" color="green" sub="api.stateofundeadpurge.site"/>
+        <div className="ap-sc blue" style={{display:"flex",alignItems:"center",justifyContent:"center"}}><B c="ghost" sm onClick={checkHealth}>↻ Refresh</B></div>
       </div>
-      <SC label="Bot API" value="ONLINE" color="green" sub="api.stateofundeadpurge.site"/>
-      <div className="ap-sc blue" style={{display:"flex",alignItems:"center",justifyContent:"center"}}><B c="ghost" sm onClick={onRefresh}>↻ Refresh Status</B></div>
-    </div>
-    <div className="ap-note info">ℹ Server status checked via API health endpoint. Control endpoints (start/stop/restart/kick) need to be added to the API — UI is ready.</div>
-  </>
-);
-
-const ServerControls = ({serverUp,loading,serverAction,termLog,toast}) => {
-  const [schedMins,setSchedMins]=useState("5");
-  const [showConfirm,setShowConfirm]=useState(null);
-  return(<>
-    <div className="ap-2c">
+      <div className="ap-note info">ℹ Server start/stop/restart controls require additional VPS endpoints to be set up.</div>
+    </>}
+    {sub==="controls"&&<div className="ap-2c">
       <FB title="SERVER CONTROLS">
-        <div className="ap-note danger">⚠ These actions directly affect the live game server. Players will be disconnected during restart/stop.</div>
+        <div className="ap-note danger">⚠ These directly affect the live server. Players will be disconnected during restart/stop.</div>
         <div style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:20}}>
-          <B c="green" disabled={loading||serverUp===true} onClick={()=>serverAction("start")}>▶ Start</B>
-          <B c="orange" disabled={loading} onClick={()=>setShowConfirm("restart")}>🔄 Restart</B>
-          <B c="red" disabled={loading||serverUp===false} onClick={()=>setShowConfirm("stop")}>⏹ Stop</B>
+          <B c="orange" disabled={loading} onClick={()=>serverAction("restart")}>🔄 Restart</B>
           <B c="blue" disabled={loading} onClick={()=>serverAction("save")}>💾 Save World</B>
         </div>
-        <div style={{borderTop:"1px solid var(--border)",paddingTop:20,marginTop:8}}>
-          <div style={{fontFamily:"var(--display)",fontSize:16,letterSpacing:2,color:"var(--text)",marginBottom:16}}>SCHEDULED RESTART</div>
-          <div className="ap-inline">
-            <Inp label="Minutes from now" type="number" value={schedMins} onChange={e=>setSchedMins(e.target.value)}/>
-            <B c="orange" disabled={loading} onClick={()=>serverAction(`schedule-restart?mins=${schedMins}`)}>Schedule</B>
-            <B c="ghost" disabled={loading} onClick={()=>serverAction("cancel-restart")}>Cancel</B>
-          </div>
+      </FB>
+      <FB title="QUICK BROADCASTS">
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          {["Server restarting in 5 minutes","Server restarting in 1 minute","Maintenance starting soon","Event starting! Check Discord!"].map((msg,i)=>(
+            <button key={i} className="ap-pre" style={{textAlign:"left",padding:10}} onClick={async()=>{try{await postApi("/api/admin/server/broadcast",{message:msg});toast("Sent!","success")}catch(e){toast(e.message,"error")}}}>{msg}</button>
+          ))}
         </div>
       </FB>
-      <FB title="QUICK ACTIONS">
-        <div style={{display:"flex",flexDirection:"column",gap:12}}>
-          <B c="ghost" full disabled={loading} onClick={()=>serverAction("kickall")}>👢 Kick All Players</B>
-          <B c="ghost" full disabled={loading} onClick={()=>serverAction("broadcast?msg=Server+restarting+in+5+minutes")}>📢 5-Min Warning</B>
-          <B c="ghost" full disabled={loading} onClick={()=>serverAction("broadcast?msg=Server+restarting+in+1+minute")}>📢 1-Min Warning</B>
-          <B c="ghost" full disabled={loading} onClick={()=>serverAction("broadcast?msg=Server+going+down+for+maintenance")}>📢 Maintenance Notice</B>
-        </div>
-      </FB>
-    </div>
-    {termLog.length>0&&<FB title="TERMINAL"><div className="ap-term">{termLog.map((l,i)=><div key={i} className={`ap-term-line ${l.type}`}>{l.text}</div>)}</div></FB>}
-    {showConfirm&&<div className="ap-mbd" onClick={e=>{if(e.target===e.currentTarget)setShowConfirm(null)}}>
-      <div className="ap-mod" style={{width:420}}>
-        <button className="ap-mod-x" onClick={()=>setShowConfirm(null)}>✕</button>
-        <h3>{showConfirm==="stop"?"STOP SERVER?":"RESTART SERVER?"}</h3>
-        <div className="ap-note danger">{showConfirm==="stop"?"Save world, kick all players, shut down.":"Save world, kick all, stop, then start again."}</div>
-        <div style={{display:"flex",gap:12,justifyContent:"flex-end",marginTop:16}}><B c="ghost" onClick={()=>setShowConfirm(null)}>Cancel</B><B c="red" onClick={()=>{serverAction(showConfirm);setShowConfirm(null)}}>Confirm {showConfirm}</B></div>
-      </div>
+      {termLog.length>0&&<div style={{gridColumn:"1/-1"}}><FB title="TERMINAL"><div className="ap-term">{termLog.map((l,i)=><div key={i} className={`ap-term-line ${l.type}`}>{l.text}</div>)}</div></FB></div>}
     </div>}
-  </>);
-};
-
-const ServerPlayers = ({toast}) => {
-  const [players,setPlayers]=useState([]);const [loading,setLoading]=useState(true);const [kickTarget,setKickTarget]=useState("");
-  const load=useCallback(async()=>{try{setPlayers((await fetchApi("/api/community")).members?.filter(m=>m.is_online)||[])}catch{}setLoading(false)},[]);
-  useEffect(()=>{load()},[load]);
-  const kickPlayer=async(name)=>{try{await postApi("/api/admin/server/kick",{username:name});toast(`Kicked ${name}`,"success");setTimeout(load,2000)}catch(e){toast(`Kick failed: ${e.message}`,"error")}};
-  const setAccess=async(name,level)=>{try{await postApi("/api/admin/server/access-level",{username:name,level});toast(`${name} → ${level}`,"success")}catch(e){toast(`Failed: ${e.message}`,"error")}};
-  return(<>
-    <div className="ap-note info">ℹ Online players require /api/admin/server/players endpoint. Showing community members flagged online.</div>
-    <div className="ap-inline" style={{marginBottom:20}}><Inp label="Kick by username" placeholder="exact in-game name" value={kickTarget} onChange={e=>setKickTarget(e.target.value)}/><B c="red" onClick={()=>{if(kickTarget)kickPlayer(kickTarget)}}>Kick</B></div>
-    <TW title="PLAYERS" right={<B c="ghost" sm onClick={load}>↻</B>}>
-      {loading?<Load/>:players.length?<table className="ap-t"><thead><tr><th>Player</th><th>Status</th><th>Actions</th></tr></thead><tbody>
-        {players.map((p,i)=><tr key={i}><td style={{fontWeight:500}}>{p.display_name||p.username}</td><td><span className="ap-dot on"/> <span style={{fontFamily:"var(--mono)",fontSize:11,color:"var(--green)"}}>Online</span></td>
-        <td style={{display:"flex",gap:6}}><B c="red" sm onClick={()=>kickPlayer(p.username||p.display_name)}>Kick</B><B c="blue" sm onClick={()=>setAccess(p.username||p.display_name,"admin")}>Admin</B><B c="ghost" sm onClick={()=>setAccess(p.username||p.display_name,"none")}>Revoke</B></td></tr>)}
-      </tbody></table>:<Empty text="no players online or endpoint not available"/>}
-    </TW>
+    {sub==="rcon"&&<RconConsole toast={toast} addLog={addLog} termLog={termLog}/>}
+    {sub==="items"&&<GiveItemPanel toast={toast}/>}
   </>);
 };
 
 const RconConsole = ({toast,addLog,termLog}) => {
   const [cmd,setCmd]=useState("");const termRef=useRef(null);
   useEffect(()=>{if(termRef.current)termRef.current.scrollTop=termRef.current.scrollHeight},[termLog]);
-  const runCmd=async()=>{if(!cmd.trim())return;addLog(`> ${cmd}`,"cmd");try{const res=await postApi("/api/admin/server/rcon",{command:cmd});addLog(res.response||res.stdout||"OK (no output)","ok")}catch(e){addLog(`ERROR: ${e.message}`,"err")}setCmd("")};
-  const quickCmds=[{label:"Players",cmd:"players"},{label:"Save",cmd:"save"},{label:"Server Msg",cmd:'servermsg "Hello from Admin"'},{label:"Kick All",cmd:"kickall"},{label:"Chopper",cmd:"chopper"},{label:"Gunshot",cmd:"gunshot"},{label:"Start Rain",cmd:"startrain"},{label:"Stop Rain",cmd:"stoprain"}];
+  const runCmd=async()=>{if(!cmd.trim())return;addLog(`> ${cmd}`,"cmd");try{const res=await postApi("/api/admin/server/rcon",{command:cmd});addLog(res.response||"OK","ok")}catch(e){addLog(`ERROR: ${e.message}`,"err")}setCmd("")};
+  const quickCmds=[{label:"Players",cmd:"players"},{label:"Save",cmd:"save"},{label:"Chopper",cmd:"chopper"},{label:"Gunshot",cmd:"gunshot"},{label:"Start Rain",cmd:"startrain"},{label:"Stop Rain",cmd:"stoprain"}];
   return(<FB title="RCON CONSOLE">
-    <div className="ap-note danger">⚠ Direct RCON access. Commands sent to game server as-is. Requires /api/admin/server/rcon endpoint.</div>
+    <div className="ap-note danger">⚠ Direct RCON. Commands sent to game server as-is.</div>
     <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:16}}>{quickCmds.map((q,i)=><button key={i} className="ap-pre" onClick={()=>setCmd(q.cmd)}>{q.label}</button>)}</div>
     <div className="ap-inline"><Inp placeholder="type RCON command..." value={cmd} onChange={e=>setCmd(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")runCmd()}}/><B c="gold" onClick={runCmd}>Execute</B></div>
     <div className="ap-term" ref={termRef} style={{marginTop:16}}>
-      {termLog.length===0?<div className="ap-term-line" style={{color:"var(--muted)"}}>// terminal ready — enter a command above</div>:termLog.map((l,i)=><div key={i} className={`ap-term-line ${l.type}`}>{l.text}</div>)}
+      {termLog.length===0?<div className="ap-term-line" style={{color:"var(--muted)"}}>// terminal ready</div>:termLog.map((l,i)=><div key={i} className={`ap-term-line ${l.type}`}>{l.text}</div>)}
     </div>
   </FB>);
 };
 
 const GiveItemPanel = ({toast}) => {
   const [player,setPlayer]=useState("");const [itemId,setItemId]=useState("");const [count,setCount]=useState("1");
-  const give=async()=>{if(!player||!itemId){toast("Player and item required","error");return}try{await postApi("/api/admin/server/giveitem",{username:player,item_id:itemId,count:parseInt(count)||1});toast(`Gave ${count}x ${itemId} to ${player}`,"success")}catch(e){toast(`Failed: ${e.message}`,"error")}};
+  const give=async()=>{if(!player||!itemId){toast("Player and item required","error");return}try{await postApi("/api/admin/server/rcon",{command:`additem "${player}" "${itemId}" ${count||1}`});toast(`Gave ${count}x ${itemId} to ${player}`,"success")}catch(e){toast(`Failed: ${e.message}`,"error")}};
   const presets=[{label:"Katana",id:"Base.Katana"},{label:"Axe",id:"Base.Axe"},{label:"Shotgun",id:"Base.Shotgun"},{label:"Antibiotics",id:"Base.Antibiotics"},{label:"Generator",id:"Base.Generator"},{label:"Gas Can",id:"Base.PetrolCan"},{label:"Sledgehammer",id:"Base.Sledgehammer"},{label:"First Aid Kit",id:"Base.FirstAidKit"}];
   return(<div className="ap-2c">
     <FB title="GIVE ITEM">
-      <div className="ap-note">Spawns items directly into a player's inventory via RCON additem. Player must be online.</div>
+      <div className="ap-note">Player must be online. Uses RCON additem command.</div>
       <Inp label="Player (exact in-game name)" placeholder="SurvivorDave" value={player} onChange={e=>setPlayer(e.target.value)}/>
-      <Inp label="Item ID (PZ item string)" placeholder="Base.Katana" value={itemId} onChange={e=>setItemId(e.target.value)}/>
+      <Inp label="Item ID" placeholder="Base.Katana" value={itemId} onChange={e=>setItemId(e.target.value)}/>
       <Inp label="Count" type="number" value={count} onChange={e=>setCount(e.target.value)}/>
       <B c="gold" onClick={give}>🎁 Give Item</B>
     </FB>
     <FB title="ITEM PRESETS">
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>{presets.map((p,i)=><button key={i} className="ap-pre" style={{padding:"8px 12px",textAlign:"left"}} onClick={()=>setItemId(p.id)}>{p.label} <span style={{color:"var(--textdim)",fontSize:9}}>{p.id}</span></button>)}</div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>{presets.map((p,i)=><button key={i} className="ap-pre" style={{padding:"8px 12px",textAlign:"left"}} onClick={()=>setItemId(p.id)}>{p.label}<br/><span style={{color:"var(--textdim)",fontSize:9}}>{p.id}</span></button>)}</div>
     </FB>
   </div>);
 };
@@ -451,7 +413,7 @@ const ShopPanel = ({toast}) => {
   const [sub,setSub]=useState("inventory");const [items,setItems]=useState([]);const [search,setSearch]=useState("");
   const [loading,setLoading]=useState(true);const [editItem,setEditItem]=useState(null);const [restockLog,setRestockLog]=useState([]);
 
-  const loadItems=useCallback(async()=>{try{setItems((await fetchApi("/api/admin/shop/items")).items||[])}catch(e){toast("Failed to load","error")}setLoading(false)},[toast]);
+  const loadItems=useCallback(async()=>{setLoading(true);try{setItems((await fetchApi("/api/admin/shop/items")).items||[])}catch(e){toast("Failed to load","error")}setLoading(false)},[toast]);
   useEffect(()=>{loadItems()},[loadItems]);
   const loadLog=useCallback(async()=>{try{setRestockLog((await fetchApi("/api/admin/shop/restock-log")).log||[])}catch{}},[]);
 
@@ -461,20 +423,16 @@ const ShopPanel = ({toast}) => {
   const toggleItem=async(id,en)=>{try{await postApi("/api/admin/shop/toggle",{item_id:id,enabled:en});toast(en?"Enabled":"Disabled","success");loadItems()}catch{toast("Failed","error")}};
   const quickStock=async(id,val)=>{const n=parseInt(val);if(isNaN(n)||n<0)return;try{await postApi("/api/admin/shop/stock",{item_id:id,mode:"set",amount:n,note:"Quick edit"});toast("Stock updated","success");loadItems()}catch{toast("Failed","error")}};
   const triggerRestock=async()=>{if(!confirm("Trigger full Zombita restock?"))return;try{const d=await postApi("/api/admin/shop/restock-all",{note:"Admin triggered"});toast(`Restocked ${d.restocked?.length||0} items!`,"success");loadItems()}catch{toast("Restock failed","error")}};
-
   const saveEdit=async()=>{if(!editItem)return;try{await postApi("/api/admin/shop/item",{item_id:editItem.item_id,name:editItem.name,buy_price:parseInt(editItem.buy_price)||null,sell_price:parseInt(editItem.sell_price)||null,category:editItem.category,tier:editItem.tier,stock:editItem.stock,base_stock:parseInt(editItem.base_stock)??10,restock_interval_days:parseInt(editItem.restock_interval_days)??30,variance:parseFloat(editItem.variance)??0.3,enabled:editItem.enabled});toast("Item saved","success");setEditItem(null);loadItems()}catch(e){toast("Failed: "+e.message,"error")}};
-
   const [newItem,setNewItem]=useState({item_id:"",name:"",buy_price:"",sell_price:"",category:"weapons",tier:"common",stock:"5",base_stock:"5",restock_interval_days:"30",variance:"0.3"});
   const ni=newItem,sni=(k,v)=>setNewItem({...ni,[k]:v});
   const addItem=async()=>{if(!ni.item_id||!ni.name){toast("ID and name required","error");return}try{await postApi("/api/admin/shop/item",{...ni,buy_price:parseInt(ni.buy_price)||null,sell_price:parseInt(ni.sell_price)||null,stock:parseInt(ni.stock)||0,base_stock:parseInt(ni.base_stock)||0,restock_interval_days:parseInt(ni.restock_interval_days)||30,variance:parseFloat(ni.variance)||0.3,enabled:1});toast(`${ni.name} added!`,"success");setNewItem({item_id:"",name:"",buy_price:"",sell_price:"",category:"weapons",tier:"common",stock:"5",base_stock:"5",restock_interval_days:"30",variance:"0.3"});loadItems()}catch(e){toast(e.message,"error")}};
   const stColor=(s)=>s===-1?"var(--textdim)":s===0?"var(--red)":s<5?"var(--accent)":"var(--green)";
-
   const tabs=[{key:"inventory",icon:"📦",label:"Inventory"},{key:"add",icon:"➕",label:"Add Item"},{key:"restock",icon:"🔄",label:"Restock"},{key:"log",icon:"📋",label:"Stock Log"}];
 
   return(<>
     <Title t="SHOP" s="manage inventory · stock levels · pricing"/>
     <div style={{display:"flex",gap:6,marginBottom:24}}>{tabs.map(t=><button key={t.key} className={`ap-ft ${sub===t.key?"act":""}`} onClick={()=>{setSub(t.key);if(t.key==="log")loadLog()}}>{t.icon} {t.label}</button>)}</div>
-
     {sub==="inventory"&&<>
       <div className="ap-sr"><SC label="Total Items" value={stats.total}/><SC label="Out of Stock" value={stats.empty} color="red"/><SC label="Low Stock" value={stats.low} color="orange"/><SC label="Enabled" value={stats.enabled} color="green"/></div>
       <TW title="ITEMS" right={<><input className="ap-search" placeholder="search items..." value={search} onChange={e=>setSearch(e.target.value)}/><B c="gold" sm onClick={loadItems}>↻</B></>}>
@@ -494,7 +452,6 @@ const ShopPanel = ({toast}) => {
         )}</tbody></table>}
       </TW>
     </>}
-
     {sub==="add"&&<FB title="ADD ITEM">
       <div className="ap-fgrid">
         <div style={{gridColumn:"1/3"}}><Inp label="Item ID" placeholder="Base.Katana" value={ni.item_id} onChange={e=>sni("item_id",e.target.value)}/></div>
@@ -510,14 +467,13 @@ const ShopPanel = ({toast}) => {
       </div>
       <B c="gold" onClick={addItem}>➕ ADD TO SHOP</B>
     </FB>}
-
-    {sub==="restock"&&<><FB title="FULL RESTOCK"><div className="ap-note">⚡ Triggers Zombita restock on all enabled items. Random amounts within variance.</div><B c="gold" onClick={triggerRestock}>⚡ TRIGGER ZOMBITA RESTOCK</B></FB>
-      <FB title="SINGLE ITEM"><SingleRestock items={items} toast={toast} onDone={loadItems}/></FB></>}
-
+    {sub==="restock"&&<>
+      <FB title="FULL RESTOCK"><div className="ap-note">⚡ Triggers Zombita restock on all enabled items. Random amounts within variance.</div><B c="gold" onClick={triggerRestock}>⚡ TRIGGER ZOMBITA RESTOCK</B></FB>
+      <FB title="SINGLE ITEM"><SingleRestock items={items} toast={toast} onDone={loadItems}/></FB>
+    </>}
     {sub==="log"&&<TW title="STOCK LOG" right={<B c="ghost" sm onClick={loadLog}>↻</B>}>
       {restockLog.length?<div>{restockLog.map((e,i)=>{const d=(e.new_stock||0)-(e.old_stock||0);return<div key={i} className="ap-lr"><span className="ap-lr-t">{fmtDate(e.timestamp)}</span><span style={{color:"var(--text)",flex:1}}>{e.name||e.item_id}</span><span className={`ap-pill ${e.restock_type==="auto"?"ap-tier-rare":"ap-tier-legendary"}`}>{e.restock_type}</span><span style={{color:"var(--textdim)",fontSize:11,flex:1,fontFamily:"var(--mono)"}}>{e.note||""}</span><span className={`ap-lr-v ${d<0?"neg":"pos"}`}>{d>=0?"+":""}{d} → {e.new_stock}</span></div>})}</div>:<Empty text="no log entries"/>}
     </TW>}
-
     {editItem&&<div className="ap-mbd" onClick={e=>{if(e.target===e.currentTarget)setEditItem(null)}}>
       <div className="ap-mod"><button className="ap-mod-x" onClick={()=>setEditItem(null)}>✕</button><h3>EDIT ITEM</h3>
       <div style={{fontFamily:"var(--mono)",fontSize:12,color:"var(--textdim)",marginBottom:20}}>{editItem.name} — {editItem.item_id}</div>
@@ -547,7 +503,6 @@ const SingleRestock = ({items,toast,onDone}) => {
   </div>);
 };
 
-
 /* ═══════════════════════════════════════════════════════════════════════════
    4. TREASURY
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -560,20 +515,17 @@ const TreasuryPanel = ({toast}) => {
   useEffect(()=>{loadOv();const iv=setInterval(loadOv,20000);return()=>clearInterval(iv)},[loadOv]);
 
   const t=data?.treasury,s24=data?.stats_24h,rLog=data?.recent_log||[];
-
   const doAdjust=async(amt,reason)=>{try{await postApi("/api/treasury/admin/adjust",{amount:amt,reason:reason||"Admin"});toast(`Adjusted ${amt>0?"+":""}${fmt(amt)}`,"success");loadOv()}catch(e){toast("Failed: "+e.message,"error")}};
   const doConfig=async(body)=>{try{await postApi("/api/treasury/admin/config",body);toast("Updated","success");loadOv()}catch(e){toast("Failed: "+e.message,"error")}};
   const doReset=async(bal)=>{try{await postApi("/api/treasury/admin/reset-cycle",bal?{new_balance:parseInt(bal)}:{});toast("Cycle reset!","success");setShowReset(false);loadOv()}catch(e){toast("Reset failed","error");setShowReset(false)}};
-  const doPayout=async(did,amt,reason)=>{try{const r=await postApi("/api/treasury/admin/payout",{discord_id:parseInt(did),amount:parseInt(amt),reason:reason||"Admin payout"});toast(`Sent ${fmt(amt)} 🟤`,"success");loadOv()}catch(e){toast("Payout failed: "+e.message,"error")}};
+  const doPayout=async(did,amt,reason)=>{try{await postApi("/api/treasury/admin/payout",{discord_id:parseInt(did),amount:parseInt(amt),reason:reason||"Admin payout"});toast(`Sent ${fmt(amt)} 🟤`,"success");loadOv()}catch(e){toast("Payout failed: "+e.message,"error")}};
 
   const tabs=[{key:"overview",icon:"🏦",label:"Overview"},{key:"controls",icon:"⚙️",label:"Controls"},{key:"payout",icon:"💰",label:"Payout"},{key:"log",icon:"📋",label:"Event Log"}];
-
   if(loading)return<><Title t="TREASURY" s="economy health · coin flow"/><Load/></>;
 
   return(<>
     <Title t="TREASURY" s="economy health · coin flow · cycle status"/>
     <div style={{display:"flex",gap:6,marginBottom:24}}>{tabs.map(tab=><button key={tab.key} className={`ap-ft ${sub===tab.key?"act":""}`} onClick={()=>{setSub(tab.key);if(tab.key==="log")loadLog(logFilter)}}>{tab.icon} {tab.label}</button>)}</div>
-
     {sub==="overview"&&t&&<>
       {t.balance===0&&<div className="ap-alert dep">⚠ TREASURY DEPLETED — reward payouts are paused.</div>}
       {t.balance>0&&t.health_pct<15&&<div className="ap-alert low">⚠ Treasury low ({t.health_pct}%) — consider a top-up or cycle reset.</div>}
@@ -594,37 +546,48 @@ const TreasuryPanel = ({toast}) => {
       </div></div>
       <div className="ap-sr"><SC label="Paid Out (24h)" value={s24?fmt(s24.paid_out):"—"} sub={s24?`${s24.payout_count} payouts`:""}/><SC label="Burned (24h)" value={s24?fmt(s24.burned):"—"} color="red"/><SC label="Recycled (24h)" value={s24?fmt(s24.recycled):"—"} color="green"/><SC label="Cycle Total" value={t?fmt(t.total_paid_out):"—"} color="blue"/></div>
       <TW title="RECENT EVENTS" right={<><B c="ghost" sm onClick={loadOv}>↻</B><B c="ghost" sm onClick={()=>{setSub("log");loadLog(null)}}>All →</B></>}>
-        {rLog.length?<div>{rLog.slice(0,12).map((e,i)=><div key={i} className="ap-lr"><span className="ap-lr-t">{relTime(e.timestamp)}</span><EvB type={e.event_type}/><span className="ap-lr-d">{e.reason||"—"}</span><span className="ap-lr-p">{e.player||(e.discord_id?`#${e.discord_id}`:"—")}</span><span className={`ap-lr-v ${["payout","burn"].includes(e.event_type)?"neg":e.amount>0?"pos":"neu"}`}>{["payout","burn"].includes(e.event_type)?"−":e.amount>0?"+":""}{fmt(Math.abs(e.amount))} 🟤</span><span style={{color:"var(--textdim)",fontFamily:"var(--mono)",fontSize:11,minWidth:80,textAlign:"right"}}>→ {fmt(e.balance_after)}</span></div>)}</div>:<Empty text="no events"/>}
+        {rLog.length?<div>{rLog.slice(0,12).map((e,i)=><div key={i} className="ap-lr"><span className="ap-lr-t">{relTime(e.timestamp)}</span><EvBadge type={e.event_type}/><span className="ap-lr-d">{e.reason||"—"}</span><span className="ap-lr-p">{e.player||(e.discord_id?`#${e.discord_id}`:"—")}</span><span className={`ap-lr-v ${["payout","burn"].includes(e.event_type)?"neg":e.amount>0?"pos":"neu"}`}>{["payout","burn"].includes(e.event_type)?"−":e.amount>0?"+":""}{fmt(Math.abs(e.amount))} 🟤</span><span style={{color:"var(--textdim)",fontFamily:"var(--mono)",fontSize:11,minWidth:80,textAlign:"right"}}>→ {fmt(e.balance_after)}</span></div>)}</div>:<Empty text="no events"/>}
       </TW>
     </>}
-
-    {sub==="controls"&&<TreasuryControls t={t} doAdjust={doAdjust} doConfig={doConfig} openReset={()=>setShowReset(true)}/>}
+    {sub==="controls"&&<div className="ap-2c">
+      <div>
+        <FB title="ADJUST BALANCE"><div className="ap-note">Positive = add to treasury, negative = remove.</div><AdjustForm onSubmit={doAdjust}/></FB>
+        <FB title="TREASURY CAP"><CapForm t={t} onSubmit={(cap)=>doConfig({cap})} /></FB>
+      </div>
+      <div>
+        <FB title="ECONOMY MODEL"><div className="ap-note"><strong style={{color:"var(--text)"}}>Model B — Circulating:</strong> Fees return to treasury.<br/><strong style={{color:"var(--text)"}}>Model A — Hard Cap:</strong> Fees destroyed.</div><Sel label="Active Model" value={t?.model||"B"} onChange={e=>doConfig({model:e.target.value})}><option value="B">Model B — Circulating</option><option value="A">Model A — Hard Cap</option></Sel></FB>
+        <FB title="CYCLE LENGTH"><div className="ap-inline"><Inp label="Days per cycle" type="number" placeholder="30"/><B c="ghost" onClick={(e)=>{const v=e.target.previousSibling?.querySelector?.("input")?.value;if(v)doConfig({cycle_days:parseInt(v)})}}>Set</B></div></FB>
+        <FB title="RESET CYCLE"><div className="ap-note danger">⚠ Resets all counters. Cannot be undone.</div><B c="red" onClick={()=>setShowReset(true)}>⚠ Reset Cycle</B></FB>
+      </div>
+    </div>}
     {sub==="payout"&&<TreasuryPayout t={t} doPayout={doPayout}/>}
-    {sub==="log"&&<TreasuryLogView log={log} logFilter={logFilter} setLogFilter={f=>{setLogFilter(f);loadLog(f)}} reload={()=>loadLog(logFilter)}/>}
-    {showReset&&<ResetModal onConfirm={doReset} onClose={()=>setShowReset(false)}/>}
+    {sub==="log"&&<TW title="EVENTS" right={<><div style={{display:"flex",gap:6}}>{[null,"payout","burn","recycle","reset","adjust"].map(f=><button key={f||"all"} className={`ap-ft ${logFilter===f?"act":""}`} onClick={()=>{setLogFilter(f);loadLog(f)}}>{f||"All"}</button>)}</div><B c="ghost" sm onClick={()=>loadLog(logFilter)}>↻</B></>}>
+      {log.length?<div>{log.map((e,i)=><div key={i} className="ap-lr"><span className="ap-lr-t">{relTime(e.timestamp)}</span><EvBadge type={e.event_type}/><span className="ap-lr-d">{e.reason||"—"}</span><span className="ap-lr-p">{e.player||(e.discord_id?`#${e.discord_id}`:"—")}</span><span className={`ap-lr-v ${["payout","burn"].includes(e.event_type)?"neg":e.amount>0?"pos":"neu"}`}>{["payout","burn"].includes(e.event_type)?"−":e.amount>0?"+":""}{fmt(Math.abs(e.amount))} 🟤</span><span style={{color:"var(--textdim)",fontFamily:"var(--mono)",fontSize:11,minWidth:80,textAlign:"right"}}>→ {fmt(e.balance_after)}</span></div>)}</div>:<Empty text="no events"/>}
+    </TW>}
+    {showReset&&<div className="ap-mbd" onClick={e=>{if(e.target===e.currentTarget)setShowReset(false)}}><div className="ap-mod" style={{width:480}}>
+      <button className="ap-mod-x" onClick={()=>setShowReset(false)}>✕</button><h3>RESET CYCLE?</h3>
+      <ResetCycleForm onConfirm={doReset} onClose={()=>setShowReset(false)}/>
+    </div></div>}
   </>);
 };
 
-const TreasuryControls = ({t,doAdjust,doConfig,openReset}) => {
-  const [adjAmt,setAdjAmt]=useState("");const [adjR,setAdjR]=useState("");const [cap,setCap]=useState("");const [cyc,setCyc]=useState("");
-  return(<div className="ap-2c">
-    <div>
-      <FB title="ADJUST BALANCE"><div className="ap-note">Positive = add, negative = remove.</div><Inp label="Amount (bronze)" type="number" placeholder="50000 or -10000" value={adjAmt} onChange={e=>setAdjAmt(e.target.value)}/><Inp label="Reason" placeholder="Season top-up" value={adjR} onChange={e=>setAdjR(e.target.value)}/><B c="gold" onClick={()=>{if(!adjAmt||adjAmt==0)return;doAdjust(parseInt(adjAmt),adjR);setAdjAmt("");setAdjR("")}}>Apply</B></FB>
-      <FB title="TREASURY CAP"><div className="ap-inline"><Inp label="New Cap (bronze)" type="number" placeholder="500000" value={cap} onChange={e=>setCap(e.target.value)}/><B c="ghost" onClick={()=>{if(!cap)return;doConfig({cap:parseInt(cap)});setCap("")}}>Set</B></div></FB>
-    </div>
-    <div>
-      <FB title="ECONOMY MODEL"><div className="ap-note"><strong style={{color:"var(--text)"}}>Model B — Circulating:</strong> Fees return.<br/><strong style={{color:"var(--text)"}}>Model A — Hard Cap:</strong> Fees destroyed.</div><Sel label="Active Model" value={t?.model||"B"} onChange={e=>doConfig({model:e.target.value})}><option value="B">Model B — Circulating</option><option value="A">Model A — Hard Cap</option></Sel></FB>
-      <FB title="CYCLE LENGTH"><div className="ap-inline"><Inp label="Days per cycle" type="number" placeholder="30" value={cyc} onChange={e=>setCyc(e.target.value)}/><B c="ghost" onClick={()=>{if(!cyc)return;doConfig({cycle_days:parseInt(cyc)});setCyc("")}}>Set</B></div></FB>
-      <FB title="RESET CYCLE"><div className="ap-note danger">⚠ Resets all counters. Cannot be undone.</div><B c="red" onClick={openReset}>⚠ Reset Cycle</B></FB>
-    </div>
-  </div>);
+const AdjustForm = ({onSubmit}) => {
+  const [amt,setAmt]=useState("");const [r,setR]=useState("");
+  return(<><Inp label="Amount (bronze)" type="number" placeholder="50000 or -10000" value={amt} onChange={e=>setAmt(e.target.value)}/><Inp label="Reason" placeholder="Season top-up" value={r} onChange={e=>setR(e.target.value)}/><B c="gold" onClick={()=>{if(!amt||amt==0)return;onSubmit(parseInt(amt),r);setAmt("");setR("")}}>Apply</B></>);
 };
-
+const CapForm = ({t,onSubmit}) => {
+  const [cap,setCap]=useState("");
+  return(<><div className="ap-note info">Current cap: {t?fmt(t.cap):"—"} 🟤</div><div className="ap-inline"><Inp label="New Cap (bronze)" type="number" placeholder="500000" value={cap} onChange={e=>setCap(e.target.value)}/><B c="ghost" onClick={()=>{if(!cap)return;onSubmit(parseInt(cap));setCap("")}}>Set</B></div></>);
+};
+const ResetCycleForm = ({onConfirm,onClose}) => {
+  const [bal,setBal]=useState("");
+  return(<><div style={{fontFamily:"var(--mono)",fontSize:12,color:"var(--textdim)",lineHeight:1.7,marginBottom:24}}>New cycle starts. All counters reset. Balance refills to cap or value below.<br/><br/><span style={{color:"var(--red)"}}>Cannot be undone.</span></div><Inp label="Starting balance (blank = full cap)" type="number" placeholder="Leave blank for cap" value={bal} onChange={e=>setBal(e.target.value)}/><div style={{display:"flex",gap:12,justifyContent:"flex-end",marginTop:16}}><B c="ghost" onClick={onClose}>Cancel</B><B c="red" onClick={()=>onConfirm(bal||null)}>Confirm Reset</B></div></>);
+};
 const TreasuryPayout = ({t,doPayout}) => {
   const [did,setDid]=useState("");const [amt,setAmt]=useState("");const [r,setR]=useState("");
   return(<div className="ap-2c">
     <FB title="MANUAL PAYOUT">
-      <div className="ap-note">Pays from treasury to player wallet.</div>
+      <div className="ap-note">Pays from treasury directly to a player's wallet.</div>
       <Inp label="Discord ID" placeholder="228533264174940160" value={did} onChange={e=>setDid(e.target.value)}/>
       <Inp label="Amount (bronze)" type="number" placeholder="5000" value={amt} onChange={e=>setAmt(e.target.value)}/>
       <div style={{display:"flex",gap:6,flexWrap:"wrap",margin:"4px 0 16px"}}>{[1000,5000,10000,50000,100000].map(n=><button key={n} className="ap-pre" onClick={()=>setAmt(String(n))}>{n>=10000?`${n/10000} Gold`:`${n/1000} Silver`}</button>)}</div>
@@ -633,54 +596,69 @@ const TreasuryPayout = ({t,doPayout}) => {
     </FB>
     <div>
       <FB title="REWARD REFERENCE"><table className="ap-t"><thead><tr><th>Source</th><th>Amount</th><th>Flow</th></tr></thead><tbody>
-        {[["🐺 Werewolf Win","150 🟤","payout"],["🎯 Quiz Win","150 🟤","payout"],["🚀 Travel Fee","5,000 🟤","recycle"],["⚔️ RPS/C4 Rake","5% of pot","recycle"],["🎟️ Lottery","1,000 🟤","recycle"]].map(([s,a,f],i)=><tr key={i}><td style={{fontFamily:"var(--mono)",fontSize:12}}>{s}</td><td style={{fontFamily:"var(--mono)",fontSize:12,color:f==="payout"?"var(--accent)":"var(--orange)"}}>{a}</td><td><EvB type={f}/></td></tr>)}
+        {[["🐺 Werewolf Win","150 🟤","payout"],["🎯 Quiz Win","150 🟤","payout"],["🚀 Travel Fee","5,000 🟤","recycle"],["⚔️ RPS/C4 Rake","5% of pot","recycle"],["🎟️ Lottery","1,000 🟤","recycle"]].map(([s,a,f],i)=><tr key={i}><td style={{fontFamily:"var(--mono)",fontSize:12}}>{s}</td><td style={{fontFamily:"var(--mono)",fontSize:12,color:f==="payout"?"var(--accent)":"var(--orange)"}}>{a}</td><td><EvBadge type={f}/></td></tr>)}
       </tbody></table></FB>
       {t&&<FB title="SNAPSHOT"><div style={{fontFamily:"var(--mono)",fontSize:12,color:"var(--textdim)",lineHeight:2.2}}>Balance: <span style={{color:"var(--accent)"}}>{fmt(t.balance)} 🟤</span><br/>Health: <span style={{color:t.health_pct>25?"var(--green)":t.health_pct>10?"var(--orange)":"var(--red)"}}>{t.health_pct}%</span><br/>Model: <span style={{color:"var(--text)"}}>{t.model==="B"?"Circulating":"Hard Cap"}</span><br/>Cycle: <span style={{color:"var(--text)"}}>{t.cycle_days_remaining}d left</span></div></FB>}
     </div>
   </div>);
 };
 
-const TreasuryLogView = ({log,logFilter,setLogFilter,reload}) => (
-  <TW title="EVENTS" right={<><div style={{display:"flex",gap:6}}>{[null,"payout","burn","recycle","reset","adjust"].map(f=><button key={f||"all"} className={`ap-ft ${logFilter===f?"act":""}`} onClick={()=>setLogFilter(f)}>{f||"All"}</button>)}</div><B c="ghost" sm onClick={reload}>↻</B></>}>
-    {log.length?<div>{log.map((e,i)=><div key={i} className="ap-lr"><span className="ap-lr-t">{relTime(e.timestamp)}</span><EvB type={e.event_type}/><span className="ap-lr-d">{e.reason||"—"}</span><span className="ap-lr-p">{e.player||(e.discord_id?`#${e.discord_id}`:"—")}</span><span className={`ap-lr-v ${["payout","burn"].includes(e.event_type)?"neg":e.amount>0?"pos":"neu"}`}>{["payout","burn"].includes(e.event_type)?"−":e.amount>0?"+":""}{fmt(Math.abs(e.amount))} 🟤</span><span style={{color:"var(--textdim)",fontFamily:"var(--mono)",fontSize:11,minWidth:80,textAlign:"right"}}>→ {fmt(e.balance_after)}</span></div>)}</div>:<Empty text="no events"/>}
-  </TW>
-);
-
-const ResetModal = ({onConfirm,onClose}) => {
-  const [bal,setBal]=useState("");
-  return(<div className="ap-mbd" onClick={e=>{if(e.target===e.currentTarget)onClose()}}><div className="ap-mod" style={{width:480}}>
-    <button className="ap-mod-x" onClick={onClose}>✕</button><h3>RESET CYCLE?</h3>
-    <div style={{fontFamily:"var(--mono)",fontSize:12,color:"var(--textdim)",lineHeight:1.7,marginBottom:24}}>New cycle starts. All counters reset. Balance refills to cap or value below.<br/><br/><span style={{color:"var(--red)"}}>Cannot be undone.</span></div>
-    <Inp label="Starting balance (blank = full cap)" type="number" placeholder="Leave blank for cap" value={bal} onChange={e=>setBal(e.target.value)}/>
-    <div style={{display:"flex",gap:12,justifyContent:"flex-end",marginTop:16}}><B c="ghost" onClick={onClose}>Cancel</B><B c="red" onClick={()=>onConfirm(bal||null)}>Confirm Reset</B></div>
-  </div></div>);
-};
-
 /* ═══════════════════════════════════════════════════════════════════════════
    5. ECONOMY / WALLETS
    ═══════════════════════════════════════════════════════════════════════════ */
 const EconomyPanel = ({toast}) => {
-  const [did,setDid]=useState("");const [amt,setAmt]=useState("");const [reason,setReason]=useState("");
-  const give=async()=>{if(!did||!amt){toast("ID and amount required","error");return}try{await postApi("/api/treasury/admin/payout",{discord_id:parseInt(did),amount:parseInt(amt),reason:reason||"Admin grant"});toast(`Sent ${fmt(amt)} 🟤`,"success");setAmt("");setReason("")}catch(e){toast(e.message,"error")}};
+  const [tab,setTab]=useState("give");
+  const [name,setName]=useState("");const [amt,setAmt]=useState("");const [reason,setReason]=useState("");
+  const [txns,setTxns]=useState([]);const [txnId,setTxnId]=useState("");const [txnLoading,setTxnLoading]=useState(false);
+  const [allTxns,setAllTxns]=useState([]);const [allLoading,setAllLoading]=useState(false);
+
+  const give=async()=>{if(!name||!amt){toast("Name and amount required","error");return}try{const r=await postApi("/api/admin/economy/give-by-name",{name,amount:parseInt(amt),reason:reason||"Admin grant"});toast(`Sent ${fmt(amt)} 🟤 to ${r.player}`,"success");setAmt("");setReason("")}catch(e){toast(e.message,"error")}};
+  const take=async()=>{if(!name||!amt){toast("Name and amount required","error");return}try{const r=await postApi("/api/admin/economy/take-by-name",{name,amount:parseInt(amt),reason:reason||"Admin deduction"});toast(`Took ${fmt(amt)} 🟤 from ${r.player}`,"success");setAmt("");setReason("")}catch(e){toast(e.message,"error")}};
+  const loadPlayerTxns=async()=>{if(!txnId){toast("Enter Discord ID","error");return}setTxnLoading(true);try{const r=await fetchApi(`/api/admin/economy/player-transactions?discord_id=${txnId}&limit=50`);setTxns(r.transactions||[])}catch(e){toast(e.message,"error")}setTxnLoading(false)};
+  const loadAllTxns=useCallback(async()=>{setAllLoading(true);try{const r=await fetchApi("/api/admin/economy/transactions?limit=100");setAllTxns(r.transactions||[])}catch{}setAllLoading(false)},[]);
+  useEffect(()=>{if(tab==="log")loadAllTxns()},[tab,loadAllTxns]);
+
   return(<>
-    <Title t="WALLETS" s="give coins · manage player balances"/>
-    <div className="ap-2c">
-      <FB title="GIVE COINS">
-        <div className="ap-note">Send coins from treasury to a player's wallet.</div>
-        <Inp label="Discord ID" placeholder="228533264174940160" value={did} onChange={e=>setDid(e.target.value)}/>
+    <Title t="WALLETS" s="give · take · transaction history"/>
+    <div style={{display:"flex",gap:6,marginBottom:24}}>
+      {[{k:"give",l:"💸 Give/Take"},{k:"lookup",l:"🔍 Player Lookup"},{k:"log",l:"📋 All Transactions"}].map(({k,l})=><button key={k} className={`ap-ft ${tab===k?"act":""}`} onClick={()=>setTab(k)}>{l}</button>)}
+    </div>
+    {tab==="give"&&<div className="ap-2c">
+      <FB title="GIVE / TAKE COINS">
+        <div className="ap-note">Look up by Discord display name or in-game name. Give sends from treasury; Take deducts from wallet.</div>
+        <Inp label="Player Name (display or in-game)" placeholder="Nin" value={name} onChange={e=>setName(e.target.value)}/>
         <Inp label="Amount (bronze)" type="number" placeholder="5000" value={amt} onChange={e=>setAmt(e.target.value)}/>
         <div style={{display:"flex",gap:6,flexWrap:"wrap",margin:"4px 0 16px"}}>{[500,1000,5000,10000,50000].map(n=><button key={n} className="ap-pre" onClick={()=>setAmt(String(n))}>{fmt(n)}</button>)}</div>
-        <Inp label="Reason" placeholder="Event prize, compensation..." value={reason} onChange={e=>setReason(e.target.value)}/>
-        <B c="gold" onClick={give}>💸 Send Coins</B>
+        <Inp label="Reason (optional)" placeholder="Event prize, compensation..." value={reason} onChange={e=>setReason(e.target.value)}/>
+        <div style={{display:"flex",gap:12}}><B c="green" onClick={give}>💸 Give Coins</B><B c="red" onClick={take}>➖ Take Coins</B></div>
       </FB>
       <FB title="ECONOMY REFERENCE">
-        <div style={{fontFamily:"var(--mono)",fontSize:11,color:"var(--textdim)",lineHeight:2}}>
+        <div style={{fontFamily:"var(--mono)",fontSize:11,color:"var(--textdim)",lineHeight:2.2}}>
           <strong style={{color:"var(--text)"}}>Currency:</strong><br/>1 🟡 Gold = 10,000 🟤 Bronze<br/>1 ⚪ Silver = 1,000 🟤 Bronze<br/><br/>
-          <strong style={{color:"var(--text)"}}>Income:</strong> Werewolf/Quiz wins (150🟤), in-game cash deposits<br/><br/>
-          <strong style={{color:"var(--text)"}}>Sinks:</strong> Shop purchases, Travel (5⚪), Lottery (1⚪), RPS/C4 bets
+          <strong style={{color:"var(--text)"}}>Income sources:</strong><br/>Werewolf/Quiz wins (150🟤)<br/>In-game cash deposits<br/>Shop sales<br/><br/>
+          <strong style={{color:"var(--text)"}}>Coin sinks:</strong><br/>Shop purchases, Travel (5⚪)<br/>Lottery (1⚪), RPS/C4 bets
         </div>
       </FB>
-    </div>
+    </div>}
+    {tab==="lookup"&&<FB title="PLAYER TRANSACTION HISTORY">
+      <div className="ap-note info">Enter a player's Discord ID to view their full transaction history.</div>
+      <div className="ap-inline" style={{marginBottom:20}}><Inp label="Discord ID" placeholder="228533264174940160" value={txnId} onChange={e=>setTxnId(e.target.value)}/><B c="blue" onClick={loadPlayerTxns}>Load</B></div>
+      {txnLoading?<Load/>:txns.length>0?<div>{txns.map((e,i)=><div key={i} className="ap-lr">
+        <span className="ap-lr-t">{relTime(e.timestamp)}</span><EvBadge type={e.type||e.event_type||"adjust"}/>
+        <span className="ap-lr-d">{e.description||"—"}</span>
+        <span className={`ap-lr-v ${e.amount>0?"pos":"neg"}`}>{e.amount>0?"+":""}{fmt(e.amount)} 🟤</span>
+        <span style={{color:"var(--textdim)",fontFamily:"var(--mono)",fontSize:11,minWidth:80,textAlign:"right"}}>→ {fmt(e.balance_after)}</span>
+      </div>)}</div>:<Empty text="enter a discord id and click load"/>}
+    </FB>}
+    {tab==="log"&&<TW title="ALL TRANSACTIONS" right={<B c="ghost" sm onClick={loadAllTxns}>↻</B>}>
+      {allLoading?<Load/>:allTxns.length?<div>{allTxns.map((e,i)=><div key={i} className="ap-lr">
+        <span className="ap-lr-t">{relTime(e.timestamp)}</span><EvBadge type={e.type||e.event_type||"adjust"}/>
+        <span className="ap-lr-d">{e.description||"—"}</span>
+        <span className="ap-lr-p">{e.display_name||`#${e.discord_id}`||"—"}</span>
+        <span className={`ap-lr-v ${e.amount>0?"pos":"neg"}`}>{e.amount>0?"+":""}{fmt(e.amount)} 🟤</span>
+        <span style={{color:"var(--textdim)",fontFamily:"var(--mono)",fontSize:11,minWidth:80,textAlign:"right"}}>→ {fmt(e.balance_after)}</span>
+      </div>)}</div>:<Empty text="no transactions found"/>}
+    </TW>}
   </>);
 };
 
@@ -690,9 +668,12 @@ const EconomyPanel = ({toast}) => {
 const DotdPanel = ({toast}) => {
   const DEFAULTS={enabled:1,interval_hours:13,waves:3,zombies_per_wave:40,wave_interval_mins:10,min_spawn_distance:80,max_spawn_distance:150};
   const [c,setC]=useState(DEFAULTS);const [loading,setLoading]=useState(true);const [saving,setSaving]=useState(false);
-  const load=useCallback(async()=>{try{const d=await fetchApi("/api/admin/dotd/config");setC(d||DEFAULTS)}catch{setC(DEFAULTS)}setLoading(false)},[]);
+  const load=useCallback(async()=>{try{const d=await fetchApi("/api/admin/dotd/config");setC({...DEFAULTS,...d})}catch{setC(DEFAULTS)}setLoading(false)},[]);
   useEffect(()=>{load()},[load]);
-  const save=async(updates)=>{setSaving(true);try{await postApi("/api/admin/dotd/update",updates);toast("Config saved","success");load()}catch{setC(prev=>({...prev,...updates}));toast("Saved locally (endpoint pending)","info")}setSaving(false)};
+
+  const save=async(updates)=>{setSaving(true);try{await postApi("/api/admin/dotd/update",updates);toast("Config saved","success");load()}catch(e){toast("Failed: "+e.message,"error")}setSaving(false)};
+  const trigger=async()=>{try{await postApi("/api/admin/dotd/trigger",{});toast("💀 DotD triggered!","success");load()}catch(e){toast(e.message,"error")}};
+  const cancel=async()=>{try{await postApi("/api/admin/dotd/cancel",{});toast("🛑 Event cancelled","success")}catch(e){toast(e.message,"error")}};
 
   if(loading)return<><Title t="DAWN OF THE DEAD" s="horde event configuration"/><Load/></>;
   return(<>
@@ -702,20 +683,31 @@ const DotdPanel = ({toast}) => {
         <Toggle on={!!c.enabled} onClick={()=>save({enabled:c.enabled?0:1})}/>
         <div><div className="ap-sc-l">Status</div><div style={{fontFamily:"var(--display)",fontSize:22,letterSpacing:2,color:c.enabled?"var(--green)":"var(--red)"}}>{c.enabled?"ENABLED":"DISABLED"}</div></div>
       </div>
-      <SC label="Last Event" value={c.last_event_at?relTime(c.last_event_at):"never"} color="blue"/>
+      <SC label="Last Event" value={c.last_event_at?relTime(c.last_event_at):"never"} color="blue" sub={c.last_event_at?fmtFull(c.last_event_at):""}/>
       <div className="ap-sc" style={{display:"flex",alignItems:"center",justifyContent:"center",gap:12}}>
-        <B c="red" onClick={async()=>{try{await postApi("/api/admin/dotd/trigger",{});toast("Triggered!","success")}catch(e){toast(e.message,"error")}}}>💀 TRIGGER NOW</B>
-        <B c="ghost" onClick={async()=>{try{await postApi("/api/admin/dotd/cancel",{});toast("Cancelled","success")}catch(e){toast(e.message,"error")}}}>🛑 Cancel</B>
+        <B c="red" onClick={trigger}>💀 TRIGGER NOW</B>
+        <B c="ghost" onClick={cancel}>🛑 Cancel</B>
       </div>
     </div>
     <FB title="EVENT CONFIGURATION">
-      <div className="ap-note">Adjust horde parameters. Changes apply on next trigger. Defaults: 13h · 3 waves · 40 zombies · 10min gap · 80-150 tiles.</div>
-      {[["Interval (hours)","interval_hours",0.5,48,0.5,"h"],["Waves per Event","waves",1,10,1,""],["Zombies / Wave","zombies_per_wave",10,200,5,""],["Wave Gap (min)","wave_interval_mins",1,60,1,"m"],["Min Spawn Dist","min_spawn_distance",20,300,5," tiles"],["Max Spawn Dist","max_spawn_distance",50,500,5," tiles"]].map(([label,key,min,max,step,suffix])=>
-        <div key={key} className="ap-sl"><label>{label}</label><input type="range" min={min} max={max} step={step} value={c[key]} onChange={e=>setC({...c,[key]:parseFloat(e.target.value)})}/><span className="ap-sl-v">{c[key]}{suffix}</span></div>
+      <div className="ap-note">Defaults: 13h interval · 3 waves · 40 zombies · 10min gap · 80–150 tile spawn range.</div>
+      {[
+        ["Interval (hours)","interval_hours",0.5,48,0.5,"h"],
+        ["Waves per Event","waves",1,10,1,""],
+        ["Zombies / Wave","zombies_per_wave",10,200,5,""],
+        ["Wave Gap (min)","wave_interval_mins",1,60,1,"m"],
+        ["Min Spawn Dist","min_spawn_distance",20,300,5," tiles"],
+        ["Max Spawn Dist","max_spawn_distance",50,500,5," tiles"]
+      ].map(([label,key,min,max,step,suffix])=>
+        <div key={key} className="ap-sl">
+          <label>{label}</label>
+          <input type="range" min={min} max={max} step={step} value={c[key]} onChange={e=>setC({...c,[key]:parseFloat(e.target.value)})}/>
+          <span className="ap-sl-v">{c[key]}{suffix}</span>
+        </div>
       )}
       <div style={{display:"flex",gap:12,marginTop:20}}>
         <B c="gold" disabled={saving} onClick={()=>save({interval_hours:c.interval_hours,waves:c.waves,zombies_per_wave:c.zombies_per_wave,wave_interval_mins:c.wave_interval_mins,min_spawn_distance:c.min_spawn_distance,max_spawn_distance:c.max_spawn_distance})}>{saving?"Saving...":"Save Config"}</B>
-        <B c="ghost" onClick={()=>{setC(DEFAULTS);toast("Reset to defaults","info")}}>Reset Defaults</B>
+        <B c="ghost" onClick={()=>{setC(DEFAULTS);toast("Reset to defaults (not saved)","info")}}>Reset Defaults</B>
       </div>
     </FB>
   </>);
@@ -725,48 +717,73 @@ const DotdPanel = ({toast}) => {
    7. TREASURE HUNT
    ═══════════════════════════════════════════════════════════════════════════ */
 const HuntPanel = ({toast}) => {
-  const [c,setC]=useState({enabled:1,interval_hours:6,duration_mins:30});const [history,setHistory]=useState([]);const [loading,setLoading]=useState(true);
+  const [c,setC]=useState({enabled:1,interval_hours:6,duration_mins:30});
+  const [history,setHistory]=useState([]);const [loading,setLoading]=useState(true);
   const [tType,setTType]=useState("");const [tRegion,setTRegion]=useState("");const [tDur,setTDur]=useState("30");
-  const TYPES=["supply_drop","military_cache","medical_stash","weapons_cache","survivor_cache"];
-  const REGIONS=["Muldraugh","West Point","Riverside","Rosewood","March Ridge","Valley Station","Louisville"];
-  const load=useCallback(async()=>{try{setC(await fetchApi("/api/admin/hunt/config"))}catch{}try{setHistory((await fetchApi("/api/admin/hunt/history")).history||[])}catch{}setLoading(false)},[]);
+
+  const load=useCallback(async()=>{
+    try{const cfg=await fetchApi("/api/admin/hunt/config");setC(cfg)}catch{}
+    try{const h=await fetchApi("/api/admin/hunt/history?limit=50");setHistory(h.history||[])}catch{}
+    setLoading(false);
+  },[]);
   useEffect(()=>{load()},[load]);
+
+  const updateConfig=async(updates)=>{try{await postApi("/api/admin/hunt/update",updates);toast("Config updated","success");load()}catch(e){toast(e.message,"error")}};
+  const trigger=async()=>{try{const r=await postApi("/api/admin/hunt/trigger",{hunt_type:tType||null,region:tRegion||null,duration:parseInt(tDur)||30});toast(`🗺️ Hunt triggered! (${r.hunt_type} @ ${r.region})`,"success");setTimeout(load,1000)}catch(e){toast(e.message,"error")}};
+  const cancel=async()=>{try{await postApi("/api/admin/hunt/cancel",{});toast("🛑 Hunt cancelled","success")}catch(e){toast(e.message,"error")}};
 
   if(loading)return<><Title t="TREASURE HUNT" s="world events"/><Load/></>;
   return(<>
     <Title t="TREASURE HUNT" s="triggers · scheduling · history"/>
     <div className="ap-sr" style={{gridTemplateColumns:"repeat(3,1fr)"}}>
       <div className="ap-sc" style={{display:"flex",alignItems:"center",gap:16}}>
-        <Toggle on={!!c.enabled} onClick={async()=>{try{await postApi("/api/admin/hunt/update",{enabled:c.enabled?0:1});toast(c.enabled?"Disabled":"Enabled","success");load()}catch{setC({...c,enabled:c.enabled?0:1})}}}/>
-        <div><div className="ap-sc-l">Scheduler</div><div style={{fontFamily:"var(--display)",fontSize:22,letterSpacing:2,color:c.enabled?"var(--green)":"var(--red)"}}>{c.enabled?"ENABLED":"DISABLED"}</div></div>
+        <Toggle on={!!c.enabled} onClick={()=>updateConfig({enabled:c.enabled?0:1})}/>
+        <div><div className="ap-sc-l">Auto Scheduler</div><div style={{fontFamily:"var(--display)",fontSize:22,letterSpacing:2,color:c.enabled?"var(--green)":"var(--red)"}}>{c.enabled?"ENABLED":"DISABLED"}</div></div>
       </div>
-      <SC label="Interval" value={`${c.interval_hours}h`} color="blue" sub={`${c.duration_mins}min duration`}/>
-      <SC label="Last Hunt" value={c.last_hunt_at?relTime(c.last_hunt_at):"never"} color="orange"/>
+      <SC label="Interval" value={`${c.interval_hours}h`} color="blue" sub={`${c.duration_mins}min default duration`}/>
+      <SC label="Last Hunt" value={c.last_hunt_at?relTime(c.last_hunt_at):"never"} color="orange" sub={c.last_hunt_at?fmtFull(c.last_hunt_at):""}/>
     </div>
-    <FB title="TRIGGER HUNT">
-      <div className="ap-note">Manually trigger a treasure hunt. Leave type/region blank for random.</div>
-      <div className="ap-fgrid">
-        <Sel label="Hunt Type" value={tType} onChange={e=>setTType(e.target.value)}><option value="">Random</option>{TYPES.map(t=><option key={t} value={t}>{t.replace(/_/g," ")}</option>)}</Sel>
-        <Sel label="Region" value={tRegion} onChange={e=>setTRegion(e.target.value)}><option value="">Random</option>{REGIONS.map(r=><option key={r} value={r}>{r}</option>)}</Sel>
+    <div className="ap-2c">
+      <FB title="TRIGGER HUNT">
+        <div className="ap-note">Leave type/region blank for random. The bot will pick it up and execute.</div>
+        <Sel label="Hunt Type" value={tType} onChange={e=>setTType(e.target.value)}>
+          <option value="">🎲 Random</option>
+          {HUNT_TYPES.map(t=><option key={t} value={t}>{t.charAt(0).toUpperCase()+t.slice(1)}</option>)}
+        </Sel>
+        <Sel label="Region" value={tRegion} onChange={e=>setTRegion(e.target.value)}>
+          <option value="">🎲 Random</option>
+          {HUNT_REGIONS.map(r=><option key={r} value={r}>{r}</option>)}
+        </Sel>
         <Inp label="Duration (min)" type="number" value={tDur} onChange={e=>setTDur(e.target.value)}/>
-      </div>
-      <div style={{display:"flex",gap:12}}>
-        <B c="gold" onClick={async()=>{try{await postApi("/api/admin/hunt/trigger",{hunt_type:tType||null,region:tRegion||null,duration:parseInt(tDur)||30});toast("Hunt triggered!","success")}catch(e){toast(e.message,"error")}}}>🗺️ TRIGGER HUNT</B>
-        <B c="ghost" onClick={async()=>{try{await postApi("/api/admin/hunt/cancel",{});toast("Cancelled","success")}catch(e){toast(e.message,"error")}}}>🛑 Cancel Active</B>
-      </div>
-    </FB>
+        <div style={{display:"flex",gap:12,marginTop:8}}>
+          <B c="gold" onClick={trigger}>🗺️ TRIGGER HUNT</B>
+          <B c="ghost" onClick={cancel}>🛑 Cancel Active</B>
+        </div>
+      </FB>
+      <FB title="SCHEDULER CONFIG">
+        <div className="ap-note info">Changes take effect on next auto-trigger.</div>
+        <SchedulerConfigForm c={c} onSave={updateConfig}/>
+      </FB>
+    </div>
     <TW title="HUNT HISTORY" right={<B c="ghost" sm onClick={load}>↻</B>}>
-      {history.length?<table className="ap-t"><thead><tr><th>Type</th><th>Region</th><th>Outcome</th><th>Winner</th><th>Zombies</th><th>Started</th></tr></thead>
-      <tbody>{history.slice(0,50).map((h,i)=><tr key={i}>
-        <td><span className="ap-pill ap-tier-rare">{(h.hunt_type||"").replace(/_/g," ")}</span></td>
+      {history.length?<table className="ap-t"><thead><tr><th>Type</th><th>Region</th><th>Outcome</th><th>Winner</th><th>Zombies</th><th>Triggered By</th><th>Started</th></tr></thead>
+      <tbody>{history.map((h,i)=><tr key={i}>
+        <td><span className="ap-pill ap-tier-rare">{(h.hunt_type||"").charAt(0).toUpperCase()+(h.hunt_type||"").slice(1)}</span></td>
         <td style={{fontFamily:"var(--mono)"}}>{h.region||"—"}</td>
-        <td><span className={`ap-pill ${h.outcome==="claimed"?"ap-tier-uncommon":"ap-tier-common"}`}>{h.outcome||"—"}</span></td>
+        <td><span className={`ap-pill ${h.outcome==="claimed"?"ap-tier-uncommon":"ap-tier-common"}`}>{h.outcome||"running"}</span></td>
         <td style={{fontFamily:"var(--mono)",color:"var(--accent)"}}>{h.winner||"—"}</td>
         <td style={{fontFamily:"var(--mono)"}}>{h.zombie_count||"—"}</td>
+        <td style={{fontFamily:"var(--mono)",color:"var(--textdim)"}}>{h.triggered_by||"auto"}</td>
         <td style={{fontFamily:"var(--mono)",fontSize:11,color:"var(--textdim)"}}>{fmtFull(h.started_at)}</td>
-      </tr>)}</tbody></table>:<Empty text="no hunt history"/>}
+      </tr>)}</tbody></table>:<Empty text="no hunt history yet"/>}
     </TW>
   </>);
+};
+
+const SchedulerConfigForm = ({c,onSave}) => {
+  const [interval,setInterval]=useState(String(c.interval_hours||6));
+  const [duration,setDuration]=useState(String(c.duration_mins||30));
+  return(<><Inp label="Interval (hours)" type="number" step="0.5" value={interval} onChange={e=>setInterval(e.target.value)}/><Inp label="Default Duration (min)" type="number" value={duration} onChange={e=>setDuration(e.target.value)}/><B c="gold" onClick={()=>onSave({interval_hours:parseFloat(interval)||6,duration_mins:parseInt(duration)||30})}>Save</B></>);
 };
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -775,36 +792,113 @@ const HuntPanel = ({toast}) => {
 const PlayersPanel = ({toast}) => {
   const [players,setPlayers]=useState([]);const [search,setSearch]=useState("");const [loading,setLoading]=useState(true);const [selected,setSelected]=useState(null);
   useEffect(()=>{(async()=>{try{setPlayers((await fetchApi("/api/community")).members||[])}catch{}setLoading(false)})()},[]);
-  const filtered=useMemo(()=>{if(!search)return players;const q=search.toLowerCase();return players.filter(p=>p.display_name?.toLowerCase().includes(q)||String(p.discord_id).includes(q))},[players,search]);
-  const loadDetail=async(id)=>{try{setSelected(await fetchApi(`/api/stats/player/${id}`))}catch{toast("Failed","error")}};
+  const filtered=useMemo(()=>{if(!search)return players;const q=search.toLowerCase();return players.filter(p=>p.display_name?.toLowerCase().includes(q)||String(p.discord_id).includes(q)||p.ingame_name?.toLowerCase().includes(q))},[players,search]);
+  const loadDetail=async(id)=>{try{setSelected(await fetchApi(`/api/stats/player/${id}`))}catch{toast("Failed to load player","error")}};
 
-  if(selected)return<PlayerDetail p={selected} onBack={()=>setSelected(null)}/>;
+  if(selected)return<PlayerDetail p={selected} onBack={()=>setSelected(null)} toast={toast}/>;
   return(<>
     <Title t="PLAYERS" s="community roster · stats · profiles"/>
-    <div className="ap-sr" style={{gridTemplateColumns:"repeat(2,1fr)"}}><SC label="Total Players" value={players.length}/><SC label="Active (30d)" value={players.filter(p=>p.last_seen&&(Date.now()/1000-p.last_seen)<2592000).length} color="green"/></div>
-    <TW title="ROSTER" right={<input className="ap-search" placeholder="search players..." value={search} onChange={e=>setSearch(e.target.value)}/>}>
-      {loading?<Load/>:<table className="ap-t"><thead><tr><th>Player</th><th>Messages</th><th>Games</th><th>Wins</th><th>Win Rate</th><th>Last Seen</th><th></th></tr></thead>
-      <tbody>{filtered.length===0?<tr><td colSpan={7}><Empty text="no players"/></td></tr>:filtered.slice(0,100).map(p=>{
+    <div className="ap-sr" style={{gridTemplateColumns:"repeat(3,1fr)"}}>
+      <SC label="Total Players" value={players.length}/>
+      <SC label="Active (30d)" value={players.filter(p=>p.last_seen&&(Date.now()/1000-p.last_seen)<2592000).length} color="green"/>
+      <SC label="Whitelisted" value={players.filter(p=>p.ingame_name).length} color="blue"/>
+    </div>
+    <TW title="ROSTER" right={<input className="ap-search" placeholder="search name, id, ingame..." value={search} onChange={e=>setSearch(e.target.value)}/>}>
+      {loading?<Load/>:<table className="ap-t"><thead><tr><th>Player</th><th>In-Game</th><th>Messages</th><th>Games</th><th>Win Rate</th><th>Balance</th><th>Last Seen</th><th></th></tr></thead>
+      <tbody>{filtered.length===0?<tr><td colSpan={8}><Empty text="no players"/></td></tr>:filtered.slice(0,100).map(p=>{
         const wr=p.games_played>0?Math.round(p.games_won/p.games_played*100):0;
-        return<tr key={p.discord_id}><td><div style={{fontWeight:500}}>{p.display_name}</div><div style={{fontFamily:"var(--mono)",fontSize:10,color:"var(--textdim)"}}>{p.identity||"newcomer"}</div></td>
-        <td style={{fontFamily:"var(--mono)"}}>{fmt(p.message_count)}</td><td style={{fontFamily:"var(--mono)"}}>{p.games_played}</td>
-        <td style={{fontFamily:"var(--mono)",color:"var(--green)"}}>{p.games_won}</td><td style={{fontFamily:"var(--mono)",color:wr>50?"var(--green)":"var(--textdim)"}}>{wr}%</td>
-        <td style={{fontFamily:"var(--mono)",fontSize:11,color:"var(--textdim)"}}>{relTime(p.last_seen)}</td><td><B c="blue" sm onClick={()=>loadDetail(p.discord_id)}>View</B></td></tr>
+        return<tr key={p.discord_id}>
+          <td><div style={{fontWeight:500}}>{p.display_name}</div><div style={{fontFamily:"var(--mono)",fontSize:10,color:"var(--textdim)"}}>{p.username?`@${p.username}`:""}</div></td>
+          <td style={{fontFamily:"var(--mono)",fontSize:11,color:"var(--textdim)"}}>{p.ingame_name||"—"}</td>
+          <td style={{fontFamily:"var(--mono)"}}>{fmt(p.message_count)}</td>
+          <td style={{fontFamily:"var(--mono)"}}>{p.games_played||0}</td>
+          <td style={{fontFamily:"var(--mono)",color:wr>50?"var(--green)":"var(--textdim)"}}>{wr}%</td>
+          <td style={{fontFamily:"var(--mono)",fontSize:11}}>{bronzeToCoins(p.balance)}</td>
+          <td style={{fontFamily:"var(--mono)",fontSize:11,color:"var(--textdim)"}}>{relTime(p.last_seen)}</td>
+          <td><B c="blue" sm onClick={()=>loadDetail(p.discord_id)}>View</B></td>
+        </tr>;
       })}</tbody></table>}
     </TW>
   </>);
 };
 
-const PlayerDetail = ({p,onBack}) => {
+const PlayerDetail = ({p,onBack,toast}) => {
   const ww=p.werewolf||{},rps=p.rps||{},c4=p.connect4||{};
-  return(<><div style={{marginBottom:20}}><B c="ghost" sm onClick={onBack}>← Back</B></div>
+  const [txns,setTxns]=useState([]);const [txnLoading,setTxnLoading]=useState(false);const [showTxns,setShowTxns]=useState(false);
+  const [giveAmt,setGiveAmt]=useState("");const [giveReason,setGiveReason]=useState("");
+  const [takeAmt,setTakeAmt]=useState("");const [takeReason,setTakeReason]=useState("");
+
+  const loadTxns=async()=>{setTxnLoading(true);try{const r=await fetchApi(`/api/admin/economy/player-transactions?discord_id=${p.discord_id}&limit=30`);setTxns(r.transactions||[])}catch(e){toast(e.message,"error")}setTxnLoading(false);setShowTxns(true)};
+  const giveCoins=async()=>{if(!giveAmt){toast("Enter amount","error");return}try{const r=await postApi("/api/admin/economy/give-by-name",{name:p.display_name,amount:parseInt(giveAmt),reason:giveReason||"Admin grant"});toast(`Sent ${fmt(giveAmt)} 🟤 to ${r.player}`,"success");setGiveAmt("");setGiveReason("")}catch(e){toast(e.message,"error")}};
+  const takeCoins=async()=>{if(!takeAmt){toast("Enter amount","error");return}try{const r=await postApi("/api/admin/economy/take-by-name",{name:p.display_name,amount:parseInt(takeAmt),reason:takeReason||"Admin deduction"});toast(`Took ${fmt(takeAmt)} 🟤 from ${r.player}`,"success");setTakeAmt("");setTakeReason("")}catch(e){toast(e.message,"error")}};
+
+  return(<>
+    <div style={{marginBottom:20}}><B c="ghost" sm onClick={onBack}>← Back to Players</B></div>
     <div style={{fontFamily:"var(--display)",fontSize:32,letterSpacing:3,color:"var(--accent)",marginBottom:4}}>{p.display_name}</div>
-    <div style={{fontFamily:"var(--mono)",fontSize:11,color:"var(--textdim)",marginBottom:28}}>ID: {p.discord_id} · Balance: {bronzeToCoins(p.balance)} · Joined: {fmtDate(p.first_seen)}</div>
-    <div className="ap-sr"><SC label="Balance" value={bronzeToCoins(p.balance)}/><SC label="Messages" value={fmt(p.message_count)} color="blue"/><SC label="WW Wins" value={ww.games_won??0} color="green" sub={`${ww.games_played??0} played`}/><SC label="Win Rate" value={`${ww.win_rate??0}%`} color="orange"/></div>
+    <div style={{fontFamily:"var(--mono)",fontSize:11,color:"var(--textdim)",marginBottom:28}}>
+      ID: {p.discord_id} · {p.username?`@${p.username} · `:""}Joined: {fmtDate(p.first_seen)} · Last seen: {relTime(p.last_seen)}
+    </div>
+    <div className="ap-sr">
+      <SC label="Balance" value={bronzeToCoins(p.balance)}/>
+      <SC label="Messages" value={fmt(p.message_count)} color="blue"/>
+      <SC label="WW Wins" value={ww.games_won??0} color="green" sub={`${ww.games_played??0} played`}/>
+      <SC label="Win Rate" value={`${ww.win_rate??0}%`} color="orange"/>
+    </div>
     <div className="ap-3c">
-      <FB title="WEREWOLF"><div style={{fontFamily:"var(--mono)",fontSize:12,color:"var(--textdim)",lineHeight:2}}>Played: {ww.games_played??0}<br/>Won: <span style={{color:"var(--green)"}}>{ww.games_won??0}</span><br/>Survived: {ww.times_survived??0}<br/>Lynched: <span style={{color:"var(--red)"}}>{ww.times_lynched??0}</span><br/>Wolf: <span style={{color:"var(--orange)"}}>{ww.times_wolf??0}</span><br/>Streak: <span style={{color:"var(--accent)"}}>{ww.streak??0}</span></div></FB>
-      <FB title="RPS"><div style={{fontFamily:"var(--mono)",fontSize:12,color:"var(--textdim)",lineHeight:2}}>W/L/D: <span style={{color:"var(--green)"}}>{rps.wins??0}</span>/<span style={{color:"var(--red)"}}>{rps.losses??0}</span>/{rps.draws??0}<br/>Rate: {rps.win_rate??0}%<br/>Coins: +{fmt(rps.coins_won??0)} / −{fmt(rps.coins_lost??0)}<br/>vs Zombita: {rps.vs_zombita_wins??0}W/{rps.vs_zombita_losses??0}L</div></FB>
-      <FB title="CONNECT 4"><div style={{fontFamily:"var(--mono)",fontSize:12,color:"var(--textdim)",lineHeight:2}}>W/L/D: <span style={{color:"var(--green)"}}>{c4.wins??0}</span>/<span style={{color:"var(--red)"}}>{c4.losses??0}</span>/{c4.draws??0}<br/>Rate: {c4.win_rate??0}%<br/>Coins: +{fmt(c4.coins_won??0)} / −{fmt(c4.coins_lost??0)}</div></FB>
+      <FB title="WEREWOLF">
+        <div style={{fontFamily:"var(--mono)",fontSize:12,color:"var(--textdim)",lineHeight:2.2}}>
+          Played: {ww.games_played??0}<br/>
+          Won: <span style={{color:"var(--green)"}}>{ww.games_won??0}</span><br/>
+          Survived: {ww.times_survived??0}<br/>
+          Lynched: <span style={{color:"var(--red)"}}>{ww.times_lynched??0}</span><br/>
+          Times Wolf: <span style={{color:"var(--orange)"}}>{ww.times_wolf??0}</span><br/>
+          Streak: <span style={{color:"var(--accent)"}}>{ww.streak??0}</span>
+        </div>
+      </FB>
+      <FB title="ROCK PAPER SCISSORS">
+        <div style={{fontFamily:"var(--mono)",fontSize:12,color:"var(--textdim)",lineHeight:2.2}}>
+          W/L/D: <span style={{color:"var(--green)"}}>{rps.wins??0}</span> / <span style={{color:"var(--red)"}}>{rps.losses??0}</span> / {rps.draws??0}<br/>
+          Win Rate: {rps.win_rate??0}%<br/>
+          Earned: <span style={{color:"var(--green)"}}>+{fmt(rps.coins_won??0)}</span><br/>
+          Lost: <span style={{color:"var(--red)"}}>−{fmt(rps.coins_lost??0)}</span><br/>
+          vs Zombita: {rps.vs_zombita_wins??0}W / {rps.vs_zombita_losses??0}L
+        </div>
+      </FB>
+      <FB title="CONNECT 4">
+        <div style={{fontFamily:"var(--mono)",fontSize:12,color:"var(--textdim)",lineHeight:2.2}}>
+          W/L/D: <span style={{color:"var(--green)"}}>{c4.wins??0}</span> / <span style={{color:"var(--red)"}}>{c4.losses??0}</span> / {c4.draws??0}<br/>
+          Win Rate: {c4.win_rate??0}%<br/>
+          Earned: <span style={{color:"var(--green)"}}>+{fmt(c4.coins_won??0)}</span><br/>
+          Lost: <span style={{color:"var(--red)"}}>−{fmt(c4.coins_lost??0)}</span><br/>
+          vs Zombita: {c4.vs_zombita_wins??0}W / {c4.vs_zombita_losses??0}L
+        </div>
+      </FB>
+    </div>
+    <div className="ap-2c">
+      <FB title="GIVE COINS">
+        <Inp label="Amount (bronze)" type="number" placeholder="5000" value={giveAmt} onChange={e=>setGiveAmt(e.target.value)}/>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap",margin:"4px 0 12px"}}>{[500,1000,5000,10000].map(n=><button key={n} className="ap-pre" onClick={()=>setGiveAmt(String(n))}>{fmt(n)}</button>)}</div>
+        <Inp label="Reason" placeholder="Event prize..." value={giveReason} onChange={e=>setGiveReason(e.target.value)}/>
+        <B c="green" onClick={giveCoins}>💸 Give Coins</B>
+      </FB>
+      <FB title="TAKE COINS">
+        <Inp label="Amount (bronze)" type="number" placeholder="5000" value={takeAmt} onChange={e=>setTakeAmt(e.target.value)}/>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap",margin:"4px 0 12px"}}>{[500,1000,5000,10000].map(n=><button key={n} className="ap-pre" onClick={()=>setTakeAmt(String(n))}>{fmt(n)}</button>)}</div>
+        <Inp label="Reason" placeholder="Penalty, correction..." value={takeReason} onChange={e=>setTakeReason(e.target.value)}/>
+        <B c="red" onClick={takeCoins}>➖ Take Coins</B>
+      </FB>
+    </div>
+    <div style={{marginTop:8}}>
+      {!showTxns?<B c="ghost" onClick={loadTxns}>📋 Load Transaction History</B>:
+      txnLoading?<Load/>:
+      <TW title="TRANSACTION HISTORY" right={<B c="ghost" sm onClick={loadTxns}>↻</B>}>
+        {txns.length?<div>{txns.map((e,i)=><div key={i} className="ap-lr">
+          <span className="ap-lr-t">{relTime(e.timestamp)}</span><EvBadge type={e.type||"adjust"}/>
+          <span className="ap-lr-d">{e.description||"—"}</span>
+          <span className={`ap-lr-v ${e.amount>0?"pos":"neg"}`}>{e.amount>0?"+":""}{fmt(e.amount)} 🟤</span>
+          <span style={{color:"var(--textdim)",fontFamily:"var(--mono)",fontSize:11,minWidth:80,textAlign:"right"}}>→ {fmt(e.balance_after)}</span>
+        </div>)}</div>:<Empty text="no transactions"/>}
+      </TW>}
     </div>
   </>);
 };
@@ -816,6 +910,7 @@ const GamesPanel = ({toast}) => {
   const [rpsB,setRpsB]=useState([]);const [c4B,setC4B]=useState([]);const [tab,setTab]=useState("rps");const [loading,setLoading]=useState(true);
   useEffect(()=>{(async()=>{try{const[r,c]=await Promise.all([fetchApi("/api/stats/rps").catch(()=>({leaderboard:[]})),fetchApi("/api/stats/connect4").catch(()=>({leaderboard:[]}))]);setRpsB(r.leaderboard||[]);setC4B(c.leaderboard||[])}catch{}setLoading(false)})()},[]);
   const board=tab==="rps"?rpsB:c4B;
+  const medalColor=(i)=>i===0?"#c8a84b":i===1?"#9ca3af":i===2?"#c47a4a":"var(--textdim)";
   return(<>
     <Title t="GAMES" s="rps · connect 4 · leaderboards"/>
     <div style={{display:"flex",gap:6,marginBottom:24}}>
@@ -823,16 +918,17 @@ const GamesPanel = ({toast}) => {
       <button className={`ap-ft ${tab==="c4"?"act":""}`} onClick={()=>setTab("c4")}>🔴 Connect 4</button>
     </div>
     {loading?<Load/>:<TW title={tab==="rps"?"RPS LEADERBOARD":"CONNECT 4 LEADERBOARD"}>
-      <table className="ap-t"><thead><tr><th>#</th><th>Player</th><th>Wins</th><th>Losses</th><th>Draws</th><th>Win Rate</th><th>Net Coins</th><th>vs Zombita</th></tr></thead>
-      <tbody>{board.length===0?<tr><td colSpan={8}><Empty text="no game data"/></td></tr>:board.map((p,i)=><tr key={i}>
-        <td style={{fontFamily:"var(--display)",fontSize:18,color:i<3?"var(--accent)":"var(--textdim)"}}>{i+1}</td>
-        <td style={{fontWeight:500}}>{p.name}</td>
+      <table className="ap-t"><thead><tr><th>#</th><th>Player</th><th>Wins</th><th>Losses</th><th>Draws</th><th>Win Rate</th><th>Earned</th><th>Lost</th><th>vs Zombita</th></tr></thead>
+      <tbody>{board.length===0?<tr><td colSpan={9}><Empty text="no game data yet"/></td></tr>:board.map((p,i)=><tr key={i}>
+        <td style={{fontFamily:"var(--display)",fontSize:20,color:medalColor(i)}}>{i===0?"🥇":i===1?"🥈":i===2?"🥉":i+1}</td>
+        <td style={{fontWeight:500}}>{p.display_name||p.name}</td>
         <td style={{fontFamily:"var(--mono)",color:"var(--green)"}}>{p.wins}</td>
         <td style={{fontFamily:"var(--mono)",color:"var(--red)"}}>{p.losses}</td>
         <td style={{fontFamily:"var(--mono)",color:"var(--textdim)"}}>{p.draws}</td>
-        <td style={{fontFamily:"var(--mono)",color:p.win_rate>50?"var(--green)":"var(--textdim)"}}>{p.win_rate}%</td>
-        <td style={{fontFamily:"var(--mono)",color:(p.coins_won||0)-(p.coins_lost||0)>=0?"var(--green)":"var(--red)"}}>{((p.coins_won||0)-(p.coins_lost||0))>=0?"+":""}{fmt((p.coins_won||0)-(p.coins_lost||0))} 🟤</td>
-        <td style={{fontFamily:"var(--mono)",fontSize:11,color:"var(--textdim)"}}>{p.vs_zombita_wins??p.vs_zombita?.wins??0}W / {p.vs_zombita_losses??p.vs_zombita?.losses??0}L</td>
+        <td style={{fontFamily:"var(--mono)",color:p.win_rate>50?"var(--green)":"var(--textdim)"}}>{p.win_rate??Math.round((p.wins/(p.wins+p.losses+p.draws||1))*100)}%</td>
+        <td style={{fontFamily:"var(--mono)",color:"var(--green)"}}>+{fmt(p.coins_won||0)} 🟤</td>
+        <td style={{fontFamily:"var(--mono)",color:"var(--red)"}}>−{fmt(p.coins_lost||0)} 🟤</td>
+        <td style={{fontFamily:"var(--mono)",fontSize:11,color:"var(--textdim)"}}>{p.vs_zombita_wins??0}W / {p.vs_zombita_losses??0}L</td>
       </tr>)}</tbody></table>
     </TW>}
   </>);
@@ -843,45 +939,27 @@ const GamesPanel = ({toast}) => {
    ═══════════════════════════════════════════════════════════════════════════ */
 const ModsPanel = ({toast}) => {
   const [sub,setSub]=useState("broadcast");
-  const [bcastType,setBcastType]=useState("info");
-  const [bcastMsg,setBcastMsg]=useState("");
-  const [mods,setMods]=useState([]);const [modsLoading,setModsLoading]=useState(true);
-  const [newModId,setNewModId]=useState("");
+  const [bcastType,setBcastType]=useState("info");const [bcastMsg,setBcastMsg]=useState("");
+  const [mods,setMods]=useState([]);const [modsLoading,setModsLoading]=useState(true);const [newModId,setNewModId]=useState("");
 
   const loadMods=useCallback(async()=>{try{const d=await fetchApi("/api/admin/mods/list");setMods(d.mods||[])}catch{setMods([])}setModsLoading(false)},[]);
   useEffect(()=>{loadMods()},[loadMods]);
 
-  const broadcast=async()=>{
-    if(!bcastMsg.trim()){toast("Message required","error");return}
-    try{await postApi("/api/admin/server/broadcast",{type:bcastType,message:bcastMsg});toast("Broadcast sent!","success");setBcastMsg("")}
-    catch(e){toast(`Broadcast failed: ${e.message}`,"error")}
-  };
+  const broadcast=async()=>{if(!bcastMsg.trim()){toast("Message required","error");return}try{await postApi("/api/admin/server/broadcast",{type:bcastType,message:bcastMsg});toast("Broadcast sent!","success");setBcastMsg("")}catch(e){toast(`Broadcast failed: ${e.message}`,"error")}};
+  const sendIngame=async()=>{if(!bcastMsg.trim()){toast("Message required","error");return}try{await postApi("/api/admin/server/rcon",{command:`servermsg "${bcastMsg}"`});toast("Sent to server!","success")}catch(e){toast(e.message,"error")}};
+  const toggleMod=async(id,en)=>{try{await postApi("/api/admin/mods/toggle",{workshop_id:id,enabled:en});toast(en?"Mod enabled":"Mod disabled","success");loadMods()}catch(e){toast(`Failed: ${e.message}`,"error")}};
+  const addMod=async()=>{if(!newModId.trim()){toast("Workshop ID required","error");return}try{await postApi("/api/admin/mods/add",{workshop_id:newModId.trim()});toast("Mod added!","success");setNewModId("");loadMods()}catch(e){toast(`Failed: ${e.message}`,"error")}};
+  const removeMod=async(id)=>{if(!confirm(`Remove mod ${id}?`))return;try{await postApi("/api/admin/mods/remove",{workshop_id:id});toast("Mod removed","success");loadMods()}catch(e){toast(`Failed: ${e.message}`,"error")}};
 
-  const toggleMod=async(workshopId,enabled)=>{
-    try{await postApi("/api/admin/mods/toggle",{workshop_id:workshopId,enabled});toast(enabled?"Mod enabled":"Mod disabled","success");loadMods()}
-    catch(e){toast(`Failed: ${e.message}`,"error")}
-  };
-  const addMod=async()=>{
-    if(!newModId.trim()){toast("Workshop ID required","error");return}
-    try{await postApi("/api/admin/mods/add",{workshop_id:newModId.trim()});toast("Mod added!","success");setNewModId("");loadMods()}
-    catch(e){toast(`Failed: ${e.message}`,"error")}
-  };
-  const removeMod=async(workshopId)=>{
-    if(!confirm(`Remove mod ${workshopId}?`))return;
-    try{await postApi("/api/admin/mods/remove",{workshop_id:workshopId});toast("Mod removed","success");loadMods()}
-    catch(e){toast(`Failed: ${e.message}`,"error")}
-  };
-
-  const tabs=[{key:"broadcast",icon:"📢",label:"Broadcast"},{key:"modlist",icon:"🔧",label:"Mod List"},{key:"backups",icon:"💾",label:"Backups"}];
+  const tabs=[{key:"broadcast",icon:"📢",label:"Broadcast"},{key:"modlist",icon:"🔧",label:"Mod List"}];
   const typeColors={info:"var(--blue)",warning:"var(--orange)",alert:"var(--red)",event:"var(--accent)"};
 
   return(<>
-    <Title t="MODS & BROADCAST" s="announcements · mod management · server backups"/>
+    <Title t="MODS & BROADCAST" s="announcements · mod management"/>
     <div style={{display:"flex",gap:6,marginBottom:24}}>{tabs.map(t=><button key={t.key} className={`ap-ft ${sub===t.key?"act":""}`} onClick={()=>setSub(t.key)}>{t.icon} {t.label}</button>)}</div>
-
     {sub==="broadcast"&&<div className="ap-2c">
       <FB title="BROADCAST TO DISCORD">
-        <div className="ap-note">Sends an announcement to the configured Discord channel. Select type for styling.</div>
+        <div className="ap-note">Sends an announcement to the Discord server.</div>
         <div style={{display:"flex",gap:8,marginBottom:20}}>
           {["info","warning","alert","event"].map(type=>(
             <button key={type} style={{padding:"10px 20px",border:`2px solid ${bcastType===type?typeColors[type]:"var(--border)"}`,background:bcastType===type?`${typeColors[type]}11`:"transparent",color:bcastType===type?typeColors[type]:"var(--textdim)",fontFamily:"var(--mono)",fontSize:11,letterSpacing:1,textTransform:"uppercase",cursor:"pointer",borderRadius:2,transition:"all .15s"}} onClick={()=>setBcastType(type)}>
@@ -890,24 +968,16 @@ const ModsPanel = ({toast}) => {
           ))}
         </div>
         <TA label="Message" placeholder="Type your announcement here..." value={bcastMsg} onChange={e=>setBcastMsg(e.target.value)}/>
-        <B c="gold" onClick={broadcast}>📢 Send Broadcast</B>
+        <div style={{display:"flex",gap:10,marginTop:8}}><B c="gold" onClick={broadcast}>📢 Discord Broadcast</B><B c="blue" onClick={sendIngame}>💬 In-Game Msg</B></div>
       </FB>
-      <div>
-        <FB title="IN-GAME MESSAGE">
-          <div className="ap-note info">Send a message directly to the game server via RCON servermsg command.</div>
-          <TA label="In-game message" placeholder="Hello survivors..." value={bcastMsg} onChange={e=>setBcastMsg(e.target.value)}/>
-          <B c="blue" onClick={async()=>{if(!bcastMsg.trim())return;try{await postApi("/api/admin/server/rcon",{command:`servermsg "${bcastMsg}"`});toast("Sent to server","success")}catch(e){toast(e.message,"error")}}}>💬 Send In-Game</B>
-        </FB>
-        <FB title="QUICK MESSAGES">
-          <div style={{display:"flex",flexDirection:"column",gap:8}}>
-            {["Server restarting in 5 minutes","Server restarting in 1 minute","Maintenance starting soon","Event starting! Check Discord!","Server updated — please reconnect"].map((msg,i)=>(
-              <button key={i} className="ap-pre" style={{textAlign:"left",padding:10}} onClick={()=>setBcastMsg(msg)}>{msg}</button>
-            ))}
-          </div>
-        </FB>
-      </div>
+      <FB title="QUICK MESSAGES">
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          {["Server restarting in 5 minutes","Server restarting in 1 minute","Maintenance starting soon","Event starting! Check Discord!","Server updated — please reconnect"].map((msg,i)=>(
+            <button key={i} className="ap-pre" style={{textAlign:"left",padding:10}} onClick={()=>setBcastMsg(msg)}>{msg}</button>
+          ))}
+        </div>
+      </FB>
     </div>}
-
     {sub==="modlist"&&<>
       <div className="ap-inline" style={{marginBottom:20}}>
         <Inp label="Add Mod (Workshop ID)" placeholder="2895447475" value={newModId} onChange={e=>setNewModId(e.target.value)}/>
@@ -923,25 +993,11 @@ const ModsPanel = ({toast}) => {
         </tr>)}</tbody></table>:<Empty text="No mods loaded — endpoint may not exist yet"/>}
       </TW>
     </>}
-
-    {sub==="backups"&&<>
-      <div className="ap-2c">
-        <FB title="CREATE BACKUP">
-          <div className="ap-note">Creates a backup of the current server world and config files.</div>
-          <B c="gold" onClick={async()=>{try{await postApi("/api/admin/server/backup",{});toast("Backup created!","success")}catch(e){toast(e.message,"error")}}}>💾 Create Backup Now</B>
-        </FB>
-        <FB title="RESTORE BACKUP">
-          <div className="ap-note danger">⚠ Restoring a backup will overwrite the current world. The server must be stopped first.</div>
-          <B c="red" onClick={async()=>{toast("Backup restore endpoint pending","info")}}>🔄 Restore from Backup</B>
-        </FB>
-      </div>
-    </>}
   </>);
 };
 
-
 /* ═══════════════════════════════════════════════════════════════════════════
-   PANEL MAP — register all panels here. Scalable: new panels = 1 line.
+   PANEL MAP
    ═══════════════════════════════════════════════════════════════════════════ */
 const PANELS = {
   overview:  OverviewPanel,
@@ -955,7 +1011,6 @@ const PANELS = {
   games:     GamesPanel,
   mods:      ModsPanel,
 };
-
 
 /* ═══════════════════════════════════════════════════════════════════════════
    MAIN SHELL
@@ -976,8 +1031,6 @@ export default function AdminPanel() {
   return (
     <div className="ap">
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
-
-      {/* Header */}
       <div className="ap-hd">
         <div className="ap-logo">SOUP ADMIN</div>
         <span className="ap-hd-badge">v2.0</span>
@@ -986,9 +1039,7 @@ export default function AdminPanel() {
           <span className="on">● CONNECTED</span>
         </div>
       </div>
-
       <div className="ap-shell">
-        {/* Sidebar */}
         <nav className="ap-nav">
           <a href="/" className="ap-nav-back">← Back to Site</a>
           <div className="ap-nav-div" />
@@ -1005,13 +1056,10 @@ export default function AdminPanel() {
             </div>
           ))}
         </nav>
-
-        {/* Content */}
         <main className="ap-main">
           <ActivePanel toast={toast} />
         </main>
       </div>
-
       <Toasts items={toasts} />
     </div>
   );
