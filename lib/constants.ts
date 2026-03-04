@@ -16,8 +16,5 @@ export const NAV_LINKS = [
 ];
 
 export const ADMIN_NAV_LINKS = [
-  { href: "/admin/shop", label: "Shop" },
-  { href: "/admin/treasury", label: "Treasury" },
-  { href: "/admin/players", label: "Players" },
-  { href: "/admin/mods", label: "Mods" },
+  { href: "/admin", label: "Admin" },
 ];
