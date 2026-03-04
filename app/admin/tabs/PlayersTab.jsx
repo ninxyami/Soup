@@ -5,7 +5,9 @@ import { fetchApi, postApi, fmt, bronzeToCoins, relTime, fmtDate, Title, SC, TW,
 
 const PlayerDetail = ({ p, onBack, toast }) => {
   const ww = p.werewolf || {}, rps = p.rps || {}, c4 = p.connect4 || {};
-  const [txns, setTxns] = useState([]); const [txnLoading, setTxnLoading] = useState(false); const [showTxns, setShowTxns] = useState(false);
+  const [txns, setTxns] = useState([]);
+  const [txnLoading, setTxnLoading] = useState(false);
+  const [showTxns, setShowTxns] = useState(false);
   const [giveAmt, setGiveAmt] = useState(""); const [giveReason, setGiveReason] = useState("");
   const [takeAmt, setTakeAmt] = useState(""); const [takeReason, setTakeReason] = useState("");
 
@@ -76,11 +78,13 @@ const PlayerDetail = ({ p, onBack, toast }) => {
       </FB>
     </div>
     <div style={{ marginTop: 8 }}>
-      {!showTxns ? <B c="ghost" onClick={loadTxns}>📋 Load Transaction History</B> :
-        txnLoading ? <Load /> :
-          <TW title="TRANSACTION HISTORY" right={<B c="ghost" sm onClick={loadTxns}>↻</B>}>
+      {!showTxns
+        ? <B c="ghost" onClick={loadTxns}>📋 Load Transaction History</B>
+        : txnLoading ? <Load />
+        : <TW title="TRANSACTION HISTORY" right={<B c="ghost" sm onClick={loadTxns}>↻</B>}>
             {txns.length ? <div>{txns.map((e, i) => <div key={i} className="ap-lr">
-              <span className="ap-lr-t">{relTime(e.timestamp)}</span><EvBadge type={e.type || "adjust"} />
+              <span className="ap-lr-t">{relTime(e.timestamp)}</span>
+              <EvBadge type={e.type || "adjust"} />
               <span className="ap-lr-d">{e.description || "—"}</span>
               <span className={`ap-lr-v ${e.amount > 0 ? "pos" : "neg"}`}>{e.amount > 0 ? "+" : ""}{fmt(e.amount)} 🟤</span>
               <span style={{ color: "var(--textdim)", fontFamily: "var(--mono)", fontSize: 11, minWidth: 80, textAlign: "right" }}>→ {fmt(e.balance_after)}</span>
@@ -91,39 +95,72 @@ const PlayerDetail = ({ p, onBack, toast }) => {
 };
 
 export default function PlayersTab({ toast }) {
-  const [players, setPlayers] = useState([]); const [search, setSearch] = useState(""); const [loading, setLoading] = useState(true); const [selected, setSelected] = useState(null);
-  useEffect(() => { (async () => { try { setPlayers((await fetchApi("/api/community")).members || []); } catch {} setLoading(false); })(); }, []);
+  const [players, setPlayers] = useState([]);
+  const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        // /api/players returns { players: [...] } with full player list
+        const data = await fetchApi("/api/players");
+        setPlayers(data.players || []);
+      } catch {
+        toast("Failed to load players", "error");
+      }
+      setLoading(false);
+    })();
+  }, []);
+
   const filtered = useMemo(() => {
     if (!search) return players;
     const q = search.toLowerCase();
-    return players.filter(p => p.display_name?.toLowerCase().includes(q) || String(p.discord_id).includes(q) || p.ingame_name?.toLowerCase().includes(q));
+    return players.filter(p =>
+      p.display_name?.toLowerCase().includes(q) ||
+      String(p.discord_id).includes(q) ||
+      p.username?.toLowerCase().includes(q)
+    );
   }, [players, search]);
-  const loadDetail = async (id) => { try { setSelected(await fetchApi(`/api/stats/player/${id}`)); } catch { toast("Failed to load player", "error"); } };
+
+  const loadDetail = async (id) => {
+    try { setSelected(await fetchApi(`/api/stats/player/${id}`)); }
+    catch { toast("Failed to load player", "error"); }
+  };
 
   if (selected) return <PlayerDetail p={selected} onBack={() => setSelected(null)} toast={toast} />;
+
+  const active30d = players.filter(p => p.last_seen && (Date.now() / 1000 - p.last_seen) < 2592000).length;
 
   return (<>
     <Title t="PLAYERS" s="community roster · stats · profiles" />
     <div className="ap-sr" style={{ gridTemplateColumns: "repeat(3,1fr)" }}>
       <SC label="Total Players" value={players.length} />
-      <SC label="Active (30d)" value={players.filter(p => p.last_seen && (Date.now() / 1000 - p.last_seen) < 2592000).length} color="green" />
-      <SC label="Whitelisted" value={players.filter(p => p.ingame_name).length} color="blue" />
+      <SC label="Active (30d)" value={active30d} color="green" />
+      <SC label="Shown" value={filtered.length} color="blue" />
     </div>
-    <TW title="ROSTER" right={<input className="ap-search" placeholder="search name, id, ingame..." value={search} onChange={e => setSearch(e.target.value)} />}>
-      {loading ? <Load /> : <table className="ap-t"><thead><tr><th>Player</th><th>In-Game</th><th>Messages</th><th>Games</th><th>Win Rate</th><th>Balance</th><th>Last Seen</th><th></th></tr></thead>
-        <tbody>{filtered.length === 0 ? <tr><td colSpan={8}><Empty text="no players" /></td></tr> : filtered.slice(0, 100).map(p => {
-          const wr = p.games_played > 0 ? Math.round(p.games_won / p.games_played * 100) : 0;
-          return <tr key={p.discord_id}>
-            <td><div style={{ fontWeight: 500 }}>{p.display_name}</div><div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--textdim)" }}>{p.username ? `@${p.username}` : ""}</div></td>
-            <td style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)" }}>{p.ingame_name || "—"}</td>
-            <td style={{ fontFamily: "var(--mono)" }}>{fmt(p.message_count)}</td>
-            <td style={{ fontFamily: "var(--mono)" }}>{p.games_played || 0}</td>
-            <td style={{ fontFamily: "var(--mono)", color: wr > 50 ? "var(--green)" : "var(--textdim)" }}>{wr}%</td>
-            <td style={{ fontFamily: "var(--mono)", fontSize: 11 }}>{bronzeToCoins(p.balance)}</td>
-            <td style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)" }}>{relTime(p.last_seen)}</td>
-            <td><B c="blue" sm onClick={() => loadDetail(p.discord_id)}>View</B></td>
-          </tr>;
-        })}</tbody></table>}
+    <TW title="ROSTER" right={
+      <input className="ap-search" placeholder="search name, id, username..." value={search} onChange={e => setSearch(e.target.value)} />
+    }>
+      {loading ? <Load /> : <table className="ap-t">
+        <thead><tr><th>Player</th><th>Username</th><th>Messages</th><th>Games</th><th>Win Rate</th><th>Last Seen</th><th></th></tr></thead>
+        <tbody>
+          {filtered.length === 0
+            ? <tr><td colSpan={7}><Empty text="no players found" /></td></tr>
+            : filtered.slice(0, 100).map(p => {
+                const wr = p.games_played > 0 ? Math.round(p.games_won / p.games_played * 100) : 0;
+                return <tr key={p.discord_id}>
+                  <td><div style={{ fontWeight: 500 }}>{p.display_name}</div><div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--textdim)" }}>{p.discord_id}</div></td>
+                  <td style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)" }}>{p.username ? `@${p.username}` : "—"}</td>
+                  <td style={{ fontFamily: "var(--mono)" }}>{fmt(p.message_count)}</td>
+                  <td style={{ fontFamily: "var(--mono)" }}>{p.games_played || 0}</td>
+                  <td style={{ fontFamily: "var(--mono)", color: wr > 50 ? "var(--green)" : "var(--textdim)" }}>{wr}%</td>
+                  <td style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)" }}>{relTime(p.last_seen)}</td>
+                  <td><B c="blue" sm onClick={() => loadDetail(p.discord_id)}>View</B></td>
+                </tr>;
+              })}
+        </tbody>
+      </table>}
     </TW>
   </>);
 }
