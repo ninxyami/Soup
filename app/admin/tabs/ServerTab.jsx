@@ -3,6 +3,39 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { API, fetchApi, postApi, Title, B, FB, Inp, Load } from "./shared";
 
+const OnlinePlayers = () => {
+  const [data, setData] = useState(null);
+  const load = useCallback(async () => {
+    try { setData(await fetchApi("/api/admin/server/online-players")); }
+    catch { setData({ players: [], count: 0 }); }
+  }, []);
+  useEffect(() => { load(); const iv = setInterval(load, 30000); return () => clearInterval(iv); }, [load]);
+
+  return (
+    <div className="ap-tw" style={{ marginTop: 24 }}>
+      <div className="ap-tw-h">
+        <h3>👥 ONLINE PLAYERS</h3>
+        <div style={{ flex: 1 }} />
+        <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)" }}>auto-refresh 30s</span>
+        <B c="ghost" sm onClick={load}>↻</B>
+      </div>
+      {data === null ? <Load /> : data.count === 0
+        ? <div style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--textdim)", padding: "16px 0" }}>😴 No survivors online right now</div>
+        : <div style={{ display: "flex", flexWrap: "wrap", gap: 8, padding: "12px 0" }}>
+            {data.players.map((name, i) => (
+              <span key={i} style={{ fontFamily: "var(--mono)", fontSize: 12, background: "var(--surface2)", border: "1px solid var(--border)", padding: "4px 12px", borderRadius: 2, color: "var(--green)" }}>
+                🧟 {name}
+              </span>
+            ))}
+          </div>
+      }
+      <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--textdim)", marginTop: 4 }}>
+        {data ? `${data.count} survivor${data.count !== 1 ? "s" : ""} in the zone` : ""}
+      </div>
+    </div>
+  );
+};
+
 const RconConsole = ({ toast, addLog, termLog }) => {
   const [cmd, setCmd] = useState("");
   const termRef = useRef(null);
@@ -15,12 +48,9 @@ const RconConsole = ({ toast, addLog, termLog }) => {
     setCmd("");
   };
   const quickCmds = [
-    { label: "Players", cmd: "players" },
-    { label: "Save", cmd: "save" },
-    { label: "Chopper", cmd: "chopper" },
-    { label: "Gunshot", cmd: "gunshot" },
-    { label: "Start Rain", cmd: "startrain" },
-    { label: "Stop Rain", cmd: "stoprain" },
+    { label: "Players", cmd: "players" }, { label: "Save", cmd: "save" },
+    { label: "Chopper", cmd: "chopper" }, { label: "Gunshot", cmd: "gunshot" },
+    { label: "Start Rain", cmd: "startrain" }, { label: "Stop Rain", cmd: "stoprain" },
   ];
   return (
     <FB title="RCON CONSOLE">
@@ -42,15 +72,11 @@ const RconConsole = ({ toast, addLog, termLog }) => {
 };
 
 const GiveItemPanel = ({ toast }) => {
-  const [player, setPlayer] = useState("");
-  const [itemId, setItemId] = useState("");
-  const [count, setCount] = useState("1");
+  const [player, setPlayer] = useState(""); const [itemId, setItemId] = useState(""); const [count, setCount] = useState("1");
   const give = async () => {
     if (!player || !itemId) { toast("Player and item required", "error"); return; }
-    try {
-      await postApi("/api/admin/server/rcon", { command: `additem "${player}" "${itemId}" ${count || 1}` });
-      toast(`Gave ${count}x ${itemId} to ${player}`, "success");
-    } catch (e) { toast(`Failed: ${e.message}`, "error"); }
+    try { await postApi("/api/admin/server/rcon", { command: `additem "${player}" "${itemId}" ${count || 1}` }); toast(`Gave ${count}x ${itemId} to ${player}`, "success"); }
+    catch (e) { toast(`Failed: ${e.message}`, "error"); }
   };
   const presets = [
     { label: "Katana", id: "Base.Katana" }, { label: "Axe", id: "Base.Axe" },
@@ -82,7 +108,7 @@ const GiveItemPanel = ({ toast }) => {
 
 export default function ServerTab({ toast }) {
   const [sub, setSub] = useState("status");
-  const [serverUp, setServerUp] = useState(null);  // true/false/null
+  const [serverUp, setServerUp] = useState(null);
   const [statusDetail, setStatusDetail] = useState(null);
   const [termLog, setTermLog] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -90,17 +116,15 @@ export default function ServerTab({ toast }) {
 
   const addLog = (text, type = "ok") => setTermLog(prev => [...prev.slice(-49), { text, type }]);
 
-  // ── Real server status check (uses rcon.is_server_running on backend) ──
   const checkStatus = useCallback(async () => {
     try {
       const res = await fetchApi("/api/admin/server/status");
       setServerUp(res.running);
       setStatusDetail(res);
     } catch {
-      // fallback: check if API itself is up
       try {
         const r = await fetch(`${API}/health`, { credentials: "include" });
-        setServerUp(r.ok ? null : false); // null = "API up but game status unknown"
+        setServerUp(r.ok ? null : false);
         setStatusDetail(null);
       } catch {
         setServerUp(false);
@@ -118,7 +142,6 @@ export default function ServerTab({ toast }) {
       const res = await postApi(`/api/admin/server/${action}`, {});
       addLog(res.message || res.response || "OK", "ok");
       toast(`${action} sent`, "success");
-      // Re-check status after a delay
       setTimeout(checkStatus, 3000);
     } catch (e) {
       addLog(`ERROR: ${e.message}`, "err");
@@ -129,11 +152,8 @@ export default function ServerTab({ toast }) {
 
   const sendBroadcast = async (msg) => {
     if (!msg.trim()) return;
-    try {
-      await postApi("/api/admin/server/broadcast", { message: msg });
-      toast("Broadcast sent!", "success");
-      setBroadcastMsg("");
-    } catch (e) { toast(e.message, "error"); }
+    try { await postApi("/api/admin/server/broadcast", { message: msg }); toast("Broadcast sent!", "success"); setBroadcastMsg(""); }
+    catch (e) { toast(e.message, "error"); }
   };
 
   const tabs = [
@@ -159,12 +179,8 @@ export default function ServerTab({ toast }) {
           <div className={`ap-srv-dot ${dotClass}`} />
           <div>
             <div className="ap-sc-l">Game Server (PZ)</div>
-            <div style={{ fontFamily: "var(--display)", fontSize: 24, letterSpacing: 2, color: statusColor }}>
-              {statusText}
-            </div>
-            {statusDetail?.uptime && (
-              <div className="ap-sc-s">Up {statusDetail.uptime}</div>
-            )}
+            <div style={{ fontFamily: "var(--display)", fontSize: 24, letterSpacing: 2, color: statusColor }}>{statusText}</div>
+            {statusDetail?.uptime && <div className="ap-sc-s">Up {statusDetail.uptime}</div>}
           </div>
         </div>
         <div className="ap-sc green">
@@ -172,15 +188,16 @@ export default function ServerTab({ toast }) {
           <div className="ap-sc-v">ONLINE</div>
           <div className="ap-sc-s">api.stateofundeadpurge.site</div>
         </div>
-        <div className="ap-sc blue" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12 }}>
+        <div className="ap-sc blue" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
           <B c="ghost" sm onClick={checkStatus}>↻ Refresh</B>
         </div>
       </div>
+
+      <OnlinePlayers />
+
       {termLog.length > 0 && (
         <FB title="LOG">
-          <div className="ap-term">
-            {termLog.map((l, i) => <div key={i} className={`ap-term-line ${l.type}`}>{l.text}</div>)}
-          </div>
+          <div className="ap-term">{termLog.map((l, i) => <div key={i} className={`ap-term-line ${l.type}`}>{l.text}</div>)}</div>
         </FB>
       )}
     </>}
@@ -213,14 +230,8 @@ export default function ServerTab({ toast }) {
         <div style={{ marginTop: 16 }}>
           <div className="ap-sc-l" style={{ marginBottom: 8 }}>QUICK MESSAGES</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {[
-              "Server restarting in 5 minutes",
-              "Server restarting in 1 minute",
-              "Maintenance starting soon",
-              "Event starting! Check Discord!",
-            ].map((msg, i) => (
-              <button key={i} className="ap-pre" style={{ textAlign: "left", padding: 10 }}
-                onClick={() => sendBroadcast(msg)}>{msg}</button>
+            {["Server restarting in 5 minutes", "Server restarting in 1 minute", "Maintenance starting soon", "Event starting! Check Discord!"].map((msg, i) => (
+              <button key={i} className="ap-pre" style={{ textAlign: "left", padding: 10 }} onClick={() => sendBroadcast(msg)}>{msg}</button>
             ))}
           </div>
         </div>

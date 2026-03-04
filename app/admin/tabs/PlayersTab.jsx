@@ -130,13 +130,26 @@ export default function PlayersTab({ toast }) {
 
   if (selected) return <PlayerDetail p={selected} onBack={() => setSelected(null)} toast={toast} />;
 
+  const [online, setOnline] = useState(null);
+  useEffect(() => {
+    const load = async () => {
+      try { setOnline(await fetchApi("/api/admin/server/online-players")); }
+      catch { setOnline({ players: [], count: 0 }); }
+    };
+    load();
+    const iv = setInterval(load, 30000);
+    return () => clearInterval(iv);
+  }, []);
+
   const active30d = players.filter(p => p.last_seen && (Date.now() / 1000 - p.last_seen) < 2592000).length;
 
   return (<>
     <Title t="PLAYERS" s="community roster · stats · profiles" />
-    <div className="ap-sr" style={{ gridTemplateColumns: "repeat(3,1fr)" }}>
+    <div className="ap-sr" style={{ gridTemplateColumns: "repeat(4,1fr)" }}>
       <SC label="Total Players" value={players.length} />
       <SC label="Active (30d)" value={active30d} color="green" />
+      <SC label="In-Game Now" value={online?.count ?? "—"} color="orange"
+        sub={online?.players?.length ? online.players.slice(0, 3).join(", ") + (online.players.length > 3 ? "…" : "") : "nobody online"} />
       <SC label="Shown" value={filtered.length} color="blue" />
     </div>
     <TW title="ROSTER" right={
