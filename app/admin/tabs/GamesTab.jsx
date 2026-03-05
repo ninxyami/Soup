@@ -39,7 +39,7 @@ export default function GamesTab({ toast }) {
           <td style={{ fontFamily: "var(--mono)", color: p.win_rate > 50 ? "var(--green)" : "var(--textdim)" }}>{p.win_rate ?? Math.round((p.wins / (p.wins + p.losses + p.draws || 1)) * 100)}%</td>
           <td style={{ fontFamily: "var(--mono)", color: "var(--green)" }}>+{fmt(p.coins_won || 0)} 🟤</td>
           <td style={{ fontFamily: "var(--mono)", color: "var(--red)" }}>−{fmt(p.coins_lost || 0)} 🟤</td>
-          <td style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)" }}>{p.vs_zombita_wins ?? 0}W / {p.vs_zombita_losses ?? 0}L</td>
+          <td style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)" }}>{p.vs_zombita?.wins ?? 0}W / {p.vs_zombita?.losses ?? 0}L</td>
         </tr>)}</tbody></table>
     </TW>}
   </>);
