@@ -23,10 +23,13 @@ export interface ShopItem {
   item_id: string;
   name: string;
   category: string;
+  /** Which physical/remote shop this item belongs to */
+  shop_type: "global" | "food" | "ammo" | "carparts" | "cars";
   tier: "common" | "uncommon" | "rare" | "epic" | "legendary";
   buy_price: number;
-  sell_price?: number;
+  sell_price?: number;  // only set for global shop items
   stock: number;
+  base_stock: number;
   enabled: boolean;
 }
 
