@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { API } from "@/lib/constants";
 
-type BoardType = "ingame" | "wolf" | "quiz" | "rps" | "c4";
+type BoardType = "ingame" | "wolf" | "quiz" | "rps" | "c4" | "reputation";
 type IngameTab = "kills" | "overall" | "deaths" | "survived" | "bestlife" | "factions";
 type GameTab = "pvp" | "zombita" | "coins";
 
@@ -32,6 +32,13 @@ function rc(i: number) {
   if (i===2) return "text-[#999]";
   return "text-[#777]";
 }
+function repTier(pts: number): { label: string; color: string } {
+  if (pts >= 200) return { label: "Legendary", color: "#c8a84b" };
+  if (pts >= 100) return { label: "Honored",   color: "#4a7c59" };
+  if (pts >= 50)  return { label: "Respected", color: "#4a6c8c" };
+  if (pts >= 20)  return { label: "Known",     color: "#888"    };
+  return           { label: "Neutral",         color: "#555"    };
+}
 
 export default function LeaderboardPage() {
   const [board, setBoard] = useState<BoardType>("ingame");
@@ -43,6 +50,7 @@ export default function LeaderboardPage() {
   const [quiz, setQuiz] = useState<any[]>([]);
   const [rps, setRps] = useState<any>(null);
   const [c4, setC4] = useState<any>(null);
+  const [reputation, setReputation] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -52,18 +60,21 @@ export default function LeaderboardPage() {
       fetch(`${API}/api/quiz/leaderboard`).then(r=>r.ok?r.json():null).catch(()=>null),
       fetch(`${API}/api/stats/rps`).then(r=>r.ok?r.json():null).catch(()=>null),
       fetch(`${API}/api/stats/connect4`).then(r=>r.ok?r.json():null).catch(()=>null),
-    ]).then(([ing,wlf,qz,rp,c])=>{
+      fetch(`${API}/api/reputation/leaderboard`).then(r=>r.ok?r.json():null).catch(()=>null),
+    ]).then(([ing,wlf,qz,rp,c,rep])=>{
       setIngame(ing);
       setWolf(Array.isArray(wlf)?wlf:(wlf?.data||wlf?.players||[]));
       setQuiz(Array.isArray(qz)?qz:(qz?.data||qz?.players||[]));
-      setRps(rp); setC4(c); setLoading(false);
+      setRps(rp); setC4(c);
+      setReputation(rep?.players || []);
+      setLoading(false);
     });
   }, []);
 
-  const players = ingame?.players || [];
-  const factions = ingame?.factions || [];
-  const rpsBoard = rps?.leaderboard || [];
-  const c4Board = c4?.leaderboard || [];
+  const players   = ingame?.players || [];
+  const factions  = ingame?.factions || [];
+  const rpsBoard  = rps?.leaderboard || [];
+  const c4Board   = c4?.leaderboard || [];
 
   const tabBtn = (active: boolean, onClick: ()=>void, label: string) => (
     <button onClick={onClick}
@@ -117,9 +128,8 @@ export default function LeaderboardPage() {
       </section>
       <div className="divider"/>
 
-      {/* Board switcher */}
       <div className="flex gap-2 flex-wrap mb-10">
-        {([["ingame","⚔️ In-Game"],["wolf","🐺 Werewolf"],["quiz","🧠 Quizarium"],["rps","🪨 RPS"],["c4","🔴 Connect4"]] as [BoardType,string][]).map(([id,label])=>(
+        {([["ingame","⚔️ In-Game"],["wolf","🐺 Werewolf"],["quiz","🧠 Quizarium"],["rps","🪨 RPS"],["c4","🔴 Connect4"],["reputation","📋 Reputation"]] as [BoardType,string][]).map(([id,label])=>(
           <button key={id} onClick={()=>setBoard(id)}
             className={`px-4 py-[0.45rem] text-[0.72rem] tracking-[0.1em] uppercase border font-[inherit] cursor-pointer transition-all ${board===id?"border-[#4a7c59] text-[#4a7c59]":"border-[#222] text-[#555] hover:border-[#444] hover:text-[#e6e6e6]"}`}>
             {label}
@@ -189,6 +199,50 @@ export default function LeaderboardPage() {
           {c4Tab==="pvp"     && <GameTable rows={[...c4Board].sort((a:any,b:any)=>b.wins-a.wins)} c1={p=>`${p.wins}W / ${p.losses}L / ${p.draws}D`} c2={p=>`${p.win_rate}%`} h1="Record" h2="Win %"/>}
           {c4Tab==="zombita" && <GameTable rows={[...c4Board].sort((a:any,b:any)=>b.vs_zombita.wins-a.vs_zombita.wins)} c1={p=>`${p.vs_zombita.wins}W / ${p.vs_zombita.losses}L / ${p.vs_zombita.draws}D`} c2={p=>{const t=p.vs_zombita.wins+p.vs_zombita.losses+p.vs_zombita.draws;return t>0?Math.round((p.vs_zombita.wins/t)*100)+'%':'—';}} h1="vs Zombita" h2="Win %"/>}
           {c4Tab==="coins"   && <GameTable rows={[...c4Board].sort((a:any,b:any)=>b.coins_net-a.coins_net)} c1={p=>`${p.coins_won.toLocaleString()} 🟤`} c2={p=>`${p.coins_net>=0?'+':''}${p.coins_net.toLocaleString()}`} h1="Coins Won" h2="Net"/>}
+        </div>}
+
+        {board==="reputation" && <div>
+          <p className="text-[0.78rem] text-[#555] font-mono mb-6 italic">
+            Zombita&apos;s read on the community. Updated daily based on behavior, participation, kills, deaths, and everything in between.
+          </p>
+          {reputation.length === 0
+            ? <p className="text-[#555] font-mono text-sm italic">No reputation data yet. Check back after the first daily analysis runs at 3am.</p>
+            : <div className="flex flex-col gap-3">
+                {reputation.map((p: any, i: number) => {
+                  const tier = repTier(p.rep_points);
+                  return (
+                    <div key={i} className="border border-[#1e2530] bg-[#0f1318] p-4 flex flex-col gap-2">
+                      <div className="flex items-center justify-between gap-4 flex-wrap">
+                        <div className="flex items-center gap-3">
+                          <span className="font-mono text-[0.72rem] text-[#444] w-6 text-center flex-shrink-0">{medal(i)}</span>
+                          <a href={`/player?id=${encodeURIComponent(p.display_name)}`}
+                            className="font-mono tracking-wide hover:text-[#4a7c59] transition-colors text-[#e6e6e6]">
+                            {p.display_name}
+                          </a>
+                          {p.archetype && p.archetype !== "unknown" && (
+                            <span className="font-mono text-[0.65rem] text-[#555] italic">
+                              {p.archetype.replace(/_/g, " ")}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3 flex-shrink-0">
+                          <span className="font-mono text-[0.72rem]" style={{ color: tier.color }}>{tier.label}</span>
+                          <span className="font-mono text-[0.85rem] text-[#e6e6e6] font-semibold">{p.rep_points.toLocaleString()} pts</span>
+                        </div>
+                      </div>
+                      {p.zombita_opinion && (
+                        <p className="font-mono text-[0.72rem] text-[#555] italic pl-9">
+                          &ldquo;{p.zombita_opinion}&rdquo;
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+          }
+          <p className="font-mono text-[0.65rem] text-[#333] mt-6 italic">
+            Reputation is Zombita&apos;s cumulative impression of each survivor — not just what they achieved, but how they showed up.
+          </p>
         </div>}
 
       </>}
