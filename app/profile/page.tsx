@@ -2,16 +2,9 @@
 import { useEffect, useState } from "react";
 import { API } from "@/lib/constants";
 import type { User } from "@/lib/types";
+import { repTier } from "@/lib/utils";
 
 type State = "loading" | "guest" | "profile";
-
-function repTier(pts: number): { label: string; color: string } {
-  if (pts >= 200) return { label: "Legendary", color: "#c8a84b" };
-  if (pts >= 100) return { label: "Honored",   color: "#4a7c59" };
-  if (pts >= 50)  return { label: "Respected", color: "#4a6c8c" };
-  if (pts >= 20)  return { label: "Known",     color: "#888"    };
-  return           { label: "Neutral",         color: "#555"    };
-}
 
 export default function ProfilePage() {
   const [state, setState] = useState<State>("loading");
@@ -44,8 +37,9 @@ export default function ProfilePage() {
           }
           if (ir.ok) {
             const rankings = await ir.json();
+            // FIX: Match strictly by discord_id only to avoid false username matches
             const p = (rankings.players || []).find((p: any) =>
-              String(p.discord_id) === String(me.discord_id) || p.name === me.username
+              String(p.discord_id) === String(me.discord_id)
             );
             if (p) setIngameStats(p);
           }
@@ -88,7 +82,7 @@ export default function ProfilePage() {
   };
 
   return (
-    <main className="max-w-[720px] mx-auto px-6 py-16">
+    <main className="max-w-[720px] mx-auto px-4 sm:px-6 py-10 sm:py-16">
       {state === "loading" && <p className="text-[#777] text-[0.85rem]">Checking identity...</p>}
 
       {state === "guest" && (
@@ -102,24 +96,24 @@ export default function ProfilePage() {
 
       {state === "profile" && user && (
         <>
-          <div className="flex items-center gap-6 mb-2">
+          <div className="flex items-center gap-4 sm:gap-6 mb-4">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={user.avatar_url} alt={user.username} width={64} height={64} className="rounded-full opacity-90" />
-            <div>
-              <h1 className="text-2xl tracking-[0.1em]">{gameStats?.display_name || user.username}</h1>
+            <img src={user.avatar_url} alt={user.username} width={56} height={56} className="rounded-full opacity-90 flex-shrink-0 w-12 h-12 sm:w-16 sm:h-16" />
+            <div className="min-w-0">
+              <h1 className="text-xl sm:text-2xl tracking-[0.1em] truncate">{gameStats?.display_name || user.username}</h1>
               <p className="font-mono text-[0.7rem] text-[#444] mt-0.5">@{user.username}</p>
               {rep?.archetype && rep.archetype !== "unknown"
                 ? <p className="text-[0.85rem] italic text-[#4a7c59] mt-1 font-mono">&ldquo;{rep.archetype.replace(/_/g, " ")}&rdquo;</p>
                 : user.player?.identity && <p className="text-[0.85rem] italic text-[#4a7c59] mt-1 font-mono">&ldquo;{user.player.identity}&rdquo;</p>
               }
               {gameStats?.balance !== undefined && (
-                <p className="text-[0.85rem] text-[#555] mt-1 font-mono">{gameStats.balance.toLocaleString()} 🟤 coins</p>
+                <p className="text-[0.85rem] text-[#555] mt-1 font-mono">{gameStats.balance.toLocaleString()} 🟤</p>
               )}
             </div>
           </div>
 
           {/* Bio */}
-          <div className="mt-4">
+          <div className="mt-3 sm:mt-4">
             {!editingBio ? (
               <div className="flex items-start gap-3">
                 <p className="text-[0.83rem] text-[#777] leading-relaxed flex-1 italic">
@@ -135,10 +129,10 @@ export default function ProfilePage() {
                 <textarea value={bioInput} onChange={e => setBioInput(e.target.value.slice(0, 280))}
                   placeholder="tell the survivors who you are... (280 chars)"
                   rows={3}
-                  className="bg-[#0a0a0a] border border-[#222] text-[#e6e6e6] text-[0.83rem] px-3 py-2 font-mono placeholder:text-[#333] outline-none focus:border-[#4a7c59] transition-colors resize-none"
+                  className="bg-[#0a0a0a] border border-[#222] text-[#e6e6e6] text-[0.83rem] px-3 py-2 font-mono placeholder:text-[#333] outline-none focus:border-[#4a7c59] transition-colors resize-none w-full"
                   style={{ fontFamily: "inherit" }}
                 />
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 flex-wrap">
                   <button onClick={saveBio} disabled={bioSaving}
                     className="text-[0.7rem] px-3 py-1.5 border border-[#4a7c59] text-[#4a7c59] font-mono uppercase tracking-wider hover:bg-[#4a7c59] hover:text-black disabled:opacity-40 transition-all cursor-pointer bg-transparent">
                     {bioSaving ? "saving..." : "save"}
@@ -163,7 +157,7 @@ export default function ProfilePage() {
               <div className="mb-6">
                 <p className="text-[0.65rem] font-mono uppercase tracking-widest text-[#444] mb-3">📋 Zombita&apos;s Take</p>
                 <div className="bg-[#0a0a0a] border border-[#1a1a1a] p-4 flex flex-col gap-3">
-                  <div className="flex items-center gap-5 flex-wrap">
+                  <div className="flex items-center gap-4 sm:gap-5 flex-wrap">
                     <div>
                       <p className="font-mono text-[0.6rem] text-[#444] uppercase tracking-widest">Reputation</p>
                       <p className="font-mono text-[1rem] font-semibold text-[#e6e6e6]">{rep.rep_points.toLocaleString()} pts</p>
@@ -194,13 +188,13 @@ export default function ProfilePage() {
           {ingameStats && <>
             <section>
               <h2>⚔️ In-Game — Season 1</h2>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 mt-6">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-6 mt-4 sm:mt-6">
                 <StatBlock value={(ingameStats.kills||0).toLocaleString()} label="Kills (this life)" />
                 <StatBlock value={(ingameStats.overallKills||0).toLocaleString()} label="All-Time Kills" />
                 <StatBlock value={ingameStats.deaths||0} label="Deaths" />
                 <StatBlock value={fmtTime(ingameStats.currentLife)} label="Current Life" />
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 mt-6">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-6 mt-3 sm:mt-6">
                 <StatBlock value={fmtTime(ingameStats.longestLife)} label="Best Life" />
                 {ingameStats.faction && <StatBlock value={ingameStats.faction} label="Faction" />}
               </div>
@@ -212,7 +206,7 @@ export default function ProfilePage() {
           {user.player && user.player.games_played > 0 && <>
             <section>
               <h2>🐺 Werewolf — Season 1</h2>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 mt-6">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-6 mt-4 sm:mt-6">
                 <StatBlock value={user.player.games_played} label="Games" />
                 <StatBlock value={user.player.games_won} label="Wins" />
                 <StatBlock value={user.player.times_survived} label="Survived" />
@@ -226,7 +220,7 @@ export default function ProfilePage() {
           {user.quiz && <>
             <section>
               <h2>🧠 Quizarium — Season 1</h2>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 mt-6">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-6 mt-4 sm:mt-6">
                 <StatBlock value={user.quiz.rank ? `#${user.quiz.rank}` : "—"} label="Rank" />
                 <StatBlock value={user.quiz.total_points} label="Points" />
                 <StatBlock value={user.quiz.correct_answers} label="Correct" />
@@ -240,7 +234,7 @@ export default function ProfilePage() {
           {gameStats?.rps && (gameStats.rps.wins + gameStats.rps.losses + gameStats.rps.draws) > 0 && <>
             <section>
               <h2>🪨📄✂️ Rock Paper Scissors</h2>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 mt-6">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-6 mt-4 sm:mt-6">
                 <StatBlock value={gameStats.rps.wins} label="PvP Wins" />
                 <StatBlock value={pct(gameStats.rps.wins, gameStats.rps.wins+gameStats.rps.losses+gameStats.rps.draws)} label="Win Rate" />
                 <StatBlock value={`${gameStats.rps.vs_zombita_wins}W`} label="vs Zombita" />
@@ -254,7 +248,7 @@ export default function ProfilePage() {
           {gameStats?.connect4 && (gameStats.connect4.wins + gameStats.connect4.losses + gameStats.connect4.draws) > 0 && <>
             <section>
               <h2>🔴🟡 Connect Four</h2>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 mt-6">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-6 mt-4 sm:mt-6">
                 <StatBlock value={gameStats.connect4.wins} label="PvP Wins" />
                 <StatBlock value={pct(gameStats.connect4.wins, gameStats.connect4.wins+gameStats.connect4.losses+gameStats.connect4.draws)} label="Win Rate" />
                 <StatBlock value={`${gameStats.connect4.vs_zombita_wins}W`} label="vs Zombita" />
