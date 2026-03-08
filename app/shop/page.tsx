@@ -132,12 +132,13 @@ export default function ShopPage() {
       </div>
 
       <div className="max-w-[1200px] mx-auto px-4 sm:px-6 py-6 sm:py-8">
+
         {/* Mobile: horizontal category scroll */}
-        <div className="sm:hidden overflow-x-auto -mx-4 px-4 mb-6 pb-1">
+        <div className="sm:hidden overflow-x-auto -mx-4 px-4 mb-5 pb-1">
           <div className="flex gap-2 min-w-max">
             {CATEGORIES.map((c) => (
               <button key={c.id} onClick={() => setCat(c.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 border text-[0.68rem] font-mono uppercase tracking-widest whitespace-nowrap cursor-pointer transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 border text-[0.68rem] font-mono uppercase tracking-widest whitespace-nowrap cursor-pointer transition-all bg-transparent ${
                   cat === c.id ? "border-[rgba(200,168,75,0.4)] text-accent bg-[rgba(200,168,75,0.05)]" : "border-[#1e2530] text-dim hover:text-[#c8cdd6]"
                 }`}>
                 {c.icon} {c.label}
@@ -146,14 +147,15 @@ export default function ShopPage() {
           </div>
         </div>
 
-        {/* Desktop: sidebar layout */}
-        <div className="hidden sm:grid gap-8" style={{ gridTemplateColumns: "160px 1fr" }}>
-          <aside>
+        {/* Desktop: sidebar + items side by side */}
+        <div className="hidden sm:flex gap-8 items-start">
+          {/* Sidebar */}
+          <aside className="w-[160px] flex-shrink-0">
             <div className="font-display text-sm tracking-[3px] text-dim mb-3" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>CATEGORIES</div>
             <div className="flex flex-col gap-1">
               {CATEGORIES.map((c) => (
                 <button key={c.id} onClick={() => setCat(c.id)}
-                  className={`flex items-center gap-2 px-3 py-2 border text-[0.72rem] font-mono uppercase tracking-widest text-left cursor-pointer transition-all ${
+                  className={`flex items-center gap-2 px-3 py-2 border text-[0.72rem] font-mono uppercase tracking-widest text-left cursor-pointer transition-all bg-transparent ${
                     cat === c.id ? "border-[rgba(200,168,75,0.4)] text-accent bg-[rgba(200,168,75,0.05)]" : "border-transparent text-dim hover:text-[#c8cdd6] hover:border-[#1e2530]"
                   }`}>
                   <span>{c.icon}</span> {c.label}
@@ -167,7 +169,11 @@ export default function ShopPage() {
               </div>
             </div>
           </aside>
-          <ShopItems displayed={displayed} user={user} buyItem={buyItem} />
+
+          {/* Items — takes remaining width */}
+          <div className="flex-1 min-w-0">
+            <ShopItems displayed={displayed} user={user} buyItem={buyItem} />
+          </div>
         </div>
 
         {/* Mobile: full width items */}
@@ -230,7 +236,7 @@ function ShopItems({ displayed, user, buyItem }: { displayed: ShopItem[], user: 
       {displayed.length === 0 ? (
         <div className="font-mono text-sm text-dim py-8 sm:py-12 text-center">No items in this category right now.</div>
       ) : (
-        <div className="grid gap-3 sm:gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}>
+        <div className="grid gap-3 sm:gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))" }}>
           {displayed.map((item) => {
             const outOfStock = item.stock === 0;
             const { tax, total } = calcTax(item.buy_price ?? 0);
