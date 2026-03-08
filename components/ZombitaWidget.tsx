@@ -197,7 +197,7 @@ export default function ZombitaWidget() {
         <img src={avatar} alt="Zombita" className="w-full h-full object-cover" />
       </button>
 
-      <div className={`fixed bottom-20 right-6 w-[340px] max-h-[520px] bg-[#0e0e0e] border border-[#222] rounded z-[9997] flex flex-col transition-all duration-200 origin-bottom-right ${open?"opacity-100 scale-100 pointer-events-auto":"opacity-0 scale-[0.97] translate-y-3 pointer-events-none"}`}>
+      <div className={`fixed bottom-20 right-6 w-[340px] max-h-[520px] zombita-widget-panel bg-[#0e0e0e] border border-[#222] rounded z-[9997] flex flex-col transition-all duration-200 origin-bottom-right ${open?"opacity-100 scale-100 pointer-events-auto":"opacity-0 scale-[0.97] translate-y-3 pointer-events-none"}`}>
 
         {/* Header */}
         <div className="flex items-center gap-3 px-4 py-3 border-b border-[#1a1a1a] flex-shrink-0">

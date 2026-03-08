@@ -3,14 +3,14 @@ import Link from "next/link";
 export default function HomePage() {
   return (
     <main>
-      <header className="hero-bg min-h-[70vh] flex items-center justify-center text-center relative">
+      <header className="hero-bg min-h-[50vh] sm:min-h-[70vh] flex items-center justify-center text-center relative px-4">
         <div className="animate-fadeUp z-10">
-          <h1 className="text-[2.5rem] tracking-[0.25em]">STATE OF UNDEAD PURGE</h1>
-          <p className="mt-2 text-[#cfcfcf] text-[0.9rem]">Season 1 — New Dawn</p>
+          <h1 className="text-[1.8rem] sm:text-[2.5rem] tracking-[0.2em] sm:tracking-[0.25em]">STATE OF UNDEAD PURGE</h1>
+          <p className="mt-2 text-[#cfcfcf] text-[0.85rem] sm:text-[0.9rem]">Season 1 — New Dawn</p>
         </div>
       </header>
 
-      <div className="max-w-[720px] mx-auto px-6 py-16">
+      <div className="max-w-[720px] mx-auto px-4 sm:px-6 py-10 sm:py-16">
         <section className="animate-fadeUp">
           <p>
             State of Undead Purge is a long-term, PVE-focused Project Zomboid server
@@ -53,13 +53,13 @@ export default function HomePage() {
         <div className="divider" />
 
         <section className="text-center">
-          <div className="flex gap-4 flex-wrap justify-center mt-6">
+          <div className="flex gap-3 sm:gap-4 flex-wrap justify-center mt-6">
             <a href="https://discord.gg/NCBPqP5Q" target="_blank" rel="noopener noreferrer"
-              className="inline-block px-[1.4rem] py-[0.6rem] border border-[#2a2a2a] text-[#9a9a9a] no-underline text-[0.8rem] tracking-[0.12em] uppercase hover:border-[#5865F2] hover:text-[#5865F2] transition-all">
+              className="inline-block px-[1.2rem] py-[0.55rem] border border-[#2a2a2a] text-[#9a9a9a] no-underline text-[0.78rem] sm:text-[0.8rem] tracking-[0.1em] sm:tracking-[0.12em] uppercase hover:border-[#5865F2] hover:text-[#5865F2] transition-all">
               Join Discord
             </a>
             <Link href="/whitelist"
-              className="inline-block px-[1.4rem] py-[0.6rem] border border-[#2a2a2a] text-[#9a9a9a] no-underline text-[0.8rem] tracking-[0.12em] uppercase hover:border-[#4a7c59] hover:text-[#4a7c59] transition-all">
+              className="inline-block px-[1.2rem] py-[0.55rem] border border-[#2a2a2a] text-[#9a9a9a] no-underline text-[0.78rem] sm:text-[0.8rem] tracking-[0.1em] sm:tracking-[0.12em] uppercase hover:border-[#4a7c59] hover:text-[#4a7c59] transition-all">
               Apply Whitelist
             </Link>
           </div>

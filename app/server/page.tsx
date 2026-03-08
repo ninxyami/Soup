@@ -1,6 +1,6 @@
 export default function ServerPage() {
   return (
-    <main className="max-w-[720px] mx-auto px-6 py-16">
+    <main className="max-w-[720px] mx-auto px-4 sm:px-6 py-10 sm:py-16">
       <section>
         <h1 className="text-2xl tracking-[0.15em] uppercase mb-2">Server Information</h1>
         <p className="text-[#777] text-[0.85rem]">Everything you need to connect.</p>
