@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { API } from "@/lib/constants";
+import { API, SEASON_SHORT } from "@/lib/constants";
 import type { User } from "@/lib/types";
 import { repTier } from "@/lib/utils";
 
@@ -187,7 +187,7 @@ export default function ProfilePage() {
           {/* In-Game */}
           {ingameStats && <>
             <section>
-              <h2>⚔️ In-Game — Season 1</h2>
+              <h2>⚔️ In-Game — {SEASON_SHORT}</h2>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-6 mt-4 sm:mt-6">
                 <StatBlock value={(ingameStats.kills||0).toLocaleString()} label="Kills (this life)" />
                 <StatBlock value={(ingameStats.overallKills||0).toLocaleString()} label="All-Time Kills" />
@@ -205,7 +205,7 @@ export default function ProfilePage() {
           {/* Werewolf */}
           {user.player && user.player.games_played > 0 && <>
             <section>
-              <h2>🐺 Werewolf — Season 1</h2>
+              <h2>🐺 Werewolf — {SEASON_SHORT}</h2>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-6 mt-4 sm:mt-6">
                 <StatBlock value={user.player.games_played} label="Games" />
                 <StatBlock value={user.player.games_won} label="Wins" />
@@ -219,7 +219,7 @@ export default function ProfilePage() {
           {/* Quizarium */}
           {user.quiz && <>
             <section>
-              <h2>🧠 Quizarium — Season 1</h2>
+              <h2>🧠 Quizarium — {SEASON_SHORT}</h2>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-6 mt-4 sm:mt-6">
                 <StatBlock value={user.quiz.rank ? `#${user.quiz.rank}` : "—"} label="Rank" />
                 <StatBlock value={user.quiz.total_points} label="Points" />

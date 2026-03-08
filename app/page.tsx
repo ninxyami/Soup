@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { API } from "@/lib/constants";
+import { API, CURRENT_SEASON, SEASON_SHORT } from "@/lib/constants";
 import { timeAgo } from "@/lib/utils";
 
 interface Post {
@@ -100,7 +100,7 @@ export default function HomePage() {
       <header className="hero-bg min-h-[50vh] sm:min-h-[70vh] flex items-center justify-center text-center relative px-4">
         <div className="animate-fadeUp z-10">
           <h1 className="text-[1.8rem] sm:text-[2.5rem] tracking-[0.2em] sm:tracking-[0.25em]">STATE OF UNDEAD PURGE</h1>
-          <p className="mt-2 text-[#cfcfcf] text-[0.85rem] sm:text-[0.9rem]">Season 1 — New Dawn</p>
+          <p className="mt-2 text-[#cfcfcf] text-[0.85rem] sm:text-[0.9rem]">{CURRENT_SEASON}</p>
         </div>
       </header>
 

@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { API } from "@/lib/constants";
+import { API, CURRENT_SEASON } from "@/lib/constants";
 import { repTier, timeAgo } from "@/lib/utils";
 
 type BoardType = "ingame" | "wolf" | "quiz" | "rps" | "c4" | "reputation";
@@ -118,7 +118,7 @@ export default function LeaderboardPage() {
     <main className="max-w-[720px] mx-auto px-4 sm:px-6 py-10 sm:py-16">
       <section>
         <h1 className="text-xl sm:text-2xl tracking-[0.15em] uppercase mb-2">Leaderboard</h1>
-        <p className="text-[#777] text-[0.85rem]">Season 1 — New Dawn</p>
+        <p className="text-[#777] text-[0.85rem]">{CURRENT_SEASON}</p>
       </section>
       <div className="divider"/>
 

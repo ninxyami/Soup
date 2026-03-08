@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState, useCallback } from "react";
-import { API } from "@/lib/constants";
+import { API, SEASON_SHORT } from "@/lib/constants";
 import { timeAgo } from "@/lib/utils";
 
 interface Post {
@@ -512,7 +512,7 @@ export default function FeedPage() {
       {/* Page header */}
       <div className="px-4 py-4 border-b border-[#111] sticky top-[49px] z-10 bg-[rgba(13,17,23,0.95)] backdrop-blur-sm flex items-center gap-3">
         <h1 className="font-mono text-[0.75rem] uppercase tracking-[0.2em] text-[#555]">Community Feed</h1>
-        <span className="font-mono text-[0.6rem] text-[#2a2a2a]">· Season 1</span>
+        <span className="font-mono text-[0.6rem] text-[#2a2a2a]">· {SEASON_SHORT}</span>
         <button onClick={() => loadPosts()} className="ml-auto text-[0.65rem] font-mono text-[#333] hover:text-[#4a7c59] bg-transparent border-none cursor-pointer transition-colors">
           ↻ refresh
         </button>

@@ -1,8 +1,10 @@
+import { CURRENT_SEASON, SEASON_SHORT, SEASON_SUBTITLE } from "@/lib/constants";
+
 export default function SeasonsPage() {
   return (
     <main className="max-w-[720px] mx-auto px-4 sm:px-6 py-10 sm:py-16">
       <section>
-        <h1 className="text-2xl tracking-[0.15em] uppercase mb-2">Season 1 — New Dawn</h1>
+        <h1 className="text-2xl tracking-[0.15em] uppercase mb-2">{CURRENT_SEASON}</h1>
         <p className="text-[#777] text-[0.85rem]">The current season.</p>
       </section>
 
@@ -10,7 +12,7 @@ export default function SeasonsPage() {
 
       <section className="text-center">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/assets/season.png" alt="New Dawn" className="max-w-full h-auto object-contain mx-auto" />
+        <img src="/assets/season.png" alt={SEASON_SUBTITLE} className="max-w-full h-auto object-contain mx-auto" />
       </section>
 
       <div className="divider" />
@@ -18,7 +20,7 @@ export default function SeasonsPage() {
       <section>
         <div className="flex flex-col gap-6 mt-2">
           {[
-            { label: "Season", value: "New Dawn", note: "Season 1" },
+            { label: "Season", value: SEASON_SUBTITLE, note: SEASON_SHORT },
             { label: "Status", value: "Active", note: "Ongoing" },
             { label: "Map", value: "Muldraugh, KY", note: "Default spawn" },
             { label: "Economy", value: "Bronze / Silver / Gold", note: "Powered by Zombita" },

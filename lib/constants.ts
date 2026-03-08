@@ -18,3 +18,9 @@ export const NAV_LINKS = [
 export const ADMIN_NAV_LINKS = [
   { href: "/admin", label: "Admin" },
 ];
+
+// ── Season ──────────────────────────────────────────────────────────────────
+// Change these two lines when a new season starts. Everything on the site reads from here.
+export const CURRENT_SEASON = "Season 1: New Dawn";
+export const SEASON_SHORT   = "Season 1";
+export const SEASON_SUBTITLE = "New Dawn";
