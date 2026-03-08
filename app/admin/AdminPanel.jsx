@@ -13,11 +13,13 @@ import PlayersTab   from "./tabs/PlayersTab";
 import GamesTab     from "./tabs/GamesTab";
 import ModsTab      from "./tabs/ModsTab";
 import ReputationTab from "./tabs/ReputationTab";
+import SystemTab    from "./tabs/SystemTab";
 
 const NAV_SECTIONS = [
   { label: "COMMAND", items: [
     { key: "overview", icon: "📡", label: "Overview" },
     { key: "server",   icon: "🖥️", label: "Server" },
+    { key: "system",    icon: "⚙️",  label: "System Panel" },
   ]},
   { label: "ECONOMY", items: [
     { key: "shop",     icon: "📦", label: "Shop" },
@@ -29,8 +31,8 @@ const NAV_SECTIONS = [
     { key: "hunt",     icon: "🗺️", label: "Treasure Hunt" },
   ]},
   { label: "COMMUNITY", items: [
-    { key: "players",    icon: "👥", label: "Players" },
-    { key: "games",      icon: "🎮", label: "Games" },
+    { key: "players",  icon: "👥", label: "Players" },
+    { key: "games",    icon: "🎮", label: "Games" },
     { key: "mods",       icon: "🔧", label: "Mods & Broadcast" },
     { key: "reputation", icon: "🎭", label: "Reputation" },
   ]},
@@ -45,9 +47,10 @@ const PANELS = {
   dotd:     DotdTab,
   hunt:     HuntTab,
   players:  PlayersTab,
-  games:      GamesTab,
+  games:    GamesTab,
   mods:       ModsTab,
   reputation: ReputationTab,
+  system:     SystemTab,
 };
 
 const CSS = `
