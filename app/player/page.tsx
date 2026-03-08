@@ -45,6 +45,11 @@ interface PlayerStats {
     faction?: string;
   };
   identity?: string;
+  reputation?: {
+    rep_points: number;
+    archetype: string;
+    zombita_opinion: string;
+  };
 }
 
 const NOT_FOUND_LINES = [
@@ -66,6 +71,14 @@ function formatDuration(secs: number): string {
   if (d > 0) return `${d}d ${h}h`;
   if (h > 0) return `${h}h ${m}m`;
   return `${m}m`;
+}
+
+function repTier(pts: number): { label: string; color: string } {
+  if (pts >= 200) return { label: "Legendary", color: "#c8a84b" };
+  if (pts >= 100) return { label: "Honored",   color: "#4a7c59" };
+  if (pts >= 50)  return { label: "Respected", color: "#4a6c8c" };
+  if (pts >= 20)  return { label: "Known",     color: "#888"    };
+  return           { label: "Neutral",         color: "#555"    };
 }
 
 function timeAgo(ts: number): string {
@@ -284,6 +297,51 @@ export default function PlayerPage() {
                 <div className="font-mono text-[0.65rem] text-[#555] tracking-widest mt-1">{s.label}</div>
               </div>
             ))}
+          </div>
+        </section>
+      )}
+
+      {/* Zombita's Take */}
+      {stats.reputation && (stats.reputation.rep_points > 0 || stats.reputation.zombita_opinion) && (
+        <section className="mb-8">
+          <h2 className="font-mono text-[0.72rem] uppercase tracking-[0.15em] text-[#555] mb-4">📋 Zombita&apos;s Take</h2>
+          <div className="bg-[#0f1318] border border-[#1e2530] p-5 flex flex-col gap-3">
+            <div className="flex items-center gap-4 flex-wrap">
+              {(() => {
+                const tier = repTier(stats.reputation.rep_points);
+                return (
+                  <>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-mono text-[0.65rem] text-[#444] uppercase tracking-widest">Reputation</span>
+                      <span className="font-mono text-[1.1rem] font-semibold text-[#e6e6e6]">{stats.reputation.rep_points.toLocaleString()} pts</span>
+                    </div>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-mono text-[0.65rem] text-[#444] uppercase tracking-widest">Standing</span>
+                      <span className="font-mono text-[0.85rem]" style={{ color: tier.color }}>{tier.label}</span>
+                    </div>
+                    {stats.reputation.archetype && stats.reputation.archetype !== "unknown" && (
+                      <div className="flex flex-col gap-0.5">
+                        <span className="font-mono text-[0.65rem] text-[#444] uppercase tracking-widest">Archetype</span>
+                        <span className="font-mono text-[0.85rem] text-[#888] italic">{stats.reputation.archetype.replace(/_/g, " ")}</span>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+            {stats.reputation.zombita_opinion && (
+              <div className="border-t border-[#1a1a1a] pt-3">
+                <p className="font-mono text-[0.65rem] text-[#444] uppercase tracking-widest mb-1">Opinion</p>
+                <p className="font-mono text-[0.8rem] text-[#777] italic leading-relaxed">
+                  &ldquo;{stats.reputation.zombita_opinion}&rdquo;
+                </p>
+              </div>
+            )}
+            {!stats.reputation.zombita_opinion && (
+              <p className="font-mono text-[0.72rem] text-[#333] italic">
+                Zombita hasn&apos;t formed a full opinion yet. Check back after the next daily analysis.
+              </p>
+            )}
           </div>
         </section>
       )}

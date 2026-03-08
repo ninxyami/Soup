@@ -8,6 +8,8 @@ interface Player {
   username: string;
   bio: string;
   identity: string;
+  rep_points?: number;
+  archetype?: string;
   first_seen: number;
   last_seen: number;
   games_played: number;
@@ -109,6 +111,15 @@ export default function PlayersPage() {
                   </div>
                   {p.username && (
                     <p className="font-mono text-[0.65rem] text-[#444] mt-0.5">@{p.username}</p>
+                  )}
+                  {/* Rep + archetype */}
+                  {(p.rep_points || 0) > 0 && (
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="font-mono text-[0.62rem] text-[#555]">{p.rep_points} rep</span>
+                      {p.archetype && p.archetype !== "unknown" && (
+                        <span className="font-mono text-[0.62rem] text-[#444] italic">{p.archetype.replace(/_/g, " ")}</span>
+                      )}
+                    </div>
                   )}
                   {/* Zombita's judgment */}
                   <p className="text-[0.72rem] text-[#4a7c59] font-mono italic mt-0.5">

@@ -5,12 +5,21 @@ import type { User } from "@/lib/types";
 
 type State = "loading" | "guest" | "profile";
 
+function repTier(pts: number): { label: string; color: string } {
+  if (pts >= 200) return { label: "Legendary", color: "#c8a84b" };
+  if (pts >= 100) return { label: "Honored",   color: "#4a7c59" };
+  if (pts >= 50)  return { label: "Respected", color: "#4a6c8c" };
+  if (pts >= 20)  return { label: "Known",     color: "#888"    };
+  return           { label: "Neutral",         color: "#555"    };
+}
+
 export default function ProfilePage() {
   const [state, setState] = useState<State>("loading");
   const [user, setUser] = useState<User | null>(null);
   const [gameStats, setGameStats] = useState<any>(null);
   const [ingameStats, setIngameStats] = useState<any>(null);
   const [bio, setBio] = useState("");
+  const [rep, setRep] = useState<{rep_points:number,archetype:string,zombita_opinion:string}|null>(null);
   const [editingBio, setEditingBio] = useState(false);
   const [bioInput, setBioInput] = useState("");
   const [bioSaving, setBioSaving] = useState(false);
@@ -28,7 +37,11 @@ export default function ProfilePage() {
             fetch(`${API}/api/rankings`),
             fetch(`${API}/api/players`),
           ]);
-          if (sr.ok) setGameStats(await sr.json());
+          if (sr.ok) {
+            const sd = await sr.json();
+            setGameStats(sd);
+            if (sd.reputation) setRep(sd.reputation);
+          }
           if (ir.ok) {
             const rankings = await ir.json();
             const p = (rankings.players || []).find((p: any) =>
@@ -139,6 +152,40 @@ export default function ProfilePage() {
               </div>
             )}
           </div>
+
+          <div className="divider" />
+
+          {/* Zombita's Take */}
+          {rep && (rep.rep_points > 0 || rep.zombita_opinion) && (() => {
+            const tier = repTier(rep.rep_points);
+            return (
+              <div className="mb-6">
+                <p className="text-[0.65rem] font-mono uppercase tracking-widest text-[#444] mb-3">📋 Zombita&apos;s Take</p>
+                <div className="bg-[#0a0a0a] border border-[#1a1a1a] p-4 flex flex-col gap-3">
+                  <div className="flex items-center gap-5 flex-wrap">
+                    <div>
+                      <p className="font-mono text-[0.6rem] text-[#444] uppercase tracking-widest">Reputation</p>
+                      <p className="font-mono text-[1rem] font-semibold text-[#e6e6e6]">{rep.rep_points.toLocaleString()} pts</p>
+                    </div>
+                    <div>
+                      <p className="font-mono text-[0.6rem] text-[#444] uppercase tracking-widest">Standing</p>
+                      <p className="font-mono text-[0.8rem]" style={{ color: tier.color }}>{tier.label}</p>
+                    </div>
+                    {rep.archetype && rep.archetype !== "unknown" && (
+                      <div>
+                        <p className="font-mono text-[0.6rem] text-[#444] uppercase tracking-widest">Archetype</p>
+                        <p className="font-mono text-[0.8rem] text-[#777] italic">{rep.archetype.replace(/_/g, " ")}</p>
+                      </div>
+                    )}
+                  </div>
+                  {rep.zombita_opinion
+                    ? <p className="font-mono text-[0.75rem] text-[#666] italic border-t border-[#1a1a1a] pt-3 leading-relaxed">&ldquo;{rep.zombita_opinion}&rdquo;</p>
+                    : <p className="font-mono text-[0.72rem] text-[#333] italic">Zombita hasn&apos;t formed a full opinion yet.</p>
+                  }
+                </div>
+              </div>
+            );
+          })()}
 
           <div className="divider" />
 
