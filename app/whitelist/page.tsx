@@ -40,7 +40,7 @@ export default function WhitelistPage() {
   };
 
   return (
-    <main className="max-w-[720px] mx-auto px-4 sm:px-6 py-10 sm:py-16">
+    <main className="max-w-[720px] mx-auto px-6 py-16">
       {state === "loading" && (
         <p className="text-[#777] text-[0.85rem]">Checking identity...</p>
       )}
