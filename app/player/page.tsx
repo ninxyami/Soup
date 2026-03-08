@@ -184,9 +184,13 @@ export default function PlayerPage() {
           {stats.username && (
             <p className="font-mono text-[0.72rem] text-[#444] mt-0.5">@{stats.username}</p>
           )}
-          {stats.identity && (
+          {(stats.reputation?.archetype && stats.reputation.archetype !== "unknown"
+            ? stats.reputation.archetype.replace(/_/g, " ")
+            : stats.identity) && (
             <p className="font-mono text-[0.75rem] text-[#4a7c59] mt-1 tracking-wide italic">
-              &ldquo;{stats.identity}&rdquo;
+              &ldquo;{stats.reputation?.archetype && stats.reputation.archetype !== "unknown"
+                ? stats.reputation.archetype.replace(/_/g, " ")
+                : stats.identity}&rdquo;
             </p>
           )}
           {stats.bio && (

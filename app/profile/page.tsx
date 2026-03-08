@@ -108,9 +108,10 @@ export default function ProfilePage() {
             <div>
               <h1 className="text-2xl tracking-[0.1em]">{gameStats?.display_name || user.username}</h1>
               <p className="font-mono text-[0.7rem] text-[#444] mt-0.5">@{user.username}</p>
-              {user.player?.identity && (
-                <p className="text-[0.85rem] italic text-[#4a7c59] mt-1 font-mono">"{user.player.identity}"</p>
-              )}
+              {rep?.archetype && rep.archetype !== "unknown"
+                ? <p className="text-[0.85rem] italic text-[#4a7c59] mt-1 font-mono">&ldquo;{rep.archetype.replace(/_/g, " ")}&rdquo;</p>
+                : user.player?.identity && <p className="text-[0.85rem] italic text-[#4a7c59] mt-1 font-mono">&ldquo;{user.player.identity}&rdquo;</p>
+              }
               {gameStats?.balance !== undefined && (
                 <p className="text-[0.85rem] text-[#555] mt-1 font-mono">{gameStats.balance.toLocaleString()} 🟤 coins</p>
               )}
