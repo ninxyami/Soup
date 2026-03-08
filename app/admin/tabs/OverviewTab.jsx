@@ -1,7 +1,7 @@
 "use client";
 // @ts-nocheck
 import { useState, useEffect, useCallback } from "react";
-import { fetchApi, fmt, bronzeToCoins, relTime, SC, Title, TW, B, Empty, Load, EvBadge } from "./shared";
+import { fetchApi, postApi, fmt, bronzeToCoins, relTime, SC, Title, TW, B, Empty, Load, EvBadge } from "./shared";
 
 const OnlinePlayers = () => {
   const [data, setData] = useState(null);
@@ -36,9 +36,40 @@ const OnlinePlayers = () => {
   );
 };
 
+
 export default function OverviewTab({ toast }) {
   const [d, setD] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [season, setSeason]               = useState(null);
+  const [seasonInput, setSeasonInput]     = useState("");
+  const [shortInput, setShortInput]       = useState("");
+  const [subtitleInput, setSubtitleInput] = useState("");
+  const [seasonSaving, setSeasonSaving]   = useState(false);
+
+  const loadSeason = useCallback(async () => {
+    try {
+      const r = await fetchApi("/api/admin/server/season");
+      setSeason(r);
+      setSeasonInput(r.current_season || "");
+      setShortInput(r.season_short || "");
+      setSubtitleInput(r.season_subtitle || "");
+    } catch {}
+  }, []);
+
+  const saveSeason = async () => {
+    if (!seasonInput.trim()) { toast("Season name can't be empty", "error"); return; }
+    setSeasonSaving(true);
+    try {
+      await postApi("/api/admin/server/season", {
+        current_season:  seasonInput.trim(),
+        season_short:    shortInput.trim(),
+        season_subtitle: subtitleInput.trim(),
+      });
+      toast("Season updated — restart bot + API to apply", "success");
+      await loadSeason();
+    } catch (e) { toast(e.message, "error"); }
+    setSeasonSaving(false);
+  };
 
   const load = useCallback(async () => {
     try {
@@ -56,7 +87,7 @@ export default function OverviewTab({ toast }) {
     setLoading(false);
   }, []);
 
-  useEffect(() => { load(); const iv = setInterval(load, 30000); return () => clearInterval(iv); }, [load]);
+  useEffect(() => { load(); loadSeason(); const iv = setInterval(load, 30000); return () => clearInterval(iv); }, [load, loadSeason]);
 
   if (loading) return <Load />;
 
@@ -90,7 +121,36 @@ export default function OverviewTab({ toast }) {
       <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "var(--mono)", fontSize: 10, color: "var(--textdim)" }}><span>{t.health_pct}% of cap</span><span>Cap: {fmt(t.cap)} 🟤</span></div>
     </div>}
 
-    <TW title="RECENT ACTIVITY" right={<B c="ghost" sm onClick={load}>↻ Refresh</B>}>
+    <div className="ap-fb" style={{ marginBottom: 24 }}>
+      <h4 style={{ fontFamily: "var(--display)", fontSize: 18, letterSpacing: 2, color: "var(--text)", margin: "0 0 12px 0" }}>🗓 SEASON CONFIG</h4>
+      <div className="ap-note">
+        Changes are written to config.py on the server. Restart the bot + API after saving for everything to update.
+      </div>
+      {season && (
+        <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--accent)", marginBottom: 16, padding: "8px 12px", background: "rgba(200,168,75,0.05)", border: "1px solid rgba(200,168,75,0.15)" }}>
+          Current: <strong>{season.current_season}</strong> · Short: {season.season_short} · Subtitle: {season.season_subtitle}
+        </div>
+      )}
+      <div className="ap-3c" style={{ marginBottom: 12 }}>
+        <div className="ap-fg">
+          <label className="ap-fl">Full Season Name</label>
+          <input className="ap-inp" placeholder="Season 2: Blood Moon" value={seasonInput} onChange={e => setSeasonInput(e.target.value)} />
+        </div>
+        <div className="ap-fg">
+          <label className="ap-fl">Short Name</label>
+          <input className="ap-inp" placeholder="Season 2" value={shortInput} onChange={e => setShortInput(e.target.value)} />
+        </div>
+        <div className="ap-fg">
+          <label className="ap-fl">Subtitle</label>
+          <input className="ap-inp" placeholder="Blood Moon" value={subtitleInput} onChange={e => setSubtitleInput(e.target.value)} />
+        </div>
+      </div>
+      <B c="gold" onClick={saveSeason} disabled={seasonSaving}>
+        {seasonSaving ? "Saving..." : "Save Season"}
+      </B>
+    </div>
+
+    <TW title="RECENT ACTIVITY" right={<B c="ghost" sm onClick={load}>Refresh</B>}>
       {log.length ? <div>{log.slice(0, 12).map((e, i) => <div key={i} className="ap-lr">
         <span className="ap-lr-t">{relTime(e.timestamp)}</span><EvBadge type={e.event_type} />
         <span className="ap-lr-d">{e.reason || "—"}</span>
