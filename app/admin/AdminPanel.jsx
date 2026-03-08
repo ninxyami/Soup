@@ -12,6 +12,7 @@ import HuntTab      from "./tabs/HuntTab";
 import PlayersTab   from "./tabs/PlayersTab";
 import GamesTab     from "./tabs/GamesTab";
 import ModsTab      from "./tabs/ModsTab";
+import ReputationTab from "./tabs/ReputationTab";
 
 const NAV_SECTIONS = [
   { label: "COMMAND", items: [
@@ -28,9 +29,10 @@ const NAV_SECTIONS = [
     { key: "hunt",     icon: "🗺️", label: "Treasure Hunt" },
   ]},
   { label: "COMMUNITY", items: [
-    { key: "players",  icon: "👥", label: "Players" },
-    { key: "games",    icon: "🎮", label: "Games" },
-    { key: "mods",     icon: "🔧", label: "Mods & Broadcast" },
+    { key: "players",    icon: "👥", label: "Players" },
+    { key: "games",      icon: "🎮", label: "Games" },
+    { key: "mods",       icon: "🔧", label: "Mods & Broadcast" },
+    { key: "reputation", icon: "🎭", label: "Reputation" },
   ]},
 ];
 
@@ -43,8 +45,9 @@ const PANELS = {
   dotd:     DotdTab,
   hunt:     HuntTab,
   players:  PlayersTab,
-  games:    GamesTab,
-  mods:     ModsTab,
+  games:      GamesTab,
+  mods:       ModsTab,
+  reputation: ReputationTab,
 };
 
 const CSS = `
