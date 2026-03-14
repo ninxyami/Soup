@@ -561,6 +561,138 @@ const ModChangelog = ({ log }) => {
   );
 };
 
+// ── Settings Changelog ───────────────────────────────────────────────────────
+const SettingsChangelog = ({ log, onClaim }) => {
+  const [filterSection, setFilterSection] = useState("all");
+  const [filterSource, setFilterSource] = useState("all"); // "all" | "panel" | "external"
+
+  if (!log.length) return (
+    <div style={{ padding: 32, textAlign: "center", color: "var(--textdim)", fontFamily: "var(--mono)", fontSize: 12 }}>
+      No settings changes recorded yet. Changes to servertest.ini or SandboxVars.lua will appear here — whether made through the panel or externally.
+    </div>
+  );
+
+  const sections = ["all", ...new Set(log.map(e => e.section).filter(Boolean))];
+  const filtered = log.filter(e => {
+    if (filterSection !== "all" && e.section !== filterSection) return false;
+    if (filterSource === "panel" && e.isExternal) return false;
+    if (filterSource === "external" && !e.isExternal) return false;
+    return true;
+  });
+
+  return (
+    <div>
+      {/* Filters */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
+        <select value={filterSection} onChange={e => setFilterSection(e.target.value)}
+          style={{ background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", padding: "7px 10px", fontFamily: "var(--mono)", fontSize: 11, cursor: "pointer" }}>
+          {sections.map(s => <option key={s} value={s}>{s === "all" ? "All Sections" : s}</option>)}
+        </select>
+        <select value={filterSource} onChange={e => setFilterSource(e.target.value)}
+          style={{ background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", padding: "7px 10px", fontFamily: "var(--mono)", fontSize: 11, cursor: "pointer" }}>
+          <option value="all">All Sources</option>
+          <option value="panel">Panel Only</option>
+          <option value="external">External Only</option>
+        </select>
+        <span style={{ fontSize: 11, color: "var(--textdim)", fontFamily: "var(--mono)" }}>
+          {filtered.length} change{filtered.length !== 1 ? "s" : ""}
+        </span>
+      </div>
+
+      {/* Entries */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        {filtered.map((entry, i) => {
+          const admin = entry.isExternal
+            ? { name: "External Edit", color: "var(--red)" }
+            : (ADMINS[entry.by] || { name: "Unknown", color: "#4a5568" });
+
+          return (
+            <div key={i} style={{
+              background: "var(--surface)",
+              border: `1px solid ${entry.isExternal ? "rgba(224,85,85,0.3)" : "var(--border)"}`,
+              borderLeft: entry.isExternal ? "3px solid var(--red)" : "3px solid var(--border)",
+              overflow: "hidden",
+            }}>
+              {/* Header */}
+              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px" }}>
+                {entry.isExternal ? (
+                  <div style={{
+                    width: 28, height: 28, borderRadius: 4, background: "rgba(224,85,85,0.12)",
+                    border: "1px solid rgba(224,85,85,0.3)", display: "flex", alignItems: "center",
+                    justifyContent: "center", fontSize: 13, flexShrink: 0,
+                  }}>⚠️</div>
+                ) : (
+                  <AdminAvatar discordId={entry.by} size={28} />
+                )}
+
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                    <span style={{ fontSize: 12, color: admin.color, fontWeight: 500 }}>{admin.name}</span>
+                    <span style={{
+                      fontSize: 9, fontFamily: "var(--mono)", letterSpacing: 1.5, textTransform: "uppercase",
+                      padding: "1px 6px",
+                      background: entry.section === "sandbox" ? "rgba(151,117,204,0.1)" : "rgba(74,143,196,0.1)",
+                      color: entry.section === "sandbox" ? "var(--purple)" : "var(--blue)",
+                      border: `1px solid ${entry.section === "sandbox" ? "rgba(151,117,204,0.3)" : "rgba(74,143,196,0.3)"}`,
+                    }}>{entry.section === "sandbox" ? "Lua" : "INI"}</span>
+                    {entry.isExternal && (
+                      <span style={{
+                        fontSize: 9, fontFamily: "var(--mono)", letterSpacing: 1, padding: "1px 6px",
+                        background: "rgba(224,85,85,0.1)", color: "var(--red)", border: "1px solid rgba(224,85,85,0.3)",
+                      }}>OUTSIDE PANEL</span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: 11, color: "var(--textdim)", marginTop: 2 }}>{entry.description}</div>
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                  {entry.isExternal && onClaim && (
+                    <button onClick={() => onClaim(entry.at)} style={{
+                      background: "rgba(200,168,75,0.08)", border: "1px solid rgba(200,168,75,0.3)",
+                      color: "var(--accent)", fontSize: 9, padding: "3px 8px", cursor: "pointer",
+                      fontFamily: "var(--mono)", letterSpacing: 1,
+                    }}>🙋 Claim</button>
+                  )}
+                  <span style={{ fontSize: 10, fontFamily: "var(--mono)", color: "var(--textdim)" }}>
+                    {relTime(entry.at)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Diffs */}
+              {entry.changes && entry.changes.length > 0 && (
+                <div style={{ borderTop: "1px solid var(--border)", padding: "8px 14px 10px 52px", background: "rgba(0,0,0,.1)" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 6 }}>
+                    {entry.changes.slice(0, 20).map((c, j) => (
+                      <div key={j} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11 }}>
+                        <span style={{ color: "var(--textdim)", fontFamily: "var(--mono)", minWidth: 100, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.key}</span>
+                        {c.old_val !== undefined && c.old_val !== null && (
+                          <span style={{ background: "rgba(224,85,85,.1)", color: "var(--red)", padding: "1px 6px", fontFamily: "var(--mono)", fontSize: 10, border: "1px solid rgba(224,85,85,.2)" }}>
+                            {typeof c.old_val === "boolean" ? (c.old_val ? "ON" : "OFF") : String(c.old_val)}
+                          </span>
+                        )}
+                        <span style={{ color: "var(--textdim)", fontSize: 10 }}>→</span>
+                        <span style={{ background: "rgba(76,175,125,.1)", color: "var(--green)", padding: "1px 6px", fontFamily: "var(--mono)", fontSize: 10, border: "1px solid rgba(76,175,125,.2)" }}>
+                          {typeof c.new_val === "boolean" ? (c.new_val ? "ON" : "OFF") : String(c.new_val)}
+                        </span>
+                      </div>
+                    ))}
+                    {entry.changes.length > 20 && (
+                      <div style={{ fontSize: 10, color: "var(--textdim)", fontFamily: "var(--mono)" }}>
+                        +{entry.changes.length - 20} more...
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 // ── Main Planner Tab ─────────────────────────────────────────────────────────
 export default function PlannerTab({ toast, initialTab }) {
   const [sub, setSub] = useState(initialTab || "board");
@@ -571,6 +703,7 @@ export default function PlannerTab({ toast, initialTab }) {
   const [editTask, setEditTask] = useState(null); // null | "new" | task object
   const [checks, setChecks] = useState({});
   const [modLog, setModLog] = useState([]);
+  const [settingsLog, setSettingsLog] = useState([]);
   const [filterCat, setFilterCat] = useState("all");
   const [filterAssignee, setFilterAssignee] = useState("all");
   const [dragState, setDragState] = useState({ dragging: null, overColumn: null });
@@ -587,6 +720,10 @@ export default function PlannerTab({ toast, initialTab }) {
     try {
       const d = await fetchApi("/api/admin/planner/modlog");
       setModLog(d.log || []);
+    } catch {}
+    try {
+      const d = await fetchApi("/api/admin/planner/settingslog");
+      setSettingsLog(d.log || []);
     } catch {}
   }, []);
 
@@ -645,10 +782,11 @@ export default function PlannerTab({ toast, initialTab }) {
   });
 
   const subTabs = [
-    { key: "board",     label: "📋 Task Board" },
-    { key: "timeline",  label: "📅 Season Timeline" },
-    { key: "checklist", label: "✅ Admin Checklist" },
-    { key: "modlog",    label: "📦 Mod Changelog" },
+    { key: "board",       label: "📋 Task Board" },
+    { key: "timeline",    label: "📅 Season Timeline" },
+    { key: "checklist",   label: "✅ Admin Checklist" },
+    { key: "modlog",      label: "📦 Mod Changelog" },
+    { key: "settingslog", label: "⚙️ Settings Changelog" },
   ];
 
   return (
@@ -748,6 +886,15 @@ export default function PlannerTab({ toast, initialTab }) {
 
       {/* ── Mod Changelog ── */}
       {sub === "modlog" && <ModChangelog log={modLog} />}
+
+      {/* ── Settings Changelog ── */}
+      {sub === "settingslog" && <SettingsChangelog log={settingsLog} onClaim={async (entryAt) => {
+        try {
+          await postApi("/api/admin/config/claim", { created_at: entryAt });
+          toast("Edit claimed — your name is now on it", "success");
+          load();
+        } catch { toast("Could not claim edit", "error"); }
+      }} />}
     </>
   );
 }

@@ -42,7 +42,8 @@ const NAV_SECTIONS = [
     { key: "pl_board",     icon: "📋", label: "Task Board" },
     { key: "pl_timeline",  icon: "📅", label: "Season Timeline" },
     { key: "pl_checklist", icon: "✅", label: "Admin Checklist" },
-    { key: "pl_modlog",    icon: "📦", label: "Mod Changelog" },
+    { key: "pl_modlog",      icon: "📦", label: "Mod Changelog" },
+    { key: "pl_settingslog", icon: "⚙️", label: "Settings Changelog" },
   ]},
   { label: "SERVER CONFIG", items: [
     { key: "sc_mods",        icon: "🔧", label: "Mods & Maps" },
@@ -79,6 +80,7 @@ const PANELS = {
   pl_timeline: (props) => <PlannerTab {...props} initialTab="timeline" />,
   pl_checklist:(props) => <PlannerTab {...props} initialTab="checklist" />,
   pl_modlog:   (props) => <PlannerTab {...props} initialTab="modlog" />,
+  pl_settingslog: (props) => <PlannerTab {...props} initialTab="settingslog" />,
 };
 
 const CSS = `
