@@ -1,7 +1,7 @@
 "use client";
 // @ts-nocheck
 import { useState, useEffect, useCallback, useRef } from "react";
-import { fetchApi, postApi, Section, FullSection, Card, FieldLabel, TextInput, Btn, ADMINS } from "../shared";
+import { fetchApi, postApi, Section, FullSection, Card, FieldLabel, TextInput, Btn, ADMINS } from "./shared";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const parseWorkshopUrl = (input) => {

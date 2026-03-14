@@ -5,7 +5,7 @@ import {
   fetchApi, postApi, Section, FullSection, Card, FieldLabel,
   Toggle, Select, Btn, SaveBar,
   ToggleField, SelectField, NumberField, SliderField, FREQ_6, SPEED_5, AMOUNT_5,
-} from "../shared";
+} from "./shared";
 
 const DEFAULT_WORLD = {
   // Time

@@ -1,7 +1,7 @@
 "use client";
 // @ts-nocheck
 import { useState, useEffect, useCallback } from "react";
-import { fetchApi, postApi, ADMINS } from "../shared";
+import { fetchApi, postApi, ADMINS } from "./shared";
 
 const AdminChip = ({ discordId, showName = true }) => {
   const admin = ADMINS[discordId] || { name: "Unknown", color: "#4a5568", initials: "??" };

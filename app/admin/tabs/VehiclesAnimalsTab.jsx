@@ -1,7 +1,7 @@
 "use client";
 // @ts-nocheck
 import { useState, useEffect } from "react";
-import { fetchApi, postApi, Section, SaveBar, ToggleField, SelectField, NumberField, SliderField, FREQ_6, SPEED_6 } from "../shared";
+import { fetchApi, postApi, Section, SaveBar, ToggleField, SelectField, NumberField, SliderField, FREQ_6, SPEED_6 } from "./shared";
 
 const DEFAULT = {
   // Vehicles

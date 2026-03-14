@@ -5,7 +5,7 @@ import {
   fetchApi, postApi, Section, FullSection, Card, FieldLabel,
   Toggle, Select, NumberInput, TextInput, SliderInput, Btn, SaveBar,
   ToggleField, SelectField, NumberField, SliderField,
-} from "../shared";
+} from "./shared";
 
 const DEFAULT = {
   PVP: true, PVPLogToolChat: true, PVPLogToolFile: true,

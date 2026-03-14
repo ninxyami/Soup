@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import {
   fetchApi, postApi, Section, Card, FieldLabel, Btn, SaveBar,
   ToggleField, SelectField, NumberField, SliderField, FREQ_6, SPEED_6,
-} from "../shared";
+} from "./shared";
 
 const DEFAULT = {
   // Population

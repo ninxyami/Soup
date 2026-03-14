@@ -1,7 +1,7 @@
 "use client";
 // @ts-nocheck
 import { useState, useEffect } from "react";
-import { fetchApi, postApi, Section, FullSection, Card, FieldLabel, Btn, SaveBar, ToggleField, NumberField, SliderField } from "../shared";
+import { fetchApi, postApi, Section, FullSection, Card, FieldLabel, Btn, SaveBar, ToggleField, NumberField, SliderField } from "./shared";
 
 const ALL_SKILLS = [
   { key: "Fitness",       label: "Fitness",        group: "Physical" },
