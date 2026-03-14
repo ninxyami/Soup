@@ -15,6 +15,7 @@ import ModsTab        from "./tabs/ModsTab";
 import ReputationTab  from "./tabs/ReputationTab";
 import SystemTab      from "./tabs/SystemTab";
 import ServerConfigTab from "./tabs/ServerConfigTab";
+import PlannerTab from "./tabs/PlannerTab";
 
 const NAV_SECTIONS = [
   { label: "COMMAND", items: [
@@ -36,6 +37,12 @@ const NAV_SECTIONS = [
     { key: "games",          icon: "🎮", label: "Games" },
     { key: "mods",           icon: "🔧", label: "Mods & Broadcast" },
     { key: "reputation",     icon: "🎭", label: "Reputation" },
+  ]},
+  { label: "PLANNER", items: [
+    { key: "pl_board",     icon: "📋", label: "Task Board" },
+    { key: "pl_timeline",  icon: "📅", label: "Season Timeline" },
+    { key: "pl_checklist", icon: "✅", label: "Admin Checklist" },
+    { key: "pl_modlog",    icon: "📦", label: "Mod Changelog" },
   ]},
   { label: "SERVER CONFIG", items: [
     { key: "sc_mods",        icon: "🔧", label: "Mods & Maps" },
@@ -68,6 +75,10 @@ const PANELS = {
   sc_skills:   (props) => <ServerConfigTab {...props} initialTab="skills" />,
   sc_vehicles: (props) => <ServerConfigTab {...props} initialTab="vehicles" />,
   sc_log:      (props) => <ServerConfigTab {...props} initialTab="log" />,
+  pl_board:    (props) => <PlannerTab {...props} initialTab="board" />,
+  pl_timeline: (props) => <PlannerTab {...props} initialTab="timeline" />,
+  pl_checklist:(props) => <PlannerTab {...props} initialTab="checklist" />,
+  pl_modlog:   (props) => <PlannerTab {...props} initialTab="modlog" />,
 };
 
 const CSS = `

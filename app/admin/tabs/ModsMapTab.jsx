@@ -329,6 +329,224 @@ const MapsManager = ({ maps, setMaps, toast, currentUser }) => {
   );
 };
 
+// ── INI Paste Importer ────────────────────────────────────────────────────────
+const IniImporter = ({ onImportMods, onImportMaps, toast }) => {
+  const [iniText, setIniText] = useState("");
+  const [parsed, setParsed] = useState(null); // { mods: [], maps: [], workshopIds: [] }
+
+  const parseIni = (text) => {
+    const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
+    const result = { mods: [], maps: [], workshopIds: [], modIds: [] };
+
+    for (const line of lines) {
+      // Match Mods= line
+      const modsMatch = line.match(/^Mods\s*=\s*(.+)/i);
+      if (modsMatch) {
+        result.modIds = modsMatch[1].split(";").map(s => s.trim()).filter(Boolean);
+      }
+
+      // Match WorkshopItems= line
+      const wsMatch = line.match(/^WorkshopItems\s*=\s*(.+)/i);
+      if (wsMatch) {
+        result.workshopIds = wsMatch[1].split(";").map(s => s.trim()).filter(Boolean);
+      }
+
+      // Match Map= line
+      const mapMatch = line.match(/^Map\s*=\s*(.+)/i);
+      if (mapMatch) {
+        result.maps = mapMatch[1].split(";").map(s => s.trim()).filter(Boolean);
+      }
+    }
+
+    // Also handle raw paste of just IDs separated by semicolons or newlines
+    if (!result.workshopIds.length && !result.modIds.length && !result.maps.length) {
+      // Try to detect if it's a list of workshop IDs
+      const allNums = text.split(/[;\n,]+/).map(s => s.trim()).filter(s => /^\d{5,}$/.test(s));
+      if (allNums.length > 0) {
+        result.workshopIds = allNums;
+      }
+      // Try to detect mod IDs (alphanumeric, no spaces)
+      const allMods = text.split(/[;\n,]+/).map(s => s.trim()).filter(s => /^[A-Za-z_][\w.-]*$/.test(s) && s.length > 2);
+      if (allMods.length > 0 && allNums.length === 0) {
+        result.modIds = allMods;
+      }
+    }
+
+    // Build mod list: pair workshop IDs with mod IDs if both exist
+    if (result.workshopIds.length > 0) {
+      result.mods = result.workshopIds.map((wsId, i) => ({
+        workshop_id: wsId,
+        name: result.modIds[i] || `Mod ${wsId}`,
+        mod_ids: result.modIds[i] || "",
+        category: "other",
+        status: "testing",
+        notes: "Imported from INI paste",
+      }));
+    } else if (result.modIds.length > 0) {
+      // Only mod IDs, no workshop IDs — still useful
+      result.mods = result.modIds.map(modId => ({
+        workshop_id: "",
+        name: modId,
+        mod_ids: modId,
+        category: "other",
+        status: "testing",
+        notes: "Imported from INI paste (no workshop ID — add manually)",
+      }));
+    }
+
+    return result;
+  };
+
+  const handleParse = () => {
+    if (!iniText.trim()) { toast("Paste some INI content first", "error"); return; }
+    const result = parseIni(iniText);
+    if (!result.mods.length && !result.maps.length) {
+      toast("Could not find Mods=, WorkshopItems=, or Map= lines. Try pasting the full INI section.", "error");
+      return;
+    }
+    setParsed(result);
+    toast(`Found ${result.mods.length} mods, ${result.maps.length} maps`, "success");
+  };
+
+  const selectStyle = {
+    background: "var(--surface2)", border: "1px solid var(--border)",
+    color: "var(--text)", padding: "4px 8px", fontFamily: "var(--mono)", fontSize: 11,
+    cursor: "pointer",
+  };
+
+  return (
+    <div>
+      <div style={{ marginBottom: 16, padding: "12px 16px", background: "rgba(74,143,196,0.06)", border: "1px solid rgba(74,143,196,0.2)" }}>
+        <div style={{ fontSize: 12, color: "var(--blue)", marginBottom: 4, fontWeight: 500 }}>Quick Import from INI</div>
+        <div style={{ fontSize: 11, color: "var(--textdim)", lineHeight: 1.5 }}>
+          Paste the <code style={{ color: "var(--accent)", background: "rgba(200,168,75,0.1)", padding: "1px 4px" }}>Mods=</code>,
+          {" "}<code style={{ color: "var(--accent)", background: "rgba(200,168,75,0.1)", padding: "1px 4px" }}>WorkshopItems=</code>,
+          or <code style={{ color: "var(--accent)", background: "rgba(200,168,75,0.1)", padding: "1px 4px" }}>Map=</code> lines
+          from servertest.ini below. The system will auto-detect and separate them into individual entries.
+          You can also paste raw workshop IDs separated by semicolons or newlines.
+        </div>
+      </div>
+
+      <textarea
+        value={iniText}
+        onChange={e => { setIniText(e.target.value); setParsed(null); }}
+        placeholder={`Paste INI lines here, e.g.:\n\nMods=damnlib;tsarslib;RaccoonCityB42;Maplewood;FoxtrotWarehouse\nWorkshopItems=3171167894;3402491515;3388468313;3644794945;3600377019\nMap=Muldraugh, KY;RaccoonCityB42;Maplewood;FoxtrotWarehouse\n\nOr just paste workshop IDs:\n3171167894;3402491515;3388468313`}
+        style={{
+          width: "100%", minHeight: 140, background: "var(--bg)", border: "1px solid var(--border)",
+          color: "var(--text)", padding: "12px 14px", fontFamily: "var(--mono)", fontSize: 12,
+          resize: "vertical", outline: "none", lineHeight: 1.6,
+        }}
+      />
+
+      <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+        <Btn color="blue" onClick={handleParse}>🔍 Parse INI</Btn>
+        {iniText && <Btn color="ghost" sm onClick={() => { setIniText(""); setParsed(null); }}>Clear</Btn>}
+      </div>
+
+      {/* Parsed results */}
+      {parsed && (
+        <div style={{ marginTop: 20 }}>
+          {/* Mods */}
+          {parsed.mods.length > 0 && (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                <div style={{ fontSize: 14, fontFamily: "var(--display)", letterSpacing: 2, color: "var(--accent)" }}>
+                  DETECTED MODS ({parsed.mods.length})
+                </div>
+                <Btn color="green" sm onClick={() => onImportMods(parsed.mods)}>
+                  ➕ Import All to Mod List
+                </Btn>
+              </div>
+              <div style={{ background: "var(--surface)", border: "1px solid var(--border)", overflow: "hidden" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr>
+                      {["Workshop ID", "Mod ID / Name", "Category", "Status"].map(h => (
+                        <th key={h} style={{
+                          textAlign: "left", padding: "8px 14px", fontSize: 9, letterSpacing: 2,
+                          textTransform: "uppercase", color: "var(--textdim)", fontFamily: "var(--mono)",
+                          fontWeight: 400, borderBottom: "1px solid var(--border)", background: "rgba(0,0,0,.2)",
+                        }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {parsed.mods.map((m, i) => (
+                      <tr key={i}>
+                        <td style={{ padding: "6px 14px", borderBottom: "1px solid rgba(30,37,48,.4)", fontFamily: "var(--mono)", fontSize: 11, color: m.workshop_id ? "var(--text)" : "var(--red)" }}>
+                          {m.workshop_id || "—"}
+                          {m.workshop_id && (
+                            <a href={`https://steamcommunity.com/sharedfiles/filedetails/?id=${m.workshop_id}`} target="_blank" rel="noopener noreferrer"
+                              style={{ marginLeft: 6, color: "var(--blue)", fontSize: 10 }}>↗</a>
+                          )}
+                        </td>
+                        <td style={{ padding: "6px 14px", borderBottom: "1px solid rgba(30,37,48,.4)", fontSize: 12, color: "var(--text)" }}>
+                          {m.name}
+                        </td>
+                        <td style={{ padding: "6px 14px", borderBottom: "1px solid rgba(30,37,48,.4)" }}>
+                          <select value={m.category} onChange={e => {
+                            const newMods = [...parsed.mods];
+                            newMods[i] = { ...m, category: e.target.value };
+                            setParsed({ ...parsed, mods: newMods });
+                          }} style={selectStyle}>
+                            {["library","map","cars","qol","clothing","weapons","admin","other"].map(c =>
+                              <option key={c} value={c}>{c}</option>
+                            )}
+                          </select>
+                        </td>
+                        <td style={{ padding: "6px 14px", borderBottom: "1px solid rgba(30,37,48,.4)" }}>
+                          <select value={m.status} onChange={e => {
+                            const newMods = [...parsed.mods];
+                            newMods[i] = { ...m, status: e.target.value };
+                            setParsed({ ...parsed, mods: newMods });
+                          }} style={selectStyle}>
+                            {["active","testing","disabled","denied"].map(s =>
+                              <option key={s} value={s}>{s}</option>
+                            )}
+                          </select>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Maps */}
+          {parsed.maps.length > 0 && (
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                <div style={{ fontSize: 14, fontFamily: "var(--display)", letterSpacing: 2, color: "var(--accent)" }}>
+                  DETECTED MAPS ({parsed.maps.length})
+                </div>
+                <Btn color="green" sm onClick={() => onImportMaps(parsed.maps)}>
+                  ➕ Import All to Map List
+                </Btn>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 6 }}>
+                {parsed.maps.map((m, i) => (
+                  <div key={i} style={{
+                    padding: "8px 12px", background: "var(--surface)", border: "1px solid var(--green)",
+                    fontSize: 12, fontFamily: "var(--mono)", color: "var(--green)",
+                  }}>{m}</div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Nothing found feedback */}
+          {parsed.mods.length === 0 && parsed.maps.length === 0 && (
+            <div style={{ padding: 20, textAlign: "center", color: "var(--red)", fontFamily: "var(--mono)", fontSize: 12 }}>
+              No mods or maps detected. Make sure you're pasting valid INI lines.
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ── Main ModsTab ──────────────────────────────────────────────────────────────
 export default function ModsMapTab({ toast, currentUser }) {
   const [sub, setSub] = useState("mods");
@@ -431,6 +649,7 @@ export default function ModsMapTab({ toast, currentUser }) {
   const subTabs = [
     { key: "mods", label: "🔧 Mod List" },
     { key: "maps", label: "🗺 Map List" },
+    { key: "import", label: "📋 Paste INI" },
   ];
 
   return (
@@ -526,6 +745,31 @@ export default function ModsMapTab({ toast, currentUser }) {
           </div>
         )}
       </>}
+
+      {sub === "import" && <IniImporter onImportMods={(imported) => {
+        // Merge imported mods with existing — skip duplicates by workshop_id
+        const existingIds = new Set(mods.map(m => m.workshop_id));
+        const newMods = imported.filter(m => !existingIds.has(m.workshop_id));
+        if (newMods.length === 0) { toast("All mods already in list — nothing to import", "info"); return; }
+        // Add each via API
+        const doImport = async () => {
+          let added = 0;
+          for (const m of newMods) {
+            try {
+              await postApi("/api/admin/mods/add", m);
+              added++;
+            } catch {}
+          }
+          toast(`Imported ${added} new mod${added !== 1 ? "s" : ""}`, "success");
+          load();
+        };
+        doImport();
+      }} onImportMaps={(importedMaps) => {
+        const merged = [...new Set([...maps, ...importedMaps])];
+        setMaps(merged);
+        setMapsDirty(true);
+        toast(`Imported ${importedMaps.length} map entries — review in Map List tab`, "success");
+      }} toast={toast} />}
     </>
   );
 }
