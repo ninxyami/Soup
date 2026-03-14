@@ -172,18 +172,30 @@ const AddModModal = ({ onClose, onAdd, toast }) => {
 };
 
 // ── Mod Row ───────────────────────────────────────────────────────────────────
-const ModRow = ({ mod, onToggle, onRemove, onStatusChange, toast }) => {
+const ModRow = ({ mod, index, onToggle, onRemove, onStatusChange, toast, dragHandlers, isDragOver }) => {
   const [expanded, setExpanded] = useState(false);
   const admin = ADMINS[mod.added_by] || { name: "Unknown", color: "#4a5568", initials: "??" };
 
   return (
     <>
-      <tr style={{ cursor: "pointer" }} onClick={() => setExpanded(x => !x)}>
-        <td>
-          <div style={{
-            width: 10, height: 10, borderRadius: 5,
-            background: mod.status === "active" ? "var(--green)" : mod.status === "testing" ? "var(--orange)" : "var(--border)",
-          }} />
+      <tr
+        draggable
+        {...dragHandlers}
+        style={{
+          cursor: "grab",
+          background: isDragOver ? "rgba(200,168,75,0.06)" : "transparent",
+          borderTop: isDragOver ? "2px solid var(--accent)" : "none",
+        }}
+        onClick={() => setExpanded(x => !x)}
+      >
+        <td style={{ padding: "10px 8px", textAlign: "center" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontSize: 10, color: "var(--textdim)", fontFamily: "var(--mono)", minWidth: 18, textAlign: "right" }}>{index + 1}</span>
+            <div style={{
+              width: 10, height: 10, borderRadius: 5,
+              background: mod.status === "active" ? "var(--green)" : mod.status === "testing" ? "var(--orange)" : "var(--border)",
+            }} />
+          </div>
         </td>
         <td>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -759,6 +771,9 @@ export default function ModsMapTab({ toast, currentUser }) {
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [mapsDirty, setMapsDirty] = useState(false);
+  const [orderDirty, setOrderDirty] = useState(false);
+  const [dragging, setDragging] = useState(null);
+  const [dragOver, setDragOver] = useState(null);
   const origMaps = useRef([]);
 
   const load = useCallback(async () => {
@@ -828,6 +843,19 @@ export default function ModsMapTab({ toast, currentUser }) {
     } catch (e) { toast(e.message, "error"); }
   };
 
+  const saveOrder = async () => {
+    try {
+      const ordered = mods.map((m, i) => ({
+        workshop_id: m.workshop_id || "",
+        mod_ids: m.mod_ids || "",
+        position: i,
+      }));
+      await postApi("/api/admin/mods/reorder", { order: ordered });
+      setOrderDirty(false);
+      toast("Mod order saved to INI!", "success");
+    } catch (e) { toast(e.message, "error"); }
+  };
+
   const filteredMods = mods.filter(m => {
     if (filter !== "all" && m.status !== filter) return false;
     if (search && !m.name?.toLowerCase().includes(search.toLowerCase()) && !m.workshop_id?.includes(search)) return false;
@@ -893,6 +921,13 @@ export default function ModsMapTab({ toast, currentUser }) {
             ))}
           </div>
           <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+            <Btn color="ghost" sm onClick={() => {
+              // Auto-sort: libraries first, then maps, then rest
+              const order = { library: 0, map: 1, admin: 2, qol: 3, cars: 4, weapons: 5, clothing: 6, other: 7 };
+              const sorted = [...mods].sort((a, b) => (order[a.category] ?? 7) - (order[b.category] ?? 7));
+              setMods(sorted);
+              setOrderDirty(true);
+            }}>⬆ Sort by Category</Btn>
             <Btn color="ghost" sm onClick={load}>↻ Refresh</Btn>
             <Btn color="blue" sm onClick={() => {
               window.open(`${API}/api/admin/export/mods`, '_blank');
@@ -901,13 +936,27 @@ export default function ModsMapTab({ toast, currentUser }) {
           </div>
         </div>
 
+        {/* Order save bar */}
+        {orderDirty && (
+          <div style={{
+            display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", marginBottom: 12,
+            background: "rgba(200,168,75,0.06)", border: "1px solid var(--accent)",
+          }}>
+            <span style={{ flex: 1, fontSize: 11, color: "var(--accent)", fontFamily: "var(--mono)" }}>
+              ⚠ Mod order changed — this affects load order in the server. Libraries should be first.
+            </span>
+            <Btn color="ghost" sm onClick={() => { load(); setOrderDirty(false); }}>Discard</Btn>
+            <Btn color="green" sm onClick={saveOrder}>💾 Save Order to INI</Btn>
+          </div>
+        )}
+
         {/* Mod table */}
         <div style={{ background: "var(--surface)", border: "1px solid var(--border)", overflow: "hidden" }}>
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr>
-                  {["", "Name", "Workshop ID", "Status", "Added By", "Actions"].map(h => (
+                  {["#", "Name", "Workshop ID", "Status", "Added By", "Actions"].map(h => (
                     <th key={h} style={{
                       textAlign: "left", padding: "10px 16px", fontSize: 10, letterSpacing: 2,
                       textTransform: "uppercase", color: "var(--textdim)", fontFamily: "var(--mono)",
@@ -923,8 +972,28 @@ export default function ModsMapTab({ toast, currentUser }) {
                   <tr><td colSpan={6} style={{ padding: 24, textAlign: "center", color: "var(--textdim)", fontFamily: "var(--mono)", fontSize: 12 }}>
                     {search ? "No mods match your search" : "No mods in this category"}
                   </td></tr>
-                ) : filteredMods.map(mod => (
-                  <ModRow key={mod.workshop_id} mod={mod} onToggle={toggleMod} onRemove={removeMod} onStatusChange={changeStatus} toast={toast} />
+                ) : filteredMods.map((mod, idx) => (
+                  <ModRow key={mod.workshop_id || mod.mod_ids || idx} mod={mod} index={idx}
+                    onToggle={toggleMod} onRemove={removeMod} onStatusChange={changeStatus} toast={toast}
+                    isDragOver={dragOver === idx}
+                    dragHandlers={{
+                      onDragStart: (e) => { setDragging(idx); e.dataTransfer.effectAllowed = "move"; },
+                      onDragEnd: () => { setDragging(null); setDragOver(null); },
+                      onDragOver: (e) => { e.preventDefault(); setDragOver(idx); },
+                      onDragLeave: () => setDragOver(null),
+                      onDrop: (e) => {
+                        e.preventDefault();
+                        if (dragging === null || dragging === idx) { setDragOver(null); return; }
+                        const newMods = [...mods];
+                        const [moved] = newMods.splice(dragging, 1);
+                        newMods.splice(idx, 0, moved);
+                        setMods(newMods);
+                        setOrderDirty(true);
+                        setDragging(null);
+                        setDragOver(null);
+                      },
+                    }}
+                  />
                 ))}
               </tbody>
             </table>
