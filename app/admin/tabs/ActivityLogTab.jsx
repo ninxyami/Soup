@@ -4,6 +4,18 @@ import { useState, useEffect, useCallback } from "react";
 import { fetchApi, postApi, ADMINS } from "./shared";
 
 const AdminChip = ({ discordId, showName = true }) => {
+  if (!discordId || discordId === 0) {
+    return (
+      <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+        <span style={{
+          width: 20, height: 20, borderRadius: 10, background: "rgba(224,85,85,.15)",
+          border: "1px solid var(--red)", display: "inline-flex", alignItems: "center",
+          justifyContent: "center", fontSize: 9, fontFamily: "var(--mono)", color: "var(--red)", flexShrink: 0,
+        }}>⚠</span>
+        {showName && <span style={{ color: "var(--red)", fontSize: 12, fontWeight: 500 }}>External Edit</span>}
+      </span>
+    );
+  }
   const admin = ADMINS[discordId] || { name: "Unknown", color: "#4a5568", initials: "??" };
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
@@ -19,14 +31,15 @@ const AdminChip = ({ discordId, showName = true }) => {
 
 const ActionIcon = ({ action }) => {
   const icons = {
-    add_mod:      { icon: "➕", color: "var(--green)"   },
-    remove_mod:   { icon: "➖", color: "var(--red)"     },
-    toggle_mod:   { icon: "⚡", color: "var(--orange)"  },
-    edit_ini:     { icon: "📝", color: "var(--blue)"    },
-    edit_sandbox: { icon: "🔧", color: "var(--purple)"  },
-    backup:       { icon: "💾", color: "var(--accent)"  },
-    restore:      { icon: "↩",  color: "var(--orange)"  },
-    edit_maps:    { icon: "🗺",  color: "var(--green)"   },
+    add_mod:       { icon: "➕", color: "var(--green)"   },
+    remove_mod:    { icon: "➖", color: "var(--red)"     },
+    toggle_mod:    { icon: "⚡", color: "var(--orange)"  },
+    edit_ini:      { icon: "📝", color: "var(--blue)"    },
+    edit_sandbox:  { icon: "🔧", color: "var(--purple)"  },
+    backup:        { icon: "💾", color: "var(--accent)"  },
+    restore:       { icon: "↩",  color: "var(--orange)"  },
+    edit_maps:     { icon: "🗺",  color: "var(--green)"   },
+    external_edit: { icon: "⚠️", color: "var(--red)"     },
   };
   const a = icons[action] || { icon: "•", color: "var(--textdim)" };
   return (

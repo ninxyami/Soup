@@ -1,7 +1,7 @@
 "use client";
 // @ts-nocheck
 import { useState, useEffect, useCallback, useRef } from "react";
-import { fetchApi, postApi, Section, FullSection, Card, FieldLabel, TextInput, Btn, ADMINS } from "./shared";
+import { API, fetchApi, postApi, Section, FullSection, Card, FieldLabel, TextInput, Btn, ADMINS } from "./shared";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const parseWorkshopUrl = (input) => {
@@ -894,6 +894,9 @@ export default function ModsMapTab({ toast, currentUser }) {
           </div>
           <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
             <Btn color="ghost" sm onClick={load}>↻ Refresh</Btn>
+            <Btn color="blue" sm onClick={() => {
+              window.open(`${API}/api/admin/export/mods`, '_blank');
+            }}>📊 Export .xlsx</Btn>
             <Btn color="green" onClick={() => setShowAdd(true)}>➕ Add Mod</Btn>
           </div>
         </div>
