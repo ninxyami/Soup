@@ -580,6 +580,208 @@ const IniImporter = ({ onImportMods, onImportMaps, toast }) => {
 };
 
 // ── Lua Sandbox Paste Importer ────────────────────────────────────────────────
+// ── Bulk Add Mods ────────────────────────────────────────────────────────────
+const BulkAddMods = ({ toast, onDone }) => {
+  const [input, setInput] = useState("");
+  const [results, setResults] = useState(null);
+  const [looking, setLooking] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [status, setStatus] = useState("testing");
+
+  const parsIds = (text) => {
+    // Extract workshop IDs from text — supports URLs, raw IDs, mixed
+    const ids = [];
+    const seen = new Set();
+    // Match URLs with ?id=XXXX
+    for (const m of text.matchAll(/[?&]id=(\d+)/g)) {
+      if (!seen.has(m[1])) { ids.push(m[1]); seen.add(m[1]); }
+    }
+    // Match raw numeric IDs (10+ digits)
+    for (const m of text.matchAll(/\b(\d{7,})\b/g)) {
+      if (!seen.has(m[1])) { ids.push(m[1]); seen.add(m[1]); }
+    }
+    return ids;
+  };
+
+  const handleLookup = async () => {
+    const ids = parsIds(input);
+    if (!ids.length) { toast("No workshop IDs found. Paste URLs or IDs.", "error"); return; }
+    setLooking(true);
+    try {
+      const data = await postApi("/api/admin/mods/bulk-lookup", { workshop_ids: ids });
+      setResults(data.results || []);
+      toast(`Found ${data.results?.length || 0} mods on Steam`, "success");
+    } catch (e) { toast(e.message, "error"); }
+    setLooking(false);
+  };
+
+  const handleAddAll = async () => {
+    if (!results?.length) return;
+    setAdding(true);
+    try {
+      const mods = results.map(r => ({
+        workshop_id: r.workshop_id,
+        name: r.title || `Workshop ${r.workshop_id}`,
+        mod_ids: r.mod_ids || "",
+        category: "other",
+        status,
+      }));
+      const data = await postApi("/api/admin/mods/bulk-add", { mods });
+      toast(`Added ${data.added} mod(s), ${data.skipped} already existed`, "success");
+      onDone();
+    } catch (e) { toast(e.message, "error"); }
+    setAdding(false);
+  };
+
+  return (
+    <div>
+      <div style={{ marginBottom: 16, padding: "12px 16px", background: "rgba(76,175,125,0.06)", border: "1px solid rgba(76,175,125,0.2)" }}>
+        <div style={{ fontSize: 12, color: "var(--green)", marginBottom: 4, fontWeight: 500 }}>Bulk Add Mods</div>
+        <div style={{ fontSize: 11, color: "var(--textdim)", lineHeight: 1.5 }}>
+          Paste a bunch of Steam Workshop URLs or IDs — one per line, comma separated, or mixed. The system looks them all up on Steam at once, shows you what it found, and lets you add them all in one click.
+        </div>
+      </div>
+
+      <textarea
+        value={input}
+        onChange={e => { setInput(e.target.value); setResults(null); }}
+        placeholder={`Paste workshop URLs or IDs here, e.g.:\n\nhttps://steamcommunity.com/sharedfiles/filedetails/?id=3402491515\nhttps://steamcommunity.com/sharedfiles/filedetails/?id=3268487204\n3171167894\n3470422050\n\nOr just dump them all:\n3402491515, 3268487204, 3171167894, 3470422050`}
+        style={{
+          width: "100%", minHeight: 140, background: "var(--bg)", border: "1px solid var(--border)",
+          color: "var(--text)", padding: "12px 14px", fontFamily: "var(--mono)", fontSize: 12,
+          resize: "vertical", outline: "none", lineHeight: 1.6,
+        }}
+      />
+
+      <div style={{ display: "flex", gap: 8, marginTop: 10, alignItems: "center" }}>
+        <Btn color="blue" onClick={handleLookup} disabled={looking}>
+          {looking ? "Looking up..." : `🔍 Look Up (${parsIds(input).length} IDs found)`}
+        </Btn>
+        {input && <Btn color="ghost" sm onClick={() => { setInput(""); setResults(null); }}>Clear</Btn>}
+      </div>
+
+      {results && results.length > 0 && (
+        <div style={{ marginTop: 20 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+            <div style={{ fontSize: 14, fontFamily: "var(--display)", letterSpacing: 2, color: "var(--accent)" }}>
+              FOUND {results.length} MODS
+            </div>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <span style={{ fontSize: 10, color: "var(--textdim)", fontFamily: "var(--mono)" }}>Add as:</span>
+              <select value={status} onChange={e => setStatus(e.target.value)}
+                style={{ background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", padding: "4px 8px", fontFamily: "var(--mono)", fontSize: 11 }}>
+                {["active","testing","disabled"].map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+              <Btn color="green" onClick={handleAddAll} disabled={adding}>
+                {adding ? "Adding..." : `➕ Add All ${results.length} Mods`}
+              </Btn>
+            </div>
+          </div>
+
+          <div style={{ background: "var(--surface)", border: "1px solid var(--border)", overflow: "hidden" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr>
+                  {["Workshop ID", "Name", "Mod IDs"].map(h => (
+                    <th key={h} style={{
+                      textAlign: "left", padding: "8px 14px", fontSize: 9, letterSpacing: 2,
+                      textTransform: "uppercase", color: "var(--textdim)", fontFamily: "var(--mono)",
+                      fontWeight: 400, borderBottom: "1px solid var(--border)", background: "rgba(0,0,0,.2)",
+                    }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {results.map((r, i) => (
+                  <tr key={i}>
+                    <td style={{ padding: "6px 14px", borderBottom: "1px solid rgba(30,37,48,.4)", fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)" }}>
+                      {r.workshop_id}
+                      <a href={`https://steamcommunity.com/sharedfiles/filedetails/?id=${r.workshop_id}`} target="_blank" rel="noopener noreferrer"
+                        style={{ marginLeft: 6, color: "var(--blue)", fontSize: 10 }}>↗</a>
+                    </td>
+                    <td style={{ padding: "6px 14px", borderBottom: "1px solid rgba(30,37,48,.4)", fontSize: 12, color: r.title ? "var(--text)" : "var(--red)" }}>
+                      {r.title || "Not found on Steam"}
+                    </td>
+                    <td style={{ padding: "6px 14px", borderBottom: "1px solid rgba(30,37,48,.4)", fontFamily: "var(--mono)", fontSize: 11, color: r.mod_ids ? "var(--green)" : "var(--textdim)" }}>
+                      {r.mod_ids || "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ── File Download / Upload Manager ───────────────────────────────────────────
+const FileManager = ({ toast }) => {
+  const [uploading, setUploading] = useState(null); // "ini" | "sandbox" | null
+
+  const handleDownload = (type) => {
+    window.open(`${API}/api/admin/config/download/${type}`, '_blank');
+  };
+
+  const handleUpload = async (type) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = type === "ini" ? ".ini,.txt" : ".lua,.txt";
+    input.onchange = async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      setUploading(type);
+      try {
+        const content = await file.text();
+        await postApi(`/api/admin/config/upload/${type === "sandbox" ? "sandbox" : "ini"}`, { content });
+        toast(`${file.name} uploaded and replaced on server! Backup created.`, "success");
+      } catch (err) { toast(err.message || "Upload failed", "error"); }
+      setUploading(null);
+    };
+    input.click();
+  };
+
+  const fileCards = [
+    { type: "ini", label: "servertest.ini", desc: "Server settings, mods, maps, ports, passwords", icon: "📄" },
+    { type: "sandbox", label: "SandboxVars.lua", desc: "World settings, zombies, loot, skills, vehicles", icon: "📜" },
+  ];
+
+  return (
+    <div>
+      <div style={{ marginBottom: 16, padding: "12px 16px", background: "rgba(200,168,75,0.06)", border: "1px solid rgba(200,168,75,0.2)" }}>
+        <div style={{ fontSize: 12, color: "var(--accent)", marginBottom: 4, fontWeight: 500 }}>Server Config Files</div>
+        <div style={{ fontSize: 11, color: "var(--textdim)", lineHeight: 1.5 }}>
+          Download the current files for backup, or upload a replacement. A backup is automatically created before any upload.
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        {fileCards.map(f => (
+          <div key={f.type} style={{ background: "var(--surface)", border: "1px solid var(--border)", padding: "20px", position: "relative", overflow: "hidden" }}>
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "var(--accent)" }} />
+            <div style={{ fontSize: 28, marginBottom: 8 }}>{f.icon}</div>
+            <div style={{ fontSize: 14, fontWeight: 500, color: "var(--text)", marginBottom: 4 }}>{f.label}</div>
+            <div style={{ fontSize: 11, color: "var(--textdim)", marginBottom: 16, lineHeight: 1.4 }}>{f.desc}</div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <Btn color="blue" sm onClick={() => handleDownload(f.type)}>⬇ Download</Btn>
+              <Btn color="ghost" sm onClick={() => handleUpload(f.type)} disabled={!!uploading}>
+                {uploading === f.type ? "Uploading..." : "⬆ Upload & Replace"}
+              </Btn>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ marginTop: 16, padding: "10px 14px", background: "rgba(224,85,85,0.05)", border: "1px solid rgba(224,85,85,0.2)" }}>
+        <div style={{ fontSize: 11, color: "var(--red)", fontFamily: "var(--mono)" }}>
+          ⚠ Uploading replaces the file on the server immediately. The server needs a restart for changes to take effect. A backup is created automatically.
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const LuaImporter = ({ toast }) => {
   const [luaText, setLuaText] = useState("");
   const [parsed, setParsed] = useState(null);
@@ -899,8 +1101,10 @@ export default function ModsMapTab({ toast, currentUser }) {
   const subTabs = [
     { key: "mods", label: "🔧 Mod List" },
     { key: "maps", label: "🗺 Map List" },
+    { key: "bulk", label: "⚡ Bulk Add" },
     { key: "import", label: "📋 Paste INI" },
     { key: "lua", label: "📋 Paste Lua" },
+    { key: "files", label: "💾 Files" },
   ];
 
   return (
@@ -1067,6 +1271,10 @@ export default function ModsMapTab({ toast, currentUser }) {
       }} toast={toast} />}
 
       {sub === "lua" && <LuaImporter toast={toast} />}
+
+      {sub === "bulk" && <BulkAddMods toast={toast} onDone={load} />}
+
+      {sub === "files" && <FileManager toast={toast} />}
     </>
   );
 }
