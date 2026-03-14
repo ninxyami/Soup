@@ -83,8 +83,27 @@ const AddModModal = ({ onClose, onAdd, toast }) => {
   const [notes, setNotes] = useState("");
   const [status, setStatus] = useState("testing");
   const [loading, setLoading] = useState(false);
+  const [fetching, setFetching] = useState(false);
+  const [fetched, setFetched] = useState(false);
 
   const workshopId = parseWorkshopUrl(input);
+
+  // Auto-fetch from Steam when workshop ID is detected
+  const lastFetchedId = useRef("");
+  useEffect(() => {
+    if (!workshopId || workshopId === lastFetchedId.current) return;
+    lastFetchedId.current = workshopId;
+    setFetching(true);
+    setFetched(false);
+    fetchApi(`/api/admin/mods/lookup?workshop_id=${workshopId}`)
+      .then(data => {
+        if (data.title) setName(data.title);
+        if (data.mod_ids) setModIds(data.mod_ids);
+        setFetched(true);
+      })
+      .catch(() => {})
+      .finally(() => setFetching(false));
+  }, [workshopId]);
 
   const submit = async () => {
     if (!workshopId) { toast("Enter a valid Workshop ID or Steam URL", "error"); return; }
@@ -115,19 +134,20 @@ const AddModModal = ({ onClose, onAdd, toast }) => {
 
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <div>
-            <FieldLabel label="Steam Workshop URL or ID" description="Paste the full Steam URL or just the numeric workshop ID" />
+            <FieldLabel label="Steam Workshop URL or ID" description="Paste the link — name and mod IDs will auto-fill from Steam" />
             <TextInput value={input} onChange={setInput} placeholder="https://steamcommunity.com/sharedfiles/filedetails/?id=3171167894" />
-            {workshopId && <div style={{ fontSize: 11, color: "var(--green)", fontFamily: "var(--mono)", marginTop: 4 }}>✓ Workshop ID: {workshopId}</div>}
+            {workshopId && !fetching && <div style={{ fontSize: 11, color: "var(--green)", fontFamily: "var(--mono)", marginTop: 4 }}>✓ Workshop ID: {workshopId}{fetched ? " — auto-filled from Steam" : ""}</div>}
+            {workshopId && fetching && <div style={{ fontSize: 11, color: "var(--accent)", fontFamily: "var(--mono)", marginTop: 4 }}>⏳ Looking up on Steam...</div>}
             {input && !workshopId && <div style={{ fontSize: 11, color: "var(--red)", fontFamily: "var(--mono)", marginTop: 4 }}>✗ Could not parse workshop ID</div>}
           </div>
 
           <div>
-            <FieldLabel label="Mod Name" description="Display name shown in the mod list" />
+            <FieldLabel label="Mod Name" description="Auto-filled from Steam — edit if needed" />
             <TextInput value={name} onChange={setName} placeholder="that DAMN Library" />
           </div>
 
           <div>
-            <FieldLabel label="Mod IDs (comma separated)" description="The internal mod IDs from info.txt — e.g. damnlib, tsarslib" />
+            <FieldLabel label="Mod IDs (semicolon separated)" description="Auto-filled from Steam description — edit if needed" />
             <TextInput value={modIds} onChange={setModIds} placeholder="damnlib" />
           </div>
 
