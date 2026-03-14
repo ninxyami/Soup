@@ -2,55 +2,72 @@
 // @ts-nocheck
 import { useState, useCallback, useRef } from "react";
 import { Toasts } from "./tabs/shared";
-import OverviewTab  from "./tabs/OverviewTab";
-import ServerTab    from "./tabs/ServerTab";
-import ShopTab      from "./tabs/ShopTab";
-import TreasuryTab  from "./tabs/TreasuryTab";
-import EconomyTab   from "./tabs/EconomyTab";
-import DotdTab      from "./tabs/DotdTab";
-import HuntTab      from "./tabs/HuntTab";
-import PlayersTab   from "./tabs/PlayersTab";
-import GamesTab     from "./tabs/GamesTab";
-import ModsTab      from "./tabs/ModsTab";
-import ReputationTab from "./tabs/ReputationTab";
-import SystemTab    from "./tabs/SystemTab";
+import OverviewTab    from "./tabs/OverviewTab";
+import ServerTab      from "./tabs/ServerTab";
+import ShopTab        from "./tabs/ShopTab";
+import TreasuryTab    from "./tabs/TreasuryTab";
+import EconomyTab     from "./tabs/EconomyTab";
+import DotdTab        from "./tabs/DotdTab";
+import HuntTab        from "./tabs/HuntTab";
+import PlayersTab     from "./tabs/PlayersTab";
+import GamesTab       from "./tabs/GamesTab";
+import ModsTab        from "./tabs/ModsTab";
+import ReputationTab  from "./tabs/ReputationTab";
+import SystemTab      from "./tabs/SystemTab";
+import ServerConfigTab from "./tabs/ServerConfigTab";
 
 const NAV_SECTIONS = [
   { label: "COMMAND", items: [
-    { key: "overview", icon: "📡", label: "Overview" },
-    { key: "server",   icon: "🖥️", label: "Server" },
-    { key: "system",    icon: "⚙️",  label: "System Panel" },
+    { key: "overview",       icon: "📡", label: "Overview" },
+    { key: "server",         icon: "🖥️", label: "Server" },
+    { key: "system",         icon: "⚙️",  label: "System Panel" },
   ]},
   { label: "ECONOMY", items: [
-    { key: "shop",     icon: "📦", label: "Shop" },
-    { key: "treasury", icon: "🏦", label: "Treasury" },
-    { key: "economy",  icon: "💰", label: "Wallets" },
+    { key: "shop",           icon: "📦", label: "Shop" },
+    { key: "treasury",       icon: "🏦", label: "Treasury" },
+    { key: "economy",        icon: "💰", label: "Wallets" },
   ]},
   { label: "WORLD", items: [
-    { key: "dotd",     icon: "💀", label: "Dawn of Dead" },
-    { key: "hunt",     icon: "🗺️", label: "Treasure Hunt" },
+    { key: "dotd",           icon: "💀", label: "Dawn of Dead" },
+    { key: "hunt",           icon: "🗺️", label: "Treasure Hunt" },
   ]},
   { label: "COMMUNITY", items: [
-    { key: "players",  icon: "👥", label: "Players" },
-    { key: "games",    icon: "🎮", label: "Games" },
-    { key: "mods",       icon: "🔧", label: "Mods & Broadcast" },
-    { key: "reputation", icon: "🎭", label: "Reputation" },
+    { key: "players",        icon: "👥", label: "Players" },
+    { key: "games",          icon: "🎮", label: "Games" },
+    { key: "mods",           icon: "🔧", label: "Mods & Broadcast" },
+    { key: "reputation",     icon: "🎭", label: "Reputation" },
+  ]},
+  { label: "SERVER CONFIG", items: [
+    { key: "sc_mods",        icon: "🔧", label: "Mods & Maps" },
+    { key: "sc_server",      icon: "🖥️", label: "Server Settings" },
+    { key: "sc_world",       icon: "🌍", label: "World & Loot" },
+    { key: "sc_zombies",     icon: "🧟", label: "Zombies" },
+    { key: "sc_skills",      icon: "📈", label: "Skills & XP" },
+    { key: "sc_vehicles",    icon: "🚗", label: "Vehicles & Animals" },
+    { key: "sc_log",         icon: "📋", label: "Activity Log" },
   ]},
 ];
 
 const PANELS = {
-  overview: OverviewTab,
-  server:   ServerTab,
-  shop:     ShopTab,
-  treasury: TreasuryTab,
-  economy:  EconomyTab,
-  dotd:     DotdTab,
-  hunt:     HuntTab,
-  players:  PlayersTab,
-  games:    GamesTab,
-  mods:       ModsTab,
-  reputation: ReputationTab,
-  system:     SystemTab,
+  overview:    OverviewTab,
+  server:      ServerTab,
+  shop:        ShopTab,
+  treasury:    TreasuryTab,
+  economy:     EconomyTab,
+  dotd:        DotdTab,
+  hunt:        HuntTab,
+  players:     PlayersTab,
+  games:       GamesTab,
+  mods:        ModsTab,
+  reputation:  ReputationTab,
+  system:      SystemTab,
+  sc_mods:     (props) => <ServerConfigTab {...props} initialTab="mods" />,
+  sc_server:   (props) => <ServerConfigTab {...props} initialTab="server" />,
+  sc_world:    (props) => <ServerConfigTab {...props} initialTab="world" />,
+  sc_zombies:  (props) => <ServerConfigTab {...props} initialTab="zombies" />,
+  sc_skills:   (props) => <ServerConfigTab {...props} initialTab="skills" />,
+  sc_vehicles: (props) => <ServerConfigTab {...props} initialTab="vehicles" />,
+  sc_log:      (props) => <ServerConfigTab {...props} initialTab="log" />,
 };
 
 const CSS = `
