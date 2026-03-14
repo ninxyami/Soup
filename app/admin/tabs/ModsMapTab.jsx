@@ -547,6 +547,208 @@ const IniImporter = ({ onImportMods, onImportMaps, toast }) => {
   );
 };
 
+// ── Lua Sandbox Paste Importer ────────────────────────────────────────────────
+const LuaImporter = ({ toast }) => {
+  const [luaText, setLuaText] = useState("");
+  const [parsed, setParsed] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  const parseLua = (text) => {
+    const result = {};
+
+    const parseValue = (v) => {
+      v = v.trim().replace(/,$/, "");
+      if (v.toLowerCase() === "true") return true;
+      if (v.toLowerCase() === "false") return false;
+      if (/^-?\d+$/.test(v)) return parseInt(v, 10);
+      if (/^-?\d+\.\d+$/.test(v)) return parseFloat(v);
+      return v.replace(/^"|"$/g, "");
+    };
+
+    // Flat keys (top-level SandboxVars)
+    for (const m of text.matchAll(/^\s{2,6}(\w+)\s*=\s*([^,\n{]+),?\s*$/gm)) {
+      result[m[1]] = parseValue(m[2]);
+    }
+
+    // Nested blocks
+    const blockRe = /(\w+)\s*=\s*\{([^}]+)\}/gs;
+    let bm;
+    while ((bm = blockRe.exec(text)) !== null) {
+      const blockName = bm[1];
+      const blockContent = bm[2];
+      const block = {};
+      for (const km of blockContent.matchAll(/(\w+)\s*=\s*([^,\n]+)/g)) {
+        block[km[1]] = parseValue(km[2]);
+      }
+      result[blockName] = block;
+    }
+
+    return result;
+  };
+
+  const handleParse = () => {
+    if (!luaText.trim()) { toast("Paste some Lua content first", "error"); return; }
+    const result = parseLua(luaText);
+    const keyCount = Object.keys(result).length;
+    if (keyCount === 0) {
+      toast("Could not find any SandboxVars settings. Make sure you're pasting the Lua file content.", "error");
+      return;
+    }
+    setParsed(result);
+    // Count flat keys only (not nested block objects)
+    const flatKeys = Object.entries(result).filter(([, v]) => typeof v !== "object").length;
+    const blockKeys = Object.entries(result).filter(([, v]) => typeof v === "object").length;
+    toast(`Parsed ${flatKeys} settings + ${blockKeys} blocks`, "success");
+  };
+
+  const handlePushToServer = async () => {
+    if (!parsed) return;
+    setSaving(true);
+    try {
+      // Convert parsed dict to changes array for the API
+      const changes = [];
+      for (const [key, value] of Object.entries(parsed)) {
+        if (typeof value === "object" && value !== null) {
+          // Nested block — send each sub-key
+          for (const [subKey, subVal] of Object.entries(value)) {
+            changes.push({ key: subKey, value: subVal });
+          }
+        } else {
+          changes.push({ key, value });
+        }
+      }
+      await postApi("/api/admin/config/sandbox", { changes, section: "lua_import" });
+      toast(`Pushed ${changes.length} settings to server!`, "success");
+    } catch (e) {
+      toast(e.message || "Failed to push settings", "error");
+    }
+    setSaving(false);
+  };
+
+  // Group parsed results by category for display
+  const getGroups = () => {
+    if (!parsed) return [];
+    const flat = [];
+    const blocks = [];
+    for (const [key, value] of Object.entries(parsed)) {
+      if (typeof value === "object" && value !== null) {
+        blocks.push({ name: key, entries: Object.entries(value) });
+      } else {
+        flat.push([key, value]);
+      }
+    }
+    return { flat, blocks };
+  };
+
+  return (
+    <div>
+      <div style={{ marginBottom: 16, padding: "12px 16px", background: "rgba(151,117,204,0.06)", border: "1px solid rgba(151,117,204,0.2)" }}>
+        <div style={{ fontSize: 12, color: "var(--purple)", marginBottom: 4, fontWeight: 500 }}>Quick Import from SandboxVars Lua</div>
+        <div style={{ fontSize: 11, color: "var(--textdim)", lineHeight: 1.5 }}>
+          Paste the contents of <code style={{ color: "var(--accent)", background: "rgba(200,168,75,0.1)", padding: "1px 4px" }}>servertest_SandboxVars.lua</code> below.
+          The system will parse all settings including nested blocks (ZombieLore, ZombieConfig, MultiplierConfig, etc.)
+          and let you push them directly to the server.
+        </div>
+      </div>
+
+      <textarea
+        value={luaText}
+        onChange={e => { setLuaText(e.target.value); setParsed(null); }}
+        placeholder={`Paste SandboxVars.lua contents here, e.g.:\n\nSandboxVars = {\n    Zombies = 1,\n    Distribution = 1,\n    DayLength = 2,\n    StartMonth = 7,\n    WaterShut = 14,\n    ElecShut = 14,\n    \n    ZombieLore = {\n        Speed = 2,\n        Strength = 2,\n        Toughness = 2,\n    },\n}`}
+        style={{
+          width: "100%", minHeight: 180, background: "var(--bg)", border: "1px solid var(--border)",
+          color: "var(--text)", padding: "12px 14px", fontFamily: "var(--mono)", fontSize: 12,
+          resize: "vertical", outline: "none", lineHeight: 1.6,
+        }}
+      />
+
+      <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+        <Btn color="blue" onClick={handleParse}>🔍 Parse Lua</Btn>
+        {luaText && <Btn color="ghost" sm onClick={() => { setLuaText(""); setParsed(null); }}>Clear</Btn>}
+      </div>
+
+      {parsed && (() => {
+        const { flat, blocks } = getGroups();
+        return (
+          <div style={{ marginTop: 20 }}>
+            {/* Flat settings */}
+            {flat.length > 0 && (
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                  <div style={{ fontSize: 14, fontFamily: "var(--display)", letterSpacing: 2, color: "var(--accent)" }}>
+                    TOP-LEVEL SETTINGS ({flat.length})
+                  </div>
+                </div>
+                <div style={{ background: "var(--surface)", border: "1px solid var(--border)", overflow: "hidden" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <thead>
+                      <tr>
+                        {["Setting", "Value", "Type"].map(h => (
+                          <th key={h} style={{
+                            textAlign: "left", padding: "8px 14px", fontSize: 9, letterSpacing: 2,
+                            textTransform: "uppercase", color: "var(--textdim)", fontFamily: "var(--mono)",
+                            fontWeight: 400, borderBottom: "1px solid var(--border)", background: "rgba(0,0,0,.2)",
+                          }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {flat.map(([key, val]) => (
+                        <tr key={key}>
+                          <td style={{ padding: "5px 14px", borderBottom: "1px solid rgba(30,37,48,.4)", fontFamily: "var(--mono)", fontSize: 11, color: "var(--text)" }}>{key}</td>
+                          <td style={{ padding: "5px 14px", borderBottom: "1px solid rgba(30,37,48,.4)", fontFamily: "var(--mono)", fontSize: 11, color: typeof val === "boolean" ? (val ? "var(--green)" : "var(--red)") : "var(--accent)" }}>
+                            {String(val)}
+                          </td>
+                          <td style={{ padding: "5px 14px", borderBottom: "1px solid rgba(30,37,48,.4)", fontSize: 9, color: "var(--textdim)", fontFamily: "var(--mono)", letterSpacing: 1 }}>
+                            {typeof val}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Nested blocks */}
+            {blocks.map(block => (
+              <div key={block.name} style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 12, fontFamily: "var(--display)", letterSpacing: 2, color: "var(--purple)", marginBottom: 6 }}>
+                  {block.name} ({block.entries.length} settings)
+                </div>
+                <div style={{ background: "var(--surface)", border: "1px solid var(--border)", overflow: "hidden" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <tbody>
+                      {block.entries.map(([key, val]) => (
+                        <tr key={key}>
+                          <td style={{ padding: "4px 14px", borderBottom: "1px solid rgba(30,37,48,.3)", fontFamily: "var(--mono)", fontSize: 11, color: "var(--text)", width: "50%" }}>{key}</td>
+                          <td style={{ padding: "4px 14px", borderBottom: "1px solid rgba(30,37,48,.3)", fontFamily: "var(--mono)", fontSize: 11, color: typeof val === "boolean" ? (val ? "var(--green)" : "var(--red)") : "var(--accent)" }}>
+                            {String(val)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ))}
+
+            {/* Push to server button */}
+            <div style={{ marginTop: 16, padding: "14px 16px", background: "rgba(200,168,75,0.05)", border: "1px solid var(--accent)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ fontSize: 11, color: "var(--accent)", fontFamily: "var(--mono)" }}>
+                ⚠ This will overwrite current SandboxVars on the server. A backup is created automatically.
+              </div>
+              <Btn color="green" onClick={handlePushToServer} disabled={saving}>
+                {saving ? "Pushing..." : "🚀 Push All to Server"}
+              </Btn>
+            </div>
+          </div>
+        );
+      })()}
+    </div>
+  );
+};
+
 // ── Main ModsTab ──────────────────────────────────────────────────────────────
 export default function ModsMapTab({ toast, currentUser }) {
   const [sub, setSub] = useState("mods");
@@ -650,6 +852,7 @@ export default function ModsMapTab({ toast, currentUser }) {
     { key: "mods", label: "🔧 Mod List" },
     { key: "maps", label: "🗺 Map List" },
     { key: "import", label: "📋 Paste INI" },
+    { key: "lua", label: "📋 Paste Lua" },
   ];
 
   return (
@@ -770,6 +973,8 @@ export default function ModsMapTab({ toast, currentUser }) {
         setMapsDirty(true);
         toast(`Imported ${importedMaps.length} map entries — review in Map List tab`, "success");
       }} toast={toast} />}
+
+      {sub === "lua" && <LuaImporter toast={toast} />}
     </>
   );
 }
