@@ -322,6 +322,47 @@ export default function AdminPanel() {
     );
   };
 
+  // ── WebSocket for real-time updates ──────────────────────────
+  const [wsConnected, setWsConnected] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const wsRef = useRef(null);
+
+  useEffect(() => {
+    if (panelLocked !== false) return;
+
+    const connect = () => {
+      try {
+        const ws = new WebSocket("wss://api.stateofundeadpurge.site:8443/ws/admin");
+        wsRef.current = ws;
+
+        ws.onopen = () => setWsConnected(true);
+        ws.onclose = () => {
+          setWsConnected(false);
+          // Auto-reconnect after 5s
+          setTimeout(connect, 5000);
+        };
+        ws.onerror = () => ws.close();
+        ws.onmessage = (evt) => {
+          try {
+            const msg = JSON.parse(evt.data);
+            if (msg.event === "change") {
+              // Trigger re-render of the active panel
+              setRefreshKey(k => k + 1);
+              // Show toast for changes by other admins
+              if (msg.data?.description) {
+                const adminName = ADMINS[msg.data.admin_id]?.name || "Someone";
+                toast(`${adminName}: ${msg.data.description}`, "info");
+              }
+            }
+          } catch {}
+        };
+      } catch {}
+    };
+
+    connect();
+    return () => { if (wsRef.current) wsRef.current.close(); };
+  }, [panelLocked]);
+
   const verifyPassword = async () => {
     setPwError("");
     try {
@@ -429,7 +470,7 @@ export default function AdminPanel() {
           ))}
         </nav>
         <main className="ap-main">
-          <ActivePanel toast={toast} />
+          <ActivePanel key={refreshKey} toast={toast} />
         </main>
       </div>
       <Toasts items={toasts} />
