@@ -108,9 +108,12 @@ const AddModModal = ({ onClose, onAdd, toast }) => {
   const submit = async () => {
     if (!workshopId) { toast("Enter a valid Workshop ID or Steam URL", "error"); return; }
     if (!name.trim()) { toast("Mod name is required", "error"); return; }
+    // Clean mod IDs - strip trailing semicolons and whitespace
+    const cleanModIds = modIds.split(";").map(m => m.trim()).filter(Boolean).join(";");
+    if (!cleanModIds) { toast("Mod ID is required — check the Steam description", "error"); return; }
     setLoading(true);
     try {
-      await onAdd({ workshop_id: workshopId, name: name.trim(), mod_ids: modIds, category, notes, status });
+      await onAdd({ workshop_id: workshopId, name: name.trim(), mod_ids: cleanModIds, category, notes, status });
       onClose();
     } catch (e) {
       toast(e.message, "error");
@@ -192,10 +195,13 @@ const AddModModal = ({ onClose, onAdd, toast }) => {
 };
 
 // ── Mod Row ───────────────────────────────────────────────────────────────────
-const ModRow = ({ mod, index, selected, onSelect, onToggle, onRemove, onStatusChange, toast, dragHandlers, isDragOver }) => {
+const ModRow = ({ mod, index, selected, onSelect, onToggle, onRemove, onStatusChange, onEdit, toast, dragHandlers, isDragOver }) => {
   const [expanded, setExpanded] = useState(false);
+  const [editModIds, setEditModIds] = useState(null); // null = not editing, string = editing
   const admin = ADMINS[mod.added_by] || { name: "Unknown", color: "#4a5568", initials: "??" };
   const modKey = mod.workshop_id || mod.mod_ids;
+  // Clean display of mod_ids — strip trailing semicolons
+  const displayModIds = (mod.mod_ids || "").split(";").map(m => m.trim()).filter(Boolean).join("; ");
 
   return (
     <>
@@ -237,7 +243,7 @@ const ModRow = ({ mod, index, selected, onSelect, onToggle, onRemove, onStatusCh
             <span style={{ fontWeight: 500, color: "var(--text)" }}>{mod.name}</span>
             <CategoryBadge cat={mod.category || "other"} />
           </div>
-          {mod.mod_ids && <div style={{ fontSize: 10, color: "var(--textdim)", fontFamily: "var(--mono)", marginTop: 2 }}>{mod.mod_ids}</div>}
+          {displayModIds && <div style={{ fontSize: 10, color: "var(--textdim)", fontFamily: "var(--mono)", marginTop: 2 }}>{displayModIds}</div>}
         </td>
         <td style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)" }}>{mod.workshop_id}</td>
         <td><StatusBadge status={mod.status} /></td>
@@ -261,15 +267,23 @@ const ModRow = ({ mod, index, selected, onSelect, onToggle, onRemove, onStatusCh
       </tr>
       {expanded && (
         <tr>
-          <td colSpan={6}>
+          <td colSpan={7}>
             <div style={{ padding: "10px 16px", background: "#0a0c0f", borderLeft: "2px solid var(--accent)", margin: "0 0 4px" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 16 }}>
                 <div>
                   <div style={{ fontSize: 10, color: "var(--textdim)", fontFamily: "var(--mono)", letterSpacing: 1, marginBottom: 4 }}>WORKSHOP ID</div>
                   <a href={`https://steamcommunity.com/sharedfiles/filedetails/?id=${mod.workshop_id}`} target="_blank" rel="noopener noreferrer"
                     style={{ color: "var(--blue)", fontSize: 12, fontFamily: "var(--mono)" }} onClick={e => e.stopPropagation()}>
                     {mod.workshop_id} ↗
                   </a>
+                </div>
+                <div>
+                  <div style={{ fontSize: 10, color: "var(--textdim)", fontFamily: "var(--mono)", letterSpacing: 1, marginBottom: 4 }}>CATEGORY</div>
+                  <select value={mod.category || "other"} onChange={e => { e.stopPropagation(); onEdit(mod, { category: e.target.value }); }}
+                    onClick={e => e.stopPropagation()}
+                    style={{ background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", padding: "4px 8px", fontFamily: "var(--mono)", fontSize: 11 }}>
+                    {["library","map","cars","qol","clothing","weapons","admin","other"].map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
                 </div>
                 <div>
                   <div style={{ fontSize: 10, color: "var(--textdim)", fontFamily: "var(--mono)", letterSpacing: 1, marginBottom: 4 }}>STATUS</div>
@@ -283,6 +297,25 @@ const ModRow = ({ mod, index, selected, onSelect, onToggle, onRemove, onStatusCh
                   <div style={{ fontSize: 10, color: "var(--textdim)", fontFamily: "var(--mono)", letterSpacing: 1, marginBottom: 4 }}>LAST EDITED BY</div>
                   <div style={{ fontSize: 12, color: admin.color }}>{admin.name}</div>
                 </div>
+              </div>
+              {/* Editable Mod IDs */}
+              <div style={{ marginTop: 10 }}>
+                <div style={{ fontSize: 10, color: "var(--textdim)", fontFamily: "var(--mono)", letterSpacing: 1, marginBottom: 4 }}>MOD IDS</div>
+                {editModIds !== null ? (
+                  <div style={{ display: "flex", gap: 6, alignItems: "center" }} onClick={e => e.stopPropagation()}>
+                    <input value={editModIds} onChange={e => setEditModIds(e.target.value)}
+                      style={{ flex: 1, background: "var(--surface2)", border: "1px solid var(--accent)", color: "var(--text)", padding: "4px 8px", fontFamily: "var(--mono)", fontSize: 11, outline: "none" }}
+                      autoFocus onKeyDown={e => { if (e.key === "Enter") { onEdit(mod, { mod_ids: editModIds }); setEditModIds(null); } if (e.key === "Escape") setEditModIds(null); }}
+                    />
+                    <button onClick={() => { onEdit(mod, { mod_ids: editModIds }); setEditModIds(null); }} style={{ background: "none", border: "1px solid var(--green)", color: "var(--green)", padding: "3px 8px", cursor: "pointer", fontFamily: "var(--mono)", fontSize: 10 }}>Save</button>
+                    <button onClick={() => setEditModIds(null)} style={{ background: "none", border: "1px solid var(--border)", color: "var(--textdim)", padding: "3px 8px", cursor: "pointer", fontFamily: "var(--mono)", fontSize: 10 }}>Cancel</button>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", gap: 6, alignItems: "center" }} onClick={e => e.stopPropagation()}>
+                    <span style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--text)" }}>{displayModIds || "—"}</span>
+                    <button onClick={() => setEditModIds(mod.mod_ids || "")} style={{ background: "none", border: "1px solid var(--border)", color: "var(--textdim)", padding: "2px 8px", cursor: "pointer", fontFamily: "var(--mono)", fontSize: 9 }}>✏ Edit</button>
+                  </div>
+                )}
               </div>
               {mod.notes && (
                 <div style={{ marginTop: 10, padding: 10, background: "var(--surface)", border: "1px solid var(--border)", fontSize: 12, color: "var(--textdim)", lineHeight: 1.5 }}>
@@ -1216,6 +1249,15 @@ export default function ModsMapTab({ toast, currentUser }) {
     } catch (e) { toast(e.message, "error"); }
   };
 
+  const editMod = async (mod, fields) => {
+    try {
+      await postApi("/api/admin/mods/edit", { workshop_id: mod.workshop_id, ...fields });
+      const fieldName = Object.keys(fields)[0];
+      toast(`Updated ${fieldName} for ${mod.name}`, "success");
+      load();
+    } catch (e) { toast(e.message, "error"); }
+  };
+
   const saveOrder = async () => {
     try {
       const ordered = mods.map((m, i) => ({
@@ -1387,7 +1429,7 @@ export default function ModsMapTab({ toast, currentUser }) {
                   <ModRow key={mod.workshop_id || mod.mod_ids || idx} mod={mod} index={idx}
                     selected={selected.has(idx)}
                     onSelect={handleSelect}
-                    onToggle={toggleMod} onRemove={removeMod} onStatusChange={changeStatus} toast={toast}
+                    onToggle={toggleMod} onRemove={removeMod} onStatusChange={changeStatus} onEdit={editMod} toast={toast}
                     isDragOver={dragOver === idx}
                     dragHandlers={{
                       onDragStart: (e) => { setDragging(idx); e.dataTransfer.effectAllowed = "move"; },
