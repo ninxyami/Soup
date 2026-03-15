@@ -314,8 +314,22 @@ const KNOWN_MAPS = [
   { id: "rv2",                label: "RV Interior Expansion Part 2" },
 ];
 
-const MapsManager = ({ maps, setMaps, toast, currentUser }) => {
+const MapsManager = ({ maps, setMaps, toast, currentUser, registryMods }) => {
   const [custom, setCustom] = useState("");
+
+  // Build combined map list: KNOWN_MAPS + map mods from registry
+  const registryMaps = (registryMods || [])
+    .filter(m => m.category === "map" && m.status === "active")
+    .flatMap(m => (m.mod_ids || "").split(";").map(id => id.trim()).filter(Boolean))
+    .filter(id => !KNOWN_MAPS.find(k => k.id === id));
+
+  // Deduplicate
+  const registryMapEntries = [...new Set(registryMaps)].map(id => {
+    const mod = (registryMods || []).find(m => m.category === "map" && (m.mod_ids || "").includes(id));
+    return { id, label: mod?.name || id, fromRegistry: true };
+  });
+
+  const allMaps = [...KNOWN_MAPS, ...registryMapEntries];
 
   const isActive = (id) => maps.includes(id);
 
@@ -337,16 +351,20 @@ const MapsManager = ({ maps, setMaps, toast, currentUser }) => {
   return (
     <div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 8, marginBottom: 16 }}>
-        {KNOWN_MAPS.map(m => (
+        {allMaps.map(m => (
           <div key={m.id} onClick={() => toggle(m.id)}
             style={{
               display: "flex", alignItems: "center", justifyContent: "space-between",
-              padding: "10px 14px", background: "var(--surface)", border: `1px solid ${isActive(m.id) ? "var(--green)" : "var(--border)"}`,
+              padding: "10px 14px", background: "var(--surface)",
+              border: `1px solid ${isActive(m.id) ? "var(--green)" : m.fromRegistry ? "rgba(151,117,204,0.3)" : "var(--border)"}`,
               cursor: m.id === "Muldraugh, KY" ? "not-allowed" : "pointer",
               transition: "border-color .15s",
             }}>
             <div>
-              <div style={{ fontSize: 12, color: isActive(m.id) ? "var(--green)" : "var(--text)" }}>{m.label}</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: 12, color: isActive(m.id) ? "var(--green)" : "var(--text)" }}>{m.label}</span>
+                {m.fromRegistry && <span style={{ fontSize: 8, fontFamily: "var(--mono)", letterSpacing: 1, padding: "1px 4px", background: "rgba(151,117,204,0.15)", color: "var(--purple)", border: "1px solid rgba(151,117,204,0.3)" }}>FROM MODS</span>}
+              </div>
               <div style={{ fontSize: 10, color: "var(--textdim)", fontFamily: "var(--mono)" }}>{m.id}</div>
             </div>
             <div style={{
@@ -366,7 +384,7 @@ const MapsManager = ({ maps, setMaps, toast, currentUser }) => {
         <Btn color="blue" onClick={addCustom}>+ Add Custom</Btn>
       </div>
 
-      {maps.filter(m => !KNOWN_MAPS.find(k => k.id === m)).map(m => (
+      {maps.filter(m => !allMaps.find(k => k.id === m)).map(m => (
         <div key={m} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", background: "var(--surface)", border: "1px solid var(--blue)", marginTop: 6 }}>
           <span style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--blue)" }}>{m} (custom)</span>
           <Btn color="red" sm onClick={() => setMaps(p => p.filter(x => x !== m))}>Remove</Btn>
@@ -1343,7 +1361,7 @@ export default function ModsMapTab({ toast, currentUser }) {
             ⚠ Maps require a server restart to take effect. Map mods must also be in the Mod List above.
           </div>
         </div>
-        <MapsManager maps={maps} setMaps={handleMapChange} toast={toast} currentUser={currentUser} />
+        <MapsManager maps={maps} setMaps={handleMapChange} toast={toast} currentUser={currentUser} registryMods={mods} />
         {mapsDirty && (
           <div style={{ marginTop: 16, display: "flex", gap: 10, alignItems: "center", padding: "12px 16px", background: "rgba(200,168,75,0.05)", border: "1px solid var(--accent)" }}>
             <span style={{ flex: 1, fontSize: 11, color: "var(--accent)", fontFamily: "var(--mono)" }}>⚠ Unsaved map changes</span>
