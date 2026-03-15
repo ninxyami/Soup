@@ -247,9 +247,10 @@ table.ap-t{width:100%;border-collapse:collapse}
 export default function AdminPanel() {
   const [page, setPage] = useState("overview");
   const [toasts, setToasts] = useState([]);
-  const [panelLocked, setPanelLocked] = useState(null); // null=checking, true=locked, false=unlocked
+  const [panelLocked, setPanelLocked] = useState(null);
   const [panelPw, setPanelPw] = useState("");
   const [pwError, setPwError] = useState("");
+  const [onlineAdmins, setOnlineAdmins] = useState([]);
   const toastId = useRef(0);
 
   const toast = useCallback((msg, type = "info") => {
@@ -269,10 +270,60 @@ export default function AdminPanel() {
           setPanelLocked(true);
         }
       } catch {
-        setPanelLocked(false); // If endpoint doesn't exist yet, skip
+        setPanelLocked(false);
       }
     })();
   }, []);
+
+  // Heartbeat: tell backend which tab we're on every 10s
+  useEffect(() => {
+    if (panelLocked !== false) return; // Don't heartbeat until unlocked
+    const beat = () => {
+      fetch("https://api.stateofundeadpurge.site:8443/api/admin/presence/heartbeat", {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tab: page }),
+      }).catch(() => {});
+    };
+    beat();
+    const iv = setInterval(beat, 10000);
+    return () => clearInterval(iv);
+  }, [page, panelLocked]);
+
+  // Fetch who's online every 10s
+  useEffect(() => {
+    if (panelLocked !== false) return;
+    const fetchOnline = () => {
+      fetch("https://api.stateofundeadpurge.site:8443/api/admin/presence/online", {
+        credentials: "include",
+      }).then(r => r.json()).then(d => setOnlineAdmins(d.online || [])).catch(() => {});
+    };
+    fetchOnline();
+    const iv = setInterval(fetchOnline, 10000);
+    return () => clearInterval(iv);
+  }, [panelLocked]);
+
+  const adminsOnTab = (tabKey) => onlineAdmins.filter(a => a.tab === tabKey);
+
+  const PresenceAvatar = ({ admin, size = 22 }) => {
+    const info = ADMINS[admin.discord_id] || { name: "Unknown", color: "#4a5568", initials: "??" };
+    return (
+      <div title={`${info.name} is here`} style={{
+        width: size, height: size, borderRadius: size / 2,
+        background: info.color + "33", border: `2px solid ${info.color}`,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        fontSize: size * 0.36, fontFamily: "var(--mono)", color: info.color,
+        flexShrink: 0, position: "relative",
+      }}>
+        {info.initials}
+        <div style={{
+          position: "absolute", bottom: -1, right: -1, width: 7, height: 7,
+          borderRadius: 4, background: "var(--green)",
+          border: "1.5px solid var(--surface)", boxShadow: "0 0 4px var(--green)",
+        }} />
+      </div>
+    );
+  };
 
   const verifyPassword = async () => {
     setPwError("");
@@ -331,59 +382,6 @@ export default function AdminPanel() {
   }
 
   const ActivePanel = PANELS[page] || OverviewTab;
-
-  // ── Presence system ─────────────────────────────────────────
-  const [onlineAdmins, setOnlineAdmins] = useState([]);
-
-  // Heartbeat: tell backend which tab we're on every 10s
-  useEffect(() => {
-    const beat = () => {
-      fetch("https://api.stateofundeadpurge.site:8443/api/admin/presence/heartbeat", {
-        method: "POST", credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tab: page }),
-      }).catch(() => {});
-    };
-    beat();
-    const iv = setInterval(beat, 10000);
-    return () => clearInterval(iv);
-  }, [page]);
-
-  // Fetch who's online every 10s
-  useEffect(() => {
-    const fetchOnline = () => {
-      fetch("https://api.stateofundeadpurge.site:8443/api/admin/presence/online", {
-        credentials: "include",
-      }).then(r => r.json()).then(d => setOnlineAdmins(d.online || [])).catch(() => {});
-    };
-    fetchOnline();
-    const iv = setInterval(fetchOnline, 10000);
-    return () => clearInterval(iv);
-  }, []);
-
-  // Helper: get admins on a specific tab
-  const adminsOnTab = (tabKey) => onlineAdmins.filter(a => a.tab === tabKey);
-
-  // Presence avatar component
-  const PresenceAvatar = ({ admin, size = 22 }) => {
-    const info = ADMINS[admin.discord_id] || { name: admin.name, color: "#4a5568", initials: admin.name?.slice(0, 2)?.toUpperCase() || "??" };
-    return (
-      <div title={`${info.name || admin.name} is here`} style={{
-        width: size, height: size, borderRadius: size / 2,
-        background: info.color + "33", border: `2px solid ${info.color}`,
-        display: "flex", alignItems: "center", justifyContent: "center",
-        fontSize: size * 0.36, fontFamily: "var(--mono)", color: info.color,
-        flexShrink: 0, position: "relative",
-      }}>
-        {info.initials}
-        <div style={{
-          position: "absolute", bottom: -1, right: -1, width: 7, height: 7,
-          borderRadius: 4, background: "var(--green)",
-          border: "1.5px solid var(--surface)", boxShadow: "0 0 4px var(--green)",
-        }} />
-      </div>
-    );
-  };
 
   return (
     <div className="ap">
