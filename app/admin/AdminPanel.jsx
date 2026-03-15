@@ -1,7 +1,7 @@
 "use client";
 // @ts-nocheck
 import { useState, useCallback, useRef, useEffect } from "react";
-import { Toasts } from "./tabs/shared";
+import { Toasts, ADMINS } from "./tabs/shared";
 import OverviewTab    from "./tabs/OverviewTab";
 import ServerTab      from "./tabs/ServerTab";
 import ShopTab        from "./tabs/ShopTab";
@@ -332,12 +332,74 @@ export default function AdminPanel() {
 
   const ActivePanel = PANELS[page] || OverviewTab;
 
+  // ── Presence system ─────────────────────────────────────────
+  const [onlineAdmins, setOnlineAdmins] = useState([]);
+
+  // Heartbeat: tell backend which tab we're on every 10s
+  useEffect(() => {
+    const beat = () => {
+      fetch("https://api.stateofundeadpurge.site:8443/api/admin/presence/heartbeat", {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tab: page }),
+      }).catch(() => {});
+    };
+    beat();
+    const iv = setInterval(beat, 10000);
+    return () => clearInterval(iv);
+  }, [page]);
+
+  // Fetch who's online every 10s
+  useEffect(() => {
+    const fetchOnline = () => {
+      fetch("https://api.stateofundeadpurge.site:8443/api/admin/presence/online", {
+        credentials: "include",
+      }).then(r => r.json()).then(d => setOnlineAdmins(d.online || [])).catch(() => {});
+    };
+    fetchOnline();
+    const iv = setInterval(fetchOnline, 10000);
+    return () => clearInterval(iv);
+  }, []);
+
+  // Helper: get admins on a specific tab
+  const adminsOnTab = (tabKey) => onlineAdmins.filter(a => a.tab === tabKey);
+
+  // Presence avatar component
+  const PresenceAvatar = ({ admin, size = 22 }) => {
+    const info = ADMINS[admin.discord_id] || { name: admin.name, color: "#4a5568", initials: admin.name?.slice(0, 2)?.toUpperCase() || "??" };
+    return (
+      <div title={`${info.name || admin.name} is here`} style={{
+        width: size, height: size, borderRadius: size / 2,
+        background: info.color + "33", border: `2px solid ${info.color}`,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        fontSize: size * 0.36, fontFamily: "var(--mono)", color: info.color,
+        flexShrink: 0, position: "relative",
+      }}>
+        {info.initials}
+        <div style={{
+          position: "absolute", bottom: -1, right: -1, width: 7, height: 7,
+          borderRadius: 4, background: "var(--green)",
+          border: "1.5px solid var(--surface)", boxShadow: "0 0 4px var(--green)",
+        }} />
+      </div>
+    );
+  };
+
   return (
     <div className="ap">
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
       <div className="ap-hd">
         <div className="ap-logo">SOUP ADMIN</div>
         <span className="ap-hd-badge">v2.0</span>
+        {/* Online admins */}
+        {onlineAdmins.length > 0 && (
+          <div style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: 16 }}>
+            {onlineAdmins.map(a => <PresenceAvatar key={a.discord_id} admin={a} size={24} />)}
+            <span style={{ fontSize: 10, color: "var(--green)", fontFamily: "var(--mono)", marginLeft: 4 }}>
+              {onlineAdmins.length} online
+            </span>
+          </div>
+        )}
         <div className="ap-hd-right">
           <span>STATE OF UNDEAD PURGE</span>
           <span className="on">● CONNECTED</span>
@@ -355,6 +417,17 @@ export default function AdminPanel() {
                 <div key={item.key} className={`ap-nav-a ${page === item.key ? "act" : ""}`} onClick={() => setPage(item.key)}>
                   <span className="ap-nav-ico">{item.icon}</span>
                   {item.label}
+                  {adminsOnTab(item.key).length > 0 && (
+                    <div style={{ marginLeft: "auto", display: "flex", gap: 2 }}>
+                      {adminsOnTab(item.key).map(a => {
+                        const info = ADMINS[a.discord_id] || { color: "#4a5568" };
+                        return <div key={a.discord_id} title={a.name} style={{
+                          width: 8, height: 8, borderRadius: 4,
+                          background: info.color, boxShadow: `0 0 4px ${info.color}`,
+                        }} />;
+                      })}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
