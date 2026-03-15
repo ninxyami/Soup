@@ -1,6 +1,6 @@
 "use client";
 // @ts-nocheck
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { Toasts } from "./tabs/shared";
 import OverviewTab    from "./tabs/OverviewTab";
 import ServerTab      from "./tabs/ServerTab";
@@ -247,6 +247,9 @@ table.ap-t{width:100%;border-collapse:collapse}
 export default function AdminPanel() {
   const [page, setPage] = useState("overview");
   const [toasts, setToasts] = useState([]);
+  const [panelLocked, setPanelLocked] = useState(null); // null=checking, true=locked, false=unlocked
+  const [panelPw, setPanelPw] = useState("");
+  const [pwError, setPwError] = useState("");
   const toastId = useRef(0);
 
   const toast = useCallback((msg, type = "info") => {
@@ -254,6 +257,78 @@ export default function AdminPanel() {
     setToasts(prev => [...prev, { id, msg, type }]);
     setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3500);
   }, []);
+
+  // Check panel password on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await fetch(`https://api.stateofundeadpurge.site:8443/api/admin/panel-auth/status`, { credentials: "include" }).then(r => r.json());
+        if (!data.has_password || data.verified) {
+          setPanelLocked(false);
+        } else {
+          setPanelLocked(true);
+        }
+      } catch {
+        setPanelLocked(false); // If endpoint doesn't exist yet, skip
+      }
+    })();
+  }, []);
+
+  const verifyPassword = async () => {
+    setPwError("");
+    try {
+      const r = await fetch(`https://api.stateofundeadpurge.site:8443/api/admin/panel-auth/verify`, {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: panelPw }),
+      });
+      if (r.ok) {
+        setPanelLocked(false);
+      } else {
+        setPwError("Wrong password");
+      }
+    } catch { setPwError("Connection error"); }
+  };
+
+  // Show password gate
+  if (panelLocked === null) {
+    return <div className="ap"><style dangerouslySetInnerHTML={{ __html: CSS }} /><div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}><div style={{ fontFamily: "var(--mono)", color: "var(--textdim)", letterSpacing: 2 }}>LOADING...</div></div></div>;
+  }
+
+  if (panelLocked) {
+    return (
+      <div className="ap">
+        <style dangerouslySetInnerHTML={{ __html: CSS }} />
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
+          <div style={{ background: "var(--surface)", border: "1px solid var(--accent)", padding: 40, width: 400, maxWidth: "90vw", textAlign: "center" }}>
+            <div style={{ position: "relative", overflow: "hidden", marginBottom: 24 }}>
+              <div style={{ fontFamily: "var(--display)", fontSize: 32, letterSpacing: 4, color: "var(--accent)" }}>SOUP ADMIN</div>
+              <div style={{ fontSize: 11, color: "var(--textdim)", fontFamily: "var(--mono)", marginTop: 4 }}>Enter panel password to continue</div>
+            </div>
+            <input
+              type="password"
+              value={panelPw}
+              onChange={e => { setPanelPw(e.target.value); setPwError(""); }}
+              onKeyDown={e => e.key === "Enter" && verifyPassword()}
+              placeholder="Password"
+              autoFocus
+              style={{
+                width: "100%", background: "var(--bg)", border: `1px solid ${pwError ? "var(--red)" : "var(--border)"}`,
+                color: "var(--text)", padding: "12px 16px", fontFamily: "var(--mono)", fontSize: 14,
+                textAlign: "center", letterSpacing: 3, outline: "none", marginBottom: 12,
+              }}
+            />
+            {pwError && <div style={{ fontSize: 11, color: "var(--red)", fontFamily: "var(--mono)", marginBottom: 12 }}>{pwError}</div>}
+            <button onClick={verifyPassword} style={{
+              width: "100%", padding: "10px", fontFamily: "var(--mono)", fontSize: 12, letterSpacing: 2,
+              textTransform: "uppercase", background: "rgba(200,168,75,0.1)", border: "1px solid var(--accent)",
+              color: "var(--accent)", cursor: "pointer",
+            }}>UNLOCK</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const ActivePanel = PANELS[page] || OverviewTab;
 

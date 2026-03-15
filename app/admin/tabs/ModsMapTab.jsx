@@ -192,9 +192,10 @@ const AddModModal = ({ onClose, onAdd, toast }) => {
 };
 
 // ── Mod Row ───────────────────────────────────────────────────────────────────
-const ModRow = ({ mod, index, onToggle, onRemove, onStatusChange, toast, dragHandlers, isDragOver }) => {
+const ModRow = ({ mod, index, selected, onSelect, onToggle, onRemove, onStatusChange, toast, dragHandlers, isDragOver }) => {
   const [expanded, setExpanded] = useState(false);
   const admin = ADMINS[mod.added_by] || { name: "Unknown", color: "#4a5568", initials: "??" };
+  const modKey = mod.workshop_id || mod.mod_ids;
 
   return (
     <>
@@ -203,16 +204,30 @@ const ModRow = ({ mod, index, onToggle, onRemove, onStatusChange, toast, dragHan
         {...dragHandlers}
         style={{
           cursor: "grab",
-          background: isDragOver ? "rgba(200,168,75,0.06)" : "transparent",
+          background: selected ? "rgba(200,168,75,0.08)" : isDragOver ? "rgba(200,168,75,0.04)" : "transparent",
           borderTop: isDragOver ? "2px solid var(--accent)" : "none",
         }}
-        onClick={() => setExpanded(x => !x)}
+        onClick={(e) => {
+          if (e.shiftKey || e.ctrlKey || e.metaKey) {
+            e.preventDefault();
+            onSelect(index, e);
+          } else {
+            setExpanded(x => !x);
+          }
+        }}
       >
-        <td style={{ padding: "10px 8px", textAlign: "center" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: 10, color: "var(--textdim)", fontFamily: "var(--mono)", minWidth: 18, textAlign: "right" }}>{index + 1}</span>
+        <td style={{ padding: "10px 4px 10px 8px" }} onClick={e => { e.stopPropagation(); onSelect(index, e); }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
             <div style={{
-              width: 10, height: 10, borderRadius: 5,
+              width: 16, height: 16, borderRadius: 2, flexShrink: 0, cursor: "pointer",
+              background: selected ? "var(--accent)" : "transparent",
+              border: `1px solid ${selected ? "var(--accent)" : "var(--border)"}`,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 10, color: "#fff", transition: "all .1s",
+            }}>{selected ? "✓" : ""}</div>
+            <span style={{ fontSize: 10, color: "var(--textdim)", fontFamily: "var(--mono)", minWidth: 14, textAlign: "right" }}>{index + 1}</span>
+            <div style={{
+              width: 8, height: 8, borderRadius: 4,
               background: mod.status === "active" ? "var(--green)" : mod.status === "testing" ? "var(--orange)" : "var(--border)",
             }} />
           </div>
@@ -996,7 +1011,62 @@ export default function ModsMapTab({ toast, currentUser }) {
   const [orderDirty, setOrderDirty] = useState(false);
   const [dragging, setDragging] = useState(null);
   const [dragOver, setDragOver] = useState(null);
+  const [selected, setSelected] = useState(new Set()); // set of indices
+  const [lastClicked, setLastClicked] = useState(null);
   const origMaps = useRef([]);
+
+  const handleSelect = (idx, e) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (e.shiftKey && lastClicked !== null) {
+        // Range select
+        const start = Math.min(lastClicked, idx);
+        const end = Math.max(lastClicked, idx);
+        for (let i = start; i <= end; i++) next.add(i);
+      } else if (e.ctrlKey || e.metaKey) {
+        // Toggle single
+        if (next.has(idx)) next.delete(idx); else next.add(idx);
+      } else {
+        // Single click on checkbox
+        if (next.has(idx)) next.delete(idx); else next.add(idx);
+      }
+      return next;
+    });
+    setLastClicked(idx);
+  };
+
+  const selectAll = () => {
+    if (selected.size === filteredMods.length) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(filteredMods.map((_, i) => i)));
+    }
+  };
+
+  // selectedMods/selectedIds computed after filteredMods below
+
+  const bulkSetStatus = async (status) => {
+    const ids = [...selected].map(i => filteredMods?.[i]).filter(Boolean).map(m => m.workshop_id || m.mod_ids);
+    if (!ids.length) return;
+    try {
+      await postApi("/api/admin/mods/bulk-status", { workshop_ids: ids, status });
+      toast(`${ids.length} mod(s) → ${status}`, "success");
+      setSelected(new Set());
+      load();
+    } catch (e) { toast(e.message, "error"); }
+  };
+
+  const bulkRemove = async () => {
+    const ids = [...selected].map(i => filteredMods?.[i]).filter(Boolean).map(m => m.workshop_id || m.mod_ids);
+    if (!ids.length) return;
+    if (!confirm(`Remove ${ids.length} mod(s)? This cannot be undone.`)) return;
+    try {
+      await postApi("/api/admin/mods/bulk-remove", { workshop_ids: ids });
+      toast(`${ids.length} mod(s) removed`, "success");
+      setSelected(new Set());
+      load();
+    } catch (e) { toast(e.message, "error"); }
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1083,6 +1153,9 @@ export default function ModsMapTab({ toast, currentUser }) {
     if (search && !m.name?.toLowerCase().includes(search.toLowerCase()) && !m.workshop_id?.includes(search)) return false;
     return true;
   });
+
+  const selectedMods = [...selected].map(i => filteredMods[i]).filter(Boolean);
+  const selectedIds = selectedMods.map(m => m.workshop_id || m.mod_ids);
 
   const counts = {
     all: mods.length,
@@ -1174,13 +1247,46 @@ export default function ModsMapTab({ toast, currentUser }) {
           </div>
         )}
 
+        {/* Bulk action bar */}
+        {selected.size > 0 && (
+          <div style={{
+            display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", marginBottom: 8,
+            background: "rgba(200,168,75,0.06)", border: "1px solid var(--accent)",
+          }}>
+            <span style={{ fontSize: 11, color: "var(--accent)", fontFamily: "var(--mono)", fontWeight: 500 }}>
+              {selected.size} mod{selected.size !== 1 ? "s" : ""} selected
+            </span>
+            <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+              <Btn color="green" sm onClick={() => bulkSetStatus("active")}>✓ Set Active</Btn>
+              <Btn color="ghost" sm onClick={() => bulkSetStatus("testing")}>Set Testing</Btn>
+              <Btn color="ghost" sm onClick={() => bulkSetStatus("disabled")}>Set Disabled</Btn>
+              <Btn color="red" sm onClick={bulkRemove}>🗑 Remove All</Btn>
+              <Btn color="ghost" sm onClick={() => setSelected(new Set())}>✕ Clear</Btn>
+            </div>
+          </div>
+        )}
+
         {/* Mod table */}
         <div style={{ background: "var(--surface)", border: "1px solid var(--border)", overflow: "hidden" }}>
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr>
-                  {["#", "Name", "Workshop ID", "Status", "Added By", "Actions"].map(h => (
+                  <th style={{
+                    textAlign: "left", padding: "10px 8px", fontSize: 10, borderBottom: "1px solid var(--border)", background: "rgba(0,0,0,.2)", width: 70,
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 5, cursor: "pointer" }} onClick={selectAll}>
+                      <div style={{
+                        width: 16, height: 16, borderRadius: 2,
+                        background: selected.size > 0 && selected.size === filteredMods.length ? "var(--accent)" : "transparent",
+                        border: `1px solid ${selected.size > 0 ? "var(--accent)" : "var(--border)"}`,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: 10, color: "#fff",
+                      }}>{selected.size > 0 && selected.size === filteredMods.length ? "✓" : selected.size > 0 ? "—" : ""}</div>
+                      <span style={{ fontSize: 10, letterSpacing: 2, color: "var(--textdim)", fontFamily: "var(--mono)" }}>#</span>
+                    </div>
+                  </th>
+                  {["Name", "Workshop ID", "Status", "Added By", "Actions"].map(h => (
                     <th key={h} style={{
                       textAlign: "left", padding: "10px 16px", fontSize: 10, letterSpacing: 2,
                       textTransform: "uppercase", color: "var(--textdim)", fontFamily: "var(--mono)",
@@ -1191,13 +1297,15 @@ export default function ModsMapTab({ toast, currentUser }) {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={6} style={{ padding: 24, textAlign: "center", color: "var(--textdim)", fontFamily: "var(--mono)", fontSize: 12 }}>Loading...</td></tr>
+                  <tr><td colSpan={7} style={{ padding: 24, textAlign: "center", color: "var(--textdim)", fontFamily: "var(--mono)", fontSize: 12 }}>Loading...</td></tr>
                 ) : filteredMods.length === 0 ? (
-                  <tr><td colSpan={6} style={{ padding: 24, textAlign: "center", color: "var(--textdim)", fontFamily: "var(--mono)", fontSize: 12 }}>
+                  <tr><td colSpan={7} style={{ padding: 24, textAlign: "center", color: "var(--textdim)", fontFamily: "var(--mono)", fontSize: 12 }}>
                     {search ? "No mods match your search" : "No mods in this category"}
                   </td></tr>
                 ) : filteredMods.map((mod, idx) => (
                   <ModRow key={mod.workshop_id || mod.mod_ids || idx} mod={mod} index={idx}
+                    selected={selected.has(idx)}
+                    onSelect={handleSelect}
                     onToggle={toggleMod} onRemove={removeMod} onStatusChange={changeStatus} toast={toast}
                     isDragOver={dragOver === idx}
                     dragHandlers={{
