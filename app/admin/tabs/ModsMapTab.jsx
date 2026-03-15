@@ -316,28 +316,25 @@ const KNOWN_MAPS = [
 
 const MapsManager = ({ maps, setMaps, toast, currentUser, registryMods }) => {
   const [custom, setCustom] = useState("");
+  const [dragIdx, setDragIdx] = useState(null);
+  const [dragOverIdx, setDragOverIdx] = useState(null);
 
-  // Build combined map list: KNOWN_MAPS + map mods from registry
   const registryMaps = (registryMods || [])
     .filter(m => m.category === "map" && m.status === "active")
     .flatMap(m => (m.mod_ids || "").split(";").map(id => id.trim()).filter(Boolean))
     .filter(id => !KNOWN_MAPS.find(k => k.id === id));
 
-  // Deduplicate
   const registryMapEntries = [...new Set(registryMaps)].map(id => {
     const mod = (registryMods || []).find(m => m.category === "map" && (m.mod_ids || "").includes(id));
     return { id, label: mod?.name || id, fromRegistry: true };
   });
 
-  const allMaps = [...KNOWN_MAPS, ...registryMapEntries];
-
+  const allAvailableMaps = [...KNOWN_MAPS, ...registryMapEntries];
   const isActive = (id) => maps.includes(id);
 
   const toggle = (id) => {
     if (id === "Muldraugh, KY") { toast("Vanilla map cannot be removed", "error"); return; }
-    setMaps(prev =>
-      prev.includes(id) ? prev.filter(m => m !== id) : [...prev, id]
-    );
+    setMaps(prev => prev.includes(id) ? prev.filter(m => m !== id) : [...prev, id]);
   };
 
   const addCustom = () => {
@@ -348,48 +345,108 @@ const MapsManager = ({ maps, setMaps, toast, currentUser, registryMods }) => {
     setCustom("");
   };
 
+  const handleDrop = (toIdx) => {
+    if (dragIdx === null || dragIdx === toIdx) { setDragOverIdx(null); return; }
+    const newMaps = [...maps];
+    const [moved] = newMaps.splice(dragIdx, 1);
+    newMaps.splice(toIdx, 0, moved);
+    setMaps(newMaps);
+    setDragIdx(null);
+    setDragOverIdx(null);
+  };
+
+  const getLabel = (id) => {
+    const known = allAvailableMaps.find(m => m.id === id);
+    return known ? known.label : id;
+  };
+
   return (
     <div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 8, marginBottom: 16 }}>
-        {allMaps.map(m => (
-          <div key={m.id} onClick={() => toggle(m.id)}
-            style={{
-              display: "flex", alignItems: "center", justifyContent: "space-between",
-              padding: "10px 14px", background: "var(--surface)",
-              border: `1px solid ${isActive(m.id) ? "var(--green)" : m.fromRegistry ? "rgba(151,117,204,0.3)" : "var(--border)"}`,
-              cursor: m.id === "Muldraugh, KY" ? "not-allowed" : "pointer",
-              transition: "border-color .15s",
-            }}>
-            <div>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <span style={{ fontSize: 12, color: isActive(m.id) ? "var(--green)" : "var(--text)" }}>{m.label}</span>
-                {m.fromRegistry && <span style={{ fontSize: 8, fontFamily: "var(--mono)", letterSpacing: 1, padding: "1px 4px", background: "rgba(151,117,204,0.15)", color: "var(--purple)", border: "1px solid rgba(151,117,204,0.3)" }}>FROM MODS</span>}
-              </div>
-              <div style={{ fontSize: 10, color: "var(--textdim)", fontFamily: "var(--mono)" }}>{m.id}</div>
-            </div>
-            <div style={{
-              width: 16, height: 16, borderRadius: 2,
-              background: isActive(m.id) ? "var(--green)" : "transparent",
-              border: `1px solid ${isActive(m.id) ? "var(--green)" : "var(--border)"}`,
-              display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10,
-            }}>
-              {isActive(m.id) && "✓"}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-        <TextInput value={custom} onChange={setCustom} placeholder="Custom map folder ID (e.g. Constown, KY)" />
-        <Btn color="blue" onClick={addCustom}>+ Add Custom</Btn>
-      </div>
-
-      {maps.filter(m => !allMaps.find(k => k.id === m)).map(m => (
-        <div key={m} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", background: "var(--surface)", border: "1px solid var(--blue)", marginTop: 6 }}>
-          <span style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--blue)" }}>{m} (custom)</span>
-          <Btn color="red" sm onClick={() => setMaps(p => p.filter(x => x !== m))}>Remove</Btn>
+      {/* ── MAP LOAD ORDER ── */}
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ fontFamily: "var(--display)", fontSize: 16, letterSpacing: 2, color: "var(--accent)", marginBottom: 4 }}>MAP LOAD ORDER</div>
+        <div style={{ fontSize: 11, color: "var(--textdim)", fontFamily: "var(--mono)", marginBottom: 12 }}>
+          Drag to reorder. #1 is the base layer. Order affects how maps overlap.
         </div>
-      ))}
+        <div style={{ background: "var(--surface)", border: "1px solid var(--border)", overflow: "hidden" }}>
+          {maps.length === 0 ? (
+            <div style={{ padding: 20, textAlign: "center", color: "var(--textdim)", fontFamily: "var(--mono)", fontSize: 12 }}>No maps active — add maps below</div>
+          ) : maps.map((mapId, idx) => (
+            <div
+              key={mapId}
+              draggable
+              onDragStart={() => setDragIdx(idx)}
+              onDragEnd={() => { setDragIdx(null); setDragOverIdx(null); }}
+              onDragOver={e => { e.preventDefault(); setDragOverIdx(idx); }}
+              onDragLeave={() => setDragOverIdx(null)}
+              onDrop={e => { e.preventDefault(); handleDrop(idx); }}
+              style={{
+                display: "flex", alignItems: "center", gap: 10, padding: "10px 14px",
+                borderBottom: idx < maps.length - 1 ? "1px solid var(--border)" : "none",
+                background: dragOverIdx === idx ? "rgba(200,168,75,0.06)" : "transparent",
+                borderTop: dragOverIdx === idx ? "2px solid var(--accent)" : "none",
+                cursor: "grab", transition: "background .1s",
+              }}
+            >
+              <span style={{ fontSize: 11, color: idx === 0 ? "var(--accent)" : "var(--textdim)", fontFamily: "var(--mono)", fontWeight: 600, minWidth: 24, textAlign: "right" }}>#{idx + 1}</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontSize: 13, color: idx === 0 ? "var(--accent)" : "var(--text)", fontWeight: idx === 0 ? 600 : 400 }}>{getLabel(mapId)}</span>
+                  {idx === 0 && <span style={{ fontSize: 8, fontFamily: "var(--mono)", letterSpacing: 1.5, padding: "1px 6px", background: "rgba(200,168,75,0.12)", color: "var(--accent)", border: "1px solid rgba(200,168,75,0.3)" }}>BASE</span>}
+                </div>
+                <div style={{ fontSize: 10, color: "var(--textdim)", fontFamily: "var(--mono)", marginTop: 1 }}>{mapId}</div>
+              </div>
+              {mapId !== "Muldraugh, KY" && (
+                <button onClick={(e) => { e.stopPropagation(); toggle(mapId); }} style={{
+                  background: "none", border: "1px solid rgba(224,85,85,0.3)",
+                  color: "var(--red)", fontSize: 10, padding: "3px 10px", cursor: "pointer", fontFamily: "var(--mono)",
+                }}>✕ Remove</button>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── AVAILABLE MAPS ── */}
+      <div>
+        <div style={{ fontFamily: "var(--display)", fontSize: 16, letterSpacing: 2, color: "var(--accent)", marginBottom: 4 }}>AVAILABLE MAPS</div>
+        <div style={{ fontSize: 11, color: "var(--textdim)", fontFamily: "var(--mono)", marginBottom: 12 }}>
+          Click to add to the load order above.
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 8, marginBottom: 16 }}>
+          {allAvailableMaps.map(m => (
+            <div key={m.id} onClick={() => toggle(m.id)}
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                padding: "10px 14px", background: "var(--surface)",
+                border: `1px solid ${isActive(m.id) ? "var(--green)" : m.fromRegistry ? "rgba(151,117,204,0.3)" : "var(--border)"}`,
+                cursor: m.id === "Muldraugh, KY" ? "not-allowed" : "pointer",
+                transition: "border-color .15s",
+              }}>
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontSize: 12, color: isActive(m.id) ? "var(--green)" : "var(--text)" }}>{m.label}</span>
+                  {m.fromRegistry && <span style={{ fontSize: 8, fontFamily: "var(--mono)", letterSpacing: 1, padding: "1px 4px", background: "rgba(151,117,204,0.15)", color: "var(--purple)", border: "1px solid rgba(151,117,204,0.3)" }}>FROM MODS</span>}
+                </div>
+                <div style={{ fontSize: 10, color: "var(--textdim)", fontFamily: "var(--mono)" }}>{m.id}</div>
+              </div>
+              <div style={{
+                width: 16, height: 16, borderRadius: 2,
+                background: isActive(m.id) ? "var(--green)" : "transparent",
+                border: `1px solid ${isActive(m.id) ? "var(--green)" : "var(--border)"}`,
+                display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10,
+              }}>
+                {isActive(m.id) && "✓"}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <TextInput value={custom} onChange={setCustom} placeholder="Custom map folder ID (e.g. Constown, KY)" />
+          <Btn color="blue" onClick={addCustom}>+ Add Custom</Btn>
+        </div>
+      </div>
     </div>
   );
 };
