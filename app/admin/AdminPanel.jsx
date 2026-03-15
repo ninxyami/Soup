@@ -11,7 +11,6 @@ import DotdTab        from "./tabs/DotdTab";
 import HuntTab        from "./tabs/HuntTab";
 import PlayersTab     from "./tabs/PlayersTab";
 import GamesTab       from "./tabs/GamesTab";
-import ModsTab        from "./tabs/ModsTab";
 import ReputationTab  from "./tabs/ReputationTab";
 import SystemTab      from "./tabs/SystemTab";
 import ServerConfigTab from "./tabs/ServerConfigTab";
@@ -35,7 +34,6 @@ const NAV_SECTIONS = [
   { label: "COMMUNITY", items: [
     { key: "players",        icon: "👥", label: "Players" },
     { key: "games",          icon: "🎮", label: "Games" },
-    { key: "mods",           icon: "🔧", label: "Mods & Broadcast" },
     { key: "reputation",     icon: "🎭", label: "Reputation" },
   ]},
   { label: "PLANNER", items: [
@@ -66,7 +64,6 @@ const PANELS = {
   hunt:        HuntTab,
   players:     PlayersTab,
   games:       GamesTab,
-  mods:        ModsTab,
   reputation:  ReputationTab,
   system:      SystemTab,
   sc_mods:     (props) => <ServerConfigTab {...props} initialTab="mods" />,
