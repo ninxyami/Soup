@@ -620,6 +620,7 @@ const BulkAddMods = ({ toast, onDone }) => {
   const [looking, setLooking] = useState(false);
   const [adding, setAdding] = useState(false);
   const [status, setStatus] = useState("testing");
+  const [category, setCategory] = useState("other");
 
   const parsIds = (text) => {
     // Extract workshop IDs from text — supports URLs, raw IDs, mixed
@@ -656,7 +657,7 @@ const BulkAddMods = ({ toast, onDone }) => {
         workshop_id: r.workshop_id,
         name: r.title || `Workshop ${r.workshop_id}`,
         mod_ids: r.mod_ids || "",
-        category: "other",
+        category,
         status,
       }));
       const data = await postApi("/api/admin/mods/bulk-add", { mods });
@@ -700,7 +701,12 @@ const BulkAddMods = ({ toast, onDone }) => {
               FOUND {results.length} MODS
             </div>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <span style={{ fontSize: 10, color: "var(--textdim)", fontFamily: "var(--mono)" }}>Add as:</span>
+              <span style={{ fontSize: 10, color: "var(--textdim)", fontFamily: "var(--mono)" }}>Category:</span>
+              <select value={category} onChange={e => setCategory(e.target.value)}
+                style={{ background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", padding: "4px 8px", fontFamily: "var(--mono)", fontSize: 11 }}>
+                {["library","map","cars","qol","clothing","weapons","admin","other"].map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+              <span style={{ fontSize: 10, color: "var(--textdim)", fontFamily: "var(--mono)" }}>Status:</span>
               <select value={status} onChange={e => setStatus(e.target.value)}
                 style={{ background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", padding: "4px 8px", fontFamily: "var(--mono)", fontSize: 11 }}>
                 {["active","testing","disabled"].map(s => <option key={s} value={s}>{s}</option>)}
