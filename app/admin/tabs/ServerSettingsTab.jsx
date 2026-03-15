@@ -44,6 +44,69 @@ const DEFAULT = {
   ServerWelcomeMessage: "Welcome to Project Zomboid Multiplayer!",
 };
 
+// ── RCON Password Component ──────────────────────────────────────────────────
+const RconPassword = ({ toast }) => {
+  const [pw, setPw] = useState("");
+  const [show, setShow] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [orig, setOrig] = useState("");
+
+  useEffect(() => {
+    fetchApi("/api/admin/config/rcon-password").then(d => {
+      setPw(d.password || "");
+      setOrig(d.password || "");
+      setLoaded(true);
+    }).catch(() => setLoaded(true));
+  }, []);
+
+  const save = async () => {
+    if (!pw.trim()) { toast("RCON password cannot be empty", "error"); return; }
+    setSaving(true);
+    try {
+      await postApi("/api/admin/config/rcon-password", { password: pw });
+      setOrig(pw);
+      toast("RCON password updated across all files! Restart server + API to apply.", "success");
+    } catch (e) { toast(e.message, "error"); }
+    setSaving(false);
+  };
+
+  const changed = pw !== orig;
+
+  return (
+    <div>
+      <FieldLabel label="RCON Password" description="Changes ini + config.py + shared.py. Restart required." />
+      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <div style={{ position: "relative", flex: 1 }}>
+          <input
+            type={show ? "text" : "password"}
+            value={loaded ? pw : "Loading..."}
+            onChange={e => setPw(e.target.value)}
+            disabled={!loaded}
+            style={{
+              width: "100%", background: "var(--surface2)", border: `1px solid ${changed ? "var(--accent)" : "var(--border)"}`,
+              color: "var(--text)", padding: "8px 10px", fontFamily: "var(--mono)", fontSize: 12, outline: "none",
+              paddingRight: 36,
+            }}
+          />
+          <button onClick={() => setShow(s => !s)} style={{
+            position: "absolute", right: 4, top: "50%", transform: "translateY(-50%)",
+            background: "none", border: "none", color: "var(--textdim)", cursor: "pointer",
+            fontSize: 12, fontFamily: "var(--mono)",
+          }}>{show ? "🙈" : "👁"}</button>
+        </div>
+        {changed && (
+          <>
+            <Btn color="ghost" sm onClick={() => setPw(orig)}>Reset</Btn>
+            <Btn color="green" sm onClick={save} disabled={saving}>{saving ? "Saving..." : "💾 Save"}</Btn>
+          </>
+        )}
+      </div>
+      {changed && <div style={{ fontSize: 10, color: "var(--accent)", fontFamily: "var(--mono)", marginTop: 4 }}>⚠ Unsaved — will update servertest.ini, config.py, and shared.py</div>}
+    </div>
+  );
+};
+
 export default function ServerSettingsTab({ toast, currentUser }) {
   const [cfg, setCfg] = useState(DEFAULT);
   const [orig, setOrig] = useState(DEFAULT);
@@ -129,6 +192,9 @@ export default function ServerSettingsTab({ toast, currentUser }) {
           <Card>
             <FieldLabel label="Password (leave blank for none)" />
             <TextInput value={cfg.Password} onChange={set("Password")} placeholder="(no password)" />
+          </Card>
+          <Card>
+            <RconPassword toast={toast} />
           </Card>
         </div>
         <Card>

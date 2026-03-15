@@ -37,6 +37,54 @@ const OnlinePlayers = () => {
 };
 
 
+const RconPasswordWidget = ({ toast }) => {
+  const [pw, setPw] = useState("");
+  const [show, setShow] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [orig, setOrig] = useState("");
+
+  useEffect(() => {
+    fetchApi("/api/admin/config/rcon-password").then(d => {
+      setPw(d.password || ""); setOrig(d.password || ""); setLoaded(true);
+    }).catch(() => setLoaded(true));
+  }, []);
+
+  const save = async () => {
+    if (!pw.trim()) { toast("RCON password cannot be empty", "error"); return; }
+    setSaving(true);
+    try {
+      await postApi("/api/admin/config/rcon-password", { password: pw });
+      setOrig(pw);
+      toast("RCON password updated! Restart server + API to apply.", "success");
+    } catch (e) { toast(e.message, "error"); }
+    setSaving(false);
+  };
+
+  const changed = pw !== orig;
+  return (
+    <div style={{ marginTop: 8 }}>
+      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <div style={{ position: "relative", flex: 1 }}>
+          <input type={show ? "text" : "password"} className="ap-inp"
+            value={loaded ? pw : "Loading..."} onChange={e => setPw(e.target.value)} disabled={!loaded}
+            style={{ paddingRight: 36, borderColor: changed ? "var(--accent)" : undefined }}
+          />
+          <button onClick={() => setShow(s => !s)} style={{
+            position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)",
+            background: "none", border: "none", color: "var(--textdim)", cursor: "pointer", fontSize: 12,
+          }}>{show ? "🙈" : "👁"}</button>
+        </div>
+        {changed && <>
+          <B c="ghost" sm onClick={() => setPw(orig)}>Reset</B>
+          <B c="gold" sm onClick={save} disabled={saving}>{saving ? "Saving..." : "Save"}</B>
+        </>}
+      </div>
+      {changed && <div style={{ fontSize: 10, color: "var(--accent)", fontFamily: "var(--mono)", marginTop: 4 }}>⚠ Unsaved — will update servertest.ini, config.py, and shared.py</div>}
+    </div>
+  );
+};
+
 export default function OverviewTab({ toast }) {
   const [d, setD] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -148,6 +196,14 @@ export default function OverviewTab({ toast }) {
       <B c="gold" onClick={saveSeason} disabled={seasonSaving}>
         {seasonSaving ? "Saving..." : "Save Season"}
       </B>
+    </div>
+
+    <div className="ap-fb" style={{ marginBottom: 24 }}>
+      <h4 style={{ fontFamily: "var(--display)", fontSize: 18, letterSpacing: 2, color: "var(--text)", margin: "0 0 12px 0" }}>🔑 RCON PASSWORD</h4>
+      <div className="ap-note">
+        Changes are synced to servertest.ini, config.py, and shared.py. Restart the server + API after changing.
+      </div>
+      <RconPasswordWidget toast={toast} />
     </div>
 
     <TW title="RECENT ACTIVITY" right={<B c="ghost" sm onClick={load}>Refresh</B>}>
