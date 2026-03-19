@@ -6,6 +6,8 @@ export const NAV_LINKS = [
   { href: "/", label: "Home" },
   { href: "/server", label: "Server" },
   { href: "/shop", label: "Shop" },
+  { href: "/marketplace", label: "Market" },
+  { href: "/news", label: "Intel" },
   { href: "/mods", label: "Mods" },
   { href: "/seasons", label: "Season" },
   { href: "/leaderboard", label: "Leaderboard" },

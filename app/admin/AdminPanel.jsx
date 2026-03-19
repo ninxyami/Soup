@@ -5,6 +5,7 @@ import { Toasts, ADMINS } from "./tabs/shared";
 import OverviewTab    from "./tabs/OverviewTab";
 import ServerTab      from "./tabs/ServerTab";
 import ShopTab        from "./tabs/ShopTab";
+import MarketplaceTab  from "./tabs/MarketplaceTab";
 import TreasuryTab    from "./tabs/TreasuryTab";
 import EconomyTab     from "./tabs/EconomyTab";
 import DotdTab        from "./tabs/DotdTab";
@@ -24,6 +25,7 @@ const NAV_SECTIONS = [
   ]},
   { label: "ECONOMY", items: [
     { key: "shop",           icon: "📦", label: "Shop" },
+    { key: "marketplace",    icon: "🏪", label: "Marketplace" },
     { key: "treasury",       icon: "🏦", label: "Treasury" },
     { key: "economy",        icon: "💰", label: "Wallets" },
   ]},
@@ -58,6 +60,7 @@ const PANELS = {
   overview:    OverviewTab,
   server:      ServerTab,
   shop:        ShopTab,
+  marketplace: MarketplaceTab,
   treasury:    TreasuryTab,
   economy:     EconomyTab,
   dotd:        DotdTab,

@@ -1,265 +1,261 @@
 "use client";
 import { useEffect, useState } from "react";
 import { API } from "@/lib/constants";
-import { bronzeToDisplay } from "@/lib/api";
-import type { ShopItem } from "@/lib/types";
 
-const CATEGORIES = [
-  { id: "all",     icon: "🏪", label: "All"     },
-  { id: "medical", icon: "💊", label: "Medical"  },
-  { id: "food",    icon: "🥫", label: "Food"     },
-  { id: "tools",   icon: "🔧", label: "Tools"    },
-  { id: "weapons", icon: "⚔️", label: "Weapons"  },
-  { id: "misc",    icon: "📦", label: "Misc"     },
+const SHOPS = [
+  { id: "food",     label: "Maya's Kitchen",   npc: "Maya Chen",    role: "Food & Supplies",       icon: "🍽️", location: "Riverside Strip Mall",        portrait: "/shop/maya.png"   },
+  { id: "weapons",  label: "Viktor's Armory",   npc: "Viktor Rask",  role: "Arms & Ammunition",     icon: "⚔️", location: "Gun Store, West Point",        portrait: "/shop/viktor.png" },
+  { id: "carparts", label: "Sera's Garage",      npc: "Sera Okafor",  role: "Parts & Mechanics",     icon: "🔧", location: "Muldraugh Garage",             portrait: "/shop/sera.png"   },
+  { id: "gas",      label: "Gas Stations",       npc: "Various",      role: "Road Supplies",         icon: "⛽", location: "Scattered across the map",     portrait: null               },
+  { id: "all",      label: "Community Hub",      npc: "Lena Vasquez", role: "Everything + Vehicles", icon: "🏪", location: "Fallas Lake Community Centre", portrait: "/shop/lena.png"   },
 ];
 
-const TIER_COLOR: Record<string, string> = {
-  common:    "#6b7280",
-  uncommon:  "#4caf7d",
-  rare:      "#4a8fc4",
-  epic:      "#c47a4a",
-  legendary: "#c8a84b",
+const TIER_COLOR: Record<string,string> = {
+  common:"#6b7280", uncommon:"#4caf7d", rare:"#4a8fc4", legendary:"#c8a84b",
+};
+const TIER_LABEL: Record<string,string> = {
+  common:"Common", uncommon:"Uncommon", rare:"Rare", legendary:"Legendary",
 };
 
-const WEB_TAX_RATE = 0.40;
-
-function calcTax(basePrice: number): { tax: number; total: number } {
-  const tax   = Math.ceil(basePrice * WEB_TAX_RATE);
-  const total = basePrice + tax;
-  return { tax, total };
+interface Item {
+  item_id:      string;
+  name:         string;
+  buy?:         number;
+  base_buy?:    number;
+  sell?:        number;
+  tier:         string;
+  price_factor?: number;
 }
 
-export default function ShopPage() {
-  const [user,         setUser]         = useState<any>(null);
-  const [balance,      setBalance]      = useState(0);
-  const [items,        setItems]        = useState<ShopItem[]>([]);
-  const [cat,          setCat]          = useState("all");
-  const [toast,        setToast]        = useState<{ msg: string; type: string } | null>(null);
-  const [transferTo,   setTransferTo]   = useState("");
-  const [transferAmt,  setTransferAmt]  = useState("");
-  const [transferNote, setTransferNote] = useState("");
+function timeUntil(ts:number):string {
+  const diff = ts - Math.floor(Date.now()/1000);
+  if (diff<=0) return "Restocking soon";
+  const d=Math.floor(diff/86400), h=Math.floor((diff%86400)/3600);
+  if (d>0) return `~${d}d ${h}h`;
+  return `~${h}h ${Math.floor((diff%3600)/60)}m`;
+}
 
-  const showToast = (msg: string, type = "info") => {
-    setToast({ msg, type });
-    setTimeout(() => setToast(null), 4000);
-  };
-
-  useEffect(() => {
-    fetch(`${API}/auth/me`, { credentials: "include" })
-      .then((r) => r.ok ? r.json() : null)
-      .then(async (me) => {
-        if (me) {
-          setUser(me);
-          const br = await fetch(`${API}/api/shop/my-balance`, { credentials: "include" });
-          if (br.ok) { const bd = await br.json(); setBalance(bd.bronze); }
-        }
-      }).catch(() => {});
-
-    fetch(`${API}/api/shop/items?shop_type=global`, { credentials: "include" })
-      .then((r) => r.json())
-      .then((d) => setItems(d.items || []))
-      .catch(() => {});
-  }, []);
-
-  const displayed = items.filter((i) => i.enabled).filter((i) => cat === "all" || i.category === cat);
-
-  const buyItem = async (item: ShopItem) => {
-    if (!user) { window.location.href = `${API}/auth/discord/login?redirect=shop`; return; }
-    const { tax, total } = calcTax(item.buy_price ?? 0);
-    if (!confirm(`Buy ${item.name}?\n\nBase: ${item.buy_price} 🟤\nTax (40%): ${tax} 🟤\nTotal: ${total} 🟤`)) return;
-    const res = await fetch(`${API}/api/shop/web-buy`, {
-      method: "POST", credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ item_id: item.item_id, quantity: 1, source: "web" }),
-    });
-    const data = await res.json();
-    if (res.ok) { setBalance(data.new_balance); showToast(data.message || `Bought ${item.name}!`, "success"); }
-    else { showToast(data.detail || "Purchase failed", "error"); }
-  };
-
-  const doTransfer = async () => {
-    if (!transferTo || !transferAmt) { showToast("Fill in recipient and amount", "error"); return; }
-    if (!confirm(`Send ${transferAmt} 🟤 to ${transferTo}?`)) return;
-    const res = await fetch(`${API}/api/economy/transfer`, {
-      method: "POST", credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ to_ingame_name: transferTo, amount: parseInt(transferAmt), note: transferNote }),
-    });
-    const data = await res.json();
-    if (res.ok) {
-      setBalance(data.new_balance);
-      showToast(`Sent ${transferAmt} 🟤 to ${data.sent_to}!`, "success");
-      setTransferTo(""); setTransferAmt(""); setTransferNote("");
-    } else {
-      showToast(data.detail || "Transfer failed", "error");
-    }
-  };
-
+function PriceBadge({ factor }: { factor?: number }) {
+  if (!factor || Math.abs(factor - 1.0) < 0.05) return null;
+  const up    = factor > 1.0;
+  const pct   = Math.round(Math.abs(factor - 1.0) * 100);
   return (
-    <div className="scanline min-h-screen" style={{ background: "#080a0c", color: "#c8cdd6", fontFamily: "'Inter', sans-serif" }}>
-      {/* Header */}
-      <header className="flex items-center gap-2 sm:gap-4 px-4 sm:px-8 py-3 sm:py-4 border-b border-[#1e2530] bg-[#0f1318] sticky top-[49px] z-10">
-        <a href="/" className="font-mono text-[0.68rem] sm:text-[0.72rem] text-dim hover:text-[#c8cdd6] no-underline tracking-widest hidden sm:block">← S.O.U.P</a>
-        <span className="font-display text-xl sm:text-2xl tracking-[2px] sm:tracking-[3px] text-accent" style={{ fontFamily: "'Bebas Neue', sans-serif", textShadow: "0 0 20px rgba(200,168,75,0.3)" }}>
-          ZOMBITA&apos;S SHOP
+    <span className="font-mono text-[0.55rem] px-1 py-0.5 ml-1"
+          style={{ background: up ? "rgba(224,85,85,0.15)" : "rgba(76,175,77,0.15)",
+                   color: up ? "#e05555" : "#4caf7d", border: `1px solid ${up?"#e05555":"#4caf7d"}44` }}>
+      {up ? "▲" : "▼"}{pct}%
+    </span>
+  );
+}
+
+function ItemCard({ item }: { item: Item }) {
+  const color  = TIER_COLOR[item.tier]||TIER_COLOR.common;
+  const isDyn  = item.price_factor && Math.abs(item.price_factor-1.0) >= 0.05;
+  return (
+    <div className="bg-[#0f1318] border border-[#1e2530] p-3 relative hover:border-[rgba(200,168,75,0.2)] transition-all">
+      <div className="absolute top-0 left-0 right-0 h-[2px]" style={{background:color}} />
+      <div className="mt-1 font-medium text-[0.88rem] text-[#c8cdd6] leading-tight mb-1">{item.name}</div>
+      <div className="font-mono text-[0.58rem] text-[#2a2a2a] mb-2 truncate">{item.item_id}</div>
+      <div className="flex items-end justify-between">
+        <div>
+          {item.buy!=null && (
+            <div className="flex items-center">
+              <span className="font-mono text-[0.72rem]" style={{color}}>{item.buy.toLocaleString()} 🟤</span>
+              {isDyn && <PriceBadge factor={item.price_factor} />}
+            </div>
+          )}
+          {item.base_buy!=null && isDyn && (
+            <div className="font-mono text-[0.58rem] text-[#3a3a3a] line-through">{item.base_buy?.toLocaleString()} 🟤</div>
+          )}
+          {item.sell!=null && <div className="font-mono text-[0.6rem] text-[#555]">sell: {item.sell.toLocaleString()} 🟤</div>}
+        </div>
+        <span className="font-mono text-[0.55rem] px-1.5 py-0.5 border" style={{color,borderColor:color+"44",background:color+"11"}}>
+          {TIER_LABEL[item.tier]||item.tier}
         </span>
-        <div className="flex-1" />
-        {user ? (
-          <div className="flex items-center gap-2 sm:gap-3">
-            <span className="font-mono text-[0.68rem] sm:text-[0.72rem] text-dim hidden sm:block">{user.global_name || user.username}</span>
-            <span className="font-mono text-[0.75rem] sm:text-[0.83rem] text-accent px-2 sm:px-3 py-1 border border-[rgba(200,168,75,0.3)] bg-[rgba(200,168,75,0.05)]">
-              💰 {bronzeToDisplay(balance)}
-            </span>
-            <button
-              onClick={async () => { await fetch(`${API}/auth/logout`, { method: "POST", credentials: "include" }); window.location.reload(); }}
-              className="font-mono text-[0.68rem] text-dim bg-transparent border border-[#1e2530] px-2 py-1 cursor-pointer hover:text-[#c8cdd6] hidden sm:block">
-              logout
-            </button>
-          </div>
-        ) : (
-          <a href={`${API}/auth/discord/login?redirect=shop`}
-            className="font-mono text-xs px-3 sm:px-4 py-1.5 sm:py-2 border border-accent text-accent no-underline hover:bg-accent hover:text-black transition-all">
-            🔑 Login
-          </a>
-        )}
-      </header>
-
-      {/* Tax notice */}
-      <div className="px-4 sm:px-8 py-2 sm:py-3 border-b border-[#1e2530]" style={{ background: "rgba(200,168,75,0.06)" }}>
-        <p className="font-mono text-[0.65rem] sm:text-[0.72rem] text-center" style={{ color: "#c8a84b" }}>
-          ⚠️ <strong>40% delivery surcharge</strong> on web purchases · In-game shops: <strong>10% tax</strong>
-        </p>
       </div>
-
-      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 py-6 sm:py-8">
-
-        {/* Mobile: horizontal category scroll */}
-        <div className="sm:hidden overflow-x-auto -mx-4 px-4 mb-5 pb-1">
-          <div className="flex gap-2 min-w-max">
-            {CATEGORIES.map((c) => (
-              <button key={c.id} onClick={() => setCat(c.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 border text-[0.68rem] font-mono uppercase tracking-widest whitespace-nowrap cursor-pointer transition-all bg-transparent ${
-                  cat === c.id ? "border-[rgba(200,168,75,0.4)] text-accent bg-[rgba(200,168,75,0.05)]" : "border-[#1e2530] text-dim hover:text-[#c8cdd6]"
-                }`}>
-                {c.icon} {c.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Desktop: sidebar + items side by side */}
-        <div className="hidden sm:flex gap-8 items-start">
-          {/* Sidebar */}
-          <aside className="w-[160px] flex-shrink-0">
-            <div className="font-display text-sm tracking-[3px] text-dim mb-3" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>CATEGORIES</div>
-            <div className="flex flex-col gap-1">
-              {CATEGORIES.map((c) => (
-                <button key={c.id} onClick={() => setCat(c.id)}
-                  className={`flex items-center gap-2 px-3 py-2 border text-[0.72rem] font-mono uppercase tracking-widest text-left cursor-pointer transition-all bg-transparent ${
-                    cat === c.id ? "border-[rgba(200,168,75,0.4)] text-accent bg-[rgba(200,168,75,0.05)]" : "border-transparent text-dim hover:text-[#c8cdd6] hover:border-[#1e2530]"
-                  }`}>
-                  <span>{c.icon}</span> {c.label}
-                </button>
-              ))}
-            </div>
-            <div className="mt-6 p-3 border border-[#1e2530]" style={{ background: "rgba(255,255,255,0.02)" }}>
-              <div className="font-mono text-[0.65rem] text-dim uppercase tracking-widest mb-2">In-game only</div>
-              <div className="font-mono text-[0.68rem]" style={{ color: "#6b7280", lineHeight: "1.6" }}>
-                🍕 Food Shop<br />🔫 Ammo Shop<br />🔧 Car Parts<br />🚗 Car Dealer
-              </div>
-            </div>
-          </aside>
-
-          {/* Items — takes remaining width */}
-          <div className="flex-1 min-w-0">
-            <ShopItems displayed={displayed} user={user} buyItem={buyItem} />
-          </div>
-        </div>
-
-        {/* Mobile: full width items */}
-        <div className="sm:hidden">
-          <ShopItems displayed={displayed} user={user} buyItem={buyItem} />
-        </div>
-
-        {/* Transfer section */}
-        {user && (
-          <div className="border border-[#1e2530] bg-[#0f1318] p-4 sm:p-6 mt-6 sm:mt-8">
-            <h3 className="font-display text-lg sm:text-xl tracking-[3px] text-[#c8cdd6] mb-3" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>TRANSFER COINS</h3>
-            <p className="font-mono text-xs text-dim mb-4">Send bronze to another player by their in-game name.</p>
-            <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end flex-wrap">
-              <div className="flex flex-col gap-1 flex-1">
-                <label className="font-mono text-[0.65rem] uppercase tracking-widest text-dim">Recipient</label>
-                <input value={transferTo} onChange={(e) => setTransferTo(e.target.value)} placeholder="PlayerName"
-                  className="bg-[#080a0c] border border-[#1e2530] text-[#c8cdd6] px-3 py-2 font-mono text-sm outline-none focus:border-accent" />
-              </div>
-              <div className="flex flex-col gap-1 sm:min-w-[120px]">
-                <label className="font-mono text-[0.65rem] uppercase tracking-widest text-dim">Amount</label>
-                <input type="number" value={transferAmt} onChange={(e) => setTransferAmt(e.target.value)} placeholder="100"
-                  className="bg-[#080a0c] border border-[#1e2530] text-[#c8cdd6] px-3 py-2 font-mono text-sm outline-none focus:border-accent" />
-              </div>
-              <div className="flex flex-col gap-1 flex-1">
-                <label className="font-mono text-[0.65rem] uppercase tracking-widest text-dim">Note (optional)</label>
-                <input value={transferNote} onChange={(e) => setTransferNote(e.target.value)} placeholder="thanks for the save!"
-                  className="bg-[#080a0c] border border-[#1e2530] text-[#c8cdd6] px-3 py-2 font-mono text-sm outline-none focus:border-accent" />
-              </div>
-              <button onClick={doTransfer}
-                className="px-5 py-2 border border-info text-info font-mono text-xs uppercase tracking-widest hover:bg-info hover:text-white transition-all whitespace-nowrap cursor-pointer bg-transparent">
-                Send →
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Toast */}
-      {toast && (
-        <div className="fixed bottom-6 right-4 sm:right-6 z-50 max-w-[calc(100vw-2rem)]">
-          <div className={`toast-slide px-4 py-3 font-mono text-xs border-l-[3px] bg-[#0f1318] ${
-            toast.type === "success" ? "border-success text-success"
-            : toast.type === "error" ? "border-danger text-danger"
-            : "border-accent text-accent"
-          }`}>{toast.msg}</div>
-        </div>
-      )}
     </div>
   );
 }
 
-function ShopItems({ displayed, user, buyItem }: { displayed: ShopItem[], user: any, buyItem: (item: ShopItem) => void }) {
+export default function ShopPage() {
+  const [rotations,   setRotations]   = useState<Record<string,Item[]>>({});
+  const [nextTimes,   setNextTimes]   = useState<Record<string,number>>({});
+  const [active,      setActive]      = useState("food");
+  const [loading,     setLoading]     = useState(true);
+
+  useEffect(() => {
+    const loadAll = async () => {
+      try {
+        // Load all rotations with dynamic prices
+        const types = ["food","weapons","carparts","gas","all"];
+        const results: Record<string,Item[]> = {};
+        const times:   Record<string,number> = {};
+
+        await Promise.all(types.map(async (t) => {
+          try {
+            const r = await fetch(`${API}/api/marketplace/rotation-with-prices?shop_type=${t}`);
+            if (r.ok) {
+              const d = await r.json();
+              results[t] = d.items || [];
+            }
+          } catch {}
+        }));
+
+        // Get next times separately
+        try {
+          const r = await fetch(`${API}/api/marketplace/all-rotations`);
+          if (r.ok) {
+            const d = await r.json();
+            Object.assign(times, d.next_times || {});
+          }
+        } catch {}
+
+        setRotations(results);
+        setNextTimes(times);
+      } catch {}
+      finally { setLoading(false); }
+    };
+    loadAll();
+    const iv = setInterval(loadAll, 60000);
+    return () => clearInterval(iv);
+  }, []);
+
+  const shop  = SHOPS.find(s=>s.id===active)!;
+  const items = rotations[active]||[];
+
   return (
-    <>
-      <div className="flex items-center gap-3 border-b border-[#1e2530] mb-4 sm:mb-6 pb-3">
-        <span className="px-4 sm:px-6 py-2 font-mono text-xs tracking-[2px] uppercase border-b-2 border-accent text-accent -mb-[13px]">🛒 Buy</span>
-        <span className="font-mono text-[0.65rem] text-dim ml-2 sm:ml-4">{displayed.length} item{displayed.length !== 1 ? "s" : ""}</span>
+    <div className="scanline min-h-screen" style={{background:"#080a0c",color:"#c8cdd6"}}>
+
+      {/* Header */}
+      <header className="px-4 sm:px-8 py-4 border-b border-[#1e2530] bg-[#0f1318] sticky top-[49px] z-10">
+        <div className="max-w-[1000px] mx-auto flex items-center gap-3">
+          <a href="/" className="font-mono text-[0.65rem] text-[#444] hover:text-[#c8cdd6] no-underline tracking-widest hidden sm:block">← S.O.U.P</a>
+          <span className="font-display text-2xl tracking-[3px] text-accent" style={{fontFamily:"'Bebas Neue',sans-serif",textShadow:"0 0 20px rgba(200,168,75,0.25)"}}>
+            THE ECONOMY
+          </span>
+          <div className="flex-1" />
+          <a href="/marketplace" className="font-mono text-[0.65rem] px-3 py-1.5 border border-[#4a8fc4] text-[#4a8fc4] no-underline hover:bg-[#4a8fc4] hover:text-black transition-all">
+            🏪 Marketplace
+          </a>
+          <a href="/news" className="font-mono text-[0.65rem] px-3 py-1.5 border border-[#1e2530] text-[#555] no-underline hover:border-accent hover:text-accent transition-all">
+            📰 Intel
+          </a>
+        </div>
+      </header>
+
+      {/* Notice */}
+      <div className="border-b border-[#1e2530]" style={{background:"rgba(200,168,75,0.04)"}}>
+        <div className="max-w-[1000px] mx-auto px-4 sm:px-8 py-2">
+          <p className="font-mono text-[0.63rem] text-center text-accent">
+            ⚠️ <strong>All transactions are in-game only.</strong> Right-click any shopkeeper NPC to buy or sell. Prices adjust dynamically with supply and demand.
+          </p>
+        </div>
       </div>
 
-      {displayed.length === 0 ? (
-        <div className="font-mono text-sm text-dim py-8 sm:py-12 text-center">No items in this category right now.</div>
-      ) : (
-        <div className="grid gap-3 sm:gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))" }}>
-          {displayed.map((item) => {
-            const outOfStock = item.stock === 0;
-            const { tax, total } = calcTax(item.buy_price ?? 0);
-            const stockText = item.stock === -1 ? "In Stock" : item.stock === 0 ? "Out of Stock" : item.stock < 5 ? `⚠ ${item.stock} left` : `${item.stock} in stock`;
-            const stockColor = item.stock === -1 ? "#6b7280" : item.stock === 0 ? "#e05555" : item.stock < 5 ? "#c8a84b" : "#4caf7d";
-            return (
-              <div key={item.item_id} className={`bg-[#0f1318] border border-[#1e2530] p-3 sm:p-4 relative transition-all hover:border-[rgba(200,168,75,0.3)] hover:-translate-y-[2px] ${outOfStock ? "opacity-50" : ""}`}>
-                <div className="tier-stripe" style={{ background: TIER_COLOR[item.tier] }} />
-                <div className="font-medium text-sm mt-2 mb-1 text-[#c8cdd6] leading-tight">{item.name}</div>
-                <div className="font-mono text-[0.65rem] text-dim mb-2">{item.item_id}</div>
-                <div className="mb-0.5"><span className="font-mono text-[0.65rem] text-dim">Base: </span><span className="font-mono text-[0.65rem]" style={{ color: "#9ca3af" }}>{item.buy_price} 🟤</span></div>
-                <div className="mb-1"><span className="font-mono text-[0.65rem] text-dim">Tax: </span><span className="font-mono text-[0.65rem]" style={{ color: "#c8a84b" }}>+{tax} 🟤</span></div>
-                <div className="font-mono text-base sm:text-lg text-accent mb-1">{total} 🟤</div>
-                <div className="font-mono text-xs mb-3" style={{ color: stockColor }}>{stockText}</div>
-                <button onClick={() => buyItem(item)} disabled={outOfStock}
-                  className="w-full py-1.5 sm:py-2 font-mono text-xs uppercase tracking-widest border border-success text-success cursor-pointer transition-all hover:bg-success hover:text-black disabled:opacity-40 disabled:cursor-not-allowed bg-transparent">
-                  {outOfStock ? "Out of Stock" : user ? "Buy" : "🔑 Login"}
-                </button>
-              </div>
-            );
-          })}
+      <div className="max-w-[1000px] mx-auto px-4 sm:px-8 py-6 sm:py-8">
+
+        <div className="mb-6">
+          <h1 className="font-display text-3xl sm:text-4xl tracking-[4px] text-[#c8cdd6] mb-1" style={{fontFamily:"'Bebas Neue',sans-serif"}}>
+            SHOP NETWORK
+          </h1>
+          <p className="font-mono text-[0.72rem] text-[#555]">
+            Five shops. Eight characters. Stock rotates every 2–5 days.{" "}
+            <a href="/news" className="text-accent no-underline hover:underline">Zombita drops hints</a> before it happens.
+            Marketplace via <kbd className="font-mono text-[0.62rem] bg-[#1a1a1a] border border-[#333] px-1 py-0.5">F7</kbd> anywhere in-game.
+          </p>
         </div>
-      )}
-    </>
+
+        {/* Shop selector */}
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-6">
+          {SHOPS.map(s => (
+            <button key={s.id} onClick={()=>setActive(s.id)}
+              className={`p-3 border text-left transition-all cursor-pointer bg-transparent ${
+                active===s.id ? "border-[rgba(200,168,75,0.4)] bg-[rgba(200,168,75,0.04)]" : "border-[#1e2530] bg-[#0c0f13] hover:border-[#2a2f3a]"
+              }`}>
+              <div className="text-lg mb-1">{s.icon}</div>
+              <div className="font-mono text-[0.65rem] text-[#c8cdd6] leading-tight">{s.npc}</div>
+              <div className="font-mono text-[0.55rem] text-[#444] mt-0.5">{s.role}</div>
+              {nextTimes[s.id] && (
+                <div className="font-mono text-[0.55rem] mt-1.5" style={{color:active===s.id?"#c8a84b":"#333"}}>
+                  ⏱ {timeUntil(nextTimes[s.id])}
+                </div>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Active shop */}
+        <div className="border border-[#1e2530] bg-[#0a0d10]">
+
+          {/* Shop header with portrait */}
+          <div className="p-4 sm:p-5 border-b border-[#1e2530] flex items-start gap-4">
+            {shop.portrait && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={shop.portrait} alt={shop.npc}
+                className="w-16 h-20 object-cover border border-[#1e2530] flex-shrink-0 hidden sm:block"
+                style={{imageRendering:"auto"}} />
+            )}
+            <div className="flex-1">
+              <div className="font-display text-xl sm:text-2xl tracking-[2px] text-[#c8cdd6]" style={{fontFamily:"'Bebas Neue',sans-serif"}}>
+                {shop.label.toUpperCase()}
+              </div>
+              <div className="font-mono text-[0.68rem] text-[#555]">{shop.npc} · {shop.role}</div>
+              <div className="font-mono text-[0.6rem] text-[#3a3a3a]">📍 {shop.location}</div>
+            </div>
+            <div className="text-right hidden sm:block flex-shrink-0">
+              <div className="font-mono text-[0.58rem] text-[#3a3a3a] uppercase tracking-widest mb-0.5">Next restock</div>
+              <div className="font-mono text-[0.72rem] text-accent">
+                {nextTimes[active] ? timeUntil(nextTimes[active]) : "—"}
+              </div>
+            </div>
+          </div>
+
+          {/* Items */}
+          <div className="p-4 sm:p-5">
+            {loading ? (
+              <p className="font-mono text-[0.72rem] text-[#2a2a2a] py-8 text-center tracking-widest">loading stock...</p>
+            ) : items.length===0 ? (
+              <div className="py-8 text-center">
+                <p className="font-mono text-[0.75rem] text-[#333]">No stock data available.</p>
+                <p className="font-mono text-[0.65rem] text-[#2a2a2a] mt-1">Check the <a href="/news" className="text-accent no-underline hover:underline">intel channel</a> for hints.</p>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center gap-3 mb-4">
+                  <span className="font-mono text-[0.62rem] uppercase tracking-widest text-[#555]">
+                    {items.length} item{items.length!==1?"s":""} in rotation
+                  </span>
+                  <span className="font-mono text-[0.58rem] text-[#2a2a2a]">· ▲▼ = dynamic price vs base</span>
+                </div>
+                <div className="grid gap-2 sm:gap-3" style={{gridTemplateColumns:"repeat(auto-fill,minmax(165px,1fr))"}}>
+                  {items.map(item => <ItemCard key={item.item_id} item={item} />)}
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="px-4 sm:px-5 py-2.5 border-t border-[#1e2530]" style={{background:"rgba(255,255,255,0.01)"}}>
+            <p className="font-mono text-[0.6rem] text-[#333]">
+              💡 Right-click <strong style={{color:"#555"}}>{shop.npc}</strong> in-game → open shop. Prices shown include dynamic adjustments.
+            </p>
+          </div>
+        </div>
+
+        {/* How it works */}
+        <div className="mt-8 grid sm:grid-cols-3 gap-3">
+          {[
+            {icon:"🔄",title:"Rotating Stock",    body:"Each shop rotates every 2–5 days. Zombita hints at what's coming before it happens."},
+            {icon:"📈",title:"Dynamic Prices",    body:"Prices shift based on how much is being bought, sold, and traded. High demand → prices rise. Scarcity → prices rise."},
+            {icon:"🏪",title:"Player Marketplace",body:"Players list items for each other. Browse any shop's Marketplace tab in-game, or view all listings online."},
+          ].map(c => (
+            <div key={c.title} className="border border-[#1e2530] bg-[#0c0f13] p-4">
+              <div className="text-2xl mb-2">{c.icon}</div>
+              <div className="font-display text-sm tracking-[2px] text-[#c8cdd6] mb-1" style={{fontFamily:"'Bebas Neue',sans-serif"}}>{c.title}</div>
+              <p className="font-mono text-[0.65rem] text-[#555] leading-relaxed m-0">{c.body}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }
