@@ -48,9 +48,23 @@ function PriceBadge({ factor }: { factor?: number }) {
   );
 }
 
+function formatPrice(bronze: number): string {
+  if (bronze <= 0) return "0 🟤";
+  const gold   = Math.floor(bronze / 10000);
+  const rem    = bronze % 10000;
+  const silver = Math.floor(rem / 1000);
+  const coins  = rem % 1000;
+  const parts: string[] = [];
+  if (gold)   parts.push(`${gold} 🟡`);
+  if (silver) parts.push(`${silver} ⚪`);
+  if (coins)  parts.push(`${coins} 🟤`);
+  return parts.join(" ") || "0 🟤";
+}
+
 function ItemCard({ item }: { item: Item }) {
   const color  = TIER_COLOR[item.tier]||TIER_COLOR.common;
   const isDyn  = item.price_factor && Math.abs(item.price_factor-1.0) >= 0.05;
+  const price  = item.buy ?? 0;
   return (
     <div className="bg-[#0f1318] border border-[#1e2530] p-3 relative hover:border-[rgba(200,168,75,0.2)] transition-all">
       <div className="absolute top-0 left-0 right-0 h-[2px]" style={{background:color}} />
@@ -58,16 +72,15 @@ function ItemCard({ item }: { item: Item }) {
       <div className="font-mono text-[0.58rem] text-[#2a2a2a] mb-2 truncate">{item.item_id}</div>
       <div className="flex items-end justify-between">
         <div>
-          {item.buy!=null && (
-            <div className="flex items-center">
-              <span className="font-mono text-[0.72rem]" style={{color}}>{item.buy.toLocaleString()} 🟤</span>
+          {price > 0 && (
+            <div className="flex items-center gap-1">
+              <span className="font-mono text-[0.72rem]" style={{color}}>{formatPrice(price)}</span>
               {isDyn && <PriceBadge factor={item.price_factor} />}
             </div>
           )}
           {item.base_buy!=null && isDyn && (
-            <div className="font-mono text-[0.58rem] text-[#3a3a3a] line-through">{item.base_buy?.toLocaleString()} 🟤</div>
+            <div className="font-mono text-[0.58rem] text-[#3a3a3a] line-through">{formatPrice(item.base_buy)}</div>
           )}
-          {item.sell!=null && <div className="font-mono text-[0.6rem] text-[#555]">sell: {item.sell.toLocaleString()} 🟤</div>}
         </div>
         <span className="font-mono text-[0.55rem] px-1.5 py-0.5 border" style={{color,borderColor:color+"44",background:color+"11"}}>
           {TIER_LABEL[item.tier]||item.tier}
