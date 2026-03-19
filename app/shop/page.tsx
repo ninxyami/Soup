@@ -22,9 +22,10 @@ interface Item {
   name:         string;
   buy?:         number;
   base_buy?:    number;
-  sell?:        number;
   tier:         string;
   price_factor?: number;
+  stock?:       number;
+  max_stock?:   number;
 }
 
 function timeUntil(ts:number):string {
@@ -65,24 +66,33 @@ function ItemCard({ item }: { item: Item }) {
   const color  = TIER_COLOR[item.tier]||TIER_COLOR.common;
   const isDyn  = item.price_factor && Math.abs(item.price_factor-1.0) >= 0.05;
   const price  = item.buy ?? 0;
+  const stock  = item.stock ?? -1;
+  const outOfStock = stock === 0;
   return (
-    <div className="bg-[#0f1318] border border-[#1e2530] p-3 relative hover:border-[rgba(200,168,75,0.2)] transition-all">
-      <div className="absolute top-0 left-0 right-0 h-[2px]" style={{background:color}} />
+    <div className={`bg-[#0f1318] border p-3 relative transition-all ${outOfStock ? "border-[#1a1a1a] opacity-50" : "border-[#1e2530] hover:border-[rgba(200,168,75,0.2)]"}`}>
+      <div className="absolute top-0 left-0 right-0 h-[2px]" style={{background: outOfStock ? "#333" : color}} />
       <div className="mt-1 font-medium text-[0.88rem] text-[#c8cdd6] leading-tight mb-1">{item.name}</div>
       <div className="font-mono text-[0.58rem] text-[#2a2a2a] mb-2 truncate">{item.item_id}</div>
       <div className="flex items-end justify-between">
         <div>
-          {price > 0 && (
+          {outOfStock ? (
+            <div className="font-mono text-[0.65rem] text-[#444]">OUT OF STOCK</div>
+          ) : price > 0 ? (
             <div className="flex items-center gap-1">
               <span className="font-mono text-[0.72rem]" style={{color}}>{formatPrice(price)}</span>
               {isDyn && <PriceBadge factor={item.price_factor} />}
             </div>
-          )}
-          {item.base_buy!=null && isDyn && (
+          ) : null}
+          {item.base_buy!=null && isDyn && !outOfStock && (
             <div className="font-mono text-[0.58rem] text-[#3a3a3a] line-through">{formatPrice(item.base_buy)}</div>
           )}
+          {stock >= 0 && !outOfStock && (
+            <div className="font-mono text-[0.55rem] mt-1" style={{color: stock <= 2 ? "#e05555" : "#444"}}>
+              {stock <= 2 ? `⚠️ ${stock} left` : `${stock} in stock`}
+            </div>
+          )}
         </div>
-        <span className="font-mono text-[0.55rem] px-1.5 py-0.5 border" style={{color,borderColor:color+"44",background:color+"11"}}>
+        <span className="font-mono text-[0.55rem] px-1.5 py-0.5 border" style={{color: outOfStock ? "#333" : color, borderColor:(outOfStock?"#333":color)+"44", background:(outOfStock?"#333":color)+"11"}}>
           {TIER_LABEL[item.tier]||item.tier}
         </span>
       </div>
