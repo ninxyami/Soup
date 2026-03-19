@@ -225,9 +225,9 @@ export default function LeaderboardPage() {
                   </tr></thead>
                   <tbody>
                     {cahBoard.map((p:any,i:number)=>(
-                      <tr key={i} className={}>
+                      <tr key={i} className={`lb-row ${rc(i)}`}>
                         <td className="text-center text-sm">{medal(i)}</td>
-                        <td><a href={} className="hover:text-[#4a7c59] transition-colors">{p.display_name}</a></td>
+                        <td><a href={`/player?id=${encodeURIComponent(p.display_name)}`} className="hover:text-[#4a7c59] transition-colors">{p.display_name}</a></td>
                         <td className="text-right font-mono text-xs">{p.games_won}<span className="text-[#444]">/{p.games_played}</span></td>
                         <td className="text-right font-mono text-xs hidden sm:table-cell">{p.rounds_won}</td>
                         <td className="text-right font-mono text-xs">{p.win_rate}%</td>
