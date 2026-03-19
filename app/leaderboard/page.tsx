@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { API, CURRENT_SEASON } from "@/lib/constants";
 import { repTier, timeAgo } from "@/lib/utils";
 
-type BoardType = "ingame" | "wolf" | "quiz" | "rps" | "c4" | "reputation";
+type BoardType = "ingame" | "wolf" | "quiz" | "rps" | "c4" | "cah" | "reputation";
 type IngameTab = "kills" | "overall" | "deaths" | "survived" | "bestlife" | "factions";
 type GameTab = "pvp" | "zombita" | "coins";
 
@@ -38,6 +38,7 @@ export default function LeaderboardPage() {
   const [rps, setRps] = useState<any>(null);
   const [c4, setC4] = useState<any>(null);
   const [reputation, setReputation] = useState<any[]>([]);
+  const [cah, setCah] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -48,12 +49,14 @@ export default function LeaderboardPage() {
       fetch(`${API}/api/stats/rps`).then(r=>r.ok?r.json():null).catch(()=>null),
       fetch(`${API}/api/stats/connect4`).then(r=>r.ok?r.json():null).catch(()=>null),
       fetch(`${API}/api/reputation/leaderboard`).then(r=>r.ok?r.json():null).catch(()=>null),
-    ]).then(([ing,wlf,qz,rp,c,rep])=>{
+      fetch(`${API}/api/cah/leaderboard`).then(r=>r.ok?r.json():null).catch(()=>null),
+    ]).then(([ing,wlf,qz,rp,c,rep,ch])=>{
       setIngame(ing);
       setWolf(Array.isArray(wlf)?wlf:(wlf?.data||wlf?.players||[]));
       setQuiz(Array.isArray(qz)?qz:(qz?.data||qz?.players||[]));
       setRps(rp); setC4(c);
       setReputation(rep?.players || []);
+      setCah(ch);
       setLoading(false);
     });
   }, []);
@@ -62,6 +65,7 @@ export default function LeaderboardPage() {
   const factions  = ingame?.factions || [];
   const rpsBoard  = rps?.leaderboard || [];
   const c4Board   = c4?.leaderboard || [];
+  const cahBoard  = cah?.leaderboard || [];
 
   const tabBtn = (active: boolean, onClick: ()=>void, label: string) => (
     <button onClick={onClick}
@@ -125,7 +129,7 @@ export default function LeaderboardPage() {
       {/* Board selector — scrollable on mobile */}
       <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 pb-1">
         <div className="flex gap-2 mb-8 min-w-max sm:min-w-0 sm:flex-wrap">
-          {([["ingame","⚔️ In-Game"],["wolf","🐺 Werewolf"],["quiz","🧠 Quizarium"],["rps","🪨 RPS"],["c4","🔴 Connect4"],["reputation","📋 Reputation"]] as [BoardType,string][]).map(([id,label])=>(
+          {([["ingame","⚔️ In-Game"],["wolf","🐺 Werewolf"],["quiz","🧠 Quizarium"],["rps","🪨 RPS"],["c4","🔴 Connect4"],["cah","🃏 CAH"],["reputation","📋 Reputation"]] as [BoardType,string][]).map(([id,label])=>(
             <button key={id} onClick={()=>setBoard(id)}
               className={`px-3 py-[0.4rem] text-[0.68rem] tracking-[0.08em] uppercase border font-[inherit] cursor-pointer transition-all whitespace-nowrap ${board===id?"border-[#4a7c59] text-[#4a7c59]":"border-[#222] text-[#555] hover:border-[#444] hover:text-[#e6e6e6]"}`}>
               {label}
@@ -199,6 +203,42 @@ export default function LeaderboardPage() {
           {c4Tab==="pvp"     && <GameTable rows={[...c4Board].sort((a:any,b:any)=>b.wins-a.wins)} c1={p=>`${p.wins}W/${p.losses}L/${p.draws}D`} c2={p=>`${p.win_rate}%`} h1="Record" h2="Win %"/>}
           {c4Tab==="zombita" && <GameTable rows={[...c4Board].sort((a:any,b:any)=>b.vs_zombita.wins-a.vs_zombita.wins)} c1={p=>`${p.vs_zombita.wins}W/${p.vs_zombita.losses}L`} c2={p=>{const t=p.vs_zombita.wins+p.vs_zombita.losses+p.vs_zombita.draws;return t>0?Math.round((p.vs_zombita.wins/t)*100)+'%':'—';}} h1="vs Zombita" h2="Win %"/>}
           {c4Tab==="coins"   && <GameTable rows={[...c4Board].sort((a:any,b:any)=>b.coins_net-a.coins_net)} c1={p=>`${p.coins_won.toLocaleString()} 🟤`} c2={p=>`${p.coins_net>=0?'+':''}${p.coins_net.toLocaleString()}`} h1="Won" h2="Net"/>}
+        </div>}
+
+
+        {board==="cah" && <div>
+          <p className="text-[0.78rem] text-[#555] font-mono mb-6 italic">
+            Judged by Zombita. Most game wins ranks first.
+          </p>
+          {cahBoard.length === 0
+            ? <p className="text-[#555] font-mono text-sm italic">No CAH games played yet.</p>
+            : <div className="overflow-x-auto -mx-2 px-2">
+                <table className="lb-table min-w-full">
+                  <thead><tr>
+                    <th className="w-8"/>
+                    <th>Player</th>
+                    <th className="text-right">Wins</th>
+                    <th className="text-right hidden sm:table-cell">Rounds Won</th>
+                    <th className="text-right">Win %</th>
+                    <th className="text-right hidden sm:table-cell">Zombita ✓</th>
+                    <th className="text-right hidden md:table-cell">Best Streak</th>
+                  </tr></thead>
+                  <tbody>
+                    {cahBoard.map((p:any,i:number)=>(
+                      <tr key={i} className={}>
+                        <td className="text-center text-sm">{medal(i)}</td>
+                        <td><a href={} className="hover:text-[#4a7c59] transition-colors">{p.display_name}</a></td>
+                        <td className="text-right font-mono text-xs">{p.games_won}<span className="text-[#444]">/{p.games_played}</span></td>
+                        <td className="text-right font-mono text-xs hidden sm:table-cell">{p.rounds_won}</td>
+                        <td className="text-right font-mono text-xs">{p.win_rate}%</td>
+                        <td className="text-right font-mono text-xs hidden sm:table-cell">{p.zombita_approved}</td>
+                        <td className="text-right font-mono text-xs hidden md:table-cell">{p.best_streak}🔥</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+          }
         </div>}
 
         {board==="reputation" && <div>
