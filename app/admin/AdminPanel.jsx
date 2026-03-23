@@ -16,11 +16,13 @@ import ReputationTab  from "./tabs/ReputationTab";
 import SystemTab      from "./tabs/SystemTab";
 import ServerConfigTab from "./tabs/ServerConfigTab";
 import PlannerTab from "./tabs/PlannerTab";
+import ConsoleTab from "./tabs/ConsoleTab";
 
 const NAV_SECTIONS = [
   { label: "COMMAND", items: [
     { key: "overview",       icon: "📡", label: "Overview" },
     { key: "server",         icon: "🖥️", label: "Server" },
+    { key: "console",        icon: "⌨️", label: "Console" },
     { key: "system",         icon: "⚙️",  label: "System Panel" },
   ]},
   { label: "ECONOMY", items: [
@@ -59,6 +61,7 @@ const NAV_SECTIONS = [
 const PANELS = {
   overview:    OverviewTab,
   server:      ServerTab,
+  console:     ConsoleTab,
   shop:        ShopTab,
   marketplace: MarketplaceTab,
   treasury:    TreasuryTab,
@@ -277,7 +280,7 @@ export default function AdminPanel() {
 
   // Heartbeat: tell backend which tab we're on every 10s
   useEffect(() => {
-    if (panelLocked !== false) return; // Don't heartbeat until unlocked
+    if (panelLocked !== false) return;
     const beat = () => {
       fetch("https://api.stateofundeadpurge.site:8443/api/admin/presence/heartbeat", {
         method: "POST", credentials: "include",
@@ -341,7 +344,6 @@ export default function AdminPanel() {
         ws.onopen = () => setWsConnected(true);
         ws.onclose = () => {
           setWsConnected(false);
-          // Auto-reconnect after 5s
           setTimeout(connect, 5000);
         };
         ws.onerror = () => ws.close();
@@ -349,9 +351,7 @@ export default function AdminPanel() {
           try {
             const msg = JSON.parse(evt.data);
             if (msg.event === "change") {
-              // Trigger re-render of the active panel
               setRefreshKey(k => k + 1);
-              // Show toast for changes by other admins
               if (msg.data?.description) {
                 const adminName = ADMINS[msg.data.admin_id]?.name || "Someone";
                 toast(`${adminName}: ${msg.data.description}`, "info");
@@ -382,11 +382,12 @@ export default function AdminPanel() {
     } catch { setPwError("Connection error"); }
   };
 
-  // Show password gate
+  // Show loading
   if (panelLocked === null) {
     return <div className="ap"><style dangerouslySetInnerHTML={{ __html: CSS }} /><div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}><div style={{ fontFamily: "var(--mono)", color: "var(--textdim)", letterSpacing: 2 }}>LOADING...</div></div></div>;
   }
 
+  // Show password gate
   if (panelLocked) {
     return (
       <div className="ap">
@@ -430,7 +431,6 @@ export default function AdminPanel() {
       <div className="ap-hd">
         <div className="ap-logo">SOUP ADMIN</div>
         <span className="ap-hd-badge">v2.0</span>
-        {/* Online admins */}
         {onlineAdmins.length > 0 && (
           <div style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: 16 }}>
             {onlineAdmins.map(a => <PresenceAvatar key={a.discord_id} admin={a} size={24} />)}
