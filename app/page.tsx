@@ -25,69 +25,94 @@ function LiveStatus() {
   }, []);
 
   if (loading) return (
-    <div className="border border-[#1a1a1a] bg-[#0a0d10] p-4 sm:p-5 max-w-[420px] mx-auto">
-      <div className="flex items-center gap-2 mb-3">
-        <span className="w-1.5 h-1.5 rounded-full bg-[#222] animate-pulse" />
-        <span className="font-mono text-[0.62rem] tracking-widest text-[#333] uppercase">Checking server…</span>
+    <div className="border border-[#1a1a1a] bg-[#0a0d10] p-5 w-full">
+      <div className="flex items-center gap-2">
+        <span className="w-2 h-2 rounded-full bg-[#1e1e1e] animate-pulse" />
+        <span className="font-mono text-[0.62rem] tracking-widest text-[#2a2a2a] uppercase">Checking server status…</span>
       </div>
     </div>
   );
+
   if (!status) return null;
 
   const pct = status.max_players > 0 ? (status.player_count / status.max_players) * 100 : 0;
+  const barColor = pct > 80 ? "#e05555" : pct > 50 ? "#c8a84b" : "#4a7c59";
 
   return (
-    <div className="border border-[#1a1a1a] bg-[#0a0d10] p-4 sm:p-5 max-w-[420px] mx-auto relative overflow-hidden">
-      <div className="absolute top-0 left-0 right-0 h-px" style={{ background: status.online ? "linear-gradient(90deg, transparent, #4a7c5966, transparent)" : "linear-gradient(90deg, transparent, #7c4a4a44, transparent)" }} />
+    <div className="border border-[#1a1a1a] bg-[#0a0d10] w-full relative overflow-hidden">
+      <div className="absolute top-0 left-0 right-0 h-px" style={{
+        background: status.online
+          ? "linear-gradient(90deg, transparent, #4a7c5988, transparent)"
+          : "linear-gradient(90deg, transparent, #7c4a4a55, transparent)"
+      }} />
 
-      {/* Status row */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <span
-            className={`w-2 h-2 rounded-full flex-shrink-0 ${status.online ? "bg-[#4a7c59]" : "bg-[#7c4a4a]"}`}
-            style={{ boxShadow: status.online ? "0 0 8px #4a7c59" : "none", animation: status.online ? "pulse 2s infinite" : "none" }}
-          />
-          <span className={`font-mono text-[0.7rem] tracking-[0.18em] uppercase ${status.online ? "text-[#4a7c59]" : "text-[#7c4a4a]"}`}>
-            {status.online ? "Online" : "Offline"}
-          </span>
+      <div className="p-5 sm:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8">
+
+          {/* Status indicator */}
+          <div className="flex items-center gap-3 flex-shrink-0">
+            <span
+              className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${status.online ? "bg-[#4a7c59]" : "bg-[#7c4a4a]"}`}
+              style={{
+                boxShadow: status.online ? "0 0 10px #4a7c59, 0 0 20px #4a7c5944" : "none",
+                animation: status.online ? "pulse 2s infinite" : "none"
+              }}
+            />
+            <div>
+              <p className={`font-mono text-[0.8rem] tracking-[0.2em] uppercase font-semibold ${status.online ? "text-[#4a7c59]" : "text-[#7c4a4a]"}`}>
+                {status.online ? "Server Online" : "Server Offline"}
+              </p>
+              <p className="font-mono text-[0.58rem] tracking-widest text-[#333] uppercase">Live status</p>
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div className="hidden sm:block w-px h-10 bg-[#1a1a1a] flex-shrink-0" />
+
+          {status.online ? (
+            <>
+              {/* Player count */}
+              <div className="flex-shrink-0">
+                <p className="font-mono text-[0.58rem] tracking-widest text-[#333] uppercase mb-0.5">Survivors Online</p>
+                <p className="font-['Bebas_Neue'] text-[1.6rem] leading-none" style={{ color: status.player_count > 0 ? "#e6e6e6" : "#444" }}>
+                  {status.player_count}
+                  <span className="font-mono text-[0.7rem] text-[#333] ml-1">/ {status.max_players}</span>
+                </p>
+              </div>
+
+              {/* Divider */}
+              <div className="hidden sm:block w-px h-10 bg-[#1a1a1a] flex-shrink-0" />
+
+              {/* Capacity bar */}
+              <div className="flex-1 min-w-0">
+                <div className="flex justify-between mb-1.5">
+                  <p className="font-mono text-[0.58rem] tracking-widest text-[#333] uppercase">Server Capacity</p>
+                  <p className="font-mono text-[0.58rem] tracking-widest uppercase" style={{ color: barColor }}>{Math.round(pct)}%</p>
+                </div>
+                <div className="h-1.5 bg-[#111] rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all duration-1000"
+                    style={{ width: `${pct}%`, background: barColor, boxShadow: `0 0 8px ${barColor}66` }}
+                  />
+                </div>
+                <p className="font-mono text-[0.58rem] text-[#2a2a2a] mt-1.5">
+                  {status.player_count === 0
+                    ? "No survivors online — first one in sets the tone."
+                    : status.player_count === 1
+                    ? "One survivor out there. Could be you next."
+                    : `${status.player_count} survivors in the field right now.`}
+                </p>
+              </div>
+            </>
+          ) : (
+            <div className="flex-1">
+              <p className="text-[0.8rem] text-[#555]">The server is currently offline.</p>
+              <p className="font-mono text-[0.62rem] text-[#333] mt-1">Check Discord for announcements and scheduled restarts.</p>
+            </div>
+          )}
+
         </div>
-        <span className="font-mono text-[0.58rem] tracking-widest text-[#333] uppercase">Live</span>
       </div>
-
-      {/* Stats grid */}
-      {status.online ? (
-        <>
-          <div className="grid grid-cols-2 gap-3 mb-4">
-            <div className="border border-[#141414] bg-[#070a0d] p-3">
-              <p className="font-mono text-[0.55rem] tracking-widest text-[#333] uppercase mb-1">Survivors</p>
-              <p className="font-mono text-[1.1rem] text-[#e6e6e6]">{status.player_count}</p>
-              <p className="font-mono text-[0.58rem] text-[#444]">of {status.max_players} slots</p>
-            </div>
-            <div className="border border-[#141414] bg-[#070a0d] p-3">
-              <p className="font-mono text-[0.55rem] tracking-widest text-[#333] uppercase mb-1">Capacity</p>
-              <p className="font-mono text-[1.1rem] text-[#e6e6e6]">{Math.round(pct)}%</p>
-              <p className="font-mono text-[0.58rem] text-[#444]">server load</p>
-            </div>
-          </div>
-          {/* Player bar */}
-          <div className="mb-1">
-            <div className="h-1 bg-[#111] rounded-full overflow-hidden">
-              <div
-                className="h-full rounded-full transition-all duration-700"
-                style={{ width: `${pct}%`, background: pct > 80 ? "#e05555" : pct > 50 ? "#c8a84b" : "#4a7c59" }}
-              />
-            </div>
-          </div>
-          <p className="font-mono text-[0.55rem] text-[#2a2a2a] uppercase tracking-widest text-right">
-            {status.player_count === 0 ? "No survivors online — first one in?" : status.player_count === 1 ? "One survivor holding it together" : `${status.player_count} survivors in the field`}
-          </p>
-        </>
-      ) : (
-        <div className="border border-[#1a1a1a] p-3 bg-[#070a0d]">
-          <p className="font-mono text-[0.7rem] text-[#444]">Server is currently offline.</p>
-          <p className="font-mono text-[0.62rem] text-[#333] mt-1">Check Discord for announcements.</p>
-        </div>
-      )}
     </div>
   );
 }
@@ -182,9 +207,6 @@ export default function HomePage() {
             A long-term PVE Project Zomboid community with a custom AI, full economy engine, 
             mini-games, faction wars, and a live narrative campaign.
           </p>
-          <div className="flex flex-col items-center mb-6">
-            <LiveStatus />
-          </div>
           <div className="flex gap-3 justify-center flex-wrap">
             <a href="https://discord.gg/NCBPqP5Q" target="_blank" rel="noopener noreferrer"
               className="inline-block px-5 py-2.5 border border-[#5865F2] text-[#5865F2] no-underline text-[0.75rem] tracking-[0.12em] uppercase hover:bg-[#5865F2] hover:text-white transition-all">
@@ -203,6 +225,11 @@ export default function HomePage() {
       </header>
 
       <div className="max-w-[900px] mx-auto px-4 sm:px-6">
+
+        {/* ── LIVE SERVER STATUS ── */}
+        <section className="pt-10 pb-4">
+          <LiveStatus />
+        </section>
 
         {/* ── WHAT IS THIS ── */}
         <section className="py-14 sm:py-20">
