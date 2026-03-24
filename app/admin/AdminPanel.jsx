@@ -18,14 +18,16 @@ import ServerConfigTab from "./tabs/ServerConfigTab";
 import PlannerTab from "./tabs/PlannerTab";
 import ConsoleTab   from "./tabs/ConsoleTab";
 import PZConsoleTab from "./tabs/PZConsoleTab";
+import ServerActivityTab from "./tabs/ServerActivityTab";
 
 const NAV_SECTIONS = [
   { label: "COMMAND", items: [
-    { key: "overview",       icon: "📡", label: "Overview" },
-    { key: "server",         icon: "🖥️", label: "Server" },
-    { key: "console",        icon: "⌨️", label: "Console" },
-    { key: "pz_console",     icon: "🧟", label: "PZ Console" },
-    { key: "system",         icon: "⚙️",  label: "System Panel" },
+    { key: "overview",        icon: "📡", label: "Overview" },
+    { key: "server",          icon: "🖥️", label: "Server" },
+    { key: "server_activity", icon: "📋", label: "Server Activity" },
+    { key: "console",         icon: "⌨️", label: "Console" },
+    { key: "pz_console",      icon: "🧟", label: "PZ Console" },
+    { key: "system",          icon: "⚙️",  label: "System Panel" },
   ]},
   { label: "ECONOMY", items: [
     { key: "shop",           icon: "📦", label: "Shop" },
@@ -63,8 +65,9 @@ const NAV_SECTIONS = [
 const PANELS = {
   overview:    OverviewTab,
   server:      ServerTab,
-  console:     ConsoleTab,
-  pz_console:  PZConsoleTab,
+  console:         ConsoleTab,
+  pz_console:      PZConsoleTab,
+  server_activity: ServerActivityTab,
   shop:        ShopTab,
   marketplace: MarketplaceTab,
   treasury:    TreasuryTab,
