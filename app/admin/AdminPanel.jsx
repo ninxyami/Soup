@@ -20,7 +20,6 @@ import ContentTab from "./tabs/ContentTab";
 import ConsoleTab        from "./tabs/ConsoleTab";
 import PZConsoleTab      from "./tabs/PZConsoleTab";
 import ServerActivityTab from "./tabs/ServerActivityTab";
-import ContentTab        from "./tabs/ContentTab";
 
 const NAV_SECTIONS = [
   { label: "COMMAND", items: [
@@ -86,7 +85,6 @@ const PANELS = {
   games:       GamesTab,
   reputation:  ReputationTab,
   system:      SystemTab,
-  content:     ContentTab,
   content:     ContentTab,
   sc_mods:     (props) => <ServerConfigTab {...props} initialTab="mods" />,
   sc_server:   (props) => <ServerConfigTab {...props} initialTab="server" />,
