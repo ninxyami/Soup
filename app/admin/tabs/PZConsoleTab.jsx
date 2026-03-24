@@ -274,8 +274,8 @@ export default function PZConsoleTab() {
 
         <div className={fullscreen ? "" : "ap-fb"} style={{ padding: 0, overflow: "hidden", flex: fullscreen ? 1 : undefined, display: "flex", flexDirection: "column" }}>
 
-        {/* Custom text filter bar */}
-        <div style={{
+        {/* Custom text filter bar — hidden in fullscreen (header has its own) */}
+        {!fullscreen && <div style={{
           display: "flex", alignItems: "center", gap: 8,
           padding: "7px 12px", borderBottom: "1px solid var(--border)", background: "var(--surface)",
         }}>
@@ -295,7 +295,7 @@ export default function PZConsoleTab() {
               style={{ background: "none", border: "none", color: "var(--textdim)", cursor: "pointer", fontFamily: "var(--mono)", fontSize: 10 }}
             >✕</button>
           )}
-        </div>
+        </div>}
 
         {/* Log output */}
         <div
