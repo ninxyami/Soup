@@ -18,9 +18,9 @@ function LiveStatus() {
   const [status, setStatus] = useState<ServerStatus | null>(null);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
-    fetch(`${API}/api/server/status`, { credentials: "include" })
+    fetch(`${API}/api/server/status`)
       .then(r => r.ok ? r.json() : null)
-      .then(d => { d && setStatus(d); setLoading(false); })
+      .then(d => { if (d) setStatus(d); setLoading(false); })
       .catch(() => setLoading(false));
   }, []);
 
@@ -153,7 +153,7 @@ const FEATURES = [
   {
     icon: "🧟", title: "Zombita AI", slug: null, href: "/zombita",
     desc: "Dual-model AI with personality, 4-layer memory, passive perception, and daily reputation analysis.",
-    tags: ["GPT-4o", "Qwen3 8B", "AI"],
+    tags: ["Custom AI", "Memory", "Personality"],
   },
   {
     icon: "💰", title: "Economy Engine", slug: "economy", href: "/features/economy",
@@ -178,7 +178,7 @@ const FEATURES = [
   {
     icon: "🌐", title: "Web Platform", slug: null, href: "/server",
     desc: "Full website — shop, marketplace, leaderboards, community feed, admin panel with live console.",
-    tags: ["Next.js", "FastAPI", "WebSocket"],
+    tags: ["Shop", "Marketplace", "Leaderboards"],
   },
 ];
 
@@ -310,16 +310,15 @@ export default function HomePage() {
                 <p className="font-mono text-[0.65rem] tracking-[0.3em] text-[#9775cc] uppercase mb-3">Meet Zombita</p>
                 <h2 className="!mb-4 !normal-case text-[1.3rem] tracking-[0.1em]">Your Server&apos;s AI Personality</h2>
                 <p className="text-[#666] text-[0.85rem] leading-relaxed mb-3">
-                  Zombita is not a generic bot. She uses <span className="text-[#e6e6e6]">GPT-4o-mini</span> for direct 
-                  conversations and <span className="text-[#e6e6e6]">Qwen3 8B locally</span> for passive channel awareness — 
-                  so she chimes in without being asked, at zero per-token cost.
+                  Zombita is not a generic bot. She holds real conversations and passively watches 
+                  every channel — chiming in without being asked, on her own terms.
                 </p>
                 <p className="text-[#555] text-[0.82rem] leading-relaxed mb-4">
                   She has a 4-layer memory system, tracks every player&apos;s reputation across the whole season, 
                   and writes her own announcements. She forms opinions. She remembers things. She has favourites.
                 </p>
                 <div className="flex flex-wrap gap-2 mb-5">
-                  {["4-Layer Memory", "27 Mood States", "Daily Reputation Analysis", "Passive Perception", "GPT Announcements"].map(t => (
+                  {["4-Layer Memory", "27 Mood States", "Daily Reputation Analysis", "Passive Perception", "Announcements"].map(t => (
                     <span key={t} className="font-mono text-[0.6rem] tracking-wider text-[#9775cc88] border border-[#9775cc22] px-2 py-1 uppercase">{t}</span>
                   ))}
                 </div>
@@ -422,7 +421,7 @@ export default function HomePage() {
             {[
               { icon: "🐺", name: "Werewolf", desc: "20+ roles, AI narrator, DM night actions", color: "#e05555" },
               { icon: "🧠", name: "Quizarium", desc: "Speed trivia, 5 categories, global leaderboard", color: "#4a8fc4" },
-              { icon: "🃏", name: "Cards Against Humanity", desc: "AI-judged by Zombita via GPT in character", color: "#9775cc" },
+              { icon: "🃏", name: "Cards Against Humanity", desc: "Judged by Zombita, in character — merciless picks, brutal commentary", color: "#9775cc" },
               { icon: "✊", name: "Rock Paper Scissors", desc: "vs players or Zombita, coin bets, 5% rake", color: "#4caf7d" },
               { icon: "🔵", name: "Connect Four", desc: "6×7 board, Discord buttons, coin bets", color: "#c8a84b" },
             ].map(g => (
