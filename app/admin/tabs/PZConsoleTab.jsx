@@ -7,7 +7,7 @@ import { API, B, FB, Title } from "./shared";
 
 const WS_URL = API.replace(/^https/, "wss").replace(/^http/, "ws");
 
-const MAX_LINES = 800;
+const MAX_LINES = 1000;
 
 // Smart filter presets — each has a list of keywords to match against log lines
 const FILTER_PRESETS = [

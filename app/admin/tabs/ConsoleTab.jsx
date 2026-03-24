@@ -32,7 +32,7 @@ const LINE_COLORS = {
   rcon:    "#4a8fc4",
 };
 
-const MAX_LINES = 500;
+const MAX_LINES = 1000;
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
