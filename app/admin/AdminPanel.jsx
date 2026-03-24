@@ -16,9 +16,11 @@ import ReputationTab  from "./tabs/ReputationTab";
 import SystemTab      from "./tabs/SystemTab";
 import ServerConfigTab from "./tabs/ServerConfigTab";
 import PlannerTab from "./tabs/PlannerTab";
+import ContentTab from "./tabs/ContentTab";
 import ConsoleTab        from "./tabs/ConsoleTab";
 import PZConsoleTab      from "./tabs/PZConsoleTab";
 import ServerActivityTab from "./tabs/ServerActivityTab";
+import ContentTab        from "./tabs/ContentTab";
 
 const NAV_SECTIONS = [
   { label: "COMMAND", items: [
@@ -43,6 +45,12 @@ const NAV_SECTIONS = [
     { key: "players",        icon: "👥", label: "Players" },
     { key: "games",          icon: "🎮", label: "Games" },
     { key: "reputation",     icon: "🎭", label: "Reputation" },
+  ]},
+  { label: "CONTENT", items: [
+    { key: "content", icon: "📝", label: "Page Content" },
+  ]},
+  { label: "CONTENT", items: [
+    { key: "content", icon: "📝", label: "Page Content" },
   ]},
   { label: "PLANNER", items: [
     { key: "pl_board",     icon: "📋", label: "Task Board" },
@@ -78,6 +86,8 @@ const PANELS = {
   games:       GamesTab,
   reputation:  ReputationTab,
   system:      SystemTab,
+  content:     ContentTab,
+  content:     ContentTab,
   sc_mods:     (props) => <ServerConfigTab {...props} initialTab="mods" />,
   sc_server:   (props) => <ServerConfigTab {...props} initialTab="server" />,
   sc_world:    (props) => <ServerConfigTab {...props} initialTab="world" />,

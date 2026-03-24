@@ -151,8 +151,8 @@ function RecentPosts() {
 
 const FEATURES = [
   {
-    icon: "🧟", title: "Zombita AI", slug: null, href: "/zombita",
-    desc: "Dual-model AI with personality, 4-layer memory, passive perception, and daily reputation analysis.",
+    icon: "🧟", title: "Zombita AI", slug: null, href: "/zombita/about",
+    desc: "Custom AI with personality, 4-layer memory, passive perception, and daily reputation analysis.",
     tags: ["Custom AI", "Memory", "Personality"],
   },
   {
@@ -322,8 +322,8 @@ export default function HomePage() {
                     <span key={t} className="font-mono text-[0.6rem] tracking-wider text-[#9775cc88] border border-[#9775cc22] px-2 py-1 uppercase">{t}</span>
                   ))}
                 </div>
-                <Link href="/zombita" className="inline-block font-mono text-[0.7rem] tracking-[0.15em] text-[#9775cc] border border-[#9775cc44] px-4 py-2 no-underline hover:bg-[#9775cc22] transition-all uppercase">
-                  Talk to Zombita →
+                <Link href="/zombita/about" className="inline-block font-mono text-[0.7rem] tracking-[0.15em] text-[#9775cc] border border-[#9775cc44] px-4 py-2 no-underline hover:bg-[#9775cc22] transition-all uppercase">
+                  Meet Zombita →
                 </Link>
               </div>
               <div className="md:col-span-2 flex justify-center">
