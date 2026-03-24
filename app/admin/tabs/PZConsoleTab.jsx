@@ -44,6 +44,7 @@ export default function PZConsoleTab() {
   const [autoScroll, setAutoScroll]     = useState(true);
   const [cmd, setCmd]                   = useState("");
   const [lineCount, setLineCount]       = useState(0);
+  const [fullscreen, setFullscreen]     = useState(false);
 
   const wsRef        = useRef(null);
   const termRef      = useRef(null);
@@ -192,6 +193,7 @@ export default function PZConsoleTab() {
           : <B c="gold"  sm onClick={connect}>▶ Connect</B>
         }
         <B c="ghost" sm onClick={() => { setLines([]); setLineCount(0); }}>🗑 Clear</B>
+        <B c="ghost" sm onClick={() => setFullscreen(f => !f)}>{fullscreen ? "⊠ Exit Fullscreen" : "⛶ Fullscreen"}</B>
         <span style={{ marginLeft: "auto", fontFamily: "var(--mono)", fontSize: 10, color: "var(--textdim)" }}>
           {visibleLines.length} / {lineCount} lines
         </span>
@@ -202,7 +204,14 @@ export default function PZConsoleTab() {
         {FILTER_PRESETS.map(p => (
           <button
             key={p.key}
-            onClick={() => { setActivePreset(p.key); setCustomFilter(""); }}
+        onClick={() => {
+              setActivePreset(p.key);
+              setCustomFilter("");
+              // scroll to bottom so latest matching lines are visible
+              setTimeout(() => {
+                if (termRef.current) termRef.current.scrollTop = termRef.current.scrollHeight;
+              }, 20);
+            }}
             style={{
               fontFamily:    "var(--mono)",
               fontSize:      10,
@@ -222,7 +231,48 @@ export default function PZConsoleTab() {
       </div>
 
       {/* ── Terminal window ── */}
-      <div className="ap-fb" style={{ padding: 0, overflow: "hidden" }}>
+      <div style={fullscreen ? {
+        position: "fixed", inset: 0, zIndex: 9000,
+        background: "#060a0d", display: "flex", flexDirection: "column",
+        padding: 16,
+      } : {}}>
+
+        {/* Fullscreen header — only shown in fullscreen mode */}
+        {fullscreen && (
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10, flexShrink: 0 }}>
+            <span style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--accent)", letterSpacing: 2 }}>🧟 PZ SERVER CONSOLE</span>
+            <span style={{ fontFamily: "var(--mono)", fontSize: 10, color: statusColor, marginLeft: 8 }}>
+              <span style={{ display: "inline-block", width: 7, height: 7, borderRadius: "50%", background: statusColor, marginRight: 5, verticalAlign: "middle" }} />
+              {statusLabel}
+            </span>
+            {/* Filter tabs in fullscreen */}
+            <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginLeft: 8 }}>
+              {FILTER_PRESETS.map(p => (
+                <button key={p.key} onClick={() => { setActivePreset(p.key); setCustomFilter(""); setTimeout(() => { if (termRef.current) termRef.current.scrollTop = termRef.current.scrollHeight; }, 20); }} style={{
+                  fontFamily: "var(--mono)", fontSize: 10, padding: "3px 9px",
+                  background: activePreset === p.key && !customFilter ? "var(--accent)" : "rgba(255,255,255,0.05)",
+                  border: `1px solid ${activePreset === p.key && !customFilter ? "var(--accent)" : "rgba(255,255,255,0.1)"}`,
+                  color: activePreset === p.key && !customFilter ? "#000" : "#666",
+                  cursor: "pointer", letterSpacing: 0.8,
+                }}>{p.label}</button>
+              ))}
+            </div>
+            <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
+              <input value={customFilter} onChange={e => setCustomFilter(e.target.value)} placeholder="search..." style={{
+                background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
+                color: "#ccc", padding: "3px 10px", fontFamily: "var(--mono)", fontSize: 11, outline: "none", borderRadius: 2, width: 180,
+              }} />
+              <span style={{ fontFamily: "var(--mono)", fontSize: 10, color: "#555" }}>{visibleLines.length} / {lineCount}</span>
+              <button onClick={() => setFullscreen(false)} style={{
+                background: "rgba(224,85,85,0.15)", border: "1px solid rgba(224,85,85,0.4)",
+                color: "#e05555", fontFamily: "var(--mono)", fontSize: 11, padding: "4px 12px",
+                cursor: "pointer", letterSpacing: 1,
+              }}>✕ EXIT</button>
+            </div>
+          </div>
+        )}
+
+        <div className={fullscreen ? "" : "ap-fb"} style={{ padding: 0, overflow: "hidden", flex: fullscreen ? 1 : undefined, display: "flex", flexDirection: "column" }}>
 
         {/* Custom text filter bar */}
         <div style={{
@@ -252,7 +302,9 @@ export default function PZConsoleTab() {
           ref={termRef}
           onScroll={handleScroll}
           style={{
-            height: 500, overflowY: "auto", padding: "12px 16px",
+            height: fullscreen ? undefined : 500,
+            flex: fullscreen ? 1 : undefined,
+            overflowY: "auto", padding: "12px 16px",
             background: "#060a0d", fontFamily: "var(--mono)",
             fontSize: 11.5, lineHeight: 1.75, letterSpacing: 0.2,
           }}
@@ -297,7 +349,8 @@ export default function PZConsoleTab() {
             ↓ NEW OUTPUT — click to resume auto-scroll
           </div>
         )}
-      </div>
+        </div>{/* end ap-fb / inner */}
+      </div>{/* end fullscreen wrapper */}
 
       {/* ── RCON Command Input ── */}
       <div className="ap-fb" style={{ marginTop: 16 }}>

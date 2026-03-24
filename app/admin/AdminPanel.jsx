@@ -98,7 +98,7 @@ const CSS = `
 .ap-hd-badge{font-family:var(--mono);font-size:9px;padding:3px 8px;background:var(--accent2);color:#fff;letter-spacing:2px;border-radius:2px}
 .ap-hd-right{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--textdim);display:flex;align-items:center;gap:16px}
 .ap-hd-right .on{color:var(--green)} .ap-hd-right .off{color:var(--red)}
-.ap-shell{display:grid;grid-template-columns:210px 1fr;min-height:calc(100vh - 53px)}
+.ap-shell{display:grid;grid-template-columns:210px 1fr;min-height:calc(100vh - 53px)}\n.ap-shell.nav-collapsed{grid-template-columns:48px 1fr}
 .ap-nav{background:var(--surface);border-right:1px solid var(--border);padding:16px 0;position:sticky;top:53px;height:calc(100vh - 53px);overflow-y:auto}
 .ap-nav::-webkit-scrollbar{width:4px} .ap-nav::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
 .ap-nav-sec{padding:12px 20px 4px;font-size:9px;letter-spacing:2.5px;color:var(--muted);text-transform:uppercase;font-family:var(--mono)}
@@ -240,7 +240,7 @@ table.ap-t{width:100%;border-collapse:collapse}
 @keyframes ap-glow{0%,100%{box-shadow:0 0 10px var(--green)}50%{box-shadow:0 0 20px var(--green)}}
 .ap-term{background:var(--bg);border:1px solid var(--border);padding:16px;font-family:var(--mono);font-size:12px;max-height:220px;overflow-y:auto;color:var(--textdim)}
 .ap-term-line{margin-bottom:4px} .ap-term-line.cmd{color:var(--accent)} .ap-term-line.ok{color:var(--green)} .ap-term-line.err{color:var(--red)}
-.ap-empty{text-align:center;color:var(--textdim);padding:40px;font-family:var(--mono);font-size:12px}
+.ap-nav-collapse{display:flex;align-items:center;justify-content:center;padding:10px 0;cursor:pointer;color:var(--textdim);font-size:14px;transition:color .15s;border-bottom:1px solid var(--border);margin-bottom:4px}\n.ap-nav-collapse:hover{color:var(--accent)}\n.ap-nav-ico-only{display:flex;align-items:center;justify-content:center;padding:10px 0;color:var(--textdim);font-size:16px;cursor:pointer;transition:all .15s;border-left:2px solid transparent;width:100%}\n.ap-nav-ico-only:hover{color:var(--text);background:rgba(255,255,255,0.02)}\n.ap-nav-ico-only.act{color:var(--accent);border-left-color:var(--accent);background:rgba(200,168,75,0.05)}\n
 .ap-load{text-align:center;padding:40px} .ap-load span{font-family:var(--mono);font-size:12px;color:var(--textdim);letter-spacing:2px;animation:ap-blink 1.2s infinite}
 @keyframes ap-blink{0%,100%{opacity:.3}50%{opacity:1}}
 @media(max-width:1100px){
@@ -257,6 +257,7 @@ export default function AdminPanel() {
   const [panelPw, setPanelPw] = useState("");
   const [pwError, setPwError] = useState("");
   const [onlineAdmins, setOnlineAdmins] = useState([]);
+  const [navCollapsed, setNavCollapsed] = useState(false);
   const toastId = useRef(0);
 
   const toast = useCallback((msg, type = "info") => {
@@ -447,33 +448,57 @@ export default function AdminPanel() {
           <span className="on">● CONNECTED</span>
         </div>
       </div>
-      <div className="ap-shell">
+      <div className={`ap-shell${navCollapsed ? " nav-collapsed" : ""}`}>
         <nav className="ap-nav">
-          <a href="/" className="ap-nav-back">← Back to Site</a>
-          <div className="ap-nav-div" />
-          {NAV_SECTIONS.map((sec, si) => (
-            <div key={si}>
-              {si > 0 && <div className="ap-nav-div" />}
-              <div className="ap-nav-sec">{sec.label}</div>
-              {sec.items.map(item => (
-                <div key={item.key} className={`ap-nav-a ${page === item.key ? "act" : ""}`} onClick={() => setPage(item.key)}>
-                  <span className="ap-nav-ico">{item.icon}</span>
-                  {item.label}
-                  {adminsOnTab(item.key).length > 0 && (
-                    <div style={{ marginLeft: "auto", display: "flex", gap: 2 }}>
-                      {adminsOnTab(item.key).map(a => {
-                        const info = ADMINS[a.discord_id] || { color: "#4a5568" };
-                        return <div key={a.discord_id} title={a.name} style={{
-                          width: 8, height: 8, borderRadius: 4,
-                          background: info.color, boxShadow: `0 0 4px ${info.color}`,
-                        }} />;
-                      })}
-                    </div>
-                  )}
+          {/* Collapse toggle button */}
+          <div className="ap-nav-collapse" onClick={() => setNavCollapsed(c => !c)} title={navCollapsed ? "Expand sidebar" : "Collapse sidebar"}>
+            {navCollapsed ? "▶" : "◀"}
+          </div>
+
+          {navCollapsed ? (
+            /* ── Icon-only collapsed nav ── */
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+              {NAV_SECTIONS.flatMap(sec => sec.items).map(item => (
+                <div
+                  key={item.key}
+                  className={`ap-nav-ico-only ${page === item.key ? "act" : ""}`}
+                  onClick={() => setPage(item.key)}
+                  title={item.label}
+                >
+                  {item.icon}
                 </div>
               ))}
             </div>
-          ))}
+          ) : (
+            /* ── Full expanded nav ── */
+            <>
+              <a href="/" className="ap-nav-back">← Back to Site</a>
+              <div className="ap-nav-div" />
+              {NAV_SECTIONS.map((sec, si) => (
+                <div key={si}>
+                  {si > 0 && <div className="ap-nav-div" />}
+                  <div className="ap-nav-sec">{sec.label}</div>
+                  {sec.items.map(item => (
+                    <div key={item.key} className={`ap-nav-a ${page === item.key ? "act" : ""}`} onClick={() => setPage(item.key)}>
+                      <span className="ap-nav-ico">{item.icon}</span>
+                      {item.label}
+                      {adminsOnTab(item.key).length > 0 && (
+                        <div style={{ marginLeft: "auto", display: "flex", gap: 2 }}>
+                          {adminsOnTab(item.key).map(a => {
+                            const info = ADMINS[a.discord_id] || { color: "#4a5568" };
+                            return <div key={a.discord_id} title={a.name} style={{
+                              width: 8, height: 8, borderRadius: 4,
+                              background: info.color, boxShadow: `0 0 4px ${info.color}`,
+                            }} />;
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </>
+          )}
         </nav>
         <main className="ap-main">
           <ActivePanel key={refreshKey} toast={toast} />
