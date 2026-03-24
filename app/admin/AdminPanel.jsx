@@ -19,7 +19,6 @@ import PlannerTab from "./tabs/PlannerTab";
 import ConsoleTab        from "./tabs/ConsoleTab";
 import PZConsoleTab      from "./tabs/PZConsoleTab";
 import ServerActivityTab from "./tabs/ServerActivityTab";
-import ServerActivityTab from "./tabs/ServerActivityTab";
 
 const NAV_SECTIONS = [
   { label: "COMMAND", items: [
