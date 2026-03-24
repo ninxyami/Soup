@@ -7,190 +7,245 @@ const WS_URL = API.replace(/^https/, "wss").replace(/^http/, "ws");
 const MAX_EVENTS = 300;
 
 // ── Event translator ──────────────────────────────────────────────────────────
-// Takes a raw PZ log line, returns a simplified event object or null (silent drop)
-
+// Takes a raw PZ log line (already stripped of journalctl prefix by backend)
+// and returns a simplified event object, or null if it's noise to ignore.
 function translateLine(raw) {
+  if (!raw || !raw.trim()) return null;
   const line = raw.toLowerCase();
-  const now = new Date();
-  const time = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const ts = new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
-  const ev = (category, icon, color, message, badge) =>
-    ({ category, icon, color, message, badge: badge || null, time, raw, id: Math.random() });
+  // ── Hard noise — always skip ───────────────────────────────────────────────
+  const hardNoise = [
+    "animalpacket class doesn",
+    "animaleventpacket class doesn",
+    "packetsettingattributes",
+    "no packet handler for type",
+    "packetscache.<init>",
+    "s_api fail",
+    "steamnetworkingutils",
+    "steamapi_init",
+    "luanet: registering",
+    "luanet: initializ",
+    "[s_api fail]",
+  ];
+  if (hardNoise.some(n => line.includes(n))) return null;
 
-  // ── PLAYERS ──────────────────────────────────────────────────────────────
-  // "playerconnected: username=Nikki steamid=..."
-  if (line.includes("playerconnected")) {
-    const m = raw.match(/username=([^,\s]+)/i);
-    const name = m ? m[1] : "A player";
-    return ev("players", "🟢", "#4caf7d", `${name} joined the server`, "JOINED");
+  // Skip lines that are just raw connection handshake steps
+  const handshakeNoise = ["receive-packet", "send-packet", "connection-details", "login-queue-request", "login-queue-done"];
+  if (handshakeNoise.some(n => line.includes(n)) && line.includes("connection: guid")) return null;
+
+  // ── PLAYERS ───────────────────────────────────────────────────────────────
+  if (line.includes("fully-connected")) {
+    return { category: "players", icon: "🟢", color: "#4caf7d", ts,
+      title: "Player fully connected",
+      detail: "A player finished loading and joined the game world" };
   }
-  // "playerdisconnected: username=..."
-  if (line.includes("playerdisconnected")) {
-    const m = raw.match(/username=([^,\s]+)/i);
-    const name = m ? m[1] : "A player";
-    return ev("players", "🔴", "#e05555", `${name} left the server`, "LEFT");
+
+  if (line.includes("steam client") && line.includes("initiating a connection")) {
+    const idMatch = raw.match(/Steam client (\d+)/i);
+    return { category: "players", icon: "🔌", color: "#9775cc", ts,
+      title: "Player attempting to connect",
+      detail: idMatch ? `Steam ID: ${idMatch[1]}` : "A Steam user is connecting to the server" };
   }
+
+  if (line.includes("connected new client")) {
+    return { category: "players", icon: "📡", color: "#4fc3f7", ts,
+      title: "Connection accepted",
+      detail: "Server accepted a new client connection" };
+  }
+
+  if (line.includes("saving players") && !line.includes("error")) {
+    return { category: "world", icon: "💾", color: "#4caf7d", ts,
+      title: "World saved",
+      detail: "Player data and world state written to disk" };
+  }
+
+  if ((line.includes("disconnected") || line.includes("disconnect")) &&
+      (line.includes("player") || line.includes("client") || line.includes("guid"))) {
+    return { category: "players", icon: "🔴", color: "#e05555", ts,
+      title: "Player disconnected",
+      detail: "A player left or lost connection" };
+  }
+
   if (line.includes("kicked")) {
-    const m = raw.match(/player[:\s]+([^\s,]+)/i) || raw.match(/kicked[:\s]+([^\s,]+)/i);
-    const name = m ? m[1] : "A player";
-    return ev("players", "🦵", "#d4873a", `${name} was kicked`, "KICKED");
+    const nameMatch = raw.match(/kicked[:\s]+([^\s>]+)/i);
+    return { category: "players", icon: "👢", color: "#e05555", ts,
+      title: "Player kicked",
+      detail: nameMatch ? `Player: ${nameMatch[1]}` : "A player was removed from the server" };
   }
+
   if (line.includes("banned")) {
-    const m = raw.match(/player[:\s]+([^\s,]+)/i);
-    const name = m ? m[1] : "A player";
-    return ev("players", "🚫", "#e05555", `${name} was banned`, "BANNED");
+    return { category: "players", icon: "🚫", color: "#e05555", ts,
+      title: "Player banned",
+      detail: "A player was permanently banned from the server" };
+  }
+
+  // ── MODS ──────────────────────────────────────────────────────────────────
+  if (line.includes("log  : mod") || (line.includes("mod ") && line.includes("overrides"))) {
+    const modMatch = raw.match(/mod "([^"]+)"/i);
+    const modName = modMatch ? modMatch[1] : "Unknown mod";
+    if (line.includes("overrides")) {
+      return { category: "mods", icon: "🧩", color: "#b07dff", ts,
+        title: `Mod override: ${modName}`,
+        detail: "This mod is replacing a base game file — this is normal behaviour" };
+    }
+    return { category: "mods", icon: "🧩", color: "#b07dff", ts,
+      title: `Mod loaded: ${modName}`,
+      detail: null };
+  }
+
+  if (line.includes("mod") && (line.includes("failed") || line.includes("error"))) {
+    const modMatch = raw.match(/mod "([^"]+)"/i);
+    return { category: "mods", icon: "❌", color: "#e05555", ts,
+      title: `Mod error: ${modMatch ? modMatch[1] : "Unknown mod"}`,
+      detail: "Check the 💥 Errors tab or PZ Console for details" };
+  }
+
+  if (line.includes("items loaded") || line.includes("recipes loaded")) {
+    const countMatch = raw.match(/(\d+)\s+(items|recipes)/i);
+    return { category: "mods", icon: "📦", color: "#b07dff", ts,
+      title: countMatch ? `${countMatch[1]} ${countMatch[2]} loaded from mods` : "Mod items/recipes loaded",
+      detail: "Mod content successfully registered with the server" };
+  }
+
+  if (line.includes("workshop") || line.includes("steamitemid")) {
+    return { category: "mods", icon: "🔧", color: "#b07dff", ts,
+      title: "Workshop mod activity",
+      detail: raw.substring(0, 100) };
   }
 
   // ── SERVER LIFECYCLE ──────────────────────────────────────────────────────
-  if (line.includes("*** server started ***")) {
-    return ev("server", "🖥️", "#4caf7d", "Server started successfully", "ONLINE");
+  if (line.includes("server started")) {
+    return { category: "server", icon: "🖥️", color: "#4caf7d", ts,
+      title: "Server started successfully",
+      detail: "All systems online and accepting connections" };
   }
-  if (line.includes("*** server stopped ***") || line.includes("server stopped")) {
-    return ev("server", "🛑", "#e05555", "Server stopped", "OFFLINE");
+
+  if (line.includes("server stopped") || line.includes("server shutting")) {
+    return { category: "server", icon: "🛑", color: "#e05555", ts,
+      title: "Server stopped",
+      detail: "The server has shut down" };
   }
-  if (line.includes("rcon: listening on port")) {
-    const port = raw.match(/port\s+(\d+)/i);
-    return ev("server", "⚡", "#4a8fc4", `RCON ready${port ? " on port " + port[1] : ""}`, "RCON");
+
+  if (line.includes("rcon: listening")) {
+    const portMatch = raw.match(/port (\d+)/i);
+    return { category: "server", icon: "⚡", color: "#4a8fc4", ts,
+      title: "RCON interface ready",
+      detail: portMatch ? `Listening on port ${portMatch[1]} — admin commands enabled` : "Admin command interface active" };
   }
+
   if (line.includes("steam is enabled")) {
-    return ev("server", "🔗", "#4a8fc4", "Steam connection established", "STEAM");
-  }
-  if (line.includes("luanet: initialization [done]")) {
-    return ev("server", "📜", "#9775cc", "Lua scripting engine initialised", "LUA");
-  }
-  if (line.includes("initialising raknet")) {
-    return ev("server", "🌐", "#4a8fc4", "Network engine starting up", "NETWORK");
+    return { category: "server", icon: "☁️", color: "#4caf7d", ts,
+      title: "Steam connection established",
+      detail: "Server is visible on the Steam server browser" };
   }
 
-  // ── MODS ─────────────────────────────────────────────────────────────────
-  if (line.includes("mod loaded") || line.includes("loaded mod")) {
-    const m = raw.match(/(?:mod loaded|loaded mod)[:\s]+([^\n]+)/i);
-    const name = m ? m[1].trim().substring(0, 60) : null;
-    return ev("mods", "🧩", "#b07dff", name ? `Mod loaded: ${name}` : "A mod was loaded successfully", "MOD");
-  }
-  if (line.includes("mod failed") || (line.includes("mod") && line.includes("error"))) {
-    const m = raw.match(/mod[:\s]+([^\s,\n]+)/i);
-    const name = m ? m[1] : null;
-    return ev("mods", "❌", "#e05555", name ? `Mod failed: ${name} — check PZ Console for details` : "A mod failed to load — check PZ Console for details", "MOD ERROR");
-  }
-  if (line.includes("items loaded") || line.includes("recipes loaded")) {
-    const m = raw.match(/(\d+)\s+(?:items|recipes)/i);
-    const count = m ? m[1] : null;
-    const type = line.includes("recipes") ? "recipes" : "items";
-    return ev("mods", "📦", "#9775cc", count ? `${count} ${type} loaded from mods` : `Mod ${type} loaded`, "CONTENT");
-  }
-  if (line.includes("workshop") && line.includes("steamitemid")) {
-    return ev("mods", "🔄", "#9775cc", "Workshop mod files synced from Steam", "WORKSHOP");
+  if (line.includes("multiplayer: general") || line.includes("loading worlddictionary")) {
+    return { category: "server", icon: "🌍", color: "#9775cc", ts,
+      title: "Loading world data",
+      detail: "Server is reading map and save files" };
   }
 
-  // ── WORLD ─────────────────────────────────────────────────────────────────
-  if (line.includes("saving") && (line.includes("world") || line.includes("chunk"))) {
-    return ev("world", "💾", "#4caf7d", "World is saving...", "SAVING");
-  }
-  if (line.includes("world saved") || (line.includes("save") && line.includes("complete"))) {
-    return ev("world", "💾", "#4caf7d", "World saved successfully", "SAVED");
-  }
-  if (line.includes("map loaded") || line.includes("world loaded")) {
-    return ev("world", "🗺️", "#4a8fc4", "Map loaded", "MAP");
+  if (line.includes("luanet: initialization [done]") || line.includes("luanet: initialization")) {
+    return { category: "server", icon: "🔩", color: "#4caf7d", ts,
+      title: "Lua engine initialized",
+      detail: "Script system ready — mods can now run" };
   }
 
-  // ── WEATHER / EVENTS ─────────────────────────────────────────────────────
-  if (line.includes("startrain") || (line.includes("rain") && line.includes("start"))) {
-    return ev("world", "🌧️", "#4a8fc4", "Rain started", "WEATHER");
-  }
-  if (line.includes("stoprain") || (line.includes("rain") && line.includes("stop"))) {
-    return ev("world", "☀️", "#c8a84b", "Rain stopped", "WEATHER");
-  }
-  if (line.includes("startstorm") || line.includes("storm start")) {
-    return ev("world", "⛈️", "#9775cc", "Storm started", "WEATHER");
-  }
-  if (line.includes("stopstorm") || line.includes("storm stop")) {
-    return ev("world", "🌤️", "#4caf7d", "Storm cleared", "WEATHER");
-  }
-  if (line.includes("chopper")) {
-    return ev("world", "🚁", "#d4873a", "Helicopter event triggered", "EVENT");
-  }
-  if (line.includes("gunshot")) {
-    return ev("world", "💥", "#d4873a", "Gunshot event triggered", "EVENT");
+  if (line.includes("initialising raknet") || line.includes("initializing raknet")) {
+    return { category: "network", icon: "📡", color: "#4a8fc4", ts,
+      title: "Network layer starting",
+      detail: "RakNet networking initializing" };
   }
 
-  // ── RCON ─────────────────────────────────────────────────────────────────
-  if (line.includes("rcon:") && line.includes("command")) {
-    const m = raw.match(/command[:\s]+([^\n]+)/i);
-    const cmd = m ? m[1].trim() : null;
-    return ev("rcon", "⚡", "#4a8fc4", cmd ? `Admin command: ${cmd}` : "Admin sent an RCON command", "RCON");
+  // ── RCON COMMANDS ─────────────────────────────────────────────────────────
+  if (line.includes("rcon") && line.includes("password doesn't match")) {
+    return { category: "rcon", icon: "🔑", color: "#e05555", ts,
+      title: "RCON authentication failed",
+      detail: "Someone tried to connect to RCON with the wrong password" };
   }
-  if (line.includes("rcon: password doesn't match")) {
-    return ev("rcon", "🔐", "#e05555", "Someone tried an RCON command with the wrong password", "AUTH FAIL");
+
+  if (line.includes("rcon") && !line.includes("listening") && !line.includes("password")) {
+    return { category: "rcon", icon: "⚡", color: "#4a8fc4", ts,
+      title: "RCON activity",
+      detail: raw.substring(0, 100) };
+  }
+
+  // ── WARNINGS ──────────────────────────────────────────────────────────────
+  if (line.startsWith("warn")) {
+    // Skip pure packet handler noise
+    if (line.includes("no packet handler") || line.includes("packetscache")) return null;
+
+    if (line.includes("require(") && line.includes("failed")) {
+      const reqMatch = raw.match(/require\("([^"]+)"\)/);
+      return { category: "warnings", icon: "⚠️", color: "#c8a84b", ts,
+        title: "Mod script missing",
+        detail: reqMatch
+          ? `Could not load script: ${reqMatch[1].split("/").pop()} — a mod may have a missing dependency`
+          : "A mod script failed to load — usually harmless unless the mod breaks" };
+    }
+
+    return { category: "warnings", icon: "⚠️", color: "#c8a84b", ts,
+      title: "Server warning",
+      detail: raw.substring(0, 150) };
   }
 
   // ── ERRORS ────────────────────────────────────────────────────────────────
-  if (line.includes("exception") || line.includes("crash") || line.includes("fatal")) {
-    return ev("errors", "💥", "#e05555", "A serious server error occurred — check PZ Console → Errors tab for details", "CRASH");
-  }
-  // Drop minor/noisy known errors silently (non-critical PZ startup noise)
-  if (line.includes("s_api fail") || line.includes("animaleventpacket") || line.includes("animalpacket") || line.includes("packetsetting")) {
-    return null; // known harmless startup noise — don't show to non-technical users
-  }
-  if (line.includes("error:")) {
-    // Try to extract a short readable part
-    const afterError = raw.split(/error:/i)[1]?.trim().substring(0, 100);
-    return ev("errors", "🔴", "#e05555", afterError ? `Server error: ${afterError}` : "A server error occurred — check PZ Console for details", "ERROR");
-  }
-  if (line.includes("warn")) {
-    return ev("warnings", "⚠️", "#c8a84b", "Server warning — check PZ Console → Warnings tab for details", "WARNING");
+  if (line.startsWith("error")) {
+    // Skip known harmless startup errors
+    if (line.includes("animalpacket") || line.includes("animaleventpacket")) return null;
+    return { category: "errors", icon: "💥", color: "#e05555", ts,
+      title: "Server error",
+      detail: raw.substring(0, 180) };
   }
 
-  // ── NETWORK ───────────────────────────────────────────────────────────────
-  if (line.includes("connected to steam") || line.includes("steam connection")) {
-    return ev("network", "🔗", "#4a8fc4", "Connected to Steam servers", "STEAM");
-  }
-  if (line.includes("disconnect") && line.includes("steam")) {
-    return ev("network", "⚠️", "#c8a84b", "Steam connection issue detected", "STEAM");
+  // ── WORLD ─────────────────────────────────────────────────────────────────
+  if (line.includes("chunk") && (line.includes("load") || line.includes("generat"))) {
+    return { category: "world", icon: "🗺️", color: "#8a8a8a", ts,
+      title: "Map chunk activity",
+      detail: "Server loaded or generated a new area of the map" };
   }
 
-  // Everything else — silently drop (non-technical users don't need it)
+  // Everything else — skip to keep the feed clean
   return null;
 }
 
-// ── Category filter tabs ──────────────────────────────────────────────────────
+// ── Category config ───────────────────────────────────────────────────────────
 const CATEGORIES = [
-  { key: "all",      label: "📋 All"      },
-  { key: "players",  label: "👥 Players"  },
-  { key: "server",   label: "🖥️ Server"   },
-  { key: "mods",     label: "🧩 Mods"     },
-  { key: "world",    label: "🌍 World"    },
-  { key: "rcon",     label: "⚡ RCON"     },
-  { key: "errors",   label: "🔴 Errors"   },
-  { key: "warnings", label: "⚠️ Warnings" },
-  { key: "network",  label: "🌐 Network"  },
+  { key: "all",      label: "📋 All",       color: "#c8a84b" },
+  { key: "players",  label: "👥 Players",   color: "#4fc3f7" },
+  { key: "server",   label: "🖥️ Server",    color: "#4caf7d" },
+  { key: "mods",     label: "🧩 Mods",      color: "#b07dff" },
+  { key: "world",    label: "🌍 World",     color: "#4caf7d" },
+  { key: "rcon",     label: "⚡ RCON",      color: "#4a8fc4" },
+  { key: "network",  label: "🌐 Network",   color: "#4a8fc4" },
+  { key: "warnings", label: "⚠️ Warnings",  color: "#c8a84b" },
+  { key: "errors",   label: "💥 Errors",    color: "#e05555" },
 ];
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function ServerActivityTab() {
-  const [events, setEvents]         = useState([]);
-  const [status, setStatus]         = useState("disconnected");
-  const [activeTab, setActiveTab]   = useState("all");
-  const [autoScroll, setAutoScroll] = useState(true);
+  const [events, setEvents]           = useState([]);
+  const [status, setStatus]           = useState("disconnected");
+  const [activeCategory, setCategory] = useState("all");
+  const [search, setSearch]           = useState("");
 
   const wsRef        = useRef(null);
-  const feedRef      = useRef(null);
   const reconnectRef = useRef(null);
+  const feedRef      = useRef(null);
+  const eventIdRef   = useRef(0);
 
-  // ── Auto-scroll ───────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (autoScroll && feedRef.current) {
-      feedRef.current.scrollTop = feedRef.current.scrollHeight;
-    }
-  }, [events, autoScroll]);
-
-  const handleScroll = useCallback(() => {
-    if (!feedRef.current) return;
-    const { scrollTop, scrollHeight, clientHeight } = feedRef.current;
-    setAutoScroll(scrollHeight - scrollTop - clientHeight < 40);
+  // ── WebSocket ─────────────────────────────────────────────────────────────
+  const addEvent = useCallback((evt) => {
+    setEvents(prev => {
+      const next = [...prev, { ...evt, id: eventIdRef.current++ }];
+      return next.length > MAX_EVENTS ? next.slice(next.length - MAX_EVENTS) : next;
+    });
+    setTimeout(() => {
+      if (feedRef.current) feedRef.current.scrollTop = feedRef.current.scrollHeight;
+    }, 20);
   }, []);
 
-  // ── WebSocket — reuses the same pz-console endpoint ───────────────────────
   const connect = useCallback(() => {
     if (wsRef.current && wsRef.current.readyState <= 1) return;
     setStatus("connecting");
@@ -202,13 +257,9 @@ export default function ServerActivityTab() {
     ws.onmessage = (e) => {
       try {
         const msg = JSON.parse(e.data);
-        if (!msg.line || msg.source === "system") return;
-        const event = translateLine(msg.line);
-        if (!event) return; // silently drop untranslatable lines
-        setEvents(prev => {
-          const next = [...prev, event];
-          return next.length > MAX_EVENTS ? next.slice(next.length - MAX_EVENTS) : next;
-        });
+        if (msg.source === "system") return;
+        const evt = translateLine(msg.line || "");
+        if (evt) addEvent(evt);
       } catch {}
     };
 
@@ -217,7 +268,7 @@ export default function ServerActivityTab() {
       setStatus("disconnected");
       reconnectRef.current = setTimeout(connect, 3000);
     };
-  }, []);
+  }, [addEvent]);
 
   const disconnect = useCallback(() => {
     clearTimeout(reconnectRef.current);
@@ -234,29 +285,29 @@ export default function ServerActivityTab() {
   }, [connect]);
 
   // ── Filter ────────────────────────────────────────────────────────────────
-  const visible = activeTab === "all" ? events : events.filter(e => e.category === activeTab);
+  const visible = events.filter(e => {
+    if (activeCategory !== "all" && e.category !== activeCategory) return false;
+    if (search.trim()) return (e.title + " " + (e.detail || "")).toLowerCase().includes(search.toLowerCase());
+    return true;
+  });
 
   // ── Status ────────────────────────────────────────────────────────────────
   const statusColor = {
-    connected:    "var(--green)",
-    connecting:   "var(--accent)",
-    disconnected: "var(--muted)",
-    error:        "var(--red)",
-  }[status] || "var(--muted)";
+    connected: "var(--green)", connecting: "var(--accent)",
+    disconnected: "var(--muted)", error: "var(--red)",
+  }[status];
 
-  const switchTab = (key) => {
-    setActiveTab(key);
-    setTimeout(() => {
-      if (feedRef.current) feedRef.current.scrollTop = feedRef.current.scrollHeight;
-    }, 20);
-  };
+  const statusLabel = {
+    connected: "LIVE", connecting: "CONNECTING...",
+    disconnected: "OFFLINE", error: "ERROR",
+  }[status];
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div>
-      <Title t="📋 Server Activity" s="Plain English overview of everything happening on the server" />
+      <Title t="📋 Server Activity" s="Plain English view of everything happening on the server" />
 
-      {/* ── Status bar ── */}
+      {/* ── Top bar ── */}
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
         <span style={{ fontFamily: "var(--mono)", fontSize: 10, color: statusColor, letterSpacing: 1 }}>
           <span style={{
@@ -264,50 +315,57 @@ export default function ServerActivityTab() {
             background: statusColor, marginRight: 5, verticalAlign: "middle",
             boxShadow: status === "connected" ? `0 0 6px ${statusColor}` : "none",
           }} />
-          {status === "connected" ? "LIVE" : status === "connecting" ? "CONNECTING..." : status === "error" ? "ERROR" : "OFFLINE"}
+          {statusLabel}
         </span>
         {status === "connected"
           ? <B c="ghost" sm onClick={disconnect}>⏹ Stop</B>
           : <B c="gold"  sm onClick={connect}>▶ Connect</B>
         }
         <B c="ghost" sm onClick={() => setEvents([])}>🗑 Clear</B>
-        <span style={{ marginLeft: "auto", fontFamily: "var(--mono)", fontSize: 10, color: "var(--textdim)" }}>
-          {visible.length} events
-        </span>
+
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search events..."
+            style={{
+              background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)",
+              padding: "5px 12px", fontFamily: "var(--mono)", fontSize: 11,
+              outline: "none", borderRadius: 2, width: 180,
+            }}
+          />
+          {search && (
+            <button onClick={() => setSearch("")}
+              style={{ background: "none", border: "none", color: "var(--textdim)", cursor: "pointer", fontFamily: "var(--mono)", fontSize: 11 }}>✕</button>
+          )}
+          <span style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--textdim)" }}>
+            {visible.length} events
+          </span>
+        </div>
       </div>
 
       {/* ── Category tabs ── */}
-      <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 14 }}>
+      <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 16 }}>
         {CATEGORIES.map(cat => {
-          const count = cat.key === "all" ? events.length : events.filter(e => e.category === cat.key).length;
-          const active = activeTab === cat.key;
+          const count = events.filter(e => cat.key === "all" || e.category === cat.key).length;
+          const isActive = activeCategory === cat.key;
           return (
-            <button
-              key={cat.key}
-              onClick={() => switchTab(cat.key)}
-              style={{
-                fontFamily:    "var(--mono)",
-                fontSize:      10,
-                padding:       "4px 11px",
-                background:    active ? "var(--accent)" : "var(--surface2)",
-                border:        `1px solid ${active ? "var(--accent)" : "var(--border)"}`,
-                color:         active ? "#000" : "var(--textdim)",
-                cursor:        "pointer",
-                letterSpacing: 0.8,
-                fontWeight:    active ? 700 : 400,
-                transition:    "all 0.15s",
-              }}
-            >
+            <button key={cat.key} onClick={() => setCategory(cat.key)} style={{
+              fontFamily: "var(--mono)", fontSize: 10, padding: "5px 12px",
+              background: isActive ? cat.color + "22" : "var(--surface2)",
+              border: `1px solid ${isActive ? cat.color : "var(--border)"}`,
+              color: isActive ? cat.color : "var(--textdim)",
+              cursor: "pointer", letterSpacing: 0.8,
+              fontWeight: isActive ? 700 : 400, transition: "all 0.15s",
+              display: "flex", alignItems: "center", gap: 6,
+            }}>
               {cat.label}
               {count > 0 && (
                 <span style={{
-                  marginLeft: 5, fontSize: 9,
-                  background: active ? "rgba(0,0,0,0.2)" : "rgba(200,168,75,0.15)",
-                  color: active ? "#000" : "var(--accent)",
-                  padding: "1px 5px", borderRadius: 8,
-                }}>
-                  {count}
-                </span>
+                  background: isActive ? cat.color : "rgba(255,255,255,0.08)",
+                  color: isActive ? "#000" : "var(--textdim)",
+                  borderRadius: 10, padding: "0 5px", fontSize: 9, fontWeight: 700,
+                }}>{count}</span>
               )}
             </button>
           );
@@ -316,111 +374,78 @@ export default function ServerActivityTab() {
 
       {/* ── Event feed ── */}
       <div className="ap-fb" style={{ padding: 0, overflow: "hidden" }}>
-        <div
-          ref={feedRef}
-          onScroll={handleScroll}
-          style={{ height: 540, overflowY: "auto", padding: "8px 0" }}
-        >
-          {visible.length === 0 ? (
+        <div ref={feedRef} style={{ height: 560, overflowY: "auto", padding: "6px 0" }}>
+          {visible.length === 0 && (
             <div style={{
               textAlign: "center", padding: "60px 20px",
-              fontFamily: "var(--mono)", fontSize: 12, color: "var(--textdim)",
+              fontFamily: "var(--mono)", fontSize: 12, color: "var(--textdim)", lineHeight: 2,
             }}>
               {status === "connected"
-                ? "Waiting for server events... Activity will appear here as things happen."
-                : "Not connected. Press Connect to start."}
+                ? "⏳ Waiting for server activity...\nEvents will appear here as they happen on the server."
+                : "Not connected — click ▶ Connect to start monitoring."}
             </div>
-          ) : (
-            visible.map((ev, i) => (
-              <div
-                key={ev.id}
-                style={{
-                  display:       "flex",
-                  alignItems:    "flex-start",
-                  gap:           14,
-                  padding:       "11px 20px",
-                  borderBottom:  "1px solid rgba(30,37,48,0.6)",
-                  background:    i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.012)",
-                  transition:    "background 0.1s",
-                }}
-              >
-                {/* Icon */}
-                <div style={{
-                  fontSize: 18,
-                  width: 28,
-                  textAlign: "center",
-                  flexShrink: 0,
-                  paddingTop: 1,
-                }}>
-                  {ev.icon}
-                </div>
-
-                {/* Message */}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{
-                    fontSize:   13,
-                    color:      ev.color,
-                    fontWeight: 500,
-                    lineHeight: 1.4,
-                  }}>
-                    {ev.message}
-                  </div>
-                </div>
-
-                {/* Right side: badge + time */}
-                <div style={{
-                  display:    "flex",
-                  flexDirection: "column",
-                  alignItems: "flex-end",
-                  gap:        4,
-                  flexShrink: 0,
-                }}>
-                  {ev.badge && (
-                    <span style={{
-                      fontFamily:    "var(--mono)",
-                      fontSize:      9,
-                      letterSpacing: 1.5,
-                      padding:       "2px 7px",
-                      borderRadius:  2,
-                      background:    ev.color + "18",
-                      border:        `1px solid ${ev.color}44`,
-                      color:         ev.color,
-                      whiteSpace:    "nowrap",
-                    }}>
-                      {ev.badge}
-                    </span>
-                  )}
-                  <span style={{
-                    fontFamily: "var(--mono)",
-                    fontSize:   10,
-                    color:      "var(--textdim)",
-                  }}>
-                    {ev.time}
-                  </span>
-                </div>
-              </div>
-            ))
           )}
-        </div>
 
-        {/* Auto-scroll nudge */}
-        {!autoScroll && (
-          <div
-            onClick={() => { setAutoScroll(true); feedRef.current?.scrollTo({ top: feedRef.current.scrollHeight, behavior: "smooth" }); }}
-            style={{
-              textAlign: "center", padding: "6px", cursor: "pointer",
-              background: "rgba(200,168,75,0.1)", borderTop: "1px solid var(--accent)",
-              fontFamily: "var(--mono)", fontSize: 10, color: "var(--accent)", letterSpacing: 1,
-            }}
-          >
-            ↓ NEW EVENTS — click to resume auto-scroll
-          </div>
-        )}
+          {visible.map(evt => (
+            <div
+              key={evt.id}
+              style={{
+                display: "flex", alignItems: "flex-start", gap: 14,
+                padding: "10px 20px", borderBottom: "1px solid rgba(30,37,48,0.5)",
+                transition: "background 0.1s",
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.015)"}
+              onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+            >
+              {/* Icon bubble */}
+              <div style={{
+                width: 34, height: 34, borderRadius: 4, flexShrink: 0,
+                background: evt.color + "18", border: `1px solid ${evt.color}44`,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 16, marginTop: 1,
+              }}>
+                {evt.icon}
+              </div>
+
+              {/* Text */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{
+                  fontSize: 13, color: "var(--text)", fontWeight: 500,
+                  marginBottom: evt.detail ? 3 : 0, lineHeight: 1.4,
+                }}>
+                  {evt.title}
+                </div>
+                {evt.detail && (
+                  <div style={{
+                    fontFamily: "var(--mono)", fontSize: 10.5, color: "var(--textdim)",
+                    lineHeight: 1.5, wordBreak: "break-word",
+                  }}>
+                    {evt.detail}
+                  </div>
+                )}
+              </div>
+
+              {/* Badge + time */}
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
+                <span style={{
+                  fontFamily: "var(--mono)", fontSize: 9, padding: "2px 7px",
+                  background: evt.color + "18", border: `1px solid ${evt.color}44`,
+                  color: evt.color, letterSpacing: 1, textTransform: "uppercase", borderRadius: 2,
+                }}>
+                  {evt.category}
+                </span>
+                <span style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)" }}>
+                  {evt.ts}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* ── Info note ── */}
       <div className="ap-note info" style={{ marginTop: 16 }}>
-        💡 This view shows a simplified summary of server events in plain English. For full technical logs, raw output, and advanced filters — use the <strong>🧟 PZ Console</strong> tab.
+        💡 This view translates raw server logs into plain English. Some harmless startup noise (AnimalPacket errors, packet handler warnings) is filtered out automatically. For the full raw output, use the <strong>🧟 PZ Console</strong> tab.
       </div>
     </div>
   );
