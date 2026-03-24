@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { API, B, Title } from "./shared";
 
 const WS_URL = API.replace(/^https/, "wss").replace(/^http/, "ws");
-const MAX_EVENTS = 300;
+const MAX_EVENTS = 10000;
 
 // ── Event translator ──────────────────────────────────────────────────────────
 // Takes a raw PZ log line (already stripped of journalctl prefix by backend)
@@ -221,6 +221,7 @@ const CATEGORIES = [
   { key: "network",  label: "🌐 Network",   color: "#4a8fc4" },
   { key: "warnings", label: "⚠️ Warnings",  color: "#c8a84b" },
   { key: "errors",   label: "💥 Errors",    color: "#e05555" },
+  { key: "session",  label: "🔄 Sessions",  color: "#9775cc" },
 ];
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -258,6 +259,43 @@ export default function ServerActivityTab() {
       try {
         const msg = JSON.parse(e.data);
         if (msg.source === "system") return;
+
+        // Session separator — special divider event
+        if (msg.event === "session_separator") {
+          addEvent({
+            category: "session",
+            icon: msg.line.includes("ENDED") || msg.line.includes("RESTART") ? "🔴" : "🟢",
+            color: msg.line.includes("ENDED") ? "#e05555" : msg.line.includes("RESTART") ? "#c8a84b" : "#4caf7d",
+            ts: new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
+            title: msg.line,
+            detail: null,
+            isSeparator: true,
+          });
+          return;
+        }
+
+        // Player list update — inject as a players event
+        if (msg.event === "player_list") {
+          const players = msg.players || [];
+          if (players.length === 0) {
+            addEvent({
+              category: "players", icon: "👥", color: "#4fc3f7",
+              ts: new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
+              title: "No players currently online",
+              detail: null,
+            });
+          } else {
+            addEvent({
+              category: "players", icon: "👥", color: "#4fc3f7",
+              ts: new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
+              title: `${players.length} player${players.length !== 1 ? "s" : ""} online`,
+              detail: players.map(p => p.display ? `${p.ingame} (${p.display})` : p.ingame).join(" · "),
+            });
+          }
+          return;
+        }
+
+        // Normal line — translate to plain English
         const evt = translateLine(msg.line || "");
         if (evt) addEvent(evt);
       } catch {}
@@ -284,8 +322,9 @@ export default function ServerActivityTab() {
     };
   }, [connect]);
 
-  // ── Filter ────────────────────────────────────────────────────────────────
+  // ── Filter — separators always visible in "all" view ─────────────────────
   const visible = events.filter(e => {
+    if (e.isSeparator) return activeCategory === "all" || activeCategory === "session";
     if (activeCategory !== "all" && e.category !== activeCategory) return false;
     if (search.trim()) return (e.title + " " + (e.detail || "")).toLowerCase().includes(search.toLowerCase());
     return true;
@@ -386,60 +425,88 @@ export default function ServerActivityTab() {
             </div>
           )}
 
-          {visible.map(evt => (
-            <div
-              key={evt.id}
-              style={{
-                display: "flex", alignItems: "flex-start", gap: 14,
-                padding: "10px 20px", borderBottom: "1px solid rgba(30,37,48,0.5)",
-                transition: "background 0.1s",
-              }}
-              onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.015)"}
-              onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-            >
-              {/* Icon bubble */}
-              <div style={{
-                width: 34, height: 34, borderRadius: 4, flexShrink: 0,
-                background: evt.color + "18", border: `1px solid ${evt.color}44`,
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 16, marginTop: 1,
-              }}>
-                {evt.icon}
-              </div>
-
-              {/* Text */}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{
-                  fontSize: 13, color: "var(--text)", fontWeight: 500,
-                  marginBottom: evt.detail ? 3 : 0, lineHeight: 1.4,
+          {visible.map(evt => {
+            // ── Session separator — full width divider ──
+            if (evt.isSeparator) {
+              return (
+                <div key={evt.id} style={{
+                  display: "flex", alignItems: "center", gap: 12,
+                  padding: "14px 20px 10px",
+                  borderTop: `1px solid ${evt.color}44`,
+                  borderBottom: `1px solid ${evt.color}44`,
+                  background: evt.color + "0a",
+                  margin: "6px 0",
                 }}>
-                  {evt.title}
-                </div>
-                {evt.detail && (
-                  <div style={{
-                    fontFamily: "var(--mono)", fontSize: 10.5, color: "var(--textdim)",
-                    lineHeight: 1.5, wordBreak: "break-word",
+                  <span style={{ fontSize: 16 }}>{evt.icon}</span>
+                  <span style={{
+                    fontFamily: "var(--mono)", fontSize: 11, letterSpacing: 2,
+                    color: evt.color, fontWeight: 700, textTransform: "uppercase", flex: 1,
                   }}>
-                    {evt.detail}
-                  </div>
-                )}
-              </div>
+                    {evt.title}
+                  </span>
+                  <span style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)" }}>
+                    {evt.ts}
+                  </span>
+                </div>
+              );
+            }
 
-              {/* Badge + time */}
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
-                <span style={{
-                  fontFamily: "var(--mono)", fontSize: 9, padding: "2px 7px",
+            // ── Normal event card ──
+            return (
+              <div
+                key={evt.id}
+                style={{
+                  display: "flex", alignItems: "flex-start", gap: 14,
+                  padding: "10px 20px", borderBottom: "1px solid rgba(30,37,48,0.5)",
+                  transition: "background 0.1s",
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.015)"}
+                onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+              >
+                {/* Icon bubble */}
+                <div style={{
+                  width: 34, height: 34, borderRadius: 4, flexShrink: 0,
                   background: evt.color + "18", border: `1px solid ${evt.color}44`,
-                  color: evt.color, letterSpacing: 1, textTransform: "uppercase", borderRadius: 2,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 16, marginTop: 1,
                 }}>
-                  {evt.category}
-                </span>
-                <span style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)" }}>
-                  {evt.ts}
-                </span>
+                  {evt.icon}
+                </div>
+
+                {/* Text */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{
+                    fontSize: 13, color: "var(--text)", fontWeight: 500,
+                    marginBottom: evt.detail ? 3 : 0, lineHeight: 1.4,
+                  }}>
+                    {evt.title}
+                  </div>
+                  {evt.detail && (
+                    <div style={{
+                      fontFamily: "var(--mono)", fontSize: 10.5, color: "var(--textdim)",
+                      lineHeight: 1.5, wordBreak: "break-word",
+                    }}>
+                      {evt.detail}
+                    </div>
+                  )}
+                </div>
+
+                {/* Badge + time */}
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
+                  <span style={{
+                    fontFamily: "var(--mono)", fontSize: 9, padding: "2px 7px",
+                    background: evt.color + "18", border: `1px solid ${evt.color}44`,
+                    color: evt.color, letterSpacing: 1, textTransform: "uppercase", borderRadius: 2,
+                  }}>
+                    {evt.category}
+                  </span>
+                  <span style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)" }}>
+                    {evt.ts}
+                  </span>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
