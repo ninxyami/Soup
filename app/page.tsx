@@ -16,19 +16,78 @@ interface ServerStatus {
 
 function LiveStatus() {
   const [status, setStatus] = useState<ServerStatus | null>(null);
+  const [loading, setLoading] = useState(true);
   useEffect(() => {
     fetch(`${API}/api/server/status`, { credentials: "include" })
       .then(r => r.ok ? r.json() : null)
-      .then(d => d && setStatus(d))
-      .catch(() => {});
+      .then(d => { d && setStatus(d); setLoading(false); })
+      .catch(() => setLoading(false));
   }, []);
+
+  if (loading) return (
+    <div className="border border-[#1a1a1a] bg-[#0a0d10] p-4 sm:p-5 max-w-[420px] mx-auto">
+      <div className="flex items-center gap-2 mb-3">
+        <span className="w-1.5 h-1.5 rounded-full bg-[#222] animate-pulse" />
+        <span className="font-mono text-[0.62rem] tracking-widest text-[#333] uppercase">Checking server…</span>
+      </div>
+    </div>
+  );
   if (!status) return null;
+
+  const pct = status.max_players > 0 ? (status.player_count / status.max_players) * 100 : 0;
+
   return (
-    <div className="inline-flex items-center gap-2 px-3 py-1 border border-[#1f1f1f] bg-[#0a0d10] font-mono text-[0.68rem] tracking-widest">
-      <span className={`w-1.5 h-1.5 rounded-full ${status.online ? "bg-[#4a7c59] shadow-[0_0_6px_#4a7c59]" : "bg-[#7c4a4a]"}`} style={{ animation: status.online ? "pulse 2s infinite" : "none" }} />
-      <span className={status.online ? "text-[#4a7c59]" : "text-[#7c4a4a]"}>
-        {status.online ? `ONLINE — ${status.player_count} SURVIVORS` : "OFFLINE"}
-      </span>
+    <div className="border border-[#1a1a1a] bg-[#0a0d10] p-4 sm:p-5 max-w-[420px] mx-auto relative overflow-hidden">
+      <div className="absolute top-0 left-0 right-0 h-px" style={{ background: status.online ? "linear-gradient(90deg, transparent, #4a7c5966, transparent)" : "linear-gradient(90deg, transparent, #7c4a4a44, transparent)" }} />
+
+      {/* Status row */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <span
+            className={`w-2 h-2 rounded-full flex-shrink-0 ${status.online ? "bg-[#4a7c59]" : "bg-[#7c4a4a]"}`}
+            style={{ boxShadow: status.online ? "0 0 8px #4a7c59" : "none", animation: status.online ? "pulse 2s infinite" : "none" }}
+          />
+          <span className={`font-mono text-[0.7rem] tracking-[0.18em] uppercase ${status.online ? "text-[#4a7c59]" : "text-[#7c4a4a]"}`}>
+            {status.online ? "Online" : "Offline"}
+          </span>
+        </div>
+        <span className="font-mono text-[0.58rem] tracking-widest text-[#333] uppercase">Live</span>
+      </div>
+
+      {/* Stats grid */}
+      {status.online ? (
+        <>
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <div className="border border-[#141414] bg-[#070a0d] p-3">
+              <p className="font-mono text-[0.55rem] tracking-widest text-[#333] uppercase mb-1">Survivors</p>
+              <p className="font-mono text-[1.1rem] text-[#e6e6e6]">{status.player_count}</p>
+              <p className="font-mono text-[0.58rem] text-[#444]">of {status.max_players} slots</p>
+            </div>
+            <div className="border border-[#141414] bg-[#070a0d] p-3">
+              <p className="font-mono text-[0.55rem] tracking-widest text-[#333] uppercase mb-1">Capacity</p>
+              <p className="font-mono text-[1.1rem] text-[#e6e6e6]">{Math.round(pct)}%</p>
+              <p className="font-mono text-[0.58rem] text-[#444]">server load</p>
+            </div>
+          </div>
+          {/* Player bar */}
+          <div className="mb-1">
+            <div className="h-1 bg-[#111] rounded-full overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-700"
+                style={{ width: `${pct}%`, background: pct > 80 ? "#e05555" : pct > 50 ? "#c8a84b" : "#4a7c59" }}
+              />
+            </div>
+          </div>
+          <p className="font-mono text-[0.55rem] text-[#2a2a2a] uppercase tracking-widest text-right">
+            {status.player_count === 0 ? "No survivors online — first one in?" : status.player_count === 1 ? "One survivor holding it together" : `${status.player_count} survivors in the field`}
+          </p>
+        </>
+      ) : (
+        <div className="border border-[#1a1a1a] p-3 bg-[#070a0d]">
+          <p className="font-mono text-[0.7rem] text-[#444]">Server is currently offline.</p>
+          <p className="font-mono text-[0.62rem] text-[#333] mt-1">Check Discord for announcements.</p>
+        </div>
+      )}
     </div>
   );
 }
@@ -123,7 +182,7 @@ export default function HomePage() {
             A long-term PVE Project Zomboid community with a custom AI, full economy engine, 
             mini-games, faction wars, and a live narrative campaign.
           </p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center items-center mb-6">
+          <div className="flex flex-col items-center mb-6">
             <LiveStatus />
           </div>
           <div className="flex gap-3 justify-center flex-wrap">

@@ -5,6 +5,7 @@ export const GUEST_LIMIT = 10;
 export const NAV_LINKS = [
   { href: "/", label: "Home" },
   { href: "/server", label: "Server" },
+  { href: "/features", label: "Features" },
   { href: "/shop", label: "Shop" },
   { href: "/marketplace", label: "Market" },
   { href: "/news", label: "Intel" },

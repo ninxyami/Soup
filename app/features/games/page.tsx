@@ -6,17 +6,18 @@ const GAMES = [
     icon: "🐺",
     name: "Werewolf",
     color: "#e05555",
-    tagline: "Social deduction. 20+ roles. AI narrated.",
+    tagline: "Social deduction. 20+ roles. Zombita narrated.",
     desc: "The flagship mini-game. A full-featured social deduction game where players are secretly assigned roles and must survive the night — or eliminate the village by day.",
     mechanics: [
       "20+ roles including Cupid, Gunner, Detective, Blacksmith, Mayor, Serial Killer",
       "Night actions handled via Discord DMs — no public reveals until morning",
-      "AI narrator (Zombita) provides flavour text for deaths, votes, and game events",
+      "Zombita narrates key events in her dry, observational voice — deaths, votes, dramatic turns",
       "Role reveal embeds, voting embeds, and live game state tracking",
       "Werewolf win earns 300 bronze from treasury + reputation events",
     ],
     rewards: "300 bronze (win) · Reputation: werewolf_win, werewolf_survived, werewolf_clutch",
     command: "/werewolf",
+    detailHref: "/features/werewolf",
   },
   {
     icon: "🧠",
@@ -38,11 +39,11 @@ const GAMES = [
     icon: "🃏",
     name: "Cards Against Humanity",
     color: "#9775cc",
-    tagline: "AI judged. GPT in character. No mercy.",
-    desc: "The classic game, fully implemented with Zombita as the judge. She reads every submission and picks her favourite — in character, via GPT, with full personality.",
+    tagline: "Zombita judges. In character. No mercy.",
+    desc: "The classic game, fully implemented with Zombita as the judge. She reads every submission and picks her favourite — in character, with full personality. It's genuinely funny.",
     mechanics: [
       "Full CAH deck with black and white cards",
-      "Zombita judges via GPT-4o-mini — she votes with her actual personality",
+      "Zombita judges every round in her own voice — she votes with her actual personality",
       "cah_zombita_approved reputation event for when she personally approves your card",
       "All games logged to cah_game_log and cah_stats tables",
       "CAH win earns 200 bronze from treasury",
@@ -152,6 +153,13 @@ export default function GamesPage() {
                       <div className="mt-3 font-mono text-[0.6rem] tracking-widest text-[#333] uppercase">
                         Command: <span style={{ color: game.color }}>{game.command}</span>
                       </div>
+                      {"detailHref" in game && (game as typeof game & { detailHref?: string }).detailHref && (
+                        <div className="mt-3">
+                          <Link href={(game as typeof game & { detailHref?: string }).detailHref!} className="font-mono text-[0.6rem] tracking-widest no-underline transition-colors uppercase" style={{ color: game.color }}>
+                            Full Details & Role List →
+                          </Link>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

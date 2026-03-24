@@ -3,11 +3,13 @@ import { useEffect, useState } from "react";
 import { API } from "@/lib/constants";
 
 const SHOPS = [
-  { id: "food",     label: "Maya's Kitchen",   npc: "Maya Chen",    role: "Food & Supplies",       icon: "🍽️", location: "Riverside Strip Mall",        portrait: "/shop/maya.png"   },
-  { id: "weapons",  label: "Viktor's Armory",   npc: "Viktor Rask",  role: "Arms & Ammunition",     icon: "⚔️", location: "Gun Store, West Point",        portrait: "/shop/viktor.png" },
-  { id: "carparts", label: "Sera's Garage",      npc: "Sera Okafor",  role: "Parts & Mechanics",     icon: "🔧", location: "Muldraugh Garage",             portrait: "/shop/sera.png"   },
-  { id: "gas",      label: "Gas Stations",       npc: "Various",      role: "Road Supplies",         icon: "⛽", location: "Scattered across the map",     portrait: null               },
-  { id: "all",      label: "Community Hub",      npc: "Lena Vasquez", role: "Everything + Vehicles", icon: "🏪", location: "Fallas Lake Community Centre", portrait: "/shop/lena.png"   },
+  { id: "food",     label: "Maya's Kitchen",    npc: "Maya Chen",    role: "Food & Supplies",       icon: "🍽️", location: "Riverside Strip Mall",        portrait: "/shop/maya.png"   },
+  { id: "weapons",  label: "Viktor's Armory",    npc: "Viktor Rask",  role: "Arms & Ammunition",     icon: "⚔️", location: "Gun Store, West Point",        portrait: "/shop/viktor.png" },
+  { id: "carparts", label: "Sera's Garage",       npc: "Sera Okafor",  role: "Parts & Mechanics",     icon: "🔧", location: "Muldraugh Garage",             portrait: "/shop/sera.png"   },
+  { id: "gas",      label: "Gas Stations",        npc: "Various",      role: "Road Supplies",         icon: "⛽", location: "Scattered across the map",     portrait: null               },
+  { id: "all",      label: "Community Hub",       npc: "Lena Vasquez", role: "Everything + Vehicles", icon: "🏪", location: "Fallas Lake Community Centre", portrait: "/shop/lena.png"   },
+  { id: "all",      label: "Eli's General Store", npc: "Eli Marsh",    role: "General Store",         icon: "🏬", location: "Rosewood — General Store",     portrait: null               },
+  { id: "medical",  label: "Dr. Voss's Clinic",   npc: "Dr. Emil Voss",role: "Medical Supplies",      icon: "🏥", location: "Medical Clinic",               portrait: null               },
 ];
 
 const TIER_COLOR: Record<string,string> = {

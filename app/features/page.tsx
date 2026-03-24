@@ -7,82 +7,71 @@ const FEATURE_SECTIONS = [
     category: "AI & Personality",
     color: "#9775cc",
     items: [
-      { href: "/zombita", icon: "🧟", title: "Zombita AI", desc: "Dual-model AI with GPT-4o-mini for direct conversation and Qwen3 8B locally for passive channel awareness. She chimes in without being asked.", tags: ["GPT-4o-mini", "Qwen3 8B", "Ollama"] },
-      { href: "/zombita", icon: "🧠", title: "4-Layer Memory", desc: "Channel buffers, user buffers, conversation history, and persistent PostgreSQL storage. She remembers what happened weeks ago.", tags: ["Memory", "PostgreSQL"] },
-      { href: "/zombita", icon: "⭐", title: "Reputation System", desc: "Daily GPT analysis of each player's behaviour. 7 reputation tiers from Outcast to Legend. She forms opinions.", tags: ["GPT Analysis", "Daily", "Season-long"] },
-      { href: "/zombita", icon: "👁️", title: "Passive Perception", desc: "4-tier scoring engine that decides when Zombita should chime in on a conversation without being @mentioned. Cooldowns, late-night mode, per-channel caps.", tags: ["Perception", "Scoring"] },
+      { href: "/zombita", icon: "🧟", title: "Zombita AI", desc: "A fully custom AI character who lives in your Discord. She holds conversations, chimes in passively without being asked, and remembers what happened weeks ago.", tags: ["Persistent Character", "Passive Listening", "Memory"] },
+      { href: "/zombita", icon: "🧠", title: "4-Layer Memory", desc: "Channel history, per-user context, conversation tracking, and long-term persistent storage. She knows who you are, what you said, and what you've done.", tags: ["Long-Term Memory", "Per-User Context"] },
+      { href: "/zombita", icon: "⭐", title: "Reputation System", desc: "Daily automated analysis of each player's behaviour across the entire server. Seven reputation tiers from Outcast to Legend. She forms real opinions — and they change.", tags: ["Daily Analysis", "7 Tiers", "Season-Long"] },
+      { href: "/zombita", icon: "👁️", title: "Passive Perception", desc: "A scoring engine that decides when Zombita should speak without being @mentioned. Cooldowns, late-night mode, and per-channel caps keep her presence deliberate.", tags: ["Perception Engine", "Cooldowns", "Context-Aware"] },
     ],
   },
   {
     category: "Economy",
     color: "#c8a84b",
     items: [
-      { href: "/features/economy", icon: "💰", title: "Three-Tier Currency", desc: "Bronze, Silver, and Gold. All internal storage in bronze. Display always shows the highest applicable denomination.", tags: ["🟤 Bronze", "⚪ Silver", "🟡 Gold"] },
-      { href: "/features/economy", icon: "🏦", title: "Treasury System", desc: "Server-wide fund with 5 health states. Source of all rewards, destination of all taxes. The economy's regulator.", tags: ["Closed Loop", "Dynamic Taxes"] },
-      { href: "/features/economy", icon: "📈", title: "Dynamic Pricing", desc: "Price = Base × Treasury Factor × Demand Factor × Wealth Factor × Recession Factor. Clamped 50%–300% of base.", tags: ["4 Factors", "Real-Time"] },
-      { href: "/features/economy", icon: "📉", title: "Recession System", desc: "Treasury-triggered or chaos event (0.3% random chance). Spikes all prices 1.4×–2.2× for 12–48 hours. Zombita announces it in character.", tags: ["1.4× – 2.2×", "12–48h"] },
-      { href: "/features/economy", icon: "🏪", title: "5 NPC Shops", desc: "Named characters — food, weapons, car parts, gas stations, community hub. Each with rotating stock and dynamic prices.", tags: ["Named NPCs", "Rotating Stock"] },
-      { href: "/features/economy", icon: "🏷️", title: "Player Marketplace", desc: "Player-to-player listings with listing tax and purchase tax flowing to treasury. List anything, buy anything.", tags: ["P2P", "Tax to Treasury"] },
-      { href: "/features/economy", icon: "🎰", title: "Lottery", desc: "1 Silver ticket. Tiered prizes from Bandages to Assault Rifles and Katanas. Weekly draw.", tags: ["1 Silver", "Katana Top Prize"] },
-      { href: "/features/economy", icon: "🚗", title: "Teleport System", desc: "Fast-travel to 7 named map locations for 5 Silver via RCON teleport. One command, instant travel.", tags: ["7 Locations", "5 Silver", "RCON"] },
+      { href: "/features/economy", icon: "💰", title: "Three-Tier Currency", desc: "Bronze, Silver, and Gold. All internal storage runs in bronze. Display always shows the highest applicable denomination — clean, readable, and lore-consistent.", tags: ["🟤 Bronze", "⚪ Silver", "🟡 Gold"] },
+      { href: "/features/economy", icon: "🏦", title: "Treasury System", desc: "Server-wide fund with five health states. Every reward draws from it. Every tax feeds it. The economy's regulator — and the trigger for recessions.", tags: ["Closed Loop", "5 Health States"] },
+      { href: "/features/economy", icon: "📈", title: "Dynamic Pricing", desc: "Prices respond in real-time to treasury health, demand, wealth distribution, and economic events. Nothing is fixed. The market breathes.", tags: ["4 Price Factors", "Real-Time"] },
+      { href: "/features/economy", icon: "📉", title: "Recession Events", desc: "Treasury-triggered or random chaos. Prices spike across the board for hours. Zombita announces it in character — and the server feels it.", tags: ["Price Spike", "12–48 Hours"] },
+      { href: "/shop", icon: "🏪", title: "NPC Shopkeepers", desc: "Named characters with personalities, rotating stock, and dynamic prices. Shop through Discord or walk up to them in-game. Same economy, two interfaces.", tags: ["Named Characters", "In-Game + Web"] },
+      { href: "/marketplace", icon: "🏷️", title: "Player Marketplace", desc: "Player-to-player listings with listing and purchase taxes flowing to the treasury. List anything. Buy anything. The economy never leaves the loop.", tags: ["P2P Trading", "Tax to Treasury"] },
+      { href: "/features/economy", icon: "🎰", title: "Lottery", desc: "One Silver per ticket. Weekly draw with tiered prizes — from basic supplies all the way up to rare and legendary weapons.", tags: ["Weekly Draw", "Tiered Prizes"] },
+      { href: "/features/economy", icon: "🚗", title: "Teleport System", desc: "Fast-travel to named map locations for 5 Silver. One command, instant teleport. Seven destinations across the map.", tags: ["7 Locations", "5 Silver"] },
     ],
   },
   {
     category: "Mini-Games",
     color: "#4a8fc4",
     items: [
-      { href: "/features/games", icon: "🐺", title: "Werewolf", desc: "Full social deduction with 20+ roles including Cupid, Gunner, Detective, Blacksmith, Mayor. DM-based night actions, AI narrator.", tags: ["20+ Roles", "AI Narrated", "DM Night Actions"] },
-      { href: "/features/games", icon: "🧠", title: "Quizarium", desc: "Speed-scored trivia with 5 categories and a global leaderboard. Fastest correct answer wins the most points.", tags: ["5 Categories", "Speed Scoring", "Leaderboard"] },
-      { href: "/features/games", icon: "🃏", title: "Cards Against Humanity", desc: "Fully custom implementation judged by Zombita via GPT in character. She votes with full personality. Rewards for cah_win and cah_zombita_approved.", tags: ["AI Judged", "GPT in Character"] },
-      { href: "/features/games", icon: "✊", title: "Rock Paper Scissors", desc: "Player vs player or vs Zombita. Optional coin bets with 5% rake going to treasury. Stats tracked across all modes.", tags: ["Coin Bets", "vs Zombita", "Stats"] },
-      { href: "/features/games", icon: "🔵", title: "Connect Four", desc: "Full 6×7 board using Discord button UI. Live board updates each turn. 60-second turn timer. Optional coin bets.", tags: ["Discord Buttons", "6×7 Board", "60s Timer"] },
+      { href: "/features/werewolf", icon: "🐺", title: "Werewolf", desc: "Full social deduction with over 20 roles — Cupid, Gunner, Detective, Blacksmith, Mayor, Serial Killer, and more. Night actions in DMs. Zombita narrates.", tags: ["20+ Roles", "DM Night Actions", "AI Narrated"] },
+      { href: "/features/games", icon: "🧠", title: "Quizarium", desc: "Speed-scored trivia across five categories. Fastest correct answer earns the most points. Global leaderboard tracks performance across the season.", tags: ["5 Categories", "Speed Scoring", "Leaderboard"] },
+      { href: "/features/games", icon: "🃏", title: "Cards Against Humanity", desc: "Zombita is the judge. She reads every submission and picks her favourite — in character, with full personality. No two rounds feel the same.", tags: ["Zombita Judges", "In Character", "Community Favourite"] },
+      { href: "/features/games", icon: "✊", title: "Rock Paper Scissors", desc: "Play vs another player or directly against Zombita. Optional coin bets with a 5% rake to the treasury. Full stats tracked all season.", tags: ["vs Zombita", "Coin Bets", "Stats"] },
+      { href: "/features/games", icon: "🔵", title: "Connect Four", desc: "A full 6×7 Connect Four board running inside Discord. Each column is a live button. The board updates in place. 60-second turn timer. Optional bets.", tags: ["Discord Buttons", "6×7 Board", "Live Board"] },
     ],
   },
   {
     category: "World Events",
     color: "#e05555",
     items: [
-      { href: "/features/events", icon: "💀", title: "Dawn of the Dead", desc: "Scheduled zombie horde events via RCON. Multiple configurable waves. Lady Dawnie lore narration. Every 13 hours by default.", tags: ["RCON Waves", "Lady Dawnie", "Every 13h"] },
-      { href: "/features/events", icon: "🗺️", title: "Treasure Hunt", desc: "Hidden cache with zombie guards. Zombita announces hints. First player to arrive and enter the claim code wins. 30-minute window.", tags: ["Claim Code", "30min Window", "Race"] },
-      { href: "/features/events", icon: "⚔️", title: "Faction Wars", desc: "Declare war with a bronze stake and a duration. Kill tracking in-game. Winning faction takes combined stakes.", tags: ["Bronze Stakes", "Kill Tracking", "Factions"] },
+      { href: "/features/dawn-of-the-dead", icon: "💀", title: "Dawn of the Dead", desc: "The flagship server event. Lady Dawnie sends her horde — multiple configurable waves of zombies spawned across the map, announced in Discord with lore narration.", tags: ["Multi-Wave Hordes", "Lady Dawnie Lore", "Configurable"] },
+      { href: "/features/treasure-hunt", icon: "🗺️", title: "Treasure Hunt", desc: "A hidden cache guarded by zombies. Zombita drops cryptic hints. Players race in-game — first to arrive and enter the claim code wins the loot.", tags: ["Claim Code Race", "Zombie Guards", "6 Hunt Types"] },
+      { href: "/features/faction-wars", icon: "⚔️", title: "Faction Wars", desc: "Factions declare war with real bronze on the line. Kill counts settle the outcome. Winning faction takes both stakes. Surrender forfeits immediately.", tags: ["Bronze Stakes", "Kill Tracking", "Faction vs Faction"] },
     ],
   },
   {
     category: "Factions",
     color: "#4caf7d",
     items: [
-      { href: "/features/events", icon: "🏴", title: "Create & Manage Factions", desc: "Any player can create a faction. Invite members, promote officers, transfer leadership. Each faction gets a private Discord channel automatically.", tags: ["Private Channel", "Leadership", "Persistent"] },
-      { href: "/features/events", icon: "🗡️", title: "Faction Wars", desc: "Leaders stake bronze, declare war for a set duration. In-game kill counts settle the outcome. Loser forfeits stake.", tags: ["Staked Bronze", "Kill Count", "Duration"] },
+      { href: "/features/faction-wars", icon: "🏴", title: "Create & Manage Factions", desc: "Any player can create a faction. Invite members, promote officers, transfer leadership. Each faction gets its own private Discord channel — automatically.", tags: ["Private Channel", "Full Leadership", "Persistent"] },
+      { href: "/features/faction-wars", icon: "🗡️", title: "Faction Wars", desc: "Stake bronze, set a duration, declare war. In-game kill counts determine the winner at the end. Loser forfeits their stake.", tags: ["Staked Bronze", "Duration Wars", "Kill Count"] },
     ],
   },
   {
     category: "Campaign",
     color: "#c47a4a",
     items: [
-      { href: "/features/campaign", icon: "📜", title: "The Cradle Trials", desc: "Episodic narrative campaign for groups of 1–4. Each act has multiple quests with in-game teleports, cipher puzzles, zombie hordes, and item rewards.", tags: ["Episodic", "Group Play", "Permanent Progress"] },
-      { href: "/features/campaign", icon: "🔐", title: "Cipher Puzzles", desc: "Act I Quest 1 uses Caesar ROT+3 cipher. Clue delivered as in-game item. Players decode and submit answers via Discord.", tags: ["Ciphers", "In-Game Items", "/answer"] },
-      { href: "/features/campaign", icon: "🗓️", title: "Scheduled Sessions", desc: "Admin schedules the group's in-game session. Bot sends quests at session time to the group's private Discord channel.", tags: ["Scheduling", "Private Channel"] },
+      { href: "/features/campaign", icon: "📜", title: "The Cradle Trials", desc: "An episodic narrative campaign for groups. Each act has quests, in-game NPC encounters, cipher puzzles, zombie hordes, and choices with permanent consequences.", tags: ["Episodic", "Group Play", "Permanent Choices"] },
+      { href: "/features/campaign", icon: "🔐", title: "Cipher Puzzles", desc: "Clues delivered as physical in-game items. Players decode and submit answers through Discord. The puzzles are real — and the stakes are narrative.", tags: ["In-Game Items", "Real Puzzles"] },
+      { href: "/features/campaign", icon: "🧍", title: "Named NPC Characters", desc: "Campaign NPCs appear in-game at real map locations with custom outfits, full dialogue scripts, and choice buttons. Some live. Some don't — your call.", tags: ["In-Game NPCs", "Choice System", "Elias"] },
     ],
   },
   {
-    category: "Server Management",
+    category: "Server & Mods",
     color: "#4a7c59",
     items: [
-      { href: "/server", icon: "🔄", title: "Safe Restart System", desc: "11-step graceful shutdown: announce → save → kick → stop → start. Admins can schedule with countdown warnings at 5m, 2m, 1m.", tags: ["11 Steps", "Scheduled", "Countdown"] },
-      { href: "/server", icon: "💬", title: "Chat Bridge", desc: "Real-time relay between in-game general chat and Discord. Watches PZ log files. URL filtering, 5-second cooldown, @ stripping.", tags: ["Real-Time", "Bidirectional", "Log Watching"] },
-      { href: "/server", icon: "🔧", title: "Mod Management", desc: "Atomic reads and writes to servertest.ini. Backup system keeps last 10 timestamped copies. Discord commands for everything.", tags: ["Atomic Write", "10 Backups", "Discord Commands"] },
-      { href: "/server", icon: "🔒", title: "Whitelist Enforcement", desc: "RCON polling every 2 minutes. 24-hour grace period. Countdown warnings. Auto-kick. Fail-open on DB outage.", tags: ["2min Poll", "24h Grace", "Fail-Open"] },
-    ],
-  },
-  {
-    category: "Web Platform",
-    color: "#4a8fc4",
-    items: [
-      { href: "/shop", icon: "🛒", title: "Web Shop", desc: "Full shop browsing and purchasing through the website. Real-time stock and prices from the API.", tags: ["Live Prices", "Real-Time Stock"] },
-      { href: "/marketplace", icon: "🏪", title: "Marketplace", desc: "Player-to-player marketplace. Browse listings, buy items, post your own listings.", tags: ["P2P", "Browser-Based"] },
-      { href: "/leaderboard", icon: "🏆", title: "Leaderboards", desc: "Six categories — coins, Quizarium, Werewolf, RPS, CAH, Connect Four. Live from the database.", tags: ["6 Categories", "Live Data"] },
-      { href: "/feed", icon: "📡", title: "Community Feed", desc: "Twitter-style posts with replies, blood drop likes, reposts, image attachments, and pinned posts.", tags: ["🩸 Blood Drops", "Images", "Replies"] },
-      { href: "/admin", icon: "⚙️", title: "Admin Panel", desc: "Full web admin panel with live WebSocket console, RCON terminal, economy controls, mod manager, and more.", tags: ["WebSocket", "RCON", "Live Console"] },
+      { href: "/server", icon: "🔄", title: "Safe Restart System", desc: "Graceful shutdown with countdown warnings. Announces in-game and in Discord. Server saves, players are warned, then it restarts cleanly.", tags: ["Scheduled Restarts", "Countdown Warnings"] },
+      { href: "/server", icon: "💬", title: "Chat Bridge", desc: "Real-time relay between in-game general chat and Discord. What you say in Discord appears in-game, and vice versa. Always connected.", tags: ["Real-Time", "Bidirectional"] },
+      { href: "/mods", icon: "📦", title: "Custom Mod Suite", desc: "Custom mods built exclusively for SoUP — in-game NPC shops, live leaderboard panel (F8), treasure hunt spawning, campaign NPCs, single-use magazines, and more.", tags: ["SoUP Exclusive", "In-Game Integration"] },
+      { href: "/server", icon: "🔒", title: "Whitelist Enforcement", desc: "Automatic whitelist checks every few minutes. Grace period for new players. Countdown warnings before auto-kick. The whitelist is the economy gateway.", tags: ["Auto-Enforced", "Grace Period"] },
     ],
   },
 ];
@@ -92,19 +81,17 @@ export default function FeaturesPage() {
     <main>
       <div className="max-w-[900px] mx-auto px-4 sm:px-6 py-12 sm:py-16">
 
-        {/* Header */}
         <div className="mb-12">
           <p className="font-mono text-[0.65rem] tracking-[0.3em] text-[#4a7c59] uppercase mb-3">{CURRENT_SEASON}</p>
           <h1 className="text-[1.8rem] sm:text-[2.5rem] tracking-[0.2em] sm:tracking-[0.25em] mb-4">FEATURES</h1>
           <p className="text-[#666] text-[0.88rem] max-w-[560px] leading-relaxed">
-            SoUP is more than a game server. Everything below is custom-built, running live. 
-            Technical admins can read the source — it&apos;s all one codebase.
+            SoUP is built from scratch. Every feature below is custom — running live, built for this community, 
+            and not available anywhere else. Explore what makes this server different.
           </p>
         </div>
 
         <div className="h-px bg-[#1a1a1a] mb-12" />
 
-        {/* Feature Sections */}
         <div className="space-y-16">
           {FEATURE_SECTIONS.map(section => (
             <section key={section.category}>
@@ -123,7 +110,8 @@ export default function FeaturesPage() {
                       <div className="flex items-start gap-3">
                         <span className="text-xl flex-shrink-0 mt-0.5">{item.icon}</span>
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-mono text-[0.75rem] tracking-[0.12em] text-[#e6e6e6] uppercase mb-1.5 group-hover:transition-colors" style={{ transitionProperty: "color", transitionDuration: "0.15s" }}
+                          <h3 className="font-mono text-[0.75rem] tracking-[0.12em] text-[#e6e6e6] uppercase mb-1.5 transition-colors duration-150 group-hover:text-inherit"
+                            style={{ color: "#e6e6e6" }}
                             onMouseEnter={e => (e.currentTarget.style.color = section.color)}
                             onMouseLeave={e => (e.currentTarget.style.color = "#e6e6e6")}
                           >{item.title}</h3>
