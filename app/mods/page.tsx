@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { API } from "@/lib/constants";
 
-interface Mod { id: number; name: string; workshop_id: string; category: string; description: string; }
+interface Mod { id: number; name: string; workshop_id: string; category: string; description: string; notes: string; }
 interface ModsData {
   links: { steam_collection_url: string; spreadsheet_url: string; philosophy: string; };
   mods: Mod[];
