@@ -135,21 +135,16 @@ function ServerInfoPanel({ toast }) {
 // ══════════════════════════════════════════════════════════════
 // MODS TAB
 // ══════════════════════════════════════════════════════════════
-const MOD_CATEGORIES = ["gameplay", "qol", "visual", "audio", "map", "performance", "other"];
 
 function ModsPanel({ toast }) {
   const [links, setLinks] = useState(null);
-  const [mods, setMods] = useState([]);
-  const [editing, setEditing] = useState(null); // null | { id, name, workshop_id, category, description, sort_order } | "new"
   const [savingLinks, setSavingLinks] = useState(false);
-  const [savingMod, setSavingMod] = useState(false);
 
   const load = useCallback(async () => {
     try {
-      const d = await fetchApi("/api/admin/content/mods");
+      const d = await fetchApi("/api/content/mods");
       setLinks(d.links);
-      setMods(d.mods || []);
-    } catch { toast("Failed to load mods", "error"); }
+    } catch { toast("Failed to load mods config", "error"); }
   }, [toast]);
 
   useEffect(() => { load(); }, [load]);
@@ -163,91 +158,25 @@ function ModsPanel({ toast }) {
     finally { setSavingLinks(false); }
   };
 
-  const saveMod = async () => {
-    if (!editing || !editing.name?.trim()) { toast("Name required", "error"); return; }
-    setSavingMod(true);
-    try {
-      await postApi("/api/admin/content/mods/mod", editing);
-      toast("Mod saved ✓", "success");
-      setEditing(null);
-      load();
-    } catch (e) { toast(e.message, "error"); }
-    finally { setSavingMod(false); }
-  };
-
-  const deleteMod = async (id) => {
-    if (!confirm("Remove this mod from the public list?")) return;
-    try {
-      await fetchApi(`/api/admin/content/mods/mod/${id}`, { method: "DELETE" });
-      toast("Mod removed", "success");
-      load();
-    } catch (e) { toast(e.message, "error"); }
-  };
-
-  const setE = (k) => (v) => setEditing(e => ({ ...e, [k]: v }));
   const setL = (k) => (v) => setLinks(l => ({ ...l, [k]: v }));
 
   return (
     <div>
       <Title>Mods Page</Title>
-
-      {SC("Links")}
+      <p style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)", marginBottom: 20 }}>
+        The mod list is pulled automatically from the <strong style={{ color: "var(--text)" }}>Mods &amp; Maps</strong> tab
+        (Server Config → Mods &amp; Maps). Any mod marked <strong style={{ color: "var(--green)" }}>active</strong> there
+        will appear on the public mods page automatically — no extra work needed here.
+      </p>
+      {SC("External Links & Philosophy")}
       {links ? (
         <>
           <Field name="Steam Workshop Collection URL" value={links.steam_collection_url} onChange={setL("steam_collection_url")} />
           <Field name="Spreadsheet URL" value={links.spreadsheet_url} onChange={setL("spreadsheet_url")} />
-          <Field name="Philosophy Text" value={links.philosophy} onChange={setL("philosophy")} multiline rows={3} />
-          <B c="primary" onClick={saveLinks} disabled={savingLinks}>{savingLinks ? "Saving…" : "Save Links"}</B>
+          <Field name="Philosophy Text (shown at top of mods page)" value={links.philosophy} onChange={setL("philosophy")} multiline rows={3} />
+          <B c="primary" onClick={saveLinks} disabled={savingLinks}>{savingLinks ? "Saving…" : "Save"}</B>
         </>
       ) : <Load />}
-
-      <div style={{ height: 24 }} />
-      {SC("Mod List")}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-        <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)" }}>{mods.length} mods</span>
-        <B c="success" sm onClick={() => setEditing({ name: "", workshop_id: "", category: "gameplay", description: "", sort_order: 0, enabled: true })}>+ Add Mod</B>
-      </div>
-
-      {editing && (
-        <div style={{ border: "1px solid var(--accent)", background: "var(--surface)", padding: 16, marginBottom: 16 }}>
-          <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--accent)", letterSpacing: 2, textTransform: "uppercase", marginBottom: 12 }}>
-            {editing.id ? "Edit Mod" : "New Mod"}
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <Field name="Mod Name *" value={editing.name} onChange={setE("name")} />
-            <Field name="Workshop ID (numbers only)" value={editing.workshop_id} onChange={setE("workshop_id")} placeholder="e.g. 2392709985" />
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <div style={{ marginBottom: 12 }}>
-              {label("Category")}
-              <select value={editing.category} onChange={e => setE("category")(e.target.value)} style={{ ...inp }}>
-                {MOD_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </div>
-            <Field name="Sort Order (lower = first)" value={String(editing.sort_order || 0)} onChange={v => setE("sort_order")(parseInt(v) || 0)} />
-          </div>
-          <Field name="Description (optional)" value={editing.description} onChange={setE("description")} multiline rows={2} placeholder="Brief description shown on the page" />
-          <div style={{ display: "flex", gap: 8 }}>
-            <B c="primary" onClick={saveMod} disabled={savingMod}>{savingMod ? "Saving…" : "Save Mod"}</B>
-            <B c="ghost" onClick={() => setEditing(null)}>Cancel</B>
-          </div>
-        </div>
-      )}
-
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        {mods.map(m => (
-          <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", border: "1px solid var(--border)", background: "var(--surface)" }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <span style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--text)" }}>{m.name}</span>
-              {m.workshop_id && <span style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--textdim)", marginLeft: 8 }}>#{m.workshop_id}</span>}
-              <span style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--textdim)", marginLeft: 8 }}>[{m.category}]</span>
-            </div>
-            <B c="ghost" sm onClick={() => setEditing({ ...m })}>Edit</B>
-            <B c="danger" sm onClick={() => deleteMod(m.id)}>✕</B>
-          </div>
-        ))}
-        {mods.length === 0 && <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)", padding: "16px 0" }}>No mods added yet.</div>}
-      </div>
     </div>
   );
 }

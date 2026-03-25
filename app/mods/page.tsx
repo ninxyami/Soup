@@ -130,9 +130,9 @@ export default function ModsPage() {
                         </a>
                       )}
                     </div>
-                    {mod.description && (
-                      <p className="text-[0.72rem] text-[#444] mt-0.5 leading-relaxed">{mod.description}</p>
-                    )}
+                    {mod.description || mod.notes ? (
+                      <p className="text-[0.72rem] text-[#444] mt-0.5 leading-relaxed">{mod.description || mod.notes}</p>
+                    ) : null}
                   </div>
                   <span className="font-mono text-[0.55rem] tracking-widest uppercase flex-shrink-0 mt-0.5" style={{ color: catInfo.color }}>
                     {catInfo.label}
