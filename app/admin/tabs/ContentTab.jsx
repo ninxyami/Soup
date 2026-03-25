@@ -1,7 +1,7 @@
 "use client";
 // @ts-nocheck
 import { useState, useEffect, useCallback } from "react";
-import { fetchApi, postApi, B, Load, SC, Title, TW } from "./shared";
+import { fetchApi, postApi, B, Load, SC, Title, TW, API } from "./shared";
 
 // ── Shared field style helpers ──────────────────────────────────────────────
 const inp = {
@@ -22,9 +22,56 @@ const Field = ({ name, value, onChange, multiline, rows = 3, placeholder = "" })
   </div>
 );
 
+// ── Image upload component ───────────────────────────────────────────────────
+function ImageUpload({ value, onChange, toast }) {
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useState(null);
 
-// ══════════════════════════════════════════════════════════════
-// SERVER INFO TAB
+  const upload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const r = await fetch(`${API}/api/admin/content/upload-image`, {
+        method: "POST", credentials: "include", body: form,
+      });
+      if (!r.ok) { const err = await r.json().catch(() => ({})); throw new Error(err.detail || "Upload failed"); }
+      const d = await r.json();
+      onChange(d.url);
+      toast("Image uploaded ✓", "success");
+    } catch (err) { toast(err.message, "error"); }
+    finally { setUploading(false); e.target.value = ""; }
+  };
+
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--textdim)", letterSpacing: 2, textTransform: "uppercase", marginBottom: 4 }}>Season Image</div>
+      <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
+        <label style={{
+          fontFamily: "var(--mono)", fontSize: 11, letterSpacing: 1, textTransform: "uppercase",
+          padding: "6px 14px", cursor: uploading ? "wait" : "pointer",
+          border: "1px solid var(--border)", color: uploading ? "var(--textdim)" : "var(--text)",
+          background: "var(--surface)", display: "inline-block", whiteSpace: "nowrap",
+        }}>
+          {uploading ? "Uploading…" : "📁 Upload Image"}
+          <input type="file" accept="image/jpeg,image/png,image/gif,image/webp"
+            onChange={upload} style={{ display: "none" }} disabled={uploading} />
+        </label>
+        <span style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--textdim)" }}>or paste a URL below</span>
+      </div>
+      <input value={value || ""} onChange={e => onChange(e.target.value)}
+        placeholder="/assets/season.png or https://..." style={{ ...inp }} />
+      {value && (
+        <div style={{ marginTop: 8 }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={value} alt="preview" style={{ maxHeight: 120, maxWidth: "100%", border: "1px solid var(--border)", opacity: 0.85 }} />
+        </div>
+      )}
+    </div>
+  );
+}
 // ══════════════════════════════════════════════════════════════
 function ServerInfoPanel({ toast }) {
   const [data, setData] = useState(null);
@@ -257,14 +304,7 @@ function SeasonPanel({ toast }) {
       {SC("Description")}
       <Field name="Season Description (shown below image)" value={data.description} onChange={set("description")} multiline rows={4} placeholder="A couple sentences about this season's theme, lore, or what's new." />
       {SC("Image")}
-      <Field name="Image URL (can be /assets/season.png or a full URL)" value={data.image_url} onChange={set("image_url")} />
-      {data.image_url && (
-        <div style={{ marginBottom: 16 }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={data.image_url} alt="preview" style={{ maxHeight: 120, maxWidth: "100%", border: "1px solid var(--border)", opacity: 0.8 }} />
-          <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--textdim)", marginTop: 4 }}>Image preview</div>
-        </div>
-      )}
+      <ImageUpload value={data.image_url} onChange={set("image_url")} toast={toast} />
       {SC("Other Details")}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <Field name="Map" value={data.map} onChange={set("map")} />
@@ -413,7 +453,7 @@ function ArchivePanel({ toast }) {
             <Field name="Sort Order" value={String(editing.sort_order || 0)} onChange={v => setE("sort_order")(parseInt(v) || 0)} />
           </div>
           <Field name="Description" value={editing.description} onChange={setE("description")} multiline rows={3} />
-          <Field name="Image URL" value={editing.image_url} onChange={setE("image_url")} placeholder="/assets/dawnpocalypse.png" />
+          <ImageUpload value={editing.image_url} onChange={setE("image_url")} toast={toast} />
           {SC("Standout Stats (up to 5)")}
           {(editing.standouts || []).map((s, i) => (
             <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 6 }}>

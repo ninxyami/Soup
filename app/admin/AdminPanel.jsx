@@ -48,9 +48,6 @@ const NAV_SECTIONS = [
   { label: "CONTENT", items: [
     { key: "content", icon: "📝", label: "Page Content" },
   ]},
-  { label: "CONTENT", items: [
-    { key: "content", icon: "📝", label: "Page Content" },
-  ]},
   { label: "PLANNER", items: [
     { key: "pl_board",     icon: "📋", label: "Task Board" },
     { key: "pl_timeline",  icon: "📅", label: "Season Timeline" },
