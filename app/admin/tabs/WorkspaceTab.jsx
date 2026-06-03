@@ -28,6 +28,24 @@ const CollabEditor = dynamic(() => import("@/components/CollabEditor"), {
   ),
 });
 
+// Collaborative raw-config editor (servertest.ini / SandboxVars.lua). Client-only.
+const ConfigEditor = dynamic(() => import("@/components/ConfigEditor"), {
+  ssr: false,
+  loading: () => (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "60vh" }}>
+      <span style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--textdim)", letterSpacing: 2, animation: "ap-blink 1.2s infinite" }}>
+        LOADING EDITOR…
+      </span>
+    </div>
+  ),
+});
+
+// Whitelisted config files the workspace editor can open (mirrors backend EDITABLE_FILES).
+const CONFIG_FILES = [
+  { key: "servertest.ini",              label: "servertest.ini",      icon: "⚙" },
+  { key: "servertest_SandboxVars.lua",  label: "SandboxVars.lua",     icon: "🧬" },
+];
+
 const PROJECT_KINDS = [
   { id: "game",      label: "Game",      icon: "🎮" },
   { id: "donations", label: "Donations", icon: "💖" },
@@ -50,6 +68,7 @@ export default function WorkspaceTab({ toast }) {
   const [docsByProject, setDocsByProject] = useState({}); // pid -> [docs]
   const [expanded, setExpanded] = useState({});           // pid -> bool
   const [activeDoc, setActiveDoc] = useState(null);       // {id, title, project_id}
+  const [activeConfig, setActiveConfig] = useState(null); // {key,label} or null
   const [loading, setLoading] = useState(true);
 
   // modals
@@ -148,6 +167,36 @@ export default function WorkspaceTab({ toast }) {
       }}>
         {/* ── LEFT RAIL ── */}
         <div style={{ borderRight: "1px solid var(--border)", display: "flex", flexDirection: "column", minHeight: 0 }}>
+          {/* SERVER CONFIG — live co-edit of the raw ini / sandbox files */}
+          <div style={{ borderBottom: "1px solid var(--border)" }}>
+            <div style={{ padding: "12px 14px 8px" }}>
+              <span style={{ fontFamily: "var(--mono)", fontSize: 10, letterSpacing: 2, color: "var(--textdim)", textTransform: "uppercase" }}>
+                Server Config
+              </span>
+            </div>
+            <div style={{ paddingBottom: 6 }}>
+              {CONFIG_FILES.map((f) => {
+                const active = activeConfig?.key === f.key;
+                return (
+                  <div
+                    key={f.key}
+                    onClick={() => { setActiveConfig(f); setActiveDoc(null); }}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 8, padding: "7px 14px",
+                      cursor: "pointer", fontFamily: "var(--mono)", fontSize: 12,
+                      color: active ? "var(--accent)" : "var(--textdim)",
+                      background: active ? "rgba(200,168,75,0.06)" : "transparent",
+                      borderLeft: `2px solid ${active ? "var(--accent)" : "transparent"}`,
+                    }}
+                  >
+                    <span style={{ fontSize: 12 }}>{f.icon}</span>
+                    <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.label}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
           <div style={{
             padding: "12px 14px", borderBottom: "1px solid var(--border)",
             display: "flex", alignItems: "center", gap: 8,
@@ -201,7 +250,7 @@ export default function WorkspaceTab({ toast }) {
                           return (
                             <div
                               key={doc.id}
-                              onClick={() => setActiveDoc({ id: doc.id, title: doc.title, project_id: p.id })}
+                              onClick={() => { setActiveDoc({ id: doc.id, title: doc.title, project_id: p.id }); setActiveConfig(null); }}
                               style={{
                                 display: "flex", alignItems: "center", gap: 8, padding: "6px 14px 6px 34px",
                                 cursor: "pointer", fontFamily: "var(--body)", fontSize: 12.5,
@@ -233,7 +282,9 @@ export default function WorkspaceTab({ toast }) {
 
         {/* ── EDITOR PANE ── */}
         <div style={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
-          {activeDoc && me ? (
+          {activeConfig && me ? (
+            <ConfigEditor fileKey={activeConfig.key} fileLabel={activeConfig.label} me={me} />
+          ) : activeDoc && me ? (
             <>
               <div style={{ padding: "12px 20px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 10 }}>
                 <span style={{ fontFamily: "var(--display)", fontSize: 22, letterSpacing: 1.5, color: "var(--text)" }}>
@@ -251,8 +302,8 @@ export default function WorkspaceTab({ toast }) {
               </div>
               <div style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--textdim)", letterSpacing: 1, lineHeight: 1.8, maxWidth: 360 }}>
                 {projects.length === 0
-                  ? "Create a project on the left, add a document, and start planning together — live."
-                  : "Pick a document from the left to open it, or create a new one."}
+                  ? "Open a config file or create a project on the left, add a document, and start planning together — live."
+                  : "Pick a document or a config file from the left to open it."}
               </div>
             </div>
           )}
