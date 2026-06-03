@@ -50,6 +50,18 @@ export function RealtimeProvider({ enabled = true, onToast, children }) {
     return () => { subsRef.current.delete(id); };
   }, []);
 
+  // Expose a STABLE context object. If we spread {connected, subscribe} fresh
+  // each render, `ctx` changes identity every render → every useLiveRefresh
+  // effect (dep [ctx]) tears down and re-subscribes, cancelling its pending
+  // debounce timer before it can fire. So we keep ONE stable object and mutate
+  // its `connected` field in place.
+  const ctxRef = useRef(null);
+  if (ctxRef.current === null) {
+    ctxRef.current = { connected, subscribe };
+  }
+  ctxRef.current.connected = connected;
+  ctxRef.current.subscribe = subscribe;
+
   // Resolve a subscriber's current scope Set (supports a plain value, array,
   // Set, null=all, or a live matcher object exposing a `scopes` getter).
   const resolveScopes = (x) => {
@@ -113,7 +125,7 @@ export function RealtimeProvider({ enabled = true, onToast, children }) {
   }, [enabled]); // only re-run when enabled flips; onToast is reffed
 
   return (
-    <RealtimeContext.Provider value={{ connected, subscribe }}>
+    <RealtimeContext.Provider value={ctxRef.current}>
       {children}
     </RealtimeContext.Provider>
   );
@@ -157,8 +169,10 @@ export function useLiveRefresh(scope, reloadFn, opts = {}) {
         } catch (e) { if (debug) console.log("[useLiveRefresh] reload err", e); }
       }, debounceMs);
     });
-    return () => { clearTimeout(timerRef.current); unsub(); };
-    // Intentionally depends ONLY on ctx — subscribe once, live-read scope via ref.
+    return () => { unsub(); };
+    // Depends ONLY on ctx (now a stable object) — subscribe once, live-read
+    // scope via ref. We do NOT clear the pending timer here, so a queued reload
+    // still fires even if this effect re-runs.
   }, [ctx]); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
