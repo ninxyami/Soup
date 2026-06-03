@@ -37,12 +37,22 @@ export function RealtimeProvider({ enabled = true, onToast, children }) {
   const subsRef = useRef(new Map());
   const subIdRef = useRef(0);
 
-  const subscribe = useCallback((scopes, cb) => {
+  const subscribe = useCallback((scopesOrMatcher, cb) => {
     const id = ++subIdRef.current;
-    const scopeSet = scopes == null ? null : new Set(Array.isArray(scopes) ? scopes : [scopes]);
-    subsRef.current.set(id, { scopes: scopeSet, cb });
+    subsRef.current.set(id, { scopesOrMatcher, cb });
     return () => { subsRef.current.delete(id); };
   }, []);
+
+  // Resolve a subscriber's current scope Set (supports a plain value, array,
+  // Set, null=all, or a live matcher object exposing a `scopes` getter).
+  const resolveScopes = (x) => {
+    if (x == null) return null;
+    if (x && typeof x === "object" && !(x instanceof Set) && !Array.isArray(x) && "scopes" in x) {
+      return x.scopes; // live matcher getter → Set|null
+    }
+    if (x instanceof Set) return x;
+    return new Set(Array.isArray(x) ? x : [x]);
+  };
 
   useEffect(() => {
     if (!enabled) return;
@@ -72,7 +82,8 @@ export function RealtimeProvider({ enabled = true, onToast, children }) {
         }
 
         // Fan out to subscribers whose scope matches (or who listen to all)
-        for (const { scopes, cb } of subsRef.current.values()) {
+        for (const { scopesOrMatcher, cb } of subsRef.current.values()) {
+          const scopes = resolveScopes(scopesOrMatcher);
           if (scopes == null || (scope && scopes.has(scope))) {
             try { cb(msg); } catch {}
           }
@@ -107,21 +118,37 @@ export function RealtimeProvider({ enabled = true, onToast, children }) {
 // opts.debounceMs: coalesce bursts of changes (default 250ms)
 export function useLiveRefresh(scope, reloadFn, opts = {}) {
   const ctx = useContext(RealtimeContext);
-  const { debounceMs = 250 } = opts;
+  const { debounceMs = 250, debug = false } = opts;
   const timerRef = useRef(null);
   const fnRef = useRef(reloadFn);
-  fnRef.current = reloadFn;
+  fnRef.current = reloadFn;            // always points at the latest loader
+
+  // Keep scope in a ref so the subscription effect NEVER needs to re-run when
+  // the parent re-renders (which is what was tearing the subscription down
+  // after the first refresh). Subscribe exactly once per mount.
+  const scopeRef = useRef(scope);
+  scopeRef.current = scope;
 
   useEffect(() => {
-    if (!ctx) return; // not inside a provider — no-op, tab still works via its own useEffect
-    const unsub = ctx.subscribe(scope, () => {
+    if (!ctx) return;
+    // Subscribe with a scope-matcher that reads the ref live, so we can pass a
+    // stable () => {} and never resubscribe on re-render.
+    const matcher = {
+      get scopes() {
+        const s = scopeRef.current;
+        return s == null ? null : new Set(Array.isArray(s) ? s : [s]);
+      },
+    };
+    const unsub = ctx.subscribe(matcher, (msg) => {
+      if (debug) console.log("[useLiveRefresh] fire for scope", scopeRef.current, msg);
       clearTimeout(timerRef.current);
       timerRef.current = setTimeout(() => {
-        try { fnRef.current?.(); } catch {}
+        try { fnRef.current?.(); } catch (e) { if (debug) console.log("[useLiveRefresh] reload err", e); }
       }, debounceMs);
     });
     return () => { clearTimeout(timerRef.current); unsub(); };
-  }, [ctx, JSON.stringify(scope), debounceMs]);
+    // Intentionally depends ONLY on ctx — subscribe once, live-read scope via ref.
+  }, [ctx]); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
 // ── Connection status, for a header indicator ──

@@ -72,7 +72,7 @@ export default function ShopTab({ toast }) {
 
   useEffect(() => { loadItems(); }, [loadItems]);
   // P1: live refresh shop data in place when any admin changes the shop
-  useLiveRefresh("shop", loadItems);
+  useLiveRefresh("shop", loadItems, { debug: true });
 
   const loadLog = useCallback(async () => {
     try { setRestockLog((await fetchApi("/api/admin/shop/restock-log")).log || []); } catch {}
