@@ -32,7 +32,9 @@ const RealtimeContext = createContext(null);
 // ── Provider: owns the single WebSocket, fans events out to subscribers ──
 export function RealtimeProvider({ enabled = true, onToast, children }) {
   const [connected, setConnected] = useState(false);
+  const [flashes, setFlashes] = useState([]); // recent change pings for the overlay
   const wsRef = useRef(null);
+  const flashIdRef = useRef(0);
   // subscribers: Map<id, { scopesOrMatcher, cb }>
   const subsRef = useRef(new Map());
   const subIdRef = useRef(0);
@@ -94,10 +96,29 @@ export function RealtimeProvider({ enabled = true, onToast, children }) {
 
         const scope = msg.scope || msg.data?.scope || null;
 
+        // Feature 1: push a brief "change ping" to the live-flash overlay so
+        // everyone sees, in real time, who changed what and where.
+        const actorName = msg.actor_name || msg.data?.actor_name;
+        const actorId = msg.actor_id || msg.data?.actor_id;
+        if (scope) {
+          const id = ++flashIdRef.current;
+          const ping = {
+            id, scope, actorId, actorName,
+            action: msg.action || msg.data?.action || null,
+            desc: msg.description || msg.data?.description || null,
+            at: Date.now(),
+          };
+          setFlashes((prev) => [...prev.slice(-4), ping]); // keep last 5
+          // auto-expire this ping after 4s
+          setTimeout(() => {
+            setFlashes((prev) => prev.filter((f) => f.id !== id));
+          }, 4000);
+        }
+
         // Optional toast for human-readable changes (kept from old behavior)
         const desc = msg.description || msg.data?.description;
         if (desc && onToastRef.current) {
-          onToastRef.current(desc, msg.actor_name || msg.data?.actor_name, msg.actor_id || msg.data?.actor_id);
+          onToastRef.current(desc, actorName, actorId);
         }
 
         // Fan out to subscribers whose scope matches (or who listen to all)
@@ -127,8 +148,70 @@ export function RealtimeProvider({ enabled = true, onToast, children }) {
   return (
     <RealtimeContext.Provider value={ctxRef.current}>
       {children}
+      <LiveFlash flashes={flashes} />
     </RealtimeContext.Provider>
   );
+}
+
+// ── Feature 1: live change-flash overlay ──
+// A small stack of fading pings in the corner: actor-colored dot + "Dawnie
+// changed shop". Inherited by the whole panel — no per-tab work needed.
+const FLASH_ADMINS = {
+  228533264174940160: { name: "Nin Nin",   color: "#c8a84b" },
+  698164264950693950: { name: "Nikki",     color: "#4a8fc4" },
+  925854911378370600: { name: "Dawnie",    color: "#9775cc" },
+  805074936807948298: { name: "Sheo",      color: "#4caf7d" },
+  733259839429410847: { name: "Sunday",    color: "#d4873a" },
+  1076244823121612850:{ name: "Queen Sheo",color: "#e05555" },
+};
+
+const SCOPE_LABEL = {
+  shop: "shop", treasury: "treasury", economy: "economy", mods: "mods",
+  server_config: "server config", players: "players", reputation: "reputation",
+  content: "content", marketplace: "marketplace", dotd: "DOTD", hunt: "treasure hunt",
+};
+
+function LiveFlash({ flashes }) {
+  if (!flashes || flashes.length === 0) return null;
+  return (
+    <>
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes lf-in { from { opacity:0; transform:translateX(20px); } to { opacity:1; transform:translateX(0);} }
+        @keyframes lf-pulse { 0%,100%{ box-shadow:0 0 0 0 var(--lf-c);} 50%{ box-shadow:0 0 8px 1px var(--lf-c);} }
+        .lf-wrap{position:fixed;right:18px;bottom:18px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none;}
+        .lf-item{display:flex;align-items:center;gap:9px;background:rgba(14,14,14,0.94);border:1px solid var(--lf-c);border-left:3px solid var(--lf-c);
+          padding:8px 13px;border-radius:3px;font-family:var(--mono,monospace);font-size:11.5px;color:#d8d8df;
+          animation:lf-in .25s ease-out;backdrop-filter:blur(4px);max-width:300px;}
+        .lf-dot{width:8px;height:8px;border-radius:50%;background:var(--lf-c);flex-shrink:0;--lf-c-inner:var(--lf-c);animation:lf-pulse 1.6s infinite;}
+        .lf-name{color:var(--lf-c);font-weight:600;}
+      `}} />
+      <div className="lf-wrap">
+        {flashes.map((f) => {
+          const info = FLASH_ADMINS[f.actorId] || { name: f.actorName || "Someone", color: "#c8a84b" };
+          const label = SCOPE_LABEL[f.scope] || f.scope;
+          return (
+            <div key={f.id} className="lf-item" style={{ "--lf-c": info.color }}>
+              <span className="lf-dot" />
+              <span>
+                <span className="lf-name">{info.name}</span>
+                {f.desc ? ` ${stripName(f.desc, info.name)}` : ` changed ${label}`}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
+// If a description already starts with the actor name, avoid "Dawnie Dawnie ...".
+function stripName(desc, name) {
+  if (!desc) return "";
+  const d = desc.trim();
+  if (name && d.toLowerCase().startsWith(name.toLowerCase())) {
+    return d.slice(name.length).trim();
+  }
+  return d;
 }
 
 // ── Hook a tab uses to refresh-in-place when its scope changes ──
