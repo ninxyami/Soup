@@ -22,6 +22,10 @@ import StarterKit from "@tiptap/starter-kit";
 import Collaboration from "@tiptap/extension-collaboration";
 import CollaborationCursor from "@tiptap/extension-collaboration-cursor";
 import Placeholder from "@tiptap/extension-placeholder";
+import Table from "@tiptap/extension-table";
+import TableRow from "@tiptap/extension-table-row";
+import TableHeader from "@tiptap/extension-table-header";
+import TableCell from "@tiptap/extension-table-cell";
 
 const WS_BASE = "wss://api.stateofundeadpurge.site:8443/ws/workspace";
 
@@ -51,6 +55,42 @@ const EDITOR_CSS = `
 .ws-surface .ProseMirror pre code{background:none;border:none;padding:0;color:var(--text)}
 .ws-surface .ProseMirror hr{border:none;border-top:1px solid var(--border);margin:1.6em 0}
 .ws-surface .ProseMirror strong{color:#e3e7ee}
+/* P4.1 collaborative tables — SOUP tokens */
+.ws-surface .ProseMirror .tableWrapper{overflow-x:auto;margin:1.1em 0;padding:2px}
+.ws-surface .ProseMirror table.ws-table{
+  border-collapse:collapse; table-layout:fixed; width:100%;
+  font-family:var(--body); font-size:14px; margin:0;
+  border:1px solid var(--border); background:var(--surface);
+}
+.ws-surface .ProseMirror table.ws-table td,
+.ws-surface .ProseMirror table.ws-table th{
+  border:1px solid var(--border); padding:7px 10px; vertical-align:top;
+  position:relative; min-width:60px; box-sizing:border-box; color:var(--text);
+}
+.ws-surface .ProseMirror table.ws-table th{
+  background:rgba(0,0,0,0.28); font-family:var(--mono); font-weight:400;
+  font-size:11px; letter-spacing:1.5px; text-transform:uppercase;
+  color:var(--accent); text-align:left;
+}
+.ws-surface .ProseMirror table.ws-table td > *,
+.ws-surface .ProseMirror table.ws-table th > *{margin:0}
+.ws-surface .ProseMirror table.ws-table p{line-height:1.5}
+/* row striping for readability */
+.ws-surface .ProseMirror table.ws-table tr:nth-child(even) td{background:rgba(255,255,255,0.015)}
+/* selected cell(s) — the gold selection overlay */
+.ws-surface .ProseMirror table.ws-table .selectedCell:after{
+  content:""; position:absolute; inset:0; pointer-events:none; z-index:2;
+  background:rgba(200,168,75,0.16);
+}
+.ws-surface .ProseMirror table.ws-table .selectedCell{border-color:var(--accent)}
+/* column resize handle */
+.ws-surface .ProseMirror table.ws-table .column-resize-handle{
+  position:absolute; right:-2px; top:0; bottom:-1px; width:4px; z-index:20;
+  background:var(--accent); pointer-events:none;
+}
+.ws-surface .ProseMirror.resize-cursor{cursor:col-resize}
+.ws-surface .ProseMirror table.ws-table .grip-column,
+.ws-surface .ProseMirror table.ws-table .grip-row{background:transparent}
 /* placeholder */
 .ws-surface .ProseMirror p.is-editor-empty:first-child::before{
   content:attr(data-placeholder); color:var(--muted); font-family:var(--mono);
@@ -151,6 +191,18 @@ export default function CollabEditor({ docId, docTitle, me }) {
           provider,
           user: { name: me.name, color: me.color },
         }),
+        // P4.1 — collaborative tables. These are plain ProseMirror nodes, so
+        // Yjs merges them through the SAME relay with no backend change. A
+        // table is just doc content the relay already persists.
+        Table.configure({
+          resizable: true,
+          lastColumnResizable: true,
+          allowTableNodeSelection: true,
+          HTMLAttributes: { class: "ws-table" },
+        }),
+        TableRow,
+        TableHeader,
+        TableCell,
       ],
       onTransaction: () => forceTick((n) => n + 1),
       onUpdate: () => { setSaved(false); scheduleSavedFlag(); },
@@ -181,6 +233,7 @@ export default function CollabEditor({ docId, docTitle, me }) {
   const ed = editorRef.current;
   const can = (fn) => !!ed && fn();
   const run = useCallback((fn) => { if (ed) fn(ed.chain().focus()); }, [ed]);
+  const inTable = !!ed && ed.isActive("table");
 
   const statusMeta = {
     connecting: { label: "Connecting", color: "var(--orange)", dot: "var(--orange)" },
@@ -255,6 +308,24 @@ export default function CollabEditor({ docId, docTitle, me }) {
         <TBtn title="Quote"        active={can(() => ed.isActive("blockquote"))}  onClick={() => run((c) => c.toggleBlockquote().run())}>"</TBtn>
         <TBtn title="Code block"   active={can(() => ed.isActive("codeBlock"))}   onClick={() => run((c) => c.toggleCodeBlock().run())}>{ }</TBtn>
         <TBtn title="Divider"      onClick={() => run((c) => c.setHorizontalRule().run())}>—</TBtn>
+        <Div />
+        {/* P4.1 — table operations. Insert is always available; the rest only
+            light up when the cursor is inside a table. */}
+        <TBtn
+          title="Insert table"
+          onClick={() => run((c) => c.insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run())}
+        >▦</TBtn>
+        {inTable && (
+          <>
+            <TBtn title="Add column"      onClick={() => run((c) => c.addColumnAfter().run())}>+col</TBtn>
+            <TBtn title="Delete column"   onClick={() => run((c) => c.deleteColumn().run())}>−col</TBtn>
+            <TBtn title="Add row"         onClick={() => run((c) => c.addRowAfter().run())}>+row</TBtn>
+            <TBtn title="Delete row"      onClick={() => run((c) => c.deleteRow().run())}>−row</TBtn>
+            <TBtn title="Toggle header row" onClick={() => run((c) => c.toggleHeaderRow().run())}>H↔</TBtn>
+            <TBtn title="Merge / split cells" onClick={() => run((c) => c.mergeOrSplit().run())}>⊟</TBtn>
+            <TBtn title="Delete table"    onClick={() => run((c) => c.deleteTable().run())}>✕▦</TBtn>
+          </>
+        )}
       </div>
 
       {/* the editor surface */}
