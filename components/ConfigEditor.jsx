@@ -76,6 +76,12 @@ export default function ConfigEditor({ fileKey, fileLabel, me }) {
   const [validateMsg, setValidateMsg] = useState(null); // {ok, text}
   const [diskInfo, setDiskInfo] = useState(null);        // {synced, last_panel_write}
 
+  // history panel
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [history, setHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [viewing, setViewing] = useState(null);          // {filename, text, created_at} | null
+
   // ── mount the collaborative editor + seed from disk ──
   useEffect(() => {
     if (!fileKey || !holderRef.current || !me) return;
@@ -234,6 +240,38 @@ export default function ConfigEditor({ fileKey, fileLabel, me }) {
     }
   }, [fileKey]);
 
+  // ── history: who changed what, when ──
+  const loadHistory = useCallback(async () => {
+    setHistoryLoading(true);
+    try {
+      const r = await fetch(`${API}/api/admin/config/history?file=${encodeURIComponent(fileKey)}&limit=80`, { credentials: "include" });
+      const d = await r.json();
+      setHistory(d.history || []);
+    } catch {
+      setHistory([]);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, [fileKey]);
+
+  const openHistory = useCallback(() => {
+    setHistoryOpen(true);
+    setViewing(null);
+    loadHistory();
+  }, [loadHistory]);
+
+  const viewBackup = useCallback(async (filename) => {
+    if (!filename) return;
+    setViewing({ filename, text: "Loading…", created_at: null });
+    try {
+      const r = await fetch(`${API}/api/admin/config/backup-content?filename=${encodeURIComponent(filename)}`, { credentials: "include" });
+      const d = await r.json();
+      setViewing({ filename, text: d.text || "", created_at: d.created_at });
+    } catch (e) {
+      setViewing({ filename, text: `Could not load backup: ${e.message}`, created_at: null });
+    }
+  }, []);
+
   const statusMeta = {
     connecting: { label: "Connecting", color: "var(--orange)", dot: "var(--orange)" },
     connected:  { label: "Live",       color: "var(--green)",  dot: "var(--green)"  },
@@ -295,6 +333,8 @@ export default function ConfigEditor({ fileKey, fileLabel, me }) {
 
         {/* action group — fixed, always visible, never wraps off-screen */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+          <button onClick={openHistory} disabled={loadingFile}
+            style={btnStyle("ghost", loadingFile)}>History</button>
           <button onClick={doValidate} disabled={loadingFile}
             style={btnStyle("ghost", loadingFile)}>Check syntax</button>
           <button onClick={doSave} disabled={saving || loadingFile}
@@ -350,8 +390,94 @@ export default function ConfigEditor({ fileKey, fileLabel, me }) {
       }}>
         Edits are a shared live draft — nobody's changes get overwritten. The real file is written only on Save (after a syntax check). Restart the server to apply.
       </div>
+
+      {/* HISTORY OVERLAY */}
+      {historyOpen && (
+        <div
+          onClick={() => setHistoryOpen(false)}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 200, display: "flex", justifyContent: "flex-end" }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: viewing ? "min(900px, 90vw)" : "min(440px, 90vw)", height: "100%",
+              background: "var(--surface)", borderLeft: "1px solid var(--border)",
+              display: "flex", flexDirection: "column", transition: "width .15s",
+            }}
+          >
+            {/* header */}
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 16px", borderBottom: "1px solid var(--border)" }}>
+              <span style={{ fontFamily: "var(--display)", fontSize: 20, letterSpacing: 1.5, color: "var(--accent)" }}>HISTORY</span>
+              <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)" }}>{fileLabel || fileKey}</span>
+              <div style={{ flex: 1 }} />
+              <button onClick={() => setHistoryOpen(false)} style={btnStyle("ghost", false)}>Close</button>
+            </div>
+
+            <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
+              {/* timeline list */}
+              <div style={{ width: viewing ? 360 : "100%", flexShrink: 0, overflowY: "auto", borderRight: viewing ? "1px solid var(--border)" : "none" }}>
+                {historyLoading ? (
+                  <div style={{ padding: 20, fontFamily: "var(--mono)", fontSize: 12, color: "var(--textdim)", animation: "ap-blink 1.2s infinite" }}>LOADING HISTORY…</div>
+                ) : history.length === 0 ? (
+                  <div style={{ padding: 20, fontFamily: "var(--mono)", fontSize: 12, color: "var(--muted)" }}>No saved changes recorded yet for this file.</div>
+                ) : history.map((h) => (
+                  <div key={h.id} style={{ padding: "12px 16px", borderBottom: "1px solid rgba(30,37,48,0.6)" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--accent)" }}>{h.admin_name}</span>
+                      <span style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)" }}>{fmtTime(h.created_at)}</span>
+                    </div>
+                    <div style={{ fontFamily: "var(--body)", fontSize: 12.5, color: "var(--textdim)", marginTop: 4, lineHeight: 1.5 }}>
+                      {h.description || h.action}
+                    </div>
+                    {h.backup_file && (
+                      <button onClick={() => viewBackup(h.backup_file)} style={{ ...btnStyle("ghost", false), marginTop: 8, padding: "4px 10px", fontSize: 9.5 }}>
+                        View this version
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* version viewer */}
+              {viewing && (
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+                  <div style={{ padding: "10px 16px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--accent)" }}>{viewing.filename}</span>
+                    {viewing.created_at && <span style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)" }}>{fmtTime(viewing.created_at)}</span>}
+                    <div style={{ flex: 1 }} />
+                    <button onClick={() => setViewing(null)} style={btnStyle("ghost", false)}>✕</button>
+                  </div>
+                  <pre style={{
+                    flex: 1, overflow: "auto", margin: 0, padding: "14px 18px",
+                    fontFamily: "var(--mono)", fontSize: 12.5, lineHeight: "20px",
+                    color: "var(--text)", background: "var(--bg)", whiteSpace: "pre",
+                  }}>{viewing.text}</pre>
+                  <div style={{ padding: "8px 16px", borderTop: "1px solid var(--border)", fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)" }}>
+                    Read-only view of a past version. To roll back, use Restore in the Server Config tab.
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
+}
+
+function fmtTime(iso) {
+  if (!iso) return "";
+  try {
+    const d = new Date(iso);
+    const now = Date.now();
+    const diff = Math.floor((now - d.getTime()) / 1000);
+    if (diff < 60) return "just now";
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+    return d.toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+  } catch {
+    return iso;
+  }
 }
 
 function btnStyle(color, disabled) {
