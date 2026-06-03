@@ -137,10 +137,14 @@ export function RealtimeProvider({ enabled = true, onToast, children }) {
 // opts.debounceMs: coalesce bursts of changes (default 250ms)
 export function useLiveRefresh(scope, reloadFn, opts = {}) {
   const ctx = useContext(RealtimeContext);
-  const { debounceMs = 250, debug = false } = opts;
+  const { debounceMs = 250, debug = false, shouldReload, onSkip } = opts;
   const timerRef = useRef(null);
   const fnRef = useRef(reloadFn);
   fnRef.current = reloadFn;            // always points at the latest loader
+  const guardRef = useRef(shouldReload);
+  guardRef.current = shouldReload;     // latest guard (e.g. () => !dirty)
+  const skipRef = useRef(onSkip);
+  skipRef.current = onSkip;            // called when a reload is suppressed
 
   // Keep scope in a ref so the subscription effect NEVER needs to re-run when
   // the parent re-renders (which is what was tearing the subscription down
@@ -162,6 +166,14 @@ export function useLiveRefresh(scope, reloadFn, opts = {}) {
       if (debug) console.log("[useLiveRefresh] event matched, scope", scopeRef.current, "action", msg.action);
       clearTimeout(timerRef.current);
       timerRef.current = setTimeout(() => {
+        // If a guard says don't reload now (e.g. admin is mid-edit / form dirty),
+        // skip the reload and notify instead of clobbering unsaved work.
+        const guard = guardRef.current;
+        if (typeof guard === "function" && !guard()) {
+          if (debug) console.log("[useLiveRefresh] reload SKIPPED (guard false)");
+          try { skipRef.current?.(msg); } catch {}
+          return;
+        }
         if (debug) console.log("[useLiveRefresh] debounce elapsed → calling reloadFn now");
         try {
           const r = fnRef.current?.();

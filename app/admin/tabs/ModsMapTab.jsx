@@ -2,6 +2,7 @@
 // @ts-nocheck
 import { useState, useEffect, useCallback, useRef } from "react";
 import { API, fetchApi, postApi, Section, FullSection, Card, FieldLabel, TextInput, Btn, ADMINS } from "./shared";
+import { useLiveRefresh } from "../realtime";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const parseWorkshopUrl = (input) => {
@@ -1199,6 +1200,13 @@ export default function ModsMapTab({ toast, currentUser }) {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  // P1: live-refresh the mod list when another admin changes mods — but NOT
+  // while this admin is mid-drag (would jump the list under their cursor).
+  useLiveRefresh("mods", load, {
+    shouldReload: () => dragOver === null,
+    onSkip: () => toast?.("Mods changed by another admin — finish your edit to see updates", "info"),
+  });
 
   const handleMapChange = (newMaps) => {
     setMaps(newMaps);

@@ -1,6 +1,6 @@
 "use client";
 // @ts-nocheck
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   fetchApi, postApi, Section, FullSection, Card, FieldLabel,
   Toggle, Select, NumberInput, TextInput, SliderInput, Btn, SaveBar,
@@ -115,12 +115,21 @@ export default function ServerSettingsTab({ toast, currentUser }) {
 
   const dirty = JSON.stringify(cfg) !== JSON.stringify(orig);
 
-  useEffect(() => {
-    fetchApi("/api/admin/server/config")
+  const loadCfg = useCallback(() => {
+    return fetchApi("/api/admin/server/config")
       .then(d => { const v = { ...DEFAULT, ...d }; setCfg(v); setOrig(v); })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => { loadCfg(); }, [loadCfg]);
+
+  // P1: live-refresh when another admin saves server config — but DON'T clobber
+  // this admin's unsaved edits. If the form is dirty, skip the reload and notify.
+  useLiveRefresh("server_config", loadCfg, {
+    shouldReload: () => !dirty,
+    onSkip: () => toast?.("Another admin changed server settings — save or discard your edits, then reload", "info"),
+  });
 
   const set = (key) => (val) => setCfg(p => ({ ...p, [key]: val }));
 
