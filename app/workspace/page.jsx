@@ -1,6 +1,6 @@
 "use client";
 // @ts-nocheck
-// app/workspace/page.tsx — Standalone full-screen workspace.
+// app/workspace/page.jsx — Standalone full-screen workspace.
 //
 // A dedicated, chrome-free route for opening a document in fullscreen and for
 // sharing a direct link. Reuses the SAME editor + relay + auth as the admin
