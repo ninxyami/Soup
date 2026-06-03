@@ -1,6 +1,7 @@
 "use client";
 // @ts-nocheck
 import { useState, useEffect, useCallback } from "react";
+import { useLiveRefresh } from "../realtime";
 import { fetchApi, postApi, Title, TW, B, Inp, TA, FB, Empty, Load, Toggle } from "./shared";
 
 export default function ModsTab({ toast }) {
@@ -13,6 +14,7 @@ export default function ModsTab({ toast }) {
     setModsLoading(false);
   }, []);
   useEffect(() => { loadMods(); }, [loadMods]);
+  useLiveRefresh("mods", loadMods);
 
   const broadcast = async () => {
     if (!bcastMsg.trim()) { toast("Message required", "error"); return; }

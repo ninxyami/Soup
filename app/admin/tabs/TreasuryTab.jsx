@@ -1,6 +1,7 @@
 "use client";
 // @ts-nocheck
 import { useState, useEffect, useCallback } from "react";
+import { useLiveRefresh } from "../realtime";
 import { fetchApi, postApi, fmt, bronzeToCoins, relTime, Title, SC, TW, B, Inp, Sel, FB, Empty, Load, EvBadge, Toggle } from "./shared";
 
 const AdjustForm = ({ onSubmit }) => {
@@ -49,6 +50,7 @@ export default function TreasuryTab({ toast }) {
   const loadOv = useCallback(async () => { try { setData(await fetchApi("/api/treasury/admin/overview")); } catch {} setLoading(false); }, []);
   const loadLog = useCallback(async (f) => { try { const qs = f ? `&event_type=${f}` : ""; setLog((await fetchApi(`/api/treasury/admin/log?limit=200${qs}`)).log || []); } catch {} }, []);
   useEffect(() => { loadOv(); const iv = setInterval(loadOv, 20000); return () => clearInterval(iv); }, [loadOv]);
+  useLiveRefresh("treasury", loadOv);
 
   const t = data?.treasury, s24 = data?.stats_24h, rLog = data?.recent_log || [];
   const doAdjust = async (amt, reason) => { try { await postApi("/api/treasury/admin/adjust", { amount: amt, reason: reason || "Admin" }); toast(`Adjusted ${amt > 0 ? "+" : ""}${fmt(amt)}`, "success"); loadOv(); } catch (e) { toast("Failed: " + e.message, "error"); } };

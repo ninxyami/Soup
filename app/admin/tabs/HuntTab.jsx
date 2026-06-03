@@ -1,6 +1,7 @@
 "use client";
 // @ts-nocheck
 import { useState, useEffect, useCallback } from "react";
+import { useLiveRefresh } from "../realtime";
 import { fetchApi, postApi, relTime, fmtFull, HUNT_TYPES, HUNT_REGIONS, Title, SC, TW, B, Inp, Sel, FB, Empty, Load, Toggle } from "./shared";
 
 const SchedulerConfigForm = ({ c, onSave }) => {
@@ -21,6 +22,7 @@ export default function HuntTab({ toast }) {
     setLoading(false);
   }, []);
   useEffect(() => { load(); }, [load]);
+  useLiveRefresh("hunt", load);
 
   const updateConfig = async (updates) => {
     try { await postApi("/api/admin/hunt/update", updates); toast("Config updated", "success"); load(); }

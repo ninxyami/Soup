@@ -1,6 +1,7 @@
 "use client";
 // @ts-nocheck
 import { useState, useEffect, useCallback } from "react";
+import { useLiveRefresh } from "../realtime";
 import { fetchApi, postApi, B, Load, SC, Title, TW, API } from "./shared";
 
 // ── Shared field style helpers ──────────────────────────────────────────────
@@ -83,6 +84,7 @@ function ServerInfoPanel({ toast }) {
   }, [toast]);
 
   useEffect(() => { load(); }, [load]);
+  useLiveRefresh("content", load);
 
   const set = (k) => (v) => setData(d => ({ ...d, [k]: v }));
 

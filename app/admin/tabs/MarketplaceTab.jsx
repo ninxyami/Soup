@@ -1,6 +1,7 @@
 "use client";
 // @ts-nocheck
 import { useState, useEffect, useCallback } from "react";
+import { useLiveRefresh } from "../realtime";
 import { fetchApi, postApi, fmt, relTime, fmtDate, Title, SC, TW, B, Inp, FB, Empty, Load } from "./shared";
 
 const SHOPS = {
@@ -40,6 +41,7 @@ function RotationPanel({ toast }) {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+  useLiveRefresh("marketplace", load);
 
   const forceRotate = async (shopType) => {
     if (!confirm(`Force rotate ${SHOPS[shopType]?.npc}'s shop? This will pick a new random selection immediately.`)) return;

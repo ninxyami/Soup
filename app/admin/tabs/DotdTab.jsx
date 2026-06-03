@@ -1,6 +1,7 @@
 "use client";
 // @ts-nocheck
 import { useState, useEffect, useCallback } from "react";
+import { useLiveRefresh } from "../realtime";
 import { fetchApi, postApi, relTime, fmtFull, Title, SC, B, FB, Load, Toggle } from "./shared";
 
 const DEFAULTS = { enabled: 1, interval_hours: 13, waves: 3, zombies_per_wave: 40, wave_interval_mins: 10, min_spawn_distance: 80, max_spawn_distance: 150 };
@@ -16,6 +17,7 @@ export default function DotdTab({ toast }) {
     setLoading(false);
   }, []);
   useEffect(() => { load(); }, [load]);
+  useLiveRefresh("dotd", load);
 
   const save = async (updates) => {
     setSaving(true);
