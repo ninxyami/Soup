@@ -33,9 +33,16 @@ const RealtimeContext = createContext(null);
 export function RealtimeProvider({ enabled = true, onToast, children }) {
   const [connected, setConnected] = useState(false);
   const wsRef = useRef(null);
-  // subscribers: Map<id, { scopes:Set<string>|null, cb:fn }>
+  // subscribers: Map<id, { scopesOrMatcher, cb }>
   const subsRef = useRef(new Map());
   const subIdRef = useRef(0);
+
+  // Keep onToast in a ref. If we put it in the WS effect's deps, every parent
+  // render (which creates a new onToast arrow) would re-run the effect, tearing
+  // down and recreating the WebSocket on a loop. Ref it; effect depends only on
+  // `enabled`.
+  const onToastRef = useRef(onToast);
+  onToastRef.current = onToast;
 
   const subscribe = useCallback((scopesOrMatcher, cb) => {
     const id = ++subIdRef.current;
@@ -77,8 +84,8 @@ export function RealtimeProvider({ enabled = true, onToast, children }) {
 
         // Optional toast for human-readable changes (kept from old behavior)
         const desc = msg.description || msg.data?.description;
-        if (desc && onToast) {
-          onToast(desc, msg.actor_name || msg.data?.actor_name, msg.actor_id || msg.data?.actor_id);
+        if (desc && onToastRef.current) {
+          onToastRef.current(desc, msg.actor_name || msg.data?.actor_name, msg.actor_id || msg.data?.actor_id);
         }
 
         // Fan out to subscribers whose scope matches (or who listen to all)
@@ -103,7 +110,7 @@ export function RealtimeProvider({ enabled = true, onToast, children }) {
       clearTimeout(reconnectTimer);
       if (wsRef.current) { try { wsRef.current.close(); } catch {} }
     };
-  }, [enabled, onToast]);
+  }, [enabled]); // only re-run when enabled flips; onToast is reffed
 
   return (
     <RealtimeContext.Provider value={{ connected, subscribe }}>
@@ -140,10 +147,14 @@ export function useLiveRefresh(scope, reloadFn, opts = {}) {
       },
     };
     const unsub = ctx.subscribe(matcher, (msg) => {
-      if (debug) console.log("[useLiveRefresh] fire for scope", scopeRef.current, msg);
+      if (debug) console.log("[useLiveRefresh] event matched, scope", scopeRef.current, "action", msg.action);
       clearTimeout(timerRef.current);
       timerRef.current = setTimeout(() => {
-        try { fnRef.current?.(); } catch (e) { if (debug) console.log("[useLiveRefresh] reload err", e); }
+        if (debug) console.log("[useLiveRefresh] debounce elapsed → calling reloadFn now");
+        try {
+          const r = fnRef.current?.();
+          if (debug) console.log("[useLiveRefresh] reloadFn called, returned:", r);
+        } catch (e) { if (debug) console.log("[useLiveRefresh] reload err", e); }
       }, debounceMs);
     });
     return () => { clearTimeout(timerRef.current); unsub(); };
