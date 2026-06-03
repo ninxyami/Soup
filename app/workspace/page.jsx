@@ -35,6 +35,19 @@ const CollabEditor = dynamic(() => import("@/components/CollabEditor"), {
   ),
 });
 
+const ConfigEditor = dynamic(() => import("@/components/ConfigEditor"), {
+  ssr: false,
+  loading: () => (
+    <Center><span style={blink}>LOADING EDITOR…</span></Center>
+  ),
+});
+
+// Whitelisted config files (mirrors backend EDITABLE_FILES + the admin tab).
+const CONFIG_FILES = [
+  { key: "servertest.ini",             label: "servertest.ini",  icon: "⚙" },
+  { key: "servertest_SandboxVars.lua", label: "SandboxVars.lua", icon: "🧬" },
+];
+
 const TOKENS = `
 :root{--bg:#080a0c;--surface:#0f1318;--surface2:#141a21;--border:#1e2530;--accent:#c8a84b;--accent2:#7b3f3f;--red:#e05555;--green:#4caf7d;--blue:#4a8fc4;--orange:#d4873a;--purple:#9775cc;--muted:#4a5568;--text:#c8cdd6;--textdim:#6b7280;--mono:'Share Tech Mono',monospace;--display:'Bebas Neue',sans-serif;--body:'Inter',-apple-system,sans-serif}
 @keyframes ap-blink{0%,100%{opacity:.3}50%{opacity:1}}
@@ -52,17 +65,20 @@ export default function WorkspaceStandalone() {
   const [me, setMe] = useState(undefined);   // undefined=loading, null=unauthorized
   const [docId, setDocId] = useState(null);
   const [docTitle, setDocTitle] = useState("Workspace");
+  const [configKey, setConfigKey] = useState(null);  // open config file by key
 
   // projects/docs for the picker
   const [projects, setProjects] = useState([]);
   const [docsByProject, setDocsByProject] = useState({});
   const [expanded, setExpanded] = useState({});
 
-  // read ?doc= from URL
+  // read ?doc= / ?config= from URL
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const d = params.get("doc");
     if (d) setDocId(d);
+    const c = params.get("config");
+    if (c) setConfigKey(c);
   }, []);
 
   // auth + identity
@@ -119,6 +135,28 @@ export default function WorkspaceStandalone() {
     );
   }
 
+  // ── config file open: fullscreen editor ──
+  if (configKey) {
+    const f = CONFIG_FILES.find((x) => x.key === configKey) || { key: configKey, label: configKey };
+    return (
+      <div className="wsx" style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
+        <style dangerouslySetInnerHTML={{ __html: TOKENS }} />
+        <div style={{
+          display: "flex", alignItems: "center", gap: 14, padding: "10px 20px",
+          borderBottom: "1px solid var(--border)", background: "var(--surface)",
+        }}>
+          <a href="/workspace" style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)", textDecoration: "none" }}>← all files</a>
+          <span style={{ fontFamily: "var(--display)", fontSize: 22, letterSpacing: 1.5, color: "var(--accent)" }}>{f.label}</span>
+          <div style={{ flex: 1 }} />
+          <a href="/admin" style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)", textDecoration: "none" }}>admin panel →</a>
+        </div>
+        <div style={{ flex: 1, minHeight: 0 }}>
+          <ConfigEditor fileKey={f.key} fileLabel={f.label} me={me} />
+        </div>
+      </div>
+    );
+  }
+
   // ── document open: fullscreen editor ──
   if (docId) {
     return (
@@ -150,6 +188,31 @@ export default function WorkspaceStandalone() {
         </div>
         <div style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--textdim)", marginBottom: 36, letterSpacing: 1 }}>
           Pick a document to open fullscreen · signed in as {me.name}
+        </div>
+
+        {/* SERVER CONFIG — live co-edit of the raw ini / sandbox files */}
+        <div style={{ marginBottom: 28 }}>
+          <div style={{ fontFamily: "var(--mono)", fontSize: 10, letterSpacing: 2, color: "var(--textdim)", textTransform: "uppercase", marginBottom: 8 }}>
+            Server Config
+          </div>
+          <div style={{ border: "1px solid var(--border)", background: "var(--surface)" }}>
+            {CONFIG_FILES.map((f, i) => (
+              <a
+                key={f.key}
+                href={`/workspace?config=${encodeURIComponent(f.key)}`}
+                style={{
+                  display: "flex", alignItems: "center", gap: 10, padding: "12px 18px",
+                  textDecoration: "none", color: "var(--textdim)",
+                  borderTop: i === 0 ? "none" : "1px solid rgba(30,37,48,0.5)",
+                }}
+              >
+                <span style={{ fontSize: 13 }}>{f.icon}</span>
+                <span style={{ fontFamily: "var(--mono)", fontSize: 13, color: "var(--text)" }}>{f.label}</span>
+                <div style={{ flex: 1 }} />
+                <span style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--green)", letterSpacing: 1 }}>LIVE</span>
+              </a>
+            ))}
+          </div>
         </div>
 
         {projects.length === 0 ? (

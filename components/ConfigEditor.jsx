@@ -36,16 +36,19 @@ const OnlyCodeDoc = Document.extend({ content: "codeBlock" });
 const EDITOR_CSS = `
 .cfg-surface .ProseMirror{
   outline:none; min-height:60vh; font-family:var(--mono);
-  font-size:13px; line-height:1.65; color:var(--text);
-  padding:0; caret-color:var(--accent); white-space:pre; tab-size:2;
+  font-size:13.5px; line-height:23px; color:var(--text);
+  padding:0; caret-color:var(--accent); white-space:pre; tab-size:4;
 }
 .cfg-surface .ProseMirror:focus{outline:none}
 .cfg-surface .ProseMirror pre{
-  font-family:var(--mono); font-size:13px; background:transparent;
-  border:none; padding:18px 20px 140px; margin:0; overflow-x:auto;
+  font-family:var(--mono); font-size:13.5px; line-height:23px; background:transparent;
+  border:none; padding:16px 20px 140px; margin:0; overflow:visible;
   white-space:pre; min-height:60vh;
 }
-.cfg-surface .ProseMirror pre code{background:none;border:none;padding:0;color:var(--text);font-family:var(--mono)}
+.cfg-surface .ProseMirror pre code{
+  background:none; border:none; padding:0; color:var(--text); font-family:var(--mono);
+  line-height:23px;
+}
 /* remote collaboration cursors */
 .cfg-surface .collaboration-cursor__caret{
   border-left:1.5px solid; border-right:1.5px solid; margin-left:-1px; margin-right:-1px;
@@ -56,7 +59,6 @@ const EDITOR_CSS = `
   font-weight:600; letter-spacing:0.5px; line-height:1; padding:2px 6px; border-radius:3px 3px 3px 0;
   color:#0b0d10; white-space:nowrap; user-select:none;
 }
-/* line numbers gutter via CSS counter is unreliable with pre; skip for now */
 `;
 
 export default function ConfigEditor({ fileKey, fileLabel, me }) {
@@ -68,6 +70,7 @@ export default function ConfigEditor({ fileKey, fileLabel, me }) {
 
   const [status, setStatus] = useState("connecting"); // connecting | connected | offline
   const [peers, setPeers] = useState([]);
+  const [lineCount, setLineCount] = useState(1);
   const [loadingFile, setLoadingFile] = useState(true);
   const [saving, setSaving] = useState(false);
   const [validateMsg, setValidateMsg] = useState(null); // {ok, text}
@@ -116,6 +119,14 @@ export default function ConfigEditor({ fileKey, fileLabel, me }) {
 
     const editor = new Editor({
       element: holderRef.current,
+      editorProps: {
+        attributes: {
+          spellcheck: "false",
+          autocorrect: "off",
+          autocapitalize: "off",
+          "data-gramm": "false",
+        },
+      },
       extensions: [
         OnlyCodeDoc,
         Text,
@@ -123,6 +134,10 @@ export default function ConfigEditor({ fileKey, fileLabel, me }) {
         Collaboration.configure({ document: ydoc }),
         CollaborationCursor.configure({ provider, user: { name: me.name, color: me.color } }),
       ],
+      onUpdate: ({ editor }) => {
+        const t = editor.getText({ blockSeparator: "\n" });
+        setLineCount(Math.max(1, t.split("\n").length));
+      },
     });
     editorRef.current = editor;
 
@@ -143,6 +158,7 @@ export default function ConfigEditor({ fileKey, fileLabel, me }) {
             content: [{ type: "codeBlock", content: d.text ? [{ type: "text", text: d.text }] : [] }],
           });
         }
+        setLineCount(Math.max(1, (editor.getText({ blockSeparator: "\n" }) || "").split("\n").length));
         seededRef.current = true;
       } catch (e) {
         setValidateMsg({ ok: false, text: `Failed to load file: ${e.message}` });
@@ -230,58 +246,62 @@ export default function ConfigEditor({ fileKey, fileLabel, me }) {
 
       {/* status / presence / save strip */}
       <div style={{
-        display: "flex", alignItems: "center", gap: 16, padding: "10px 16px",
+        display: "flex", alignItems: "center", gap: 12, padding: "10px 16px",
         borderBottom: "1px solid var(--border)", background: "var(--surface)",
-        position: "sticky", top: 0, zIndex: 20, flexWrap: "wrap",
+        position: "sticky", top: 0, zIndex: 20,
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{
-            width: 8, height: 8, borderRadius: 4, background: statusMeta.dot,
-            boxShadow: status === "connected" ? `0 0 6px ${statusMeta.dot}` : "none",
-            animation: status === "connecting" ? "ap-blink 1.2s infinite" : "none",
-          }} />
-          <span style={{ fontFamily: "var(--mono)", fontSize: 11, letterSpacing: 1.5, color: statusMeta.color, textTransform: "uppercase" }}>
-            {statusMeta.label}
-          </span>
-        </div>
-
-        <div style={{ width: 1, height: 18, background: "var(--border)" }} />
-
-        <span style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--accent)", letterSpacing: 0.5 }}>
-          {fileLabel || fileKey}
-        </span>
-
-        <div style={{ width: 1, height: 18, background: "var(--border)" }} />
-
-        {/* presence */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ display: "flex", marginRight: 4 }}>
-            <Avatar u={me} ring />
-            {peers.map((u, i) => (
-              <div key={(u.id || u.name) + i} style={{ marginLeft: -6 }}><Avatar u={u} /></div>
-            ))}
+        {/* info group — allowed to shrink/overflow, never pushes buttons away */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0, flex: 1, overflow: "hidden" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+            <span style={{
+              width: 8, height: 8, borderRadius: 4, background: statusMeta.dot,
+              boxShadow: status === "connected" ? `0 0 6px ${statusMeta.dot}` : "none",
+              animation: status === "connecting" ? "ap-blink 1.2s infinite" : "none",
+            }} />
+            <span style={{ fontFamily: "var(--mono)", fontSize: 11, letterSpacing: 1.5, color: statusMeta.color, textTransform: "uppercase" }}>
+              {statusMeta.label}
+            </span>
           </div>
-          <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)" }}>
-            {peers.length === 0 ? "only you" : `${peers.length} other${peers.length > 1 ? "s" : ""} editing`}
+
+          <div style={{ width: 1, height: 18, background: "var(--border)", flexShrink: 0 }} />
+
+          <span style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--accent)", letterSpacing: 0.5, flexShrink: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {fileLabel || fileKey}
           </span>
+
+          <div style={{ width: 1, height: 18, background: "var(--border)", flexShrink: 0 }} />
+
+          {/* presence */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+            <div style={{ display: "flex", marginRight: 4 }}>
+              <Avatar u={me} ring />
+              {peers.map((u, i) => (
+                <div key={(u.id || u.name) + i} style={{ marginLeft: -6 }}><Avatar u={u} /></div>
+              ))}
+            </div>
+            <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)" }}>
+              {peers.length === 0 ? "only you" : `${peers.length} other${peers.length > 1 ? "s" : ""} editing`}
+            </span>
+          </div>
+
+          {/* external-edit warning */}
+          {diskInfo && diskInfo.synced === false && (
+            <span title="The file on disk changed outside this editor (e.g. FileBrowser). Your draft may be based on an older version."
+              style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--orange)", letterSpacing: 0.5, flexShrink: 0 }}>
+              ⚠ disk changed externally
+            </span>
+          )}
         </div>
 
-        <div style={{ flex: 1 }} />
-
-        {/* external-edit warning */}
-        {diskInfo && diskInfo.synced === false && (
-          <span title="The file on disk changed outside this editor (e.g. FileBrowser). Your draft may be based on an older version."
-            style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--orange)", letterSpacing: 0.5 }}>
-            ⚠ disk changed externally
-          </span>
-        )}
-
-        <button onClick={doValidate} disabled={loadingFile}
-          style={btnStyle("ghost", loadingFile)}>Check syntax</button>
-        <button onClick={doSave} disabled={saving || loadingFile}
-          style={btnStyle("green", saving || loadingFile)}>
-          {saving ? "Saving…" : "💾 Save to server"}
-        </button>
+        {/* action group — fixed, always visible, never wraps off-screen */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+          <button onClick={doValidate} disabled={loadingFile}
+            style={btnStyle("ghost", loadingFile)}>Check syntax</button>
+          <button onClick={doSave} disabled={saving || loadingFile}
+            style={btnStyle("green", saving || loadingFile)}>
+            {saving ? "Saving…" : "💾 Save"}
+          </button>
+        </div>
       </div>
 
       {/* validation / save feedback */}
@@ -296,8 +316,8 @@ export default function ConfigEditor({ fileKey, fileLabel, me }) {
         </div>
       )}
 
-      {/* editor surface */}
-      <div style={{ flex: 1, overflowY: "auto", position: "relative" }}>
+      {/* editor surface with line-number gutter */}
+      <div style={{ flex: 1, overflow: "auto", position: "relative", display: "flex", background: "var(--bg)" }}>
         {loadingFile && (
           <div style={{
             position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
@@ -308,7 +328,19 @@ export default function ConfigEditor({ fileKey, fileLabel, me }) {
             </span>
           </div>
         )}
-        <div ref={holderRef} />
+        {/* gutter */}
+        <div aria-hidden="true" style={{
+          flexShrink: 0, textAlign: "right", userSelect: "none",
+          padding: "16px 10px 140px", borderRight: "1px solid var(--border)",
+          fontFamily: "var(--mono)", fontSize: 13.5, lineHeight: "23px",
+          color: "var(--muted)", background: "rgba(0,0,0,0.18)", minWidth: 44,
+        }}>
+          {Array.from({ length: lineCount }, (_, i) => (
+            <div key={i} style={{ height: 23 }}>{i + 1}</div>
+          ))}
+        </div>
+        {/* editor */}
+        <div ref={holderRef} style={{ flex: 1, minWidth: 0 }} />
       </div>
 
       {/* footer hint */}
