@@ -25,6 +25,7 @@ import WorkspaceTab      from "./tabs/WorkspaceTab";
 const NAV_SECTIONS = [
   { label: "COMMAND", items: [
     { key: "overview",        icon: "📡", label: "Overview" },
+    { key: "workspace",       icon: "⌬", label: "Workspace" },
     { key: "server",          icon: "🖥️", label: "Server" },
     { key: "server_activity", icon: "📋", label: "Server Activity" },
     { key: "console",         icon: "⌨️", label: "Console" },
@@ -55,9 +56,6 @@ const NAV_SECTIONS = [
     { key: "pl_checklist", icon: "✅", label: "Admin Checklist" },
     { key: "pl_modlog",      icon: "📦", label: "Mod Changelog" },
     { key: "pl_settingslog", icon: "⚙️", label: "Settings Changelog" },
-  ]},
-  { label: "WORKSPACE", items: [
-    { key: "workspace", icon: "⌬", label: "Workspace" },
   ]},
   { label: "SERVER CONFIG", items: [
     { key: "sc_mods",        icon: "🔧", label: "Mods & Maps" },
