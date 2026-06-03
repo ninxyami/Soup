@@ -20,6 +20,7 @@ import ContentTab from "./tabs/ContentTab";
 import ConsoleTab        from "./tabs/ConsoleTab";
 import PZConsoleTab      from "./tabs/PZConsoleTab";
 import ServerActivityTab from "./tabs/ServerActivityTab";
+import WorkspaceTab      from "./tabs/WorkspaceTab";
 
 const NAV_SECTIONS = [
   { label: "COMMAND", items: [
@@ -54,6 +55,9 @@ const NAV_SECTIONS = [
     { key: "pl_checklist", icon: "✅", label: "Admin Checklist" },
     { key: "pl_modlog",      icon: "📦", label: "Mod Changelog" },
     { key: "pl_settingslog", icon: "⚙️", label: "Settings Changelog" },
+  ]},
+  { label: "WORKSPACE", items: [
+    { key: "workspace", icon: "⌬", label: "Workspace" },
   ]},
   { label: "SERVER CONFIG", items: [
     { key: "sc_mods",        icon: "🔧", label: "Mods & Maps" },
@@ -95,6 +99,7 @@ const PANELS = {
   pl_checklist:(props) => <PlannerTab {...props} initialTab="checklist" />,
   pl_modlog:   (props) => <PlannerTab {...props} initialTab="modlog" />,
   pl_settingslog: (props) => <PlannerTab {...props} initialTab="settingslog" />,
+  workspace:   WorkspaceTab,
 };
 
 const CSS = `
