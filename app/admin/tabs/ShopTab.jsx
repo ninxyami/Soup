@@ -2,6 +2,7 @@
 // @ts-nocheck
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { fetchApi, postApi, fmt, fmtDate, Title, SC, TW, B, Inp, Sel, FB, Empty, Load } from "./shared";
+import { useLiveRefresh } from "../realtime";
 
 const SHOP_TYPES = [
   { value: "global",   label: "🌍 Global (gas stations + diner + web/discord)" },
@@ -70,6 +71,8 @@ export default function ShopTab({ toast }) {
   }, [toast]);
 
   useEffect(() => { loadItems(); }, [loadItems]);
+  // P1: live refresh shop data in place when any admin changes the shop
+  useLiveRefresh("shop", loadItems);
 
   const loadLog = useCallback(async () => {
     try { setRestockLog((await fetchApi("/api/admin/shop/restock-log")).log || []); } catch {}

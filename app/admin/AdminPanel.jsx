@@ -1,6 +1,7 @@
 "use client";
 // @ts-nocheck
 import { useState, useCallback, useRef, useEffect } from "react";
+import { RealtimeProvider } from "./realtime";
 import { Toasts, ADMINS } from "./tabs/shared";
 import OverviewTab    from "./tabs/OverviewTab";
 import ServerTab      from "./tabs/ServerTab";
@@ -344,42 +345,11 @@ export default function AdminPanel() {
   };
 
   // ── WebSocket for real-time updates ──────────────────────────
-  const [wsConnected, setWsConnected] = useState(false);
+  // P1: the realtime socket is now owned by <RealtimeProvider> (one shared
+  // connection, scoped events). The old per-panel WS listener was removed to
+  // avoid a duplicate /ws/admin connection and double toasts. refreshKey is
+  // retained as a manual-refresh signal passed to tabs that still want it.
   const [refreshKey, setRefreshKey] = useState(0);
-  const wsRef = useRef(null);
-
-  useEffect(() => {
-    if (panelLocked !== false) return;
-
-    const connect = () => {
-      try {
-        const ws = new WebSocket("wss://api.stateofundeadpurge.site:8443/ws/admin");
-        wsRef.current = ws;
-
-        ws.onopen = () => setWsConnected(true);
-        ws.onclose = () => {
-          setWsConnected(false);
-          setTimeout(connect, 5000);
-        };
-        ws.onerror = () => ws.close();
-        ws.onmessage = (evt) => {
-          try {
-            const msg = JSON.parse(evt.data);
-            if (msg.event === "change") {
-              setRefreshKey(k => k + 1);
-              if (msg.data?.description) {
-                const adminName = ADMINS[msg.data.admin_id]?.name || "Someone";
-                toast(`${adminName}: ${msg.data.description}`, "info");
-              }
-            }
-          } catch {}
-        };
-      } catch {}
-    };
-
-    connect();
-    return () => { if (wsRef.current) wsRef.current.close(); };
-  }, [panelLocked]);
 
   const verifyPassword = async () => {
     setPwError("");
@@ -441,6 +411,7 @@ export default function AdminPanel() {
   const ActivePanel = PANELS[page] || OverviewTab;
 
   return (
+    <RealtimeProvider enabled={panelLocked === false} onToast={(desc, name) => toast(`${name || "Someone"}: ${desc}`, "info")}>
     <div className="ap">
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
       <div className="ap-hd">
@@ -512,10 +483,11 @@ export default function AdminPanel() {
           )}
         </nav>
         <main className="ap-main">
-          <ActivePanel key={refreshKey} toast={toast} />
+          <ActivePanel key={page} toast={toast} refreshKey={refreshKey} />
         </main>
       </div>
       <Toasts items={toasts} />
     </div>
+    </RealtimeProvider>
   );
 }
