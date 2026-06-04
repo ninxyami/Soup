@@ -122,8 +122,12 @@ export default function SheetEditor({ docId, me }) {
 
   const [status, setStatus] = useState("connecting");
   const [peers, setPeers] = useState([]);
+  const [peerCursors, setPeerCursors] = useState([]); // [{user, cell:[r,c]}]
   const [colorOpen, setColorOpen] = useState(false);
   const [ready, setReady] = useState(false);
+  const awarenessRef = useRef(null);
+  const gridWrapRef = useRef(null);
+  const [cursorPos, setCursorPos] = useState([]); // pixel positions per peerCursor
 
   useEffect(() => {
     if (!docId || !holderRef.current) return;
@@ -141,6 +145,7 @@ export default function SheetEditor({ docId, me }) {
     const yStyles = ydoc.getMap("styles"); // "r:c" -> color key
     cellsRef.current = yCells;
     stylesRef.current = yStyles;
+    awarenessRef.current = provider.awareness;
 
     provider.on("status", (e) => {
       if (destroyed) return;
@@ -156,10 +161,17 @@ export default function SheetEditor({ docId, me }) {
       const states = [...provider.awareness.getStates().entries()];
       const others = states
         .filter(([cid]) => cid !== provider.awareness.clientID)
-        .map(([, s]) => s.user).filter(Boolean);
-      const seen = new Set(); const uniq = [];
-      for (const u of others) { const k = u.id || u.name; if (seen.has(k)) continue; seen.add(k); uniq.push(u); }
+        .map(([, s]) => s).filter((s) => s && s.user);
+      const seen = new Set(); const uniq = []; const cursors = [];
+      for (const s of others) {
+        const u = s.user;
+        const k = u.id || u.name; if (seen.has(k)) continue; seen.add(k); uniq.push(u);
+        if (s.cursor && Array.isArray(s.cursor.cell)) {
+          cursors.push({ user: u, cell: s.cursor.cell });
+        }
+      }
       setPeers(uniq);
+      setPeerCursors(cursors);
     };
     provider.awareness.on("change", refreshPeers);
 
@@ -221,6 +233,15 @@ export default function SheetEditor({ docId, me }) {
             if (value === "" || value === null || value === undefined) yCells.delete(`${r}:${c}`);
             else yCells.set(`${r}:${c}`, String(value));
           });
+        },
+        // ── local selection → broadcast cursor cell so others see where I am ──
+        onselection: (worksheet, x1, y1, x2, y2) => {
+          if (!awarenessRef.current) return;
+          try {
+            awarenessRef.current.setLocalStateField("cursor", {
+              cell: [parseInt(y1, 10), parseInt(x1, 10)],
+            });
+          } catch {}
         },
       });
       // Grab the single worksheet instance for all surgical cell ops.
@@ -326,6 +347,25 @@ export default function SheetEditor({ docId, me }) {
     };
   }, [docId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Compute pixel positions for peer cursors from the live grid cells.
+  useEffect(() => {
+    const wrap = gridWrapRef.current;
+    if (!wrap) { setCursorPos([]); return; }
+    const compute = () => {
+      const positions = peerCursors.map((pc) => {
+        const [r, c] = pc.cell;
+        const td = wrap.querySelector(`td[data-x="${c}"][data-y="${r}"]`);
+        if (!td) return null;
+        return { left: td.offsetLeft, top: td.offsetTop, width: td.offsetWidth, height: td.offsetHeight };
+      });
+      setCursorPos(positions);
+    };
+    compute();
+    // recompute shortly after, in case the grid is mid-layout
+    const t = setTimeout(compute, 80);
+    return () => clearTimeout(t);
+  }, [peerCursors]);
+
   const statusMeta = {
     connecting: { label: "Connecting", color: "var(--orange)", dot: "var(--orange)" },
     connected:  { label: "Live",       color: "var(--green)",  dot: "var(--green)"  },
@@ -414,9 +454,31 @@ export default function SheetEditor({ docId, me }) {
         </span>
       </div>
 
-      {/* the grid */}
+      {/* the grid + live peer cursors */}
       <div style={{ flex: 1, overflow: "auto", padding: 12 }}>
-        <div ref={holderRef} />
+        <div style={{ position: "relative" }} ref={gridWrapRef}>
+          <div ref={holderRef} />
+          {/* peer cursor overlays — colored outline + name on the cell each
+              other admin has selected. Positioned over the live grid cells. */}
+          {peerCursors.map((pc, i) => {
+            const pos = cursorPos[i];
+            if (!pos) return null;
+            const color = pc.user.color || "#4a8fc4";
+            return (
+              <div key={(pc.user.id || pc.user.name) + i} style={{
+                position: "absolute", left: pos.left, top: pos.top, width: pos.width, height: pos.height,
+                border: `2px solid ${color}`, pointerEvents: "none", zIndex: 5, boxSizing: "border-box",
+                boxShadow: `0 0 0 1px ${color}55`,
+              }}>
+                <span style={{
+                  position: "absolute", top: -16, left: -2, background: color, color: "#0a0a0a",
+                  fontFamily: "var(--mono)", fontSize: 9, lineHeight: "14px", padding: "0 5px",
+                  borderRadius: 2, whiteSpace: "nowrap", fontWeight: 600,
+                }}>{pc.user.name}</span>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

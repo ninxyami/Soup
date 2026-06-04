@@ -42,6 +42,13 @@ const ConfigEditor = dynamic(() => import("@/components/ConfigEditor"), {
   ),
 });
 
+const SheetEditor = dynamic(() => import("@/components/SheetEditor"), {
+  ssr: false,
+  loading: () => (
+    <Center><span style={blink}>LOADING SPREADSHEET…</span></Center>
+  ),
+});
+
 // Whitelisted config files (mirrors backend EDITABLE_FILES + the admin tab).
 const CONFIG_FILES = [
   { key: "servertest.ini",             label: "servertest.ini",  icon: "⚙" },
@@ -65,6 +72,7 @@ export default function WorkspaceStandalone() {
   const [me, setMe] = useState(undefined);   // undefined=loading, null=unauthorized
   const [docId, setDocId] = useState(null);
   const [docTitle, setDocTitle] = useState("Workspace");
+  const [docIsSheet, setDocIsSheet] = useState(false);
   const [configKey, setConfigKey] = useState(null);  // open config file by key
 
   // projects/docs for the picker
@@ -72,11 +80,12 @@ export default function WorkspaceStandalone() {
   const [docsByProject, setDocsByProject] = useState({});
   const [expanded, setExpanded] = useState({});
 
-  // read ?doc= / ?config= from URL
+  // read ?doc= / ?config= / ?sheet= from URL
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const d = params.get("doc");
     if (d) setDocId(d);
+    if (params.get("sheet") === "1") setDocIsSheet(true);
     const c = params.get("config");
     if (c) setConfigKey(c);
   }, []);
@@ -172,7 +181,11 @@ export default function WorkspaceStandalone() {
           <a href="/admin" style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)", textDecoration: "none" }}>admin panel →</a>
         </div>
         <div style={{ flex: 1, minHeight: 0 }}>
-          <CollabEditor docId={docId} docTitle={docTitle} me={me} />
+          {docIsSheet ? (
+            <SheetEditor docId={docId} me={me} />
+          ) : (
+            <CollabEditor docId={docId} docTitle={docTitle} me={me} />
+          )}
         </div>
       </div>
     );
@@ -243,16 +256,19 @@ export default function WorkspaceStandalone() {
                   <div style={{ borderTop: "1px solid var(--border)" }}>
                     {docs.length === 0 ? (
                       <div style={{ padding: "12px 18px 12px 40px", fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)" }}>No documents.</div>
-                    ) : docs.map((doc) => (
+                    ) : docs.map((doc) => {
+                      const sheet = doc.kind === "sheet" || doc.type === "sheet" || doc.icon === "▦";
+                      return (
                       <a
                         key={doc.id}
-                        href={`/workspace?doc=${doc.id}`}
+                        href={`/workspace?doc=${doc.id}${sheet ? "&sheet=1" : ""}`}
                         style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 18px 11px 40px", textDecoration: "none", color: "var(--textdim)", borderTop: "1px solid rgba(30,37,48,0.5)" }}
                       >
                         <span style={{ fontSize: 12, opacity: 0.7 }}>{doc.icon || "📄"}</span>
                         <span style={{ fontFamily: "var(--body)", fontSize: 13.5 }}>{doc.title}</span>
                       </a>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
