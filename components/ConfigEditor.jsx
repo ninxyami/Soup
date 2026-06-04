@@ -33,6 +33,25 @@ const API = "https://api.stateofundeadpurge.site:8443";
 // This keeps the Yjs doc plain-text and impossible to format into garbage.
 const OnlyCodeDoc = Document.extend({ content: "codeBlock" });
 
+// Stable hash of a line's text → key for per-line authorship. Content-based
+// (not line-number) so attribution follows the text when lines move. Blank
+// lines hash to "" and are never attributed.
+const lineHash = (s) => {
+  const t = (s || "").trim();
+  if (!t) return "";
+  let h = 5381;
+  for (let i = 0; i < t.length; i++) h = ((h << 5) + h + t.charCodeAt(i)) | 0;
+  return "L" + (h >>> 0).toString(36);
+};
+const fmtAgo = (ts) => {
+  if (!ts) return "";
+  const s = Math.floor((Date.now() - ts) / 1000);
+  if (s < 60) return "just now";
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+  return `${Math.floor(s / 86400)}d ago`;
+};
+
 const EDITOR_CSS = `
 .cfg-surface .ProseMirror{
   outline:none; min-height:60vh; font-family:var(--mono);
@@ -71,6 +90,9 @@ export default function ConfigEditor({ fileKey, fileLabel, me }) {
   const [status, setStatus] = useState("connecting"); // connecting | connected | offline
   const [peers, setPeers] = useState([]);
   const [lineCount, setLineCount] = useState(1);
+  const [lineAuthors, setLineAuthors] = useState([]); // per visible line: {name,color,ts}|null
+  const yAuthorsRef = useRef(null);   // Y.Map: lineHash -> {name,color,ts}
+  const [blameOn, setBlameOn] = useState(true); // toggle the blame gutter
   const [loadingFile, setLoadingFile] = useState(true);
   const [saving, setSaving] = useState(false);
   const [validateMsg, setValidateMsg] = useState(null); // {ok, text}
@@ -82,6 +104,16 @@ export default function ConfigEditor({ fileKey, fileLabel, me }) {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [viewing, setViewing] = useState(null);          // {filename, text, created_at} | null
 
+  // Map each visible line → its author (from the shared authorship map).
+  const recomputeBlame = useCallback((lines, yAuthors) => {
+    if (!yAuthors) { setLineAuthors([]); return; }
+    setLineAuthors(lines.map((ln) => {
+      const h = lineHash(ln);
+      if (!h) return null;
+      return yAuthors.get(h) || null;
+    }));
+  }, []);
+
   // ── mount the collaborative editor + seed from disk ──
   useEffect(() => {
     if (!fileKey || !holderRef.current || !me) return;
@@ -91,6 +123,10 @@ export default function ConfigEditor({ fileKey, fileLabel, me }) {
 
     const ydoc = new Y.Doc();
     ydocRef.current = ydoc;
+    // Per-line authorship lives in its OWN map inside the SAME Yjs doc, so the
+    // relay persists it for free — no backend change. lineHash(text) -> {name,color,ts}
+    const yAuthors = ydoc.getMap("lineAuthors");
+    yAuthorsRef.current = yAuthors;
 
     // Distinct relay room per config file so they don't collide with docs.
     const roomId = `config:${fileKey}`;
@@ -140,9 +176,30 @@ export default function ConfigEditor({ fileKey, fileLabel, me }) {
         Collaboration.configure({ document: ydoc }),
         CollaborationCursor.configure({ provider, user: { name: me.name, color: me.color } }),
       ],
-      onUpdate: ({ editor }) => {
+      onUpdate: ({ editor, transaction }) => {
         const t = editor.getText({ blockSeparator: "\n" });
-        setLineCount(Math.max(1, t.split("\n").length));
+        const lines = t.split("\n");
+        setLineCount(Math.max(1, lines.length));
+        const yAuthors = yAuthorsRef.current;
+        if (yAuthors) {
+          // For a LOCAL edit, claim authorship of any line whose content has no
+          // recorded author yet (new or just-changed line). We only write on
+          // local transactions so remote edits don't reattribute to us.
+          const isLocal = transaction ? !transaction.origin || transaction.origin !== "remote" : true;
+          if (isLocal) {
+            const now = Date.now();
+            ydocRef.current.transact(() => {
+              for (const ln of lines) {
+                const h = lineHash(ln);
+                if (!h) continue;
+                if (!yAuthors.get(h)) {
+                  yAuthors.set(h, { name: me.name, color: me.color, ts: now });
+                }
+              }
+            });
+          }
+          recomputeBlame(lines, yAuthors);
+        }
       },
     });
     editorRef.current = editor;
@@ -165,6 +222,7 @@ export default function ConfigEditor({ fileKey, fileLabel, me }) {
           });
         }
         setLineCount(Math.max(1, (editor.getText({ blockSeparator: "\n" }) || "").split("\n").length));
+        recomputeBlame((editor.getText({ blockSeparator: "\n" }) || "").split("\n"), yAuthors);
         seededRef.current = true;
       } catch (e) {
         setValidateMsg({ ok: false, text: `Failed to load file: ${e.message}` });
@@ -178,9 +236,18 @@ export default function ConfigEditor({ fileKey, fileLabel, me }) {
     // Fallback: if 'sync' doesn't fire promptly, seed after a short delay.
     const seedFallback = setTimeout(() => seedIfEmpty(), 1500);
 
+    // When authorship changes arrive from others, refresh the blame gutter.
+    const onAuthorsChange = () => {
+      const ed = editorRef.current;
+      if (!ed) return;
+      recomputeBlame((ed.getText({ blockSeparator: "\n" }) || "").split("\n"), yAuthors);
+    };
+    yAuthors.observe(onAuthorsChange);
+
     return () => {
       clearTimeout(seedFallback);
       try { provider.off("sync", onSynced); } catch {}
+      try { yAuthors.unobserve(onAuthorsChange); } catch {}
       try { editor.destroy(); } catch {}
       try { provider.awareness.off("change", refreshPeers); } catch {}
       try { provider.destroy(); } catch {}
@@ -188,6 +255,7 @@ export default function ConfigEditor({ fileKey, fileLabel, me }) {
       editorRef.current = null;
       providerRef.current = null;
       ydocRef.current = null;
+      yAuthorsRef.current = null;
     };
   }, [fileKey, me]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -333,6 +401,9 @@ export default function ConfigEditor({ fileKey, fileLabel, me }) {
 
         {/* action group — fixed, always visible, never wraps off-screen */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+          <button onClick={() => setBlameOn((b) => !b)} disabled={loadingFile}
+            style={btnStyle(blameOn ? "gold" : "ghost", loadingFile)}
+            title="Show who last changed each line">Blame</button>
           <button onClick={openHistory} disabled={loadingFile}
             style={btnStyle("ghost", loadingFile)}>History</button>
           <button onClick={doValidate} disabled={loadingFile}
@@ -368,16 +439,38 @@ export default function ConfigEditor({ fileKey, fileLabel, me }) {
             </span>
           </div>
         )}
-        {/* gutter */}
+        {/* gutter: line numbers + per-line author blame */}
         <div aria-hidden="true" style={{
-          flexShrink: 0, textAlign: "right", userSelect: "none",
-          padding: "16px 10px 140px", borderRight: "1px solid var(--border)",
+          flexShrink: 0, userSelect: "none",
+          padding: "16px 0 140px", borderRight: "1px solid var(--border)",
           fontFamily: "var(--mono)", fontSize: 13.5, lineHeight: "23px",
-          color: "var(--muted)", background: "rgba(0,0,0,0.18)", minWidth: 44,
+          color: "var(--muted)", background: "rgba(0,0,0,0.18)",
+          minWidth: blameOn ? 150 : 44,
         }}>
-          {Array.from({ length: lineCount }, (_, i) => (
-            <div key={i} style={{ height: 23 }}>{i + 1}</div>
-          ))}
+          {Array.from({ length: lineCount }, (_, i) => {
+            const a = lineAuthors[i];
+            return (
+              <div key={i} style={{ height: 23, display: "flex", alignItems: "center", gap: 6, padding: "0 10px" }}>
+                {blameOn && (
+                  <span
+                    title={a ? `${a.name} · ${fmtAgo(a.ts)}` : ""}
+                    style={{
+                      flex: "0 0 78px", display: "flex", alignItems: "center", gap: 4,
+                      overflow: "hidden", whiteSpace: "nowrap",
+                    }}
+                  >
+                    {a && (
+                      <>
+                        <span style={{ width: 6, height: 6, borderRadius: 3, background: a.color || "var(--muted)", flexShrink: 0 }} />
+                        <span style={{ fontSize: 9.5, color: "var(--textdim)", overflow: "hidden", textOverflow: "ellipsis" }}>{a.name}</span>
+                      </>
+                    )}
+                  </span>
+                )}
+                <span style={{ flex: 1, textAlign: "right", minWidth: 20 }}>{i + 1}</span>
+              </div>
+            );
+          })}
         </div>
         {/* editor */}
         <div ref={holderRef} style={{ flex: 1, minWidth: 0 }} />
@@ -483,6 +576,7 @@ function fmtTime(iso) {
 function btnStyle(color, disabled) {
   const colors = {
     green: { border: "var(--green)", text: "var(--green)", bg: "rgba(76,175,125,0.08)" },
+    gold:  { border: "var(--accent)", text: "var(--accent)", bg: "rgba(200,168,75,0.12)" },
     ghost: { border: "var(--border)", text: "var(--textdim)", bg: "transparent" },
   };
   const c = colors[color] || colors.ghost;
