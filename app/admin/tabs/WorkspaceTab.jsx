@@ -76,6 +76,7 @@ export default function WorkspaceTab({ toast }) {
   const [newProj, setNewProj] = useState({ name: "", kind: "game" });
   const [newDocFor, setNewDocFor] = useState(null);       // pid or null
   const [newDocTitle, setNewDocTitle] = useState("");
+  const [newDocType, setNewDocType] = useState("doc");    // "doc" | "sheet"
 
   // ── resolve current admin identity ──
   useEffect(() => {
@@ -142,13 +143,23 @@ export default function WorkspaceTab({ toast }) {
   const createDoc = async () => {
     if (!newDocTitle.trim() || !newDocFor) return;
     try {
-      const d = await postApi(`/api/workspace/projects/${newDocFor}/documents`, { title: newDocTitle.trim() });
+      // `kind` is sent for forward-compat; the editor also seeds a starter
+      // table locally when type === "sheet" (so it works with no backend change).
+      const d = await postApi(`/api/workspace/projects/${newDocFor}/documents`, {
+        title: newDocTitle.trim(),
+        kind: newDocType,
+        icon: newDocType === "sheet" ? "▦" : "📄",
+      });
       toast?.("Document created", "success");
       const pid = newDocFor;
+      const seed = newDocType;
       setNewDocFor(null);
       setNewDocTitle("");
+      setNewDocType("doc");
       await loadDocs(pid);
-      setActiveDoc({ id: d.id, title: newDocTitle.trim(), project_id: pid });
+      // `seed` tells the freshly-opened editor to drop in a starter table if
+      // the synced doc is still empty (new sheet). Doc type → no seed.
+      setActiveDoc({ id: d.id, title: newDocTitle.trim(), project_id: pid, seed });
     } catch (e) {
       toast?.(`Create failed: ${e.message}`, "error");
     }
@@ -292,7 +303,7 @@ export default function WorkspaceTab({ toast }) {
                 </span>
               </div>
               <div style={{ flex: 1, minHeight: 0 }}>
-                <CollabEditor docId={activeDoc.id} docTitle={activeDoc.title} me={me} />
+                <CollabEditor docId={activeDoc.id} docTitle={activeDoc.title} me={me} seed={activeDoc.seed} />
               </div>
             </>
           ) : (
@@ -348,12 +359,37 @@ export default function WorkspaceTab({ toast }) {
       {/* ── NEW DOCUMENT MODAL ── */}
       {newDocFor && (
         <Modal title="New Document" onClose={() => setNewDocFor(null)}>
+          <Field label="Type">
+            <div style={{ display: "flex", gap: 8 }}>
+              {[
+                { id: "doc",   icon: "📄", label: "Document", sub: "Prose, headings, notes" },
+                { id: "sheet", icon: "▦",  label: "Sheet",    sub: "Table / status grid" },
+              ].map((t) => {
+                const on = newDocType === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => setNewDocType(t.id)}
+                    style={{
+                      flex: 1, textAlign: "left", padding: "10px 12px", cursor: "pointer",
+                      borderRadius: 3, background: on ? "rgba(200,168,75,0.06)" : "transparent",
+                      border: `1px solid ${on ? "var(--accent)" : "var(--border)"}`,
+                    }}
+                  >
+                    <div style={{ fontSize: 16, marginBottom: 3 }}>{t.icon}</div>
+                    <div style={{ fontFamily: "var(--mono)", fontSize: 12, color: on ? "var(--accent)" : "var(--text)", letterSpacing: 0.5 }}>{t.label}</div>
+                    <div style={{ fontFamily: "var(--mono)", fontSize: 9.5, color: "var(--muted)", marginTop: 2 }}>{t.sub}</div>
+                  </button>
+                );
+              })}
+            </div>
+          </Field>
           <Field label="Title">
             <input
               className="ap-inp" autoFocus value={newDocTitle}
               onChange={(e) => setNewDocTitle(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && createDoc()}
-              placeholder="e.g. Season 2 Master Plan"
+              placeholder={newDocType === "sheet" ? "e.g. S2 Mod List" : "e.g. Season 2 Master Plan"}
             />
           </Field>
           <div style={{ display: "flex", gap: 10, marginTop: 20 }}>

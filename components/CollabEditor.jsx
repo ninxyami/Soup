@@ -27,6 +27,42 @@ import TableRow from "@tiptap/extension-table-row";
 import TableHeader from "@tiptap/extension-table-header";
 import TableCell from "@tiptap/extension-table-cell";
 
+// P4 — cell background colors (the red/yellow/green status coding admins use
+// in their Sheets). We extend the official cell/header nodes with a
+// `backgroundColor` attribute that round-trips through the DOM (so it persists
+// via Yjs and survives reload) and renders as a translucent tint — translucent
+// so the same swatch reads correctly on BOTH dark and (future) light themes.
+const cellBg = {
+  backgroundColor: {
+    default: null,
+    parseHTML: (el) => el.getAttribute("data-bg") || null,
+    renderHTML: (attrs) =>
+      attrs.backgroundColor ? { "data-bg": attrs.backgroundColor } : {},
+  },
+};
+const ColorTableCell = TableCell.extend({
+  addAttributes() {
+    return { ...this.parent?.(), ...cellBg };
+  },
+});
+const ColorTableHeader = TableHeader.extend({
+  addAttributes() {
+    return { ...this.parent?.(), ...cellBg };
+  },
+});
+
+// Status palette — tuned to how admins actually color sheets (added / pending /
+// broken / info / note), plus neutrals. Values are translucent so they tint
+// rather than paint, working on any theme. Keyed names map to CSS in EDITOR_CSS.
+const CELL_COLORS = [
+  { key: "green",  label: "Added / done",   swatch: "#4caf7d" },
+  { key: "yellow", label: "Pending / WIP",  swatch: "#d4b24b" },
+  { key: "red",    label: "Broken / no",    swatch: "#e05555" },
+  { key: "blue",   label: "Info",           swatch: "#4a8fc4" },
+  { key: "purple", label: "Note",           swatch: "#9775cc" },
+  { key: "orange", label: "Highlight",      swatch: "#d4873a" },
+];
+
 const WS_BASE = "wss://api.stateofundeadpurge.site:8443/ws/workspace";
 
 // Editor-surface + cursor styling. Scoped under .ws-surface so it never
@@ -83,6 +119,22 @@ const EDITOR_CSS = `
   background:rgba(200,168,75,0.16);
 }
 .ws-surface .ProseMirror table.ws-table .selectedCell{border-color:var(--accent)}
+/* P4 — status cell colors (translucent tints; theme-safe). The data-bg
+   attribute is set by the color picker and persists through Yjs. */
+.ws-surface .ProseMirror table.ws-table td[data-bg="green"],
+.ws-surface .ProseMirror table.ws-table th[data-bg="green"]{background:rgba(76,175,125,0.22)}
+.ws-surface .ProseMirror table.ws-table td[data-bg="yellow"],
+.ws-surface .ProseMirror table.ws-table th[data-bg="yellow"]{background:rgba(212,178,75,0.22)}
+.ws-surface .ProseMirror table.ws-table td[data-bg="red"],
+.ws-surface .ProseMirror table.ws-table th[data-bg="red"]{background:rgba(224,85,85,0.22)}
+.ws-surface .ProseMirror table.ws-table td[data-bg="blue"],
+.ws-surface .ProseMirror table.ws-table th[data-bg="blue"]{background:rgba(74,143,196,0.22)}
+.ws-surface .ProseMirror table.ws-table td[data-bg="purple"],
+.ws-surface .ProseMirror table.ws-table th[data-bg="purple"]{background:rgba(151,117,204,0.22)}
+.ws-surface .ProseMirror table.ws-table td[data-bg="orange"],
+.ws-surface .ProseMirror table.ws-table th[data-bg="orange"]{background:rgba(212,135,58,0.22)}
+/* keep the striping from doubling up on colored cells */
+.ws-surface .ProseMirror table.ws-table tr:nth-child(even) td[data-bg]{background-blend-mode:normal}
 /* column resize handle */
 .ws-surface .ProseMirror table.ws-table .column-resize-handle{
   position:absolute; right:-2px; top:0; bottom:-1px; width:4px; z-index:20;
@@ -130,7 +182,7 @@ function TBtn({ active, disabled, title, onClick, children }) {
   );
 }
 
-export default function CollabEditor({ docId, docTitle, me }) {
+export default function CollabEditor({ docId, docTitle, me, seed }) {
   const holderRef = useRef(null);
   const editorRef = useRef(null);
   const providerRef = useRef(null);
@@ -140,6 +192,7 @@ export default function CollabEditor({ docId, docTitle, me }) {
   const [peers, setPeers] = useState([]);             // [{name,color,initials,id}]
   const [, forceTick] = useState(0);                  // re-render toolbar active states
   const [saved, setSaved] = useState(true);           // crude dirty indicator
+  const [colorOpen, setColorOpen] = useState(false);  // cell-color popover
 
   // Re-mount the whole editor whenever the document changes.
   useEffect(() => {
@@ -201,13 +254,31 @@ export default function CollabEditor({ docId, docTitle, me }) {
           HTMLAttributes: { class: "ws-table" },
         }),
         TableRow,
-        TableHeader,
-        TableCell,
+        ColorTableHeader,
+        ColorTableCell,
       ],
       onTransaction: () => forceTick((n) => n + 1),
       onUpdate: () => { setSaved(false); scheduleSavedFlag(); },
     });
     editorRef.current = editor;
+
+    // P4 — sheet seeding. When a doc was created as a "sheet", drop in a
+    // starter table — but ONLY after we've synced with the relay AND only if
+    // the doc is still empty. This makes "new sheet" work with zero backend
+    // change, while never double-seeding when two admins open at once (the
+    // first to sync seeds; the rest see it already there).
+    const maybeSeedSheet = () => {
+      if (seed !== "sheet" || !editorRef.current) return;
+      const ed = editorRef.current;
+      const isEmpty = ed.state.doc.childCount <= 1 && ed.state.doc.textContent.trim() === "";
+      if (!isEmpty) return;
+      ed.chain().focus()
+        .insertTable({ rows: 4, cols: 4, withHeaderRow: true })
+        .run();
+    };
+    provider.once("synced", maybeSeedSheet);
+    // Fallback: if already synced (cached), seed shortly after mount.
+    const seedTimer = setTimeout(() => { if (provider.synced) maybeSeedSheet(); }, 600);
 
     // The relay persists server-side (debounced). This flag is purely a
     // local "your edits reached the socket" reassurance — flips back to
@@ -220,6 +291,7 @@ export default function CollabEditor({ docId, docTitle, me }) {
 
     return () => {
       clearTimeout(savedTimer);
+      clearTimeout(seedTimer);
       try { editor.destroy(); } catch {}
       try { provider.awareness.off("change", refreshPeers); } catch {}
       try { provider.destroy(); } catch {}
@@ -323,6 +395,54 @@ export default function CollabEditor({ docId, docTitle, me }) {
             <TBtn title="Delete row"      onClick={() => run((c) => c.deleteRow().run())}>−row</TBtn>
             <TBtn title="Toggle header row" onClick={() => run((c) => c.toggleHeaderRow().run())}>H↔</TBtn>
             <TBtn title="Merge / split cells" onClick={() => run((c) => c.mergeOrSplit().run())}>⊟</TBtn>
+            {/* P4 — cell color picker (status coding). Colors the selected cell(s). */}
+            <div style={{ position: "relative" }}>
+              <TBtn title="Cell color" active={colorOpen} onClick={() => setColorOpen((o) => !o)}>🎨</TBtn>
+              {colorOpen && (
+                <div
+                  style={{
+                    position: "absolute", top: 34, left: 0, zIndex: 40,
+                    background: "var(--surface)", border: "1px solid var(--border)",
+                    borderRadius: 3, padding: 8, boxShadow: "0 6px 24px rgba(0,0,0,0.5)",
+                    display: "flex", flexDirection: "column", gap: 6, minWidth: 150,
+                  }}
+                >
+                  {CELL_COLORS.map((col) => (
+                    <button
+                      key={col.key}
+                      title={col.label}
+                      onClick={() => { run((c) => c.setCellAttribute("backgroundColor", col.key).run()); setColorOpen(false); }}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 8, padding: "4px 6px",
+                        background: "transparent", border: "1px solid transparent",
+                        cursor: "pointer", borderRadius: 2, fontFamily: "var(--mono)",
+                        fontSize: 11, color: "var(--textdim)", textAlign: "left",
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--text)"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = "transparent"; e.currentTarget.style.color = "var(--textdim)"; }}
+                    >
+                      <span style={{ width: 14, height: 14, borderRadius: 2, background: col.swatch, flexShrink: 0, opacity: 0.85 }} />
+                      {col.label}
+                    </button>
+                  ))}
+                  <div style={{ height: 1, background: "var(--border)", margin: "2px 0" }} />
+                  <button
+                    onClick={() => { run((c) => c.setCellAttribute("backgroundColor", null).run()); setColorOpen(false); }}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 8, padding: "4px 6px",
+                      background: "transparent", border: "1px solid transparent",
+                      cursor: "pointer", borderRadius: 2, fontFamily: "var(--mono)",
+                      fontSize: 11, color: "var(--textdim)", textAlign: "left",
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--text)"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = "transparent"; e.currentTarget.style.color = "var(--textdim)"; }}
+                  >
+                    <span style={{ width: 14, height: 14, borderRadius: 2, border: "1px solid var(--muted)", flexShrink: 0 }} />
+                    Clear color
+                  </button>
+                </div>
+              )}
+            </div>
             <TBtn title="Delete table"    onClick={() => run((c) => c.deleteTable().run())}>✕▦</TBtn>
           </>
         )}
