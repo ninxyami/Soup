@@ -166,9 +166,15 @@ export default function SheetEditor({ docId, me }) {
       for (const s of others) {
         const u = s.user;
         const k = u.id || u.name; if (seen.has(k)) continue; seen.add(k); uniq.push(u);
-        if (s.cursor && Array.isArray(s.cursor.cell)) {
-          cursors.push({ user: u, cell: s.cursor.cell });
+        // A peer's cursor cell; if they're mid-edit in that cell, carry the
+        // live in-progress text so we can render it (Sheets-style).
+        let cell = s.cursor && Array.isArray(s.cursor.cell) ? s.cursor.cell : null;
+        let typing = null;
+        if (s.typing && Array.isArray(s.typing.cell)) {
+          cell = s.typing.cell;           // edit cell takes precedence
+          typing = s.typing.text ?? "";
         }
+        if (cell) cursors.push({ user: u, cell, typing });
       }
       setPeers(uniq);
       setPeerCursors(cursors);
@@ -242,6 +248,31 @@ export default function SheetEditor({ docId, me }) {
               cell: [parseInt(y1, 10), parseInt(x1, 10)],
             });
           } catch {}
+        },
+        // ── live typing: stream the in-progress cell text (Sheets-style) ──
+        // We mirror the RAW text per keystroke — we do NOT evaluate it as a
+        // formula mid-type, so no #ERROR flicker. The real value (and formula
+        // result) lands on commit via onchange.
+        oncreateeditor: (worksheet, td, col, row, input) => {
+          try {
+            const el = input || (td && td.querySelector("input,textarea"));
+            if (!el || !awarenessRef.current) return;
+            const r = parseInt(row, 10), c = parseInt(col, 10);
+            const push = () => {
+              try {
+                awarenessRef.current.setLocalStateField("typing", {
+                  cell: [r, c], text: String(el.value ?? ""),
+                });
+              } catch {}
+            };
+            el.addEventListener("input", push);
+            el.__wsTypingHandler = push; // for cleanup on edition end
+            push(); // initial (cell may open with existing content)
+          } catch {}
+        },
+        oneditionend: (worksheet, td, col, row, editorValue, wasSaved) => {
+          if (!awarenessRef.current) return;
+          try { awarenessRef.current.setLocalStateField("typing", null); } catch {}
         },
       });
       // Grab the single worksheet instance for all surgical cell ops.
@@ -466,15 +497,25 @@ export default function SheetEditor({ docId, me }) {
             const color = pc.user.color || "#4a8fc4";
             return (
               <div key={(pc.user.id || pc.user.name) + i} style={{
-                position: "absolute", left: pos.left, top: pos.top, width: pos.width, height: pos.height,
+                position: "absolute", left: pos.left, top: pos.top,
+                width: pos.width, minHeight: pos.height,
                 border: `2px solid ${color}`, pointerEvents: "none", zIndex: 5, boxSizing: "border-box",
                 boxShadow: `0 0 0 1px ${color}55`,
+                // when they're actively typing, tint the cell and show their text
+                background: pc.typing != null ? `${color}22` : "transparent",
               }}>
                 <span style={{
                   position: "absolute", top: -16, left: -2, background: color, color: "#0a0a0a",
                   fontFamily: "var(--mono)", fontSize: 9, lineHeight: "14px", padding: "0 5px",
                   borderRadius: 2, whiteSpace: "nowrap", fontWeight: 600,
-                }}>{pc.user.name}</span>
+                }}>{pc.user.name}{pc.typing != null ? " ✎" : ""}</span>
+                {pc.typing != null && pc.typing !== "" && (
+                  <div style={{
+                    fontFamily: "var(--mono)", fontSize: 12, color: "var(--text)",
+                    padding: "3px 5px", whiteSpace: "pre", overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}>{pc.typing}</div>
+                )}
               </div>
             );
           })}
