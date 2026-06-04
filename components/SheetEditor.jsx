@@ -117,6 +117,8 @@ export default function SheetEditor({ docId, me }) {
   const cellsRef = useRef(null);     // Y.Map of cells
   const stylesRef = useRef(null);    // Y.Map of cell -> color key
   const applyingRemote = useRef(false); // guard: don't echo remote edits back
+  const jspreadsheetModRef = useRef(null); // the imported module (for destroy)
+  const holderEl = useRef(null);     // captured holder element for teardown
 
   const [status, setStatus] = useState("connecting");
   const [peers, setPeers] = useState([]);
@@ -194,18 +196,25 @@ export default function SheetEditor({ docId, me }) {
       if (destroyed) return;
       const jspreadsheetMod = await import("jspreadsheet-ce");
       const jspreadsheet = jspreadsheetMod.default || jspreadsheetMod;
+      jspreadsheetModRef.current = jspreadsheet;
+      holderEl.current = holderRef.current;
       if (destroyed || !holderRef.current) return;
 
       const data = buildDataFromY();
 
-      jss = jspreadsheet(holderRef.current, {
-        data,
-        columns: Array.from({ length: DEFAULT_COLS }, () => ({ width: COL_WIDTH })),
-        minDimensions: [DEFAULT_COLS, DEFAULT_ROWS],
+      // jspreadsheet v5 takes a `worksheets` array and returns an array of
+      // worksheet instances. All per-cell methods live on worksheet[0].
+      const instances = jspreadsheet(holderRef.current, {
+        worksheets: [{
+          data,
+          columns: Array.from({ length: DEFAULT_COLS }, () => ({ width: COL_WIDTH })),
+          minDimensions: [DEFAULT_COLS, DEFAULT_ROWS],
+          worksheetName: "Sheet",
+        }],
         allowExport: false,
         about: false,
         // ── local edit → push just that cell into Yjs ──
-        onchange: (instance, cell, x, y, value) => {
+        onchange: (worksheet, cell, x, y, value) => {
           if (applyingRemote.current) return;
           const r = parseInt(y, 10), c = parseInt(x, 10);
           ydoc.transact(() => {
@@ -214,6 +223,8 @@ export default function SheetEditor({ docId, me }) {
           });
         },
       });
+      // Grab the single worksheet instance for all surgical cell ops.
+      jss = Array.isArray(instances) ? instances[0] : instances;
       jssRef.current = jss;
       applyStylesFromY();
       setReady(true);
@@ -256,26 +267,39 @@ export default function SheetEditor({ docId, me }) {
     holderRef.current.__applyColor = (key) => {
       const inst = jssRef.current;
       if (!inst) return;
-      const sel = inst.getSelectedRows ? inst.getSelected() : null;
-      // getSelected returns selected coords; fall back to highlighted cells
       let coords = [];
+      // v5: getSelected() returns an array of selected cell coords. We also
+      // support the selectedCell rectangle [x1,y1,x2,y2] as a fallback.
       try {
-        const h = inst.getHighlighted ? inst.getHighlighted() : null;
-        // robust path: iterate selection rectangle
-        const s = inst.selectedCell; // [x1,y1,x2,y2]
-        if (s && s.length === 4) {
-          for (let c = Math.min(s[0], s[2]); c <= Math.max(s[0], s[2]); c++)
-            for (let r = Math.min(s[1], s[3]); r <= Math.max(s[1], s[3]); r++)
-              coords.push([r, c]);
+        if (typeof inst.getSelected === "function") {
+          const sel = inst.getSelected(); // array of {x,y} or [x,y]
+          if (Array.isArray(sel)) {
+            for (const cellSel of sel) {
+              const c = cellSel.x ?? cellSel[0];
+              const r = cellSel.y ?? cellSel[1];
+              if (c != null && r != null) coords.push([Number(r), Number(c)]);
+            }
+          }
         }
       } catch {}
+      if (coords.length === 0) {
+        try {
+          const s = inst.selectedCell; // [x1,y1,x2,y2]
+          if (s && s.length === 4) {
+            for (let c = Math.min(s[0], s[2]); c <= Math.max(s[0], s[2]); c++)
+              for (let r = Math.min(s[1], s[3]); r <= Math.max(s[1], s[3]); r++)
+                coords.push([r, c]);
+          }
+        } catch {}
+      }
+      if (coords.length === 0) return;
       ydoc.transact(() => {
         coords.forEach(([r, c]) => {
           if (key) yStyles.set(`${r}:${c}`, key);
           else yStyles.delete(`${r}:${c}`);
         });
       });
-      // apply locally too (observe only fires for remote)
+      // apply locally too (observe only fires for remote txns)
       coords.forEach(([r, c]) => {
         try { inst.setStyle(cellName(c, r), "background-color", key ? colorBg(key) : ""); } catch {}
       });
@@ -287,7 +311,14 @@ export default function SheetEditor({ docId, me }) {
       try { yCells.unobserve(onCellsChange); } catch {}
       try { yStyles.unobserve(onStylesChange); } catch {}
       try { provider.awareness.off("change", refreshPeers); } catch {}
-      try { if (jssRef.current && jssRef.current.destroy) jssRef.current.destroy(); } catch {}
+      // v5 teardown: prefer module-level destroy on the holder element.
+      try {
+        if (jspreadsheetModRef.current) {
+          const j = jspreadsheetModRef.current;
+          if (typeof j.destroy === "function" && holderEl.current) j.destroy(holderEl.current, true);
+        }
+      } catch {}
+      try { if (jssRef.current && typeof jssRef.current.destroy === "function") jssRef.current.destroy(); } catch {}
       try { provider.destroy(); } catch {}
       try { ydoc.destroy(); } catch {}
       jssRef.current = null; providerRef.current = null;

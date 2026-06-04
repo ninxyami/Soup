@@ -158,6 +158,29 @@ export default function WorkspaceTab({ toast }) {
     }
   };
 
+  // ── delete document (with confirm) ──
+  const deleteDoc = async (doc, pid) => {
+    if (!doc?.id) return;
+    if (!window.confirm(`Delete "${doc.title}"? This can't be undone.`)) return;
+    // Try the document-scoped route first, fall back to project-scoped.
+    const routes = [
+      `/api/workspace/documents/${doc.id}`,
+      `/api/workspace/projects/${pid}/documents/${doc.id}`,
+    ];
+    let ok = false, lastErr = null;
+    for (const r of routes) {
+      try { await fetchApi(r, { method: "DELETE" }); ok = true; break; }
+      catch (e) { lastErr = e; }
+    }
+    if (ok) {
+      toast?.("Document deleted", "success");
+      if (activeDoc?.id === doc.id) setActiveDoc(null);
+      await loadDocs(pid);
+    } else {
+      toast?.(`Delete failed: ${lastErr?.message || "unknown"}`, "error");
+    }
+  };
+
   // ── create document ──
   const createDoc = async () => {
     if (!newDocTitle.trim() || !newDocFor) return;
@@ -188,6 +211,10 @@ export default function WorkspaceTab({ toast }) {
 
   return (
     <div>
+      <style dangerouslySetInnerHTML={{ __html: `
+        .ws-doc-row:hover .ws-doc-del { opacity: 1 !important; }
+        .ws-doc-row:hover { background: rgba(255,255,255,0.02); }
+      ` }} />
       <Title t="WORKSPACE" s="Live collaborative planning — projects, documents, real-time" />
 
       <div style={{
@@ -280,6 +307,7 @@ export default function WorkspaceTab({ toast }) {
                           return (
                             <div
                               key={doc.id}
+                              className="ws-doc-row"
                               onClick={() => { setActiveDoc({ id: doc.id, title: doc.title, project_id: p.id, kind: doc.kind, type: doc.type, icon: doc.icon }); setActiveConfig(null); }}
                               style={{
                                 display: "flex", alignItems: "center", gap: 8, padding: "6px 14px 6px 34px",
@@ -291,6 +319,18 @@ export default function WorkspaceTab({ toast }) {
                             >
                               <span style={{ fontSize: 11, opacity: 0.7 }}>{doc.icon || "📄"}</span>
                               <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{doc.title}</span>
+                              <button
+                                className="ws-doc-del"
+                                title="Delete document"
+                                onClick={(e) => { e.stopPropagation(); deleteDoc(doc, p.id); }}
+                                style={{
+                                  background: "transparent", border: "none", cursor: "pointer",
+                                  color: "var(--muted)", fontSize: 13, lineHeight: 1, padding: "2px 4px",
+                                  borderRadius: 2, opacity: 0, transition: "opacity .12s, color .12s",
+                                }}
+                                onMouseEnter={(e) => { e.currentTarget.style.color = "var(--red)"; }}
+                                onMouseLeave={(e) => { e.currentTarget.style.color = "var(--muted)"; }}
+                              >✕</button>
                             </div>
                           );
                         })}
