@@ -49,6 +49,13 @@ const SheetEditor = dynamic(() => import("@/components/SheetEditor"), {
   ),
 });
 
+const BoardEditor = dynamic(() => import("@/components/BoardEditor"), {
+  ssr: false,
+  loading: () => (
+    <Center><span style={blink}>LOADING BOARD…</span></Center>
+  ),
+});
+
 // Whitelisted config files (mirrors backend EDITABLE_FILES + the admin tab).
 const CONFIG_FILES = [
   { key: "servertest.ini",             label: "servertest.ini",  icon: "⚙" },
@@ -73,6 +80,7 @@ export default function WorkspaceStandalone() {
   const [docId, setDocId] = useState(null);
   const [docTitle, setDocTitle] = useState("Workspace");
   const [docIsSheet, setDocIsSheet] = useState(false);
+  const [docIsBoard, setDocIsBoard] = useState(false);
   const [configKey, setConfigKey] = useState(null);  // open config file by key
 
   // projects/docs for the picker
@@ -86,6 +94,7 @@ export default function WorkspaceStandalone() {
     const d = params.get("doc");
     if (d) setDocId(d);
     if (params.get("sheet") === "1") setDocIsSheet(true);
+    if (params.get("board") === "1") setDocIsBoard(true);
     const c = params.get("config");
     if (c) setConfigKey(c);
   }, []);
@@ -181,7 +190,9 @@ export default function WorkspaceStandalone() {
           <a href="/admin" style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)", textDecoration: "none" }}>admin panel →</a>
         </div>
         <div style={{ flex: 1, minHeight: 0 }}>
-          {docIsSheet ? (
+          {docIsBoard ? (
+            <BoardEditor docId={docId} me={me} admins={Object.entries(ADMINS).map(([id, a]) => ({ id, ...a }))} />
+          ) : docIsSheet ? (
             <SheetEditor docId={docId} me={me} />
           ) : (
             <CollabEditor docId={docId} docTitle={docTitle} me={me} />
@@ -258,10 +269,12 @@ export default function WorkspaceStandalone() {
                       <div style={{ padding: "12px 18px 12px 40px", fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)" }}>No documents.</div>
                     ) : docs.map((doc) => {
                       const sheet = doc.kind === "sheet" || doc.type === "sheet" || doc.icon === "▦";
+                      const board = doc.kind === "board" || doc.type === "board" || doc.icon === "▤";
+                      const suffix = sheet ? "&sheet=1" : board ? "&board=1" : "";
                       return (
                       <a
                         key={doc.id}
-                        href={`/workspace?doc=${doc.id}${sheet ? "&sheet=1" : ""}`}
+                        href={`/workspace?doc=${doc.id}${suffix}`}
                         style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 18px 11px 40px", textDecoration: "none", color: "var(--textdim)", borderTop: "1px solid rgba(30,37,48,0.5)" }}
                       >
                         <span style={{ fontSize: 12, opacity: 0.7 }}>{doc.icon || "📄"}</span>

@@ -40,6 +40,18 @@ const SheetEditor = dynamic(() => import("@/components/SheetEditor"), {
   ),
 });
 
+// Kanban board editor (Yjs). Client-only.
+const BoardEditor = dynamic(() => import("@/components/BoardEditor"), {
+  ssr: false,
+  loading: () => (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "60vh" }}>
+      <span style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--textdim)", letterSpacing: 2, animation: "ap-blink 1.2s infinite" }}>
+        LOADING BOARD…
+      </span>
+    </div>
+  ),
+});
+
 // Collaborative raw-config editor (servertest.ini / SandboxVars.lua). Client-only.
 const ConfigEditor = dynamic(() => import("@/components/ConfigEditor"), {
   ssr: false,
@@ -80,6 +92,9 @@ const fmtWhen = (ts) => {
 // dedicated type column.
 const isSheetDoc = (doc) =>
   doc?.kind === "sheet" || doc?.type === "sheet" || doc?.seed === "sheet" || doc?.icon === "▦";
+
+const isBoardDoc = (doc) =>
+  doc?.kind === "board" || doc?.type === "board" || doc?.seed === "board" || doc?.icon === "▤";
 
 export default function WorkspaceTab({ toast }) {
   const [me, setMe] = useState(null);
@@ -190,7 +205,7 @@ export default function WorkspaceTab({ toast }) {
       const d = await postApi(`/api/workspace/projects/${newDocFor}/documents`, {
         title: newDocTitle.trim(),
         kind: newDocType,
-        icon: newDocType === "sheet" ? "▦" : "📄",
+        icon: newDocType === "sheet" ? "▦" : newDocType === "board" ? "▤" : "📄",
       });
       toast?.("Document created", "success");
       const pid = newDocFor;
@@ -362,7 +377,9 @@ export default function WorkspaceTab({ toast }) {
                 </span>
               </div>
               <div style={{ flex: 1, minHeight: 0 }}>
-                {isSheetDoc(activeDoc) ? (
+                {isBoardDoc(activeDoc) ? (
+                  <BoardEditor docId={activeDoc.id} me={me} admins={Object.entries(ADMINS).map(([id, a]) => ({ id, ...a }))} />
+                ) : isSheetDoc(activeDoc) ? (
                   <SheetEditor docId={activeDoc.id} me={me} />
                 ) : (
                   <CollabEditor docId={activeDoc.id} docTitle={activeDoc.title} me={me} seed={activeDoc.seed} />
@@ -427,6 +444,7 @@ export default function WorkspaceTab({ toast }) {
               {[
                 { id: "doc",   icon: "📄", label: "Document", sub: "Prose, headings, notes" },
                 { id: "sheet", icon: "▦",  label: "Sheet",    sub: "Table / status grid" },
+                { id: "board", icon: "▤",  label: "Board",    sub: "Kanban · planner" },
               ].map((t) => {
                 const on = newDocType === t.id;
                 return (
