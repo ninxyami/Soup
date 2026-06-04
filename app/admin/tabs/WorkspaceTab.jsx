@@ -28,6 +28,18 @@ const CollabEditor = dynamic(() => import("@/components/CollabEditor"), {
   ),
 });
 
+// Spreadsheet editor (jspreadsheet-ce + Yjs). Client-only, same reason.
+const SheetEditor = dynamic(() => import("@/components/SheetEditor"), {
+  ssr: false,
+  loading: () => (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "60vh" }}>
+      <span style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--textdim)", letterSpacing: 2, animation: "ap-blink 1.2s infinite" }}>
+        LOADING SPREADSHEET…
+      </span>
+    </div>
+  ),
+});
+
 // Collaborative raw-config editor (servertest.ini / SandboxVars.lua). Client-only.
 const ConfigEditor = dynamic(() => import("@/components/ConfigEditor"), {
   ssr: false,
@@ -61,6 +73,13 @@ const fmtWhen = (ts) => {
   if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
   return `${Math.floor(s / 86400)}d ago`;
 };
+
+// Detect a Sheet-type document. Routes on any reliable signal: explicit
+// kind/type from the backend, the local seed at creation, or the sheet icon
+// (▦) the create call stored — works whether or not the backend persists a
+// dedicated type column.
+const isSheetDoc = (doc) =>
+  doc?.kind === "sheet" || doc?.type === "sheet" || doc?.seed === "sheet" || doc?.icon === "▦";
 
 export default function WorkspaceTab({ toast }) {
   const [me, setMe] = useState(null);
@@ -261,7 +280,7 @@ export default function WorkspaceTab({ toast }) {
                           return (
                             <div
                               key={doc.id}
-                              onClick={() => { setActiveDoc({ id: doc.id, title: doc.title, project_id: p.id }); setActiveConfig(null); }}
+                              onClick={() => { setActiveDoc({ id: doc.id, title: doc.title, project_id: p.id, kind: doc.kind, type: doc.type, icon: doc.icon }); setActiveConfig(null); }}
                               style={{
                                 display: "flex", alignItems: "center", gap: 8, padding: "6px 14px 6px 34px",
                                 cursor: "pointer", fontFamily: "var(--body)", fontSize: 12.5,
@@ -303,7 +322,11 @@ export default function WorkspaceTab({ toast }) {
                 </span>
               </div>
               <div style={{ flex: 1, minHeight: 0 }}>
-                <CollabEditor docId={activeDoc.id} docTitle={activeDoc.title} me={me} seed={activeDoc.seed} />
+                {isSheetDoc(activeDoc) ? (
+                  <SheetEditor docId={activeDoc.id} me={me} />
+                ) : (
+                  <CollabEditor docId={activeDoc.id} docTitle={activeDoc.title} me={me} seed={activeDoc.seed} />
+                )}
               </div>
             </>
           ) : (
