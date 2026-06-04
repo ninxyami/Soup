@@ -87,6 +87,38 @@ const BOARD_CSS = `
 .bd-swatches{display:flex;gap:5px;flex-wrap:wrap}
 .bd-sw{width:22px;height:22px;border-radius:3px;cursor:pointer;border:2px solid transparent}
 .bd-sw.on{border-color:var(--text)}
+/* view toggle */
+.bd-toggle{display:flex;border:1px solid var(--border);border-radius:3px;overflow:hidden}
+.bd-toggle button{font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;
+  background:transparent;color:var(--textdim);border:none;padding:5px 12px;cursor:pointer}
+.bd-toggle button.on{background:var(--accent);color:#0a0a0a}
+/* gantt */
+.bd-gantt{flex:1;overflow:auto;padding:0}
+.bd-gantt-inner{min-width:max-content}
+.bd-g-axis{display:flex;position:sticky;top:0;z-index:3;background:var(--surface);border-bottom:1px solid var(--border)}
+.bd-g-corner{flex:0 0 200px;position:sticky;left:0;z-index:4;background:var(--surface);
+  border-right:1px solid var(--border);padding:8px 12px;font-family:var(--mono);font-size:10px;
+  letter-spacing:1px;text-transform:uppercase;color:var(--textdim)}
+.bd-g-tick{flex:0 0 var(--day-w);text-align:center;font-family:var(--mono);font-size:9px;
+  color:var(--muted);padding:8px 0;border-right:1px solid rgba(30,37,48,0.4);box-sizing:border-box}
+.bd-g-tick.weekend{background:rgba(0,0,0,0.15)}
+.bd-g-tick.month{color:var(--accent)}
+.bd-g-row{display:flex;align-items:stretch;border-bottom:1px solid rgba(30,37,48,0.35);min-height:34px}
+.bd-g-label{flex:0 0 200px;position:sticky;left:0;z-index:2;background:var(--surface);
+  border-right:1px solid var(--border);padding:7px 12px;font-family:var(--body);font-size:12.5px;
+  color:var(--text);display:flex;align-items:center;gap:7px;overflow:hidden}
+.bd-g-label .dot{width:7px;height:7px;border-radius:4px;flex-shrink:0}
+.bd-g-track{position:relative;flex:1}
+.bd-g-bar{position:absolute;top:6px;height:20px;border-radius:3px;cursor:grab;
+  display:flex;align-items:center;padding:0 7px;box-sizing:border-box;
+  font-family:var(--mono);font-size:10px;color:#0a0a0a;white-space:nowrap;overflow:hidden;user-select:none}
+.bd-g-bar .handle{position:absolute;top:0;bottom:0;width:7px;cursor:col-resize}
+.bd-g-bar .handle.l{left:0} .bd-g-bar .handle.r{right:0}
+.bd-g-today{position:absolute;top:0;bottom:0;width:2px;background:var(--accent);opacity:0.6;z-index:1}
+.bd-tray{border-top:1px solid var(--border);padding:10px 12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:rgba(0,0,0,0.12)}
+.bd-tray-card{font-family:var(--body);font-size:12px;color:var(--textdim);border:1px dashed var(--border);
+  border-radius:3px;padding:4px 9px;cursor:pointer}
+.bd-tray-card:hover{color:var(--text);border-color:var(--muted)}
 `;
 
 function Avatar({ u, ring }) {
@@ -102,6 +134,136 @@ function Avatar({ u, ring }) {
   );
 }
 
+// ── date helpers (YYYY-MM-DD strings, treated as UTC days) ──
+const DAY_MS = 86400000;
+const parseDay = (s) => { if (!s) return null; const [y, m, d] = s.split("-").map(Number); return Date.UTC(y, m - 1, d); };
+const toDayStr = (ms) => { const d = new Date(ms); return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`; };
+const dayDiff = (a, b) => Math.round((b - a) / DAY_MS);
+const DAY_W = 34; // px per day
+
+// Gantt timeline view — reads the SAME cards as the kanban, writes dates back
+// via putCard so the two stay perfectly in sync.
+function GanttView({ cards, labelColor, putCard, setEditing, columns }) {
+  const trackRef = useRef(null);
+  const drag = useRef(null); // {id, mode:'move'|'l'|'r', startX, origStart, origEnd}
+
+  const dated = Object.values(cards).filter((c) => c.start || c.end);
+  const undated = Object.values(cards).filter((c) => !c.start && !c.end);
+
+  // Determine the visible date range.
+  let min = null, max = null;
+  for (const c of dated) {
+    const s = parseDay(c.start) ?? parseDay(c.end);
+    const e = parseDay(c.end) ?? parseDay(c.start);
+    if (s != null) min = min == null ? s : Math.min(min, s);
+    if (e != null) max = max == null ? e : Math.max(max, e);
+  }
+  const todayMs = parseDay(toDayStr(Date.now()));
+  if (min == null) { min = todayMs; max = todayMs + 13 * DAY_MS; }
+  // pad a few days each side
+  min -= 2 * DAY_MS; max += 4 * DAY_MS;
+  const totalDays = Math.max(1, dayDiff(min, max) + 1);
+  const days = Array.from({ length: totalDays }, (_, i) => min + i * DAY_MS);
+
+  const colTitle = (id) => (columns.find((c) => c.id === id) || {}).title || "";
+
+  const onBarDown = (e, c, mode) => {
+    e.preventDefault(); e.stopPropagation();
+    const s = parseDay(c.start) ?? parseDay(c.end) ?? todayMs;
+    const en = parseDay(c.end) ?? parseDay(c.start) ?? s;
+    drag.current = { id: c.id, mode, startX: e.clientX, origStart: s, origEnd: en };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  };
+  const onMove = (e) => {
+    const d = drag.current; if (!d) return;
+    const deltaDays = Math.round((e.clientX - d.startX) / DAY_W);
+    if (deltaDays === 0) return;
+    let s = d.origStart, en = d.origEnd;
+    if (d.mode === "move") { s = d.origStart + deltaDays * DAY_MS; en = d.origEnd + deltaDays * DAY_MS; }
+    else if (d.mode === "l") { s = Math.min(d.origStart + deltaDays * DAY_MS, en); }
+    else if (d.mode === "r") { en = Math.max(d.origEnd + deltaDays * DAY_MS, s); }
+    const c = cards[d.id]; if (!c) return;
+    putCard({ ...c, start: toDayStr(s), end: toDayStr(en) });
+  };
+  const onUp = () => {
+    drag.current = null;
+    window.removeEventListener("mousemove", onMove);
+    window.removeEventListener("mouseup", onUp);
+  };
+
+  return (
+    <>
+      <div className="bd-gantt" style={{ ["--day-w"]: `${DAY_W}px` }}>
+        <div className="bd-gantt-inner">
+          {/* axis */}
+          <div className="bd-g-axis">
+            <div className="bd-g-corner">Task</div>
+            {days.map((ms) => {
+              const d = new Date(ms);
+              const dow = d.getUTCDay();
+              const isMonthStart = d.getUTCDate() === 1;
+              return (
+                <div key={ms} className={"bd-g-tick" + (dow === 0 || dow === 6 ? " weekend" : "") + (isMonthStart ? " month" : "")}>
+                  {isMonthStart ? d.toLocaleString("en", { month: "short", timeZone: "UTC" }) : d.getUTCDate()}
+                </div>
+              );
+            })}
+          </div>
+          {/* rows */}
+          {dated.length === 0 ? (
+            <div style={{ padding: "20px 12px", fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)" }}>
+              No dated tasks yet. Give a card a start/end date (click it, or drag one up from the tray below).
+            </div>
+          ) : dated.map((c) => {
+            const s = parseDay(c.start) ?? parseDay(c.end);
+            const en = parseDay(c.end) ?? parseDay(c.start);
+            const left = dayDiff(min, s) * DAY_W;
+            const width = Math.max(DAY_W, (dayDiff(s, en) + 1) * DAY_W);
+            const col = c.label ? labelColor(c.label) : "#4a8fc4";
+            return (
+              <div key={c.id} className="bd-g-row">
+                <div className="bd-g-label" title={c.title}>
+                  <span className="dot" style={{ background: col }} />
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.title || "Untitled"}</span>
+                </div>
+                <div className="bd-g-track" ref={trackRef}>
+                  {/* today marker */}
+                  <div className="bd-g-today" style={{ left: dayDiff(min, todayMs) * DAY_W + DAY_W / 2 }} />
+                  <div
+                    className="bd-g-bar"
+                    style={{ left, width, background: col }}
+                    onMouseDown={(e) => onBarDown(e, c, "move")}
+                    onClick={(e) => { e.stopPropagation(); setEditing(c); }}
+                    title={`${c.start || "?"} → ${c.end || "?"}`}
+                  >
+                    <span className="handle l" onMouseDown={(e) => onBarDown(e, c, "l")} />
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{colTitle(c.status)}</span>
+                    <span className="handle r" onMouseDown={(e) => onBarDown(e, c, "r")} />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      {/* tray of undated cards — click to give them dates (placed at today) */}
+      {undated.length > 0 && (
+        <div className="bd-tray">
+          <span style={{ fontFamily: "var(--mono)", fontSize: 10, letterSpacing: 1, textTransform: "uppercase", color: "var(--textdim)", marginRight: 4 }}>No dates:</span>
+          {undated.map((c) => (
+            <span key={c.id} className="bd-tray-card"
+              onClick={() => { const t = toDayStr(Date.now()); putCard({ ...c, start: t, end: t }); }}
+              title="Click to place on timeline today">
+              {c.title || "Untitled"}
+            </span>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
 export default function BoardEditor({ docId, me, admins = [] }) {
   const ydocRef = useRef(null);
   const providerRef = useRef(null);
@@ -113,6 +275,7 @@ export default function BoardEditor({ docId, me, admins = [] }) {
   const [cards, setCards] = useState({});     // id -> card
   const [columns, setColumns] = useState([]); // [{id,title}]
   const [editing, setEditing] = useState(null); // card being edited (or null)
+  const [view, setView] = useState("kanban");    // "kanban" | "gantt"
   const dragId = useRef(null);
   const [dropCol, setDropCol] = useState(null);
 
@@ -254,10 +417,16 @@ export default function BoardEditor({ docId, me, admins = [] }) {
           </span>
         </div>
         <div style={{ flex: 1 }} />
-        <span style={{ fontFamily: "var(--mono)", fontSize: 10, letterSpacing: 1, textTransform: "uppercase", color: "var(--textdim)" }}>kanban</span>
+        <div className="bd-toggle">
+          <button className={view === "kanban" ? "on" : ""} onClick={() => setView("kanban")}>Kanban</button>
+          <button className={view === "gantt" ? "on" : ""} onClick={() => setView("gantt")}>Gantt</button>
+        </div>
       </div>
 
-      {/* board */}
+      {/* board view */}
+      {view === "gantt" ? (
+        <GanttView cards={cards} labelColor={labelColor} putCard={putCard} setEditing={setEditing} columns={columns} />
+      ) : (
       <div className="bd-board">
         {columns.map((col, idx) => {
           const colCards = Object.values(cards)
@@ -306,6 +475,7 @@ export default function BoardEditor({ docId, me, admins = [] }) {
           <button onClick={addColumn}>+ ADD COLUMN</button>
         </div>
       </div>
+      )}
 
       {/* card editor modal */}
       {editing && (
