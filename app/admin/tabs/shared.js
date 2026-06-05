@@ -1,6 +1,31 @@
 "use client";
 // @ts-nocheck
 
+import { useState, useEffect } from "react";
+
+// ── useStickyState ──────────────────────────────────────────────────────────
+// Like useState, but remembers the value per-key for the browser session, so a
+// sub-tab selection survives navigating away and back (and a refresh). Scope is
+// sessionStorage — persists across tab navigation + reload, clears when the
+// browser tab closes. SSR-safe: never touches sessionStorage during render, only
+// after mount, so it doesn't break the static export build.
+export function useStickyState(defaultValue, key) {
+  const [value, setValue] = useState(defaultValue);
+  // hydrate from sessionStorage once, after mount
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem(`soup:${key}`);
+      if (saved !== null) setValue(JSON.parse(saved));
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+  // persist on change
+  useEffect(() => {
+    try { sessionStorage.setItem(`soup:${key}`, JSON.stringify(value)); } catch {}
+  }, [key, value]);
+  return [value, setValue];
+}
+
 export const API = "https://api.stateofundeadpurge.site:8443";
 
 export const HUNT_TYPES = ["food","medic","ammo","weapons","military","misc","beginner","horde"];

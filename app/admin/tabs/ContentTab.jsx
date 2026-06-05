@@ -2,7 +2,7 @@
 // @ts-nocheck
 import { useState, useEffect, useCallback } from "react";
 import { useLiveRefresh } from "../realtime";
-import { fetchApi, postApi, B, Load, SC, Title, TW, API } from "./shared";
+import { fetchApi, postApi, B, Load, SC, Title, TW, API, useStickyState } from "./shared";
 
 // ── Shared field style helpers ──────────────────────────────────────────────
 const inp = {
@@ -455,7 +455,7 @@ const TABS = [
 ];
 
 export default function ContentTab({ toast }) {
-  const [tab, setTab] = useState("server");
+  const [tab, setTab] = useStickyState("server", "content.tab");
 
   return (
     <div>

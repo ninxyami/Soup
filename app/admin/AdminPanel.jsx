@@ -2,7 +2,7 @@
 // @ts-nocheck
 import { useState, useCallback, useRef, useEffect } from "react";
 import { RealtimeProvider } from "./realtime";
-import { Toasts, ADMINS } from "./tabs/shared";
+import { Toasts, ADMINS, useStickyState } from "./tabs/shared";
 import OverviewTab    from "./tabs/OverviewTab";
 import ServerTab      from "./tabs/ServerTab";
 import ShopTab        from "./tabs/ShopTab";
@@ -269,7 +269,7 @@ table.ap-t{width:100%;border-collapse:collapse}
 `;
 
 export default function AdminPanel() {
-  const [page, setPage] = useState("overview");
+  const [page, setPage] = useStickyState("overview", "panel.page");
   const [toasts, setToasts] = useState([]);
   const [panelLocked, setPanelLocked] = useState(null);
   const [panelPw, setPanelPw] = useState("");

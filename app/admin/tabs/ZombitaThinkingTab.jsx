@@ -1,20 +1,7 @@
 "use client";
 // @ts-nocheck
 import { useState, useEffect, useCallback } from "react";
-import dynamic from "next/dynamic";
-import { API, fetchApi, postApi, relTime, fmtDate, fmtFull, ADMINS, Title, SC, TW, B, Empty, Load } from "./shared";
-
-// P5.4 — multi-admin chat thread (client-only; Yjs cannot SSR).
-const AdminChat = dynamic(() => import("@/components/AdminChat"), {
-  ssr: false,
-  loading: () => (
-    <div style={{ padding: 40, textAlign: "center" }}>
-      <span style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--textdim)", letterSpacing: 2, animation: "ap-blink 1.2s infinite" }}>
-        CONNECTING…
-      </span>
-    </div>
-  ),
-});
+import { fetchApi, postApi, relTime, fmtDate, fmtFull, Title, SC, TW, B, Empty, Load } from "./shared";
 
 // ──────────────────────────────────────────────────────────────────────────
 // P5.3 — "Zombita's Thinking" surface (READ-ONLY)
@@ -212,22 +199,7 @@ export default function ZombitaThinkingTab({ toast }) {
   const [loading, setLoading] = useState(true);
   const [ackBusy, setAckBusy] = useState(false);
   const [showAcked, setShowAcked] = useState(false);
-  const [view, setView]       = useState("thinking"); // "thinking" | "memory" | "chat"
-  const [me, setMe]           = useState(null);
-
-  // Resolve current admin identity (same pattern as WorkspaceTab) for the chat.
-  useEffect(() => {
-    (async () => {
-      try {
-        const r = await fetch(`${API}/auth/me`, { credentials: "include" });
-        const d = await r.json();
-        const info = ADMINS[d.discord_id] || { name: d.username || "Admin", color: "#c8a84b", initials: "AD" };
-        setMe({ id: String(d.discord_id), name: info.name, color: info.color, initials: info.initials });
-      } catch {
-        setMe({ id: "unknown", name: "Admin", color: "#c8a84b", initials: "AD" });
-      }
-    })();
-  }, []);
+  const [view, setView]       = useState("thinking"); // "thinking" | "memory"
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -274,14 +246,9 @@ export default function ZombitaThinkingTab({ toast }) {
         <B c={view === "memory" ? "gold" : "ghost"} sm onClick={() => setView("memory")}>
           📖 Living Memory
         </B>
-        <B c={view === "chat" ? "gold" : "ghost"} sm onClick={() => setView("chat")}>
-          💬 Team Chat
-        </B>
       </div>
 
-      {view === "chat" ? (
-        <AdminChat me={me} toast={toast} />
-      ) : view === "memory" ? (
+      {view === "memory" ? (
         <TW title="WHAT ZOMBITA KNOWS" right={
           <span style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--textdim)" }}>read-only · versioned</span>
         }>

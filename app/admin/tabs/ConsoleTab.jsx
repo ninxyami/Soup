@@ -1,7 +1,7 @@
 "use client";
 // @ts-nocheck
 import { useState, useEffect, useRef, useCallback } from "react";
-import { API, B, FB, Title } from "./shared";
+import { API, B, FB, Title, useStickyState } from "./shared";
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -38,7 +38,7 @@ const MAX_LINES = 1000;
 
 export default function ConsoleTab() {
   const [lines, setLines]               = useState([]);
-  const [activeSource, setActiveSource] = useState("bot");
+  const [activeSource, setActiveSource] = useStickyState("bot", "console.activeSource");
   const [status, setStatus]             = useState("disconnected");
   const [cmd, setCmd]                   = useState("");
   const [autoScroll, setAutoScroll]     = useState(true);
