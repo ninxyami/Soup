@@ -22,11 +22,13 @@ import ConsoleTab        from "./tabs/ConsoleTab";
 import PZConsoleTab      from "./tabs/PZConsoleTab";
 import ServerActivityTab from "./tabs/ServerActivityTab";
 import WorkspaceTab      from "./tabs/WorkspaceTab";
+import ZombitaThinkingTab from "./tabs/ZombitaThinkingTab";
 
 const NAV_SECTIONS = [
   { label: "COMMAND", items: [
     { key: "overview",        icon: "📡", label: "Overview" },
     { key: "workspace",       icon: "⌬", label: "Workspace" },
+    { key: "zombita_thinking", icon: "🧠", label: "Zombita's Mind" },
     { key: "server",          icon: "🖥️", label: "Server" },
     { key: "server_activity", icon: "📋", label: "Server Activity" },
     { key: "console",         icon: "⌨️", label: "Console" },
@@ -99,6 +101,7 @@ const PANELS = {
   pl_modlog:   (props) => <PlannerTab {...props} initialTab="modlog" />,
   pl_settingslog: (props) => <PlannerTab {...props} initialTab="settingslog" />,
   workspace:   WorkspaceTab,
+  zombita_thinking: ZombitaThinkingTab,
 };
 
 const CSS = `
