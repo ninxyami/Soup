@@ -2,7 +2,7 @@
 // @ts-nocheck
 import { useState, useEffect, useCallback } from "react";
 import { useLiveRefresh } from "../realtime";
-import { fetchApi, postApi, fmt, bronzeToCoins, relTime, Title, SC, TW, B, Inp, Sel, FB, Empty, Load, EvBadge, Toggle } from "./shared";
+import { fetchApi, postApi, fmt, bronzeToCoins, relTime, Title, SC, TW, B, Inp, Sel, FB, Empty, Load, EvBadge, Toggle, useStickyState } from "./shared";
 
 const AdjustForm = ({ onSubmit }) => {
   const [amt, setAmt] = useState(""); const [r, setR] = useState("");
@@ -40,7 +40,7 @@ const TreasuryPayout = ({ t, doPayout }) => {
 };
 
 export default function TreasuryTab({ toast }) {
-  const [sub, setSub] = useState("overview");
+  const [sub, setSub] = useStickyState("overview", "treasury.sub");
   const [data, setData] = useState(null);
   const [log, setLog] = useState([]);
   const [logFilter, setLogFilter] = useState(null);

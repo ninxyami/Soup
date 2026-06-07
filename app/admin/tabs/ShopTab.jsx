@@ -1,7 +1,7 @@
 "use client";
 // @ts-nocheck
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { fetchApi, postApi, fmt, fmtDate, Title, SC, TW, B, Inp, Sel, FB, Empty, Load } from "./shared";
+import { fetchApi, postApi, fmt, fmtDate, Title, SC, TW, B, Inp, Sel, FB, Empty, Load, useStickyState } from "./shared";
 import { useLiveRefresh } from "../realtime";
 
 const SHOP_TYPES = [
@@ -50,7 +50,7 @@ const SingleRestock = ({ items, toast, onDone }) => {
 };
 
 export default function ShopTab({ toast }) {
-  const [sub,        setSub]        = useState("inventory");
+  const [sub,        setSub]        = useStickyState("inventory", "shop.sub");
   const [items,      setItems]      = useState([]);
   const [search,     setSearch]     = useState("");
   const [filterType, setFilterType] = useState("all");

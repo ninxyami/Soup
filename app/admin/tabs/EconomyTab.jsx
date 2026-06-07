@@ -1,7 +1,7 @@
 "use client";
 // @ts-nocheck
 import { useState, useEffect, useCallback, useRef } from "react";
-import { fetchApi, postApi, fmt, bronzeToCoins, relTime, Title, TW, B, Inp, FB, Empty, Load, EvBadge } from "./shared";
+import { fetchApi, postApi, fmt, bronzeToCoins, relTime, Title, TW, B, Inp, FB, Empty, Load, EvBadge, useStickyState } from "./shared";
 
 // ── Player search dropdown ────────────────────────────────────────────────────
 const PlayerSearch = ({ players, value, onChange, placeholder = "Search by name, username, in-game name..." }) => {
@@ -68,7 +68,7 @@ const PlayerSearch = ({ players, value, onChange, placeholder = "Search by name,
 };
 
 export default function EconomyTab({ toast }) {
-  const [tab, setTab] = useState("give");
+  const [tab, setTab] = useStickyState("give", "economy.tab");
   const [players, setPlayers] = useState([]);
   const [playersLoading, setPlayersLoading] = useState(true);
 

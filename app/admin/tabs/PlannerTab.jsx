@@ -1,7 +1,7 @@
 "use client";
 // @ts-nocheck
 import { useState, useEffect, useCallback, useRef } from "react";
-import { fetchApi, postApi, Btn, ADMINS } from "./shared";
+import { fetchApi, postApi, Btn, ADMINS, useStickyState } from "./shared";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
@@ -695,10 +695,11 @@ const SettingsChangelog = ({ log, onClaim }) => {
 
 // ── Main Planner Tab ─────────────────────────────────────────────────────────
 export default function PlannerTab({ toast, initialTab }) {
-  const [sub, setSub] = useState(initialTab || "board");
+  const [sub, setSub] = useStickyState(initialTab || "board", "planner.sub");
 
-  // Sync sub-tab when sidebar nav changes the prop
-  useEffect(() => { if (initialTab) setSub(initialTab); }, [initialTab]);
+  // Sync sub-tab when the sidebar nav changes the prop to a different value.
+  // (Persisted in-tab clicks survive remount; an explicit sidebar pick wins.)
+  useEffect(() => { if (initialTab && initialTab !== sub) setSub(initialTab); }, [initialTab]); // eslint-disable-line react-hooks/exhaustive-deps
   const [tasks, setTasks] = useState([]);
   const [editTask, setEditTask] = useState(null); // null | "new" | task object
   const [checks, setChecks] = useState({});

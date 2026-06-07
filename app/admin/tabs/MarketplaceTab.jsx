@@ -2,7 +2,7 @@
 // @ts-nocheck
 import { useState, useEffect, useCallback } from "react";
 import { useLiveRefresh } from "../realtime";
-import { fetchApi, postApi, fmt, relTime, fmtDate, Title, SC, TW, B, Inp, FB, Empty, Load } from "./shared";
+import { fetchApi, postApi, fmt, relTime, fmtDate, Title, SC, TW, B, Inp, FB, Empty, Load, useStickyState } from "./shared";
 
 const SHOPS = {
   food:     { label: "🍽️ Maya's Kitchen",   npc: "Maya Chen"    },
@@ -441,7 +441,7 @@ function PricingPanel({ toast }) {
 
 // ── MAIN TAB ──────────────────────────────────────────────────────────────────
 export default function MarketplaceTab({ toast }) {
-  const [sub, setSub] = useState("rotation");
+  const [sub, setSub] = useStickyState("rotation", "marketplace.sub");
 
   const SUBS = [
     { key: "rotation", label: "🔄 Rotations"  },
