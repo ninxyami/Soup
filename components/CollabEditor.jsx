@@ -314,7 +314,7 @@ export default function CollabEditor({ docId, docTitle, me, seed }) {
   }[status];
 
   return (
-    <div className="ws-surface" style={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
+    <div className="ws-surface" style={{ display: "flex", flexDirection: "column", minHeight: 0, height: "100%" }}>
       <style dangerouslySetInnerHTML={{ __html: EDITOR_CSS }} />
 
       {/* status / presence strip */}
