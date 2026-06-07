@@ -155,7 +155,7 @@ export default function WorkspaceStandalone() {
         <div style={{ flex: 1 }} />
         <a href="/admin" style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)", textDecoration: "none" }}>admin panel →</a>
       </div>
-      <div style={{ flex: 1, minHeight: 0, padding: 16 }}>
+      <div style={{ flex: 1, minHeight: 0 }}>
         <Workspace me={me} fillViewport />
       </div>
     </div>

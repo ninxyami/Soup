@@ -199,7 +199,7 @@ export default function Workspace({ me, toast, fillViewport = false }) {
     ? {
         display: "grid", gridTemplateColumns: "260px 1fr", gap: 0,
         border: "1px solid var(--border)", background: "var(--surface)",
-        flex: 1, minHeight: 0, overflow: "hidden",
+        height: "100%", minHeight: 0, overflow: "hidden",
       }
     : {
         display: "grid", gridTemplateColumns: "260px 1fr", gap: 0,
