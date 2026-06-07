@@ -227,6 +227,26 @@ export default function Workspace({ me, toast, fillViewport = false }) {
         }
       ` }} />
 
+      {activeConfig && me ? (
+        // Config files open as a full-pane takeover — the SAME dedicated
+        // full-height layout the original /workspace used (where the Save
+        // toolbar always worked). Not crammed into the grid cell beside the
+        // sidebar, which is the layout that never showed the toolbar.
+        <div style={{ height: "100%", minHeight: fillViewport ? 0 : "72vh", display: "flex", flexDirection: "column", border: "1px solid var(--border)", background: "var(--surface)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "10px 16px", borderBottom: "1px solid var(--border)", background: "var(--surface)", flexShrink: 0 }}>
+            <button
+              onClick={() => setActiveConfig(null)}
+              style={{ background: "transparent", border: "none", cursor: "pointer", fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)" }}
+            >← projects</button>
+            <span style={{ fontFamily: "var(--display)", fontSize: 20, letterSpacing: 1.5, color: "var(--accent)" }}>{activeConfig.label}</span>
+          </div>
+          <div style={{ flex: 1, minHeight: 0 }}>
+            <EditorBoundary key={`cfg:${activeConfig.key}`}>
+              <ConfigEditor fileKey={activeConfig.key} fileLabel={activeConfig.label} me={me} />
+            </EditorBoundary>
+          </div>
+        </div>
+      ) : (
       <div style={gridStyle}>
         {/* ── LEFT RAIL ── */}
         <div style={{ borderRight: "1px solid var(--border)", display: "flex", flexDirection: "column", minHeight: 0 }}>
@@ -358,15 +378,9 @@ export default function Workspace({ me, toast, fillViewport = false }) {
           </div>
         </div>
 
-        {/* ── EDITOR PANE ── */}
+        {/* ── EDITOR PANE (documents/sheets/boards; config handled above) ── */}
         <div style={{ display: "flex", flexDirection: "column", minHeight: 0, height: "100%" }}>
-          {activeConfig && me ? (
-            <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
-              <EditorBoundary key={`cfg:${activeConfig.key}`}>
-                <ConfigEditor fileKey={activeConfig.key} fileLabel={activeConfig.label} me={me} />
-              </EditorBoundary>
-            </div>
-          ) : activeDoc && me ? (
+          {activeDoc && me ? (
             <>
               <div style={{ padding: "12px 20px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 10 }}>
                 <span style={{ fontFamily: "var(--display)", fontSize: 22, letterSpacing: 1.5, color: "var(--text)" }}>
@@ -399,6 +413,7 @@ export default function Workspace({ me, toast, fillViewport = false }) {
           )}
         </div>
       </div>
+      )}
 
       {/* ── NEW PROJECT MODAL ── */}
       {newProjOpen && (
