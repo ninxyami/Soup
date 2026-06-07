@@ -235,7 +235,7 @@ export default function WorkspaceTab({ toast }) {
       <div style={{
         display: "grid", gridTemplateColumns: "260px 1fr", gap: 0,
         border: "1px solid var(--border)", background: "var(--surface)",
-        minHeight: "72vh", overflow: "hidden",
+        height: "78vh", minHeight: "72vh", overflow: "hidden",
       }}>
         {/* ── LEFT RAIL ── */}
         <div style={{ borderRight: "1px solid var(--border)", display: "flex", flexDirection: "column", minHeight: 0 }}>
@@ -366,9 +366,11 @@ export default function WorkspaceTab({ toast }) {
         </div>
 
         {/* ── EDITOR PANE ── */}
-        <div style={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
+        <div style={{ display: "flex", flexDirection: "column", minHeight: 0, height: "100%" }}>
           {activeConfig && me ? (
-            <ConfigEditor fileKey={activeConfig.key} fileLabel={activeConfig.label} me={me} />
+            <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+              <ConfigEditor fileKey={activeConfig.key} fileLabel={activeConfig.label} me={me} />
+            </div>
           ) : activeDoc && me ? (
             <>
               <div style={{ padding: "12px 20px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 10 }}>
