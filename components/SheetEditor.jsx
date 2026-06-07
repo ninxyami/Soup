@@ -367,29 +367,35 @@ export default function SheetEditor({ docId, me }) {
     const yStyles = stylesRef.current;
     if (!inst || !ydoc || !yStyles) return;
 
+    // jspreadsheet v5: inst.highlighted is the authoritative selection array.
+    // Each entry has an .element with data-x / data-y attributes.
+    // inst.selectedCell is [x1,y1,x2,y2] and covers range selections.
     let coords = [];
     try {
-      if (typeof inst.getSelected === "function") {
-        const sel = inst.getSelected();
-        if (Array.isArray(sel)) {
-          for (const cellSel of sel) {
-            const c = cellSel.x ?? cellSel[0];
-            const r = cellSel.y ?? cellSel[1];
-            if (c != null && r != null) coords.push([Number(r), Number(c)]);
-          }
+      // Range selection — walk the highlighted cells (most reliable in v5)
+      if (inst.highlighted && inst.highlighted.length > 0) {
+        for (const entry of inst.highlighted) {
+          const el = entry.element || entry;
+          const x = parseInt(el.getAttribute("data-x"), 10);
+          const y = parseInt(el.getAttribute("data-y"), 10);
+          if (!isNaN(x) && !isNaN(y)) coords.push([y, x]); // [row, col]
         }
       }
     } catch {}
+
+    // Fallback: selectedCell rectangle [x1,y1,x2,y2]
     if (coords.length === 0) {
       try {
         const s = inst.selectedCell;
         if (s && s.length === 4) {
-          for (let c = Math.min(s[0], s[2]); c <= Math.max(s[0], s[2]); c++)
-            for (let r = Math.min(s[1], s[3]); r <= Math.max(s[1], s[3]); r++)
+          const [x1, y1, x2, y2] = s;
+          for (let c = Math.min(x1, x2); c <= Math.max(x1, x2); c++)
+            for (let r = Math.min(y1, y2); r <= Math.max(y1, y2); r++)
               coords.push([r, c]);
         }
       } catch {}
     }
+
     if (coords.length === 0) return;
 
     const cellName = (c, r) => {
