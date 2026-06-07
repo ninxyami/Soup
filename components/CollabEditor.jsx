@@ -79,12 +79,16 @@ const EDITOR_CSS = `
 .ws-surface .ProseMirror h2{font-family:var(--display);font-size:25px;letter-spacing:1.5px;color:var(--text);line-height:1.2;margin-top:1.1em}
 .ws-surface .ProseMirror h3{font-family:var(--mono);font-size:14px;letter-spacing:2px;text-transform:uppercase;color:var(--textdim);margin-top:1em}
 .ws-surface .ProseMirror p{margin:0}
-.ws-surface .ProseMirror ul,.ws-surface .ProseMirror ol{padding-left:1.4em}
+.ws-surface .ProseMirror ul,.ws-surface .ProseMirror ol{padding-left:1.6em}
 .ws-surface .ProseMirror li{padding-left:0.2em;margin-bottom:0.25em}
-.ws-surface .ProseMirror li::before{content:none}
+/* bullet list — custom dash marker */
 .ws-surface .ProseMirror ul li{list-style:none;position:relative}
 .ws-surface .ProseMirror ul li::marker{content:none}
-.ws-surface .ProseMirror ul > li::before{content:"—";position:absolute;left:-1.2em;color:var(--muted)}
+.ws-surface .ProseMirror ul li::before{content:"—";position:absolute;left:-1.3em;color:var(--muted)}
+/* ordered list — native counter, styled to match the theme */
+.ws-surface .ProseMirror ol{list-style:none;counter-reset:ol-counter}
+.ws-surface .ProseMirror ol li{counter-increment:ol-counter;position:relative}
+.ws-surface .ProseMirror ol li::before{content:counter(ol-counter)".";position:absolute;left:-1.6em;color:var(--textdim);font-family:var(--mono);font-size:0.85em;font-weight:600;min-width:1.4em;text-align:right}
 .ws-surface .ProseMirror blockquote{border-left:2px solid var(--accent);padding-left:16px;color:var(--textdim);font-style:italic;margin-left:0}
 .ws-surface .ProseMirror code{font-family:var(--mono);font-size:0.9em;background:rgba(200,168,75,0.08);border:1px solid rgba(200,168,75,0.15);padding:1px 5px;border-radius:2px;color:var(--accent)}
 .ws-surface .ProseMirror pre{font-family:var(--mono);font-size:13px;background:var(--bg);border:1px solid var(--border);padding:14px 16px;border-radius:3px;overflow-x:auto}
