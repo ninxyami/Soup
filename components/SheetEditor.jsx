@@ -22,7 +22,7 @@
 // SSR: jspreadsheet touches `document`, so this loads client-only via
 // next/dynamic({ ssr:false }) — same pattern as CollabEditor.
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
 // jspreadsheet + jsuites styles. This whole component is loaded via
@@ -315,48 +315,6 @@ export default function SheetEditor({ docId, me }) {
     // safety fallback
     const t = setTimeout(() => { if (!jssRef.current) start(); }, 1500);
 
-    // expose color setter to the toolbar via ref-bound closure
-    holderRef.current.__applyColor = (key) => {
-      const inst = jssRef.current;
-      if (!inst) return;
-      let coords = [];
-      // v5: getSelected() returns an array of selected cell coords. We also
-      // support the selectedCell rectangle [x1,y1,x2,y2] as a fallback.
-      try {
-        if (typeof inst.getSelected === "function") {
-          const sel = inst.getSelected(); // array of {x,y} or [x,y]
-          if (Array.isArray(sel)) {
-            for (const cellSel of sel) {
-              const c = cellSel.x ?? cellSel[0];
-              const r = cellSel.y ?? cellSel[1];
-              if (c != null && r != null) coords.push([Number(r), Number(c)]);
-            }
-          }
-        }
-      } catch {}
-      if (coords.length === 0) {
-        try {
-          const s = inst.selectedCell; // [x1,y1,x2,y2]
-          if (s && s.length === 4) {
-            for (let c = Math.min(s[0], s[2]); c <= Math.max(s[0], s[2]); c++)
-              for (let r = Math.min(s[1], s[3]); r <= Math.max(s[1], s[3]); r++)
-                coords.push([r, c]);
-          }
-        } catch {}
-      }
-      if (coords.length === 0) return;
-      ydoc.transact(() => {
-        coords.forEach(([r, c]) => {
-          if (key) yStyles.set(`${r}:${c}`, key);
-          else yStyles.delete(`${r}:${c}`);
-        });
-      });
-      // apply locally too (observe only fires for remote txns)
-      coords.forEach(([r, c]) => {
-        try { inst.setStyle(cellName(c, r), "background-color", key ? colorBg(key) : ""); } catch {}
-      });
-    };
-
     return () => {
       destroyed = true;
       clearTimeout(t);
@@ -403,9 +361,57 @@ export default function SheetEditor({ docId, me }) {
     offline:    { label: "Offline",    color: "var(--red)",    dot: "var(--red)"    },
   }[status];
 
+  const applyColor = useCallback((key) => {
+    const inst = jssRef.current;
+    const ydoc = ydocRef.current;
+    const yStyles = stylesRef.current;
+    if (!inst || !ydoc || !yStyles) return;
+
+    let coords = [];
+    try {
+      if (typeof inst.getSelected === "function") {
+        const sel = inst.getSelected();
+        if (Array.isArray(sel)) {
+          for (const cellSel of sel) {
+            const c = cellSel.x ?? cellSel[0];
+            const r = cellSel.y ?? cellSel[1];
+            if (c != null && r != null) coords.push([Number(r), Number(c)]);
+          }
+        }
+      }
+    } catch {}
+    if (coords.length === 0) {
+      try {
+        const s = inst.selectedCell;
+        if (s && s.length === 4) {
+          for (let c = Math.min(s[0], s[2]); c <= Math.max(s[0], s[2]); c++)
+            for (let r = Math.min(s[1], s[3]); r <= Math.max(s[1], s[3]); r++)
+              coords.push([r, c]);
+        }
+      } catch {}
+    }
+    if (coords.length === 0) return;
+
+    const cellName = (c, r) => {
+      let s = ""; let n = c + 1;
+      while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); }
+      return s + (r + 1);
+    };
+
+    ydoc.transact(() => {
+      coords.forEach(([r, c]) => {
+        if (key) yStyles.set(`${r}:${c}`, key);
+        else yStyles.delete(`${r}:${c}`);
+      });
+    });
+    coords.forEach(([r, c]) => {
+      try { inst.setStyle(cellName(c, r), "background-color", key ? colorBg(key) : ""); } catch {}
+    });
+  }, []);
+
   const setColor = (key) => {
     setColorOpen(false);
-    if (holderRef.current && holderRef.current.__applyColor) holderRef.current.__applyColor(key);
+    applyColor(key);
   };
 
   return (
