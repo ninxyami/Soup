@@ -21,7 +21,7 @@
 // Persistence + realtime are server-side (routers/workspace.py); this component
 // only does project/doc CRUD (REST) and mounts the right editor.
 
-import { useState, useEffect, useCallback, Component } from "react";
+import { useState, useEffect, useCallback, useRef, Component } from "react";
 import dynamic from "next/dynamic";
 
 const API = "https://api.stateofundeadpurge.site:8443";
@@ -95,6 +95,10 @@ export default function Workspace({ me, toast, fillViewport = false }) {
   const [newDocTitle, setNewDocTitle] = useState("");
   const [newDocType, setNewDocType] = useState("doc");    // "doc" | "sheet" | "board"
 
+  // drag-to-reorder
+  const dragDoc = useRef(null);   // { pid, index }
+  const [dragOver, setDragOver] = useState(null); // { pid, index } drop target
+
   // ── load projects ──
   const loadProjects = useCallback(async () => {
     try {
@@ -125,6 +129,31 @@ export default function Workspace({ me, toast, fillViewport = false }) {
       return next;
     });
   };
+
+  // ── drag-to-reorder handlers ──
+  const onDragStart = (pid, index) => {
+    dragDoc.current = { pid, index };
+  };
+  const onDragEnter = (pid, index) => {
+    if (!dragDoc.current || dragDoc.current.pid !== pid) return;
+    if (dragDoc.current.index === index) { setDragOver(null); return; }
+    setDragOver({ pid, index });
+  };
+  const onDrop = (pid) => {
+    if (!dragDoc.current || dragDoc.current.pid !== pid) return;
+    const { index: from } = dragDoc.current;
+    const to = dragOver?.index;
+    if (to == null || from === to) { dragDoc.current = null; setDragOver(null); return; }
+    setDocsByProject((prev) => {
+      const docs = [...(prev[pid] || [])];
+      const [moved] = docs.splice(from, 1);
+      docs.splice(to, 0, moved);
+      return { ...prev, [pid]: docs };
+    });
+    dragDoc.current = null;
+    setDragOver(null);
+  };
+  const onDragEnd = () => { dragDoc.current = null; setDragOver(null); };
 
   // ── create project ──
   const createProject = async () => {
@@ -211,6 +240,7 @@ export default function Workspace({ me, toast, fillViewport = false }) {
     <div style={outerStyle}>
       <style dangerouslySetInnerHTML={{ __html: `
         .ws-doc-row:hover .ws-doc-del { opacity: 1 !important; }
+        .ws-doc-row:hover .ws-drag-handle { opacity: 1 !important; }
         .ws-doc-row:hover { background: rgba(255,255,255,0.02); }
         @keyframes ap-blink { 0%,100% { opacity: .3 } 50% { opacity: 1 } }
         .wsx-inp {
@@ -330,22 +360,36 @@ export default function Workspace({ me, toast, fillViewport = false }) {
 
                     {isOpen && (
                       <div style={{ paddingBottom: 4 }}>
-                        {docs.map((doc) => {
+                        {docs.map((doc, docIdx) => {
                           const active = activeDoc?.id === doc.id;
+                          const isDragTarget = dragOver?.pid === p.id && dragOver?.index === docIdx;
                           return (
                             <div
                               key={doc.id}
                               className="ws-doc-row"
+                              draggable
+                              onDragStart={() => onDragStart(p.id, docIdx)}
+                              onDragEnter={() => onDragEnter(p.id, docIdx)}
+                              onDragOver={(e) => e.preventDefault()}
+                              onDrop={() => onDrop(p.id)}
+                              onDragEnd={onDragEnd}
                               onClick={() => { setActiveDoc({ id: doc.id, title: doc.title, project_id: p.id, kind: doc.kind, type: doc.type, icon: doc.icon }); setActiveConfig(null); }}
                               style={{
-                                display: "flex", alignItems: "center", gap: 8, padding: "6px 14px 6px 34px",
+                                display: "flex", alignItems: "center", gap: 8, padding: "6px 14px 6px 28px",
                                 cursor: "pointer", fontFamily: "var(--body)", fontSize: 12.5,
                                 color: active ? "var(--accent)" : "var(--textdim)",
-                                background: active ? "rgba(200,168,75,0.06)" : "transparent",
-                                borderLeft: `2px solid ${active ? "var(--accent)" : "transparent"}`,
+                                background: isDragTarget ? "rgba(200,168,75,0.08)" : active ? "rgba(200,168,75,0.06)" : "transparent",
+                                borderLeft: `2px solid ${isDragTarget ? "var(--accent)" : active ? "var(--accent)" : "transparent"}`,
+                                borderTop: isDragTarget ? "1px solid rgba(200,168,75,0.4)" : "1px solid transparent",
+                                transition: "border-color .1s, background .1s",
                               }}
                             >
-                              <span style={{ fontSize: 11, opacity: 0.7 }}>{doc.icon || "📄"}</span>
+                              <span
+                                className="ws-drag-handle"
+                                onMouseDown={(e) => e.stopPropagation()}
+                                style={{ fontSize: 9, color: "var(--muted)", opacity: 0, cursor: "grab", flexShrink: 0, lineHeight: 1, userSelect: "none" }}
+                              >⠿</span>
+                              <span style={{ fontSize: 11, opacity: 0.7, flexShrink: 0 }}>{doc.icon || "📄"}</span>
                               <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{doc.title}</span>
                               <button
                                 className="ws-doc-del"
