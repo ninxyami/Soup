@@ -21,7 +21,7 @@
 // Persistence + realtime are server-side (routers/workspace.py); this component
 // only does project/doc CRUD (REST) and mounts the right editor.
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Component } from "react";
 import dynamic from "next/dynamic";
 
 const API = "https://api.stateofundeadpurge.site:8443";
@@ -362,7 +362,9 @@ export default function Workspace({ me, toast, fillViewport = false }) {
         <div style={{ display: "flex", flexDirection: "column", minHeight: 0, height: "100%" }}>
           {activeConfig && me ? (
             <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
-              <ConfigEditor fileKey={activeConfig.key} fileLabel={activeConfig.label} me={me} />
+              <EditorBoundary key={`cfg:${activeConfig.key}`}>
+                <ConfigEditor fileKey={activeConfig.key} fileLabel={activeConfig.label} me={me} />
+              </EditorBoundary>
             </div>
           ) : activeDoc && me ? (
             <>
@@ -372,13 +374,15 @@ export default function Workspace({ me, toast, fillViewport = false }) {
                 </span>
               </div>
               <div style={{ flex: 1, minHeight: 0 }}>
-                {isBoardDoc(activeDoc) ? (
-                  <BoardEditor docId={activeDoc.id} me={me} admins={Object.entries(ADMINS).map(([id, a]) => ({ id, ...a }))} />
-                ) : isSheetDoc(activeDoc) ? (
-                  <SheetEditor docId={activeDoc.id} me={me} />
-                ) : (
-                  <CollabEditor docId={activeDoc.id} docTitle={activeDoc.title} me={me} seed={activeDoc.seed} />
-                )}
+                <EditorBoundary key={`doc:${activeDoc.id}`}>
+                  {isBoardDoc(activeDoc) ? (
+                    <BoardEditor docId={activeDoc.id} me={me} admins={Object.entries(ADMINS).map(([id, a]) => ({ id, ...a }))} />
+                  ) : isSheetDoc(activeDoc) ? (
+                    <SheetEditor docId={activeDoc.id} me={me} />
+                  ) : (
+                    <CollabEditor docId={activeDoc.id} docTitle={activeDoc.title} me={me} seed={activeDoc.seed} />
+                  )}
+                </EditorBoundary>
               </div>
             </>
           ) : (
@@ -476,6 +480,28 @@ export default function Workspace({ me, toast, fillViewport = false }) {
       )}
     </div>
   );
+}
+
+// Catches runtime throws from the live editors so a single editor failure shows
+// a readable message instead of blanking the entire workspace (and surfaces the
+// actual error text for diagnosis). Keyed by file/doc so switching resets it.
+class EditorBoundary extends Component {
+  constructor(props) { super(props); this.state = { err: null }; }
+  static getDerivedStateFromError(err) { return { err }; }
+  componentDidCatch(err, info) { console.error("[Workspace] editor crashed:", err, info); }
+  render() {
+    if (this.state.err) {
+      return (
+        <div style={{ padding: 24, fontFamily: "var(--mono)", fontSize: 12, color: "var(--red)", lineHeight: 1.7 }}>
+          <div style={{ fontSize: 13, marginBottom: 8 }}>⚠ Editor failed to load</div>
+          <div style={{ color: "var(--textdim)", whiteSpace: "pre-wrap" }}>
+            {String(this.state.err?.message || this.state.err)}
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
 }
 
 function Field({ label, children }) {

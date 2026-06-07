@@ -8,12 +8,12 @@
 // This tab's only job is to resolve the current admin's identity (for live
 // cursors) and pass it + the panel toast through.
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { API, ADMINS, Title } from "./shared";
 import Workspace from "@/components/Workspace";
 
 export default function WorkspaceTab({ toast }) {
-  const [me, setMe] = useState(null);
+  const [meRaw, setMeRaw] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -21,12 +21,19 @@ export default function WorkspaceTab({ toast }) {
         const r = await fetch(`${API}/auth/me`, { credentials: "include" });
         const d = await r.json();
         const info = ADMINS[d.discord_id] || { name: d.username || "Admin", color: "#c8a84b", initials: "AD" };
-        setMe({ id: String(d.discord_id), name: info.name, color: info.color, initials: info.initials });
+        setMeRaw({ id: String(d.discord_id), name: info.name, color: info.color, initials: info.initials });
       } catch {
-        setMe({ id: "unknown", name: "Admin", color: "#c8a84b", initials: "AD" });
+        setMeRaw({ id: "unknown", name: "Admin", color: "#c8a84b", initials: "AD" });
       }
     })();
   }, []);
+
+  // Stable identity: only a genuinely new id/name/etc produces a new object,
+  // so child editors keyed on `me` don't tear down on incidental re-renders.
+  const me = useMemo(
+    () => meRaw,
+    [meRaw?.id, meRaw?.name, meRaw?.color, meRaw?.initials] // eslint-disable-line react-hooks/exhaustive-deps
+  );
 
   return (
     <div>
