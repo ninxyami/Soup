@@ -19,8 +19,30 @@ import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
 import { Editor } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
-import { Color } from "@tiptap/extension-color";
-import TextStyle from "@tiptap/extension-text-style";
+import { Extension, Mark } from "@tiptap/core";
+
+// Inline TextStyle + Color — avoids adding @tiptap/extension-color to package.json.
+// TextStyle is a mark that carries arbitrary inline styles; Color piggybacks on it.
+const TextStyle = Mark.create({
+  name: "textStyle",
+  addAttributes() {
+    return { color: { default: null, parseHTML: (el) => el.style.color || null, renderHTML: (a) => a.color ? { style: `color:${a.color}` } : {} } };
+  },
+  parseHTML() { return [{ tag: "span", getAttrs: (el) => el.style.color ? {} : false }]; },
+  renderHTML({ HTMLAttributes }) { return ["span", HTMLAttributes, 0]; },
+  addCommands() {
+    return {
+      setColor: (color) => ({ chain }) => chain().setMark("textStyle", { color }).run(),
+      unsetColor: () => ({ chain }) => chain().setMark("textStyle", { color: null }).removeEmptyTextStyle().run(),
+    };
+  },
+});
+const Color = Extension.create({
+  name: "color",
+  addGlobalAttributes() {
+    return [{ types: ["textStyle"], attributes: { color: { default: null, parseHTML: (el) => el.style.color || null, renderHTML: (a) => a.color ? { style: `color:${a.color}` } : {} } } }];
+  },
+});
 import Collaboration from "@tiptap/extension-collaboration";
 import CollaborationCursor from "@tiptap/extension-collaboration-cursor";
 import Placeholder from "@tiptap/extension-placeholder";
