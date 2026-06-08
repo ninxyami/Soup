@@ -67,7 +67,7 @@ const SHEET_CSS = `
 .ss-surface{display:flex;flex-direction:column;min-height:0;height:100%}
 .ss-surface .jss_container{font-family:var(--mono);color:var(--text);background:transparent}
 .ss-surface .jexcel, .ss-surface .jss{font-family:var(--mono);font-size:12.5px}
-.ss-surface .jss_content{overflow:auto}
+.ss-surface .jss_content{overflow:auto;width:100%;height:100%}
 .ss-surface table.jss{background:var(--surface);border-color:var(--border)}
 .ss-surface table.jss > thead > tr > td,
 .ss-surface table.jss > tbody > tr > td{
@@ -632,8 +632,8 @@ export default function SheetEditor({ docId, me }) {
       </div>
 
       {/* the grid + live peer cursors */}
-      <div style={{ flex: 1, overflow: "auto", padding: 12 }}>
-        <div style={{ position: "relative" }} ref={gridWrapRef}>
+      <div style={{ flex: 1, overflow: "hidden", minHeight: 0 }}>
+        <div style={{ position: "relative", height: "100%" }} ref={gridWrapRef}>
           <div ref={holderRef} />
           {/* peer cursor overlays — colored outline + name on the cell each
               other admin has selected. Positioned over the live grid cells. */}

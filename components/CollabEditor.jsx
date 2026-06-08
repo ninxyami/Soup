@@ -554,7 +554,7 @@ export default function CollabEditor({ docId, docTitle, me, seed }) {
       </div>
 
       {/* the editor surface */}
-      <div style={{ flex: 1, overflowY: "auto", padding: "28px 40px 0" }}>
+      <div style={{ flex: 1, overflow: "auto", padding: "28px 40px 0" }}>
         <div ref={holderRef} />
       </div>
     </div>
