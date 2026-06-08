@@ -263,6 +263,10 @@ export default function SheetEditor({ docId, me }) {
             // spreadsheet.worksheets[0] is the real worksheet instance
             jss = spreadsheet.worksheets ? spreadsheet.worksheets[0] : spreadsheet;
             jssRef.current = jss;
+            // fullscreen mode: jspreadsheet adds .fullscreen to its root element,
+            // which triggers CSS: overflow:auto, width:100%, height:100% on .jss_content.
+            // This is exactly what makes keyboard nav + mouse scroll work like Excel.
+            try { spreadsheet.fullscreen(true); } catch {}
             applyStylesFromY();
             setReady(true);
             resolve();
@@ -463,33 +467,7 @@ export default function SheetEditor({ docId, me }) {
     applyColor(key);
   };
 
-  // Make jss_content the real scroll container (Excel/Sheets behaviour).
-  // We measure the container and pass those dimensions to jspreadsheet so its
-  // internal scrollControls/wheelControls/keyboard-nav all work correctly.
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-    const apply = () => {
-      const inst = jssRef.current;
-      if (!inst || !inst.content) return;
-      const w = container.clientWidth;
-      const h = container.clientHeight;
-      if (!w || !h) return;
-      inst.content.style.width = w + "px";
-      inst.content.style.maxHeight = h + "px";
-      inst.content.style.overflowX = "auto";
-      inst.content.style.overflowY = "auto";
-    };
-    const ro = new ResizeObserver(apply);
-    ro.observe(container);
-    // Retry until jss initialises (init is async)
-    let attempts = 0;
-    const poll = setInterval(() => {
-      apply();
-      if (jssRef.current?.content || ++attempts > 20) clearInterval(poll);
-    }, 100);
-    return () => { ro.disconnect(); clearInterval(poll); };
-  }, []);
+
 
 
 
@@ -664,8 +642,8 @@ export default function SheetEditor({ docId, me }) {
 
       {/* the grid + live peer cursors */}
       <div style={{ flex: 1, overflow: "hidden", minHeight: 0, display: "flex", flexDirection: "column" }} ref={containerRef}>
-        <div style={{ position: "relative", flex: 1, minHeight: 0 }} ref={gridWrapRef}>
-          <div ref={holderRef} />
+        <div style={{ position: "relative", flex: 1, minHeight: 0, height: "100%" }} ref={gridWrapRef}>
+          <div ref={holderRef} style={{ height: "100%" }} />
           {/* peer cursor overlays — colored outline + name on the cell each
               other admin has selected. Positioned over the live grid cells. */}
           {peerCursors.map((pc, i) => {
