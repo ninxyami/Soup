@@ -68,16 +68,15 @@ const SHEET_CSS = `
 .ss-surface .jss_container{font-family:var(--mono);color:var(--text);background:transparent}
 .ss-surface .jexcel, .ss-surface .jss{font-family:var(--mono);font-size:12.5px}
 .ss-surface .jss_content{box-sizing:border-box}
-/* Force a visible, grabbable scrollbar on the sheet's scroll container.
-   jspreadsheet defaults to scrollbar-width:thin with an overlay style, which
-   on many setups renders as a near-invisible track you can't grab — so the
-   sheet scrolled programmatically but the user had no control to drag. */
-.ss-surface .jss_content{ scrollbar-width: auto; scrollbar-color: var(--accent) rgba(0,0,0,0.3); }
-.ss-surface .jss_content::-webkit-scrollbar{ width:12px; height:12px; }
-.ss-surface .jss_content::-webkit-scrollbar-thumb{ background: var(--accent); border-radius:6px; border:2px solid rgba(0,0,0,0.2); }
-.ss-surface .jss_content::-webkit-scrollbar-thumb:hover{ background: var(--accent); filter:brightness(1.2); }
-.ss-surface .jss_content::-webkit-scrollbar-track{ background: rgba(0,0,0,0.3); }
-.ss-surface .jss_content::-webkit-scrollbar-corner{ background: rgba(0,0,0,0.3); }
+/* Hide the native scrollbar inside .jss_content — it's clipped by .jss_container
+   (overflow:visible, same width) and never visible anyway. We render our own
+   custom scrollbar outside the container instead. */
+.ss-surface .jss_content{ scrollbar-width: none; }
+.ss-surface .jss_content::-webkit-scrollbar{ display:none; }
+/* Custom external scrollbar track + thumb */
+.ss-sheet-scrollbar{ height:12px; background:rgba(0,0,0,0.25); border-radius:6px; position:relative; cursor:pointer; user-select:none; }
+.ss-sheet-scrollbar-thumb{ height:100%; background:var(--accent); border-radius:6px; position:absolute; top:0; cursor:grab; min-width:30px; }
+.ss-sheet-scrollbar-thumb:active{ cursor:grabbing; }
 .ss-surface table.jss{background:var(--surface);border-color:var(--border)}
 .ss-surface table.jss > thead > tr > td,
 .ss-surface table.jss > tbody > tr > td{
@@ -153,6 +152,8 @@ export default function SheetEditor({ docId, me }) {
   const containerRef = useRef(null);  // measures available space for jspreadsheet
   const capturedCoordsRef = useRef([]);
   const gridWrapRef = useRef(null);
+  const scrollbarThumbRef = useRef(null);
+  const scrollbarTrackRef = useRef(null);
   const [cursorPos, setCursorPos] = useState([]); // pixel positions per peerCursor
 
   useEffect(() => {
@@ -507,14 +508,10 @@ export default function SheetEditor({ docId, me }) {
     applyColor(key);
   };
 
-  // jspreadsheet (via tableOverflow + tableWidth/tableHeight) already made
-  // .jss_content the scroll container at init. This effect only keeps that
-  // container sized to the available space when the window/sidebar resizes.
-  // We set EXACTLY the same properties jspreadsheet sets natively — width +
-  // max-height — so we stay on its supported path instead of fighting it.
   useLayoutEffect(() => {
     const el = containerRef.current;
     if (!el) return;
+
     const apply = () => {
       const inst = jssRef.current;
       const content = inst && inst.content;
@@ -522,64 +519,125 @@ export default function SheetEditor({ docId, me }) {
       const w = el.clientWidth;
       const h = el.clientHeight;
       if (!w || !h) return;
-      // These mirror what jspreadsheet's createTable does for tableWidth/Height.
       content.style.width = w + "px";
       content.style.maxHeight = h + "px";
-      // Ensure the overflow stays on (jspreadsheet sets these at init, but a
-      // re-init or theme reset could drop them — cheap to reassert).
       content.style.overflowX = "auto";
       content.style.overflowY = "auto";
+      updateThumb();
     };
-    apply();
-    const ro = new ResizeObserver(apply);
-    ro.observe(el);
-    // jspreadsheet inits async — retry until .content exists, then stop.
-    let n = 0;
-    const t = setInterval(() => {
-      apply();
-      if (jssRef.current?.content || ++n > 40) clearInterval(t);
-    }, 80);
 
-    // Mouse users have only a vertical wheel and the scrollbar can be hard to
-    // grab. Give them horizontal scroll: Shift+wheel always scrolls X, and a
-    // plain vertical wheel scrolls X when the sheet is wider than tall and has
-    // no more vertical room to move. This makes left↔right reachable without a
-    // trackpad or a visible scrollbar.
-    let wheelEl = null;
+    // ── custom external scrollbar ──────────────────────────────────────────
+    const updateThumb = () => {
+      const content = jssRef.current?.content;
+      const track = scrollbarTrackRef.current;
+      const thumb = scrollbarThumbRef.current;
+      if (!content || !track || !thumb) return;
+      const ratio = content.clientWidth / content.scrollWidth;
+      if (ratio >= 1) { track.style.display = "none"; return; }
+      track.style.display = "block";
+      const thumbW = Math.max(30, track.clientWidth * ratio);
+      const maxScroll = content.scrollWidth - content.clientWidth;
+      const maxThumbLeft = track.clientWidth - thumbW;
+      const thumbLeft = maxScroll > 0 ? (content.scrollLeft / maxScroll) * maxThumbLeft : 0;
+      thumb.style.width = thumbW + "px";
+      thumb.style.left = thumbLeft + "px";
+    };
+
+    // Sync thumb when grid scrolls
+    const onContentScroll = () => updateThumb();
+
+    // Drag the thumb
+    let dragStartX = 0, dragStartScrollLeft = 0;
+    const onThumbMouseDown = (e) => {
+      e.preventDefault();
+      const content = jssRef.current?.content;
+      const track = scrollbarTrackRef.current;
+      const thumb = scrollbarThumbRef.current;
+      if (!content || !track || !thumb) return;
+      dragStartX = e.clientX;
+      dragStartScrollLeft = content.scrollLeft;
+      const thumbW = thumb.offsetWidth;
+      const maxThumbLeft = track.clientWidth - thumbW;
+      const maxScroll = content.scrollWidth - content.clientWidth;
+      const onMouseMove = (ev) => {
+        const dx = ev.clientX - dragStartX;
+        const ratio = maxScroll / (maxThumbLeft || 1);
+        content.scrollLeft = Math.max(0, Math.min(maxScroll, dragStartScrollLeft + dx * ratio));
+      };
+      const onMouseUp = () => {
+        window.removeEventListener("mousemove", onMouseMove);
+        window.removeEventListener("mouseup", onMouseUp);
+      };
+      window.addEventListener("mousemove", onMouseMove);
+      window.addEventListener("mouseup", onMouseUp);
+    };
+
+    // Click on track (not thumb) — jump to position
+    const onTrackClick = (e) => {
+      const content = jssRef.current?.content;
+      const track = scrollbarTrackRef.current;
+      const thumb = scrollbarThumbRef.current;
+      if (!content || !track || !thumb || e.target === thumb) return;
+      const rect = track.getBoundingClientRect();
+      const clickRatio = (e.clientX - rect.left) / track.clientWidth;
+      content.scrollLeft = clickRatio * (content.scrollWidth - content.clientWidth);
+    };
+
+    // Wheel handler — Shift+wheel or vertical-only wheel scrolls horizontally
     const onWheel = (e) => {
       const content = jssRef.current?.content;
       if (!content) return;
       const canX = content.scrollWidth > content.clientWidth;
       if (!canX) return;
       const canY = content.scrollHeight > content.clientHeight;
-      const atTop = content.scrollTop <= 0;
       const atBottom = content.scrollTop + content.clientHeight >= content.scrollHeight - 1;
       if (e.shiftKey) {
         content.scrollLeft += (e.deltaY || e.deltaX);
         e.preventDefault();
       } else if (!canY) {
-        // No vertical overflow at all → vertical wheel drives horizontal.
         content.scrollLeft += e.deltaY;
         e.preventDefault();
-      } else if ((e.deltaY < 0 && atTop) || (e.deltaY > 0 && atBottom)) {
-        // Vertical maxed out → spill the wheel into horizontal.
+      } else if (e.deltaY > 0 && atBottom) {
         content.scrollLeft += e.deltaY;
         e.preventDefault();
       }
     };
-    const attachWheel = () => {
+
+    // Wire everything up once content is ready
+    let wired = null;
+    const attachAll = () => {
       const content = jssRef.current?.content;
-      if (content && content !== wheelEl) {
-        if (wheelEl) wheelEl.removeEventListener("wheel", onWheel);
-        content.addEventListener("wheel", onWheel, { passive: false });
-        wheelEl = content;
+      const thumb = scrollbarThumbRef.current;
+      const track = scrollbarTrackRef.current;
+      if (!content || !thumb || !track || content === wired) return;
+      if (wired) {
+        wired.removeEventListener("scroll", onContentScroll);
+        wired.removeEventListener("wheel", onWheel);
       }
+      content.addEventListener("scroll", onContentScroll, { passive: true });
+      content.addEventListener("wheel", onWheel, { passive: false });
+      thumb.addEventListener("mousedown", onThumbMouseDown);
+      track.addEventListener("click", onTrackClick);
+      wired = content;
+      apply();
     };
-    const wt = setInterval(() => { attachWheel(); if (wheelEl) clearInterval(wt); }, 80);
+
+    apply();
+    const ro = new ResizeObserver(apply);
+    ro.observe(el);
+    let n = 0;
+    const t = setInterval(() => { attachAll(); if (wired || ++n > 40) clearInterval(t); }, 80);
 
     return () => {
-      ro.disconnect(); clearInterval(t); clearInterval(wt);
-      if (wheelEl) wheelEl.removeEventListener("wheel", onWheel);
+      ro.disconnect(); clearInterval(t);
+      if (wired) {
+        wired.removeEventListener("scroll", onContentScroll);
+        wired.removeEventListener("wheel", onWheel);
+      }
+      const thumb = scrollbarThumbRef.current;
+      const track = scrollbarTrackRef.current;
+      if (thumb) thumb.removeEventListener("mousedown", onThumbMouseDown);
+      if (track) track.removeEventListener("click", onTrackClick);
     };
   }, []);
 
@@ -760,7 +818,7 @@ export default function SheetEditor({ docId, me }) {
 
       {/* the grid + live peer cursors */}
       <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }} ref={containerRef}>
-        <div style={{ position: "relative", width: "100%", overflow: "hidden" }} ref={gridWrapRef}>
+        <div style={{ position: "relative" }} ref={gridWrapRef}>
           <div ref={holderRef} />
           {/* peer cursor overlays — colored outline + name on the cell each
               other admin has selected. Positioned over the live grid cells. */}
@@ -793,6 +851,15 @@ export default function SheetEditor({ docId, me }) {
             );
           })}
         </div>
+      </div>
+      {/* Custom horizontal scrollbar rendered OUTSIDE containerRef so it isn't
+          clipped by jss_container's overflow:visible. Wired to .jss_content.scrollLeft. */}
+      <div
+        ref={scrollbarTrackRef}
+        className="ss-sheet-scrollbar"
+        style={{ margin: "4px 0 2px 0", display: "none" }}
+      >
+        <div ref={scrollbarThumbRef} className="ss-sheet-scrollbar-thumb" />
       </div>
     </div>
   );
