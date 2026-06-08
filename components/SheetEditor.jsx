@@ -463,6 +463,34 @@ export default function SheetEditor({ docId, me }) {
     applyColor(key);
   };
 
+  // Make jss_content the real scroll container (Excel/Sheets behaviour).
+  // We measure the container and pass those dimensions to jspreadsheet so its
+  // internal scrollControls/wheelControls/keyboard-nav all work correctly.
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const apply = () => {
+      const inst = jssRef.current;
+      if (!inst || !inst.content) return;
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+      if (!w || !h) return;
+      inst.content.style.width = w + "px";
+      inst.content.style.maxHeight = h + "px";
+      inst.content.style.overflowX = "auto";
+      inst.content.style.overflowY = "auto";
+    };
+    const ro = new ResizeObserver(apply);
+    ro.observe(container);
+    // Retry until jss initialises (init is async)
+    let attempts = 0;
+    const poll = setInterval(() => {
+      apply();
+      if (jssRef.current?.content || ++attempts > 20) clearInterval(poll);
+    }, 100);
+    return () => { ro.disconnect(); clearInterval(poll); };
+  }, []);
+
 
 
   const applyTextColor = useCallback((hex) => {
@@ -635,8 +663,8 @@ export default function SheetEditor({ docId, me }) {
       </div>
 
       {/* the grid + live peer cursors */}
-      <div style={{ flex: 1, overflow: "auto", minHeight: 0 }} ref={containerRef}>
-        <div style={{ position: "relative" }} ref={gridWrapRef}>
+      <div style={{ flex: 1, overflow: "hidden", minHeight: 0, display: "flex", flexDirection: "column" }} ref={containerRef}>
+        <div style={{ position: "relative", flex: 1, minHeight: 0 }} ref={gridWrapRef}>
           <div ref={holderRef} />
           {/* peer cursor overlays — colored outline + name on the cell each
               other admin has selected. Positioned over the live grid cells. */}
