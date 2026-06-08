@@ -68,6 +68,16 @@ const SHEET_CSS = `
 .ss-surface .jss_container{font-family:var(--mono);color:var(--text);background:transparent}
 .ss-surface .jexcel, .ss-surface .jss{font-family:var(--mono);font-size:12.5px}
 .ss-surface .jss_content{box-sizing:border-box}
+/* Force a visible, grabbable scrollbar on the sheet's scroll container.
+   jspreadsheet defaults to scrollbar-width:thin with an overlay style, which
+   on many setups renders as a near-invisible track you can't grab — so the
+   sheet scrolled programmatically but the user had no control to drag. */
+.ss-surface .jss_content{ scrollbar-width: auto; scrollbar-color: var(--accent) rgba(0,0,0,0.3); }
+.ss-surface .jss_content::-webkit-scrollbar{ width:12px; height:12px; }
+.ss-surface .jss_content::-webkit-scrollbar-thumb{ background: var(--accent); border-radius:6px; border:2px solid rgba(0,0,0,0.2); }
+.ss-surface .jss_content::-webkit-scrollbar-thumb:hover{ background: var(--accent); filter:brightness(1.2); }
+.ss-surface .jss_content::-webkit-scrollbar-track{ background: rgba(0,0,0,0.3); }
+.ss-surface .jss_content::-webkit-scrollbar-corner{ background: rgba(0,0,0,0.3); }
 .ss-surface table.jss{background:var(--surface);border-color:var(--border)}
 .ss-surface table.jss > thead > tr > td,
 .ss-surface table.jss > tbody > tr > td{
@@ -529,7 +539,48 @@ export default function SheetEditor({ docId, me }) {
       apply();
       if (jssRef.current?.content || ++n > 40) clearInterval(t);
     }, 80);
-    return () => { ro.disconnect(); clearInterval(t); };
+
+    // Mouse users have only a vertical wheel and the scrollbar can be hard to
+    // grab. Give them horizontal scroll: Shift+wheel always scrolls X, and a
+    // plain vertical wheel scrolls X when the sheet is wider than tall and has
+    // no more vertical room to move. This makes left↔right reachable without a
+    // trackpad or a visible scrollbar.
+    let wheelEl = null;
+    const onWheel = (e) => {
+      const content = jssRef.current?.content;
+      if (!content) return;
+      const canX = content.scrollWidth > content.clientWidth;
+      if (!canX) return;
+      const canY = content.scrollHeight > content.clientHeight;
+      const atTop = content.scrollTop <= 0;
+      const atBottom = content.scrollTop + content.clientHeight >= content.scrollHeight - 1;
+      if (e.shiftKey) {
+        content.scrollLeft += (e.deltaY || e.deltaX);
+        e.preventDefault();
+      } else if (!canY) {
+        // No vertical overflow at all → vertical wheel drives horizontal.
+        content.scrollLeft += e.deltaY;
+        e.preventDefault();
+      } else if ((e.deltaY < 0 && atTop) || (e.deltaY > 0 && atBottom)) {
+        // Vertical maxed out → spill the wheel into horizontal.
+        content.scrollLeft += e.deltaY;
+        e.preventDefault();
+      }
+    };
+    const attachWheel = () => {
+      const content = jssRef.current?.content;
+      if (content && content !== wheelEl) {
+        if (wheelEl) wheelEl.removeEventListener("wheel", onWheel);
+        content.addEventListener("wheel", onWheel, { passive: false });
+        wheelEl = content;
+      }
+    };
+    const wt = setInterval(() => { attachWheel(); if (wheelEl) clearInterval(wt); }, 80);
+
+    return () => {
+      ro.disconnect(); clearInterval(t); clearInterval(wt);
+      if (wheelEl) wheelEl.removeEventListener("wheel", onWheel);
+    };
   }, []);
 
 
