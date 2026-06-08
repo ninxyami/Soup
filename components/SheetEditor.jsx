@@ -463,33 +463,7 @@ export default function SheetEditor({ docId, me }) {
     applyColor(key);
   };
 
-  // Size jss_content to fill the grid area so it scrolls in both axes.
-  // We do this by directly setting width/maxHeight on the jss_content element
-  // after jspreadsheet initialises, and updating on resize.
-  useEffect(() => {
-    const wrap = gridWrapRef.current;
-    if (!wrap) return;
-    const sizeGrid = () => {
-      const inst = jssRef.current;
-      if (!inst || !inst.content) return;
-      const w = wrap.clientWidth;
-      const h = wrap.clientHeight;
-      if (w > 0) {
-        inst.content.style.setProperty("width", w + "px", "important");
-        inst.content.style.setProperty("overflow-x", "auto", "important");
-      }
-      if (h > 0) {
-        inst.content.style.setProperty("max-height", h + "px", "important");
-        inst.content.style.setProperty("overflow-y", "auto", "important");
-      }
-    };
-    const ro = new ResizeObserver(sizeGrid);
-    ro.observe(wrap);
-    // Poll until jss initialises (async init)
-    let n = 0;
-    const poll = setInterval(() => { sizeGrid(); if (++n > 30) clearInterval(poll); }, 100);
-    return () => { ro.disconnect(); clearInterval(poll); };
-  }, []);
+
 
 
 
@@ -665,8 +639,8 @@ export default function SheetEditor({ docId, me }) {
       </div>
 
       {/* the grid + live peer cursors */}
-      <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden" }} ref={containerRef}>
-        <div style={{ position: "relative", flex: 1, minHeight: 0 }} ref={gridWrapRef}>
+      <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflowX: "auto", overflowY: "hidden" }} ref={containerRef}>
+        <div style={{ position: "relative", flex: 1, minHeight: 0, overflowY: "auto", minWidth: "max-content" }} ref={gridWrapRef}>
           <div ref={holderRef} style={{ width: "100%", height: "100%" }} />
           {/* peer cursor overlays — colored outline + name on the cell each
               other admin has selected. Positioned over the live grid cells. */}
