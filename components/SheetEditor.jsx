@@ -32,6 +32,17 @@ import "jspreadsheet-ce/dist/jspreadsheet.css";
 import "jspreadsheet-ce/dist/jspreadsheet.themes.css";
 import "jsuites/dist/jsuites.css";
 
+const TEXT_COLORS = [
+  { key: "default", label: "Default",  hex: "" },
+  { key: "gold",    label: "Gold",     hex: "#c8a84b" },
+  { key: "green",   label: "Green",    hex: "#4caf7d" },
+  { key: "red",     label: "Red",      hex: "#e05555" },
+  { key: "blue",    label: "Blue",     hex: "#4a8fc4" },
+  { key: "purple",  label: "Purple",   hex: "#9775cc" },
+  { key: "orange",  label: "Orange",   hex: "#d4873a" },
+  { key: "muted",   label: "Muted",    hex: "#888ea0" },
+];
+
 const WS_BASE = "wss://api.stateofundeadpurge.site:8443/ws/workspace";
 
 // Grid geometry for a fresh sheet.
@@ -124,11 +135,11 @@ export default function SheetEditor({ docId, me }) {
   const [peers, setPeers] = useState([]);
   const [peerCursors, setPeerCursors] = useState([]); // [{user, cell:[r,c]}]
   const [colorOpen, setColorOpen] = useState(false);
+  const [textColorOpen, setTextColorOpen] = useState(false);
   const [ready, setReady] = useState(false);
   const awarenessRef = useRef(null);
-  // Capture selection on mousedown of the color button — jspreadsheet clears
-  // selectedCell/highlighted when focus leaves the grid, so by the time onClick
-  // fires the selection is already gone. We grab it on the pointer press instead.
+  const textColorsRef = useRef(null);
+  // Capture selection on mousedown — jspreadsheet clears selection when focus leaves.
   const capturedCoordsRef = useRef([]);
   const gridWrapRef = useRef(null);
   const [cursorPos, setCursorPos] = useState([]); // pixel positions per peerCursor
@@ -145,10 +156,12 @@ export default function SheetEditor({ docId, me }) {
     const provider = new WebsocketProvider(WS_BASE, room, ydoc, { connect: true });
     providerRef.current = provider;
 
-    const yCells = ydoc.getMap("cells");   // "r:c" -> string value
-    const yStyles = ydoc.getMap("styles"); // "r:c" -> color key
+    const yCells = ydoc.getMap("cells");      // "r:c" -> string value
+    const yStyles = ydoc.getMap("styles");    // "r:c" -> bg color key
+    const yTextColors = ydoc.getMap("textColors"); // "r:c" -> hex color string
     cellsRef.current = yCells;
     stylesRef.current = yStyles;
+    textColorsRef.current = yTextColors;
     awarenessRef.current = provider.awareness;
 
     provider.on("status", (e) => {
@@ -204,6 +217,11 @@ export default function SheetEditor({ docId, me }) {
         if (bg) {
           try { jss.setStyle(cellName(c, r), "background-color", bg); } catch {}
         }
+      });
+      // restore font colors
+      yTextColors.forEach((hex, coord) => {
+        const [r, c] = coord.split(":").map(Number);
+        if (hex) try { jss.setStyle(cellName(c, r), "color", hex); } catch {}
       });
     };
 
@@ -315,8 +333,17 @@ export default function SheetEditor({ docId, me }) {
         try { jssRef.current.setStyle(cellName(c, r), "background-color", bg || ""); } catch {}
       });
     };
+    const onTextColorsChange = (event, txn) => {
+      if (txn.local || !jssRef.current) return;
+      event.keysChanged.forEach((coord) => {
+        const [r, c] = coord.split(":").map(Number);
+        const hex = yTextColors.get(coord) || "";
+        try { jssRef.current.setStyle(cellName(c, r), "color", hex); } catch {}
+      });
+    };
     yCells.observe(onCellsChange);
     yStyles.observe(onStylesChange);
+    yTextColors.observe(onTextColorsChange);
 
     // Wait for first sync so we don't seed an empty grid over existing data.
     const start = () => { if (!destroyed) initGrid(); };
@@ -435,6 +462,35 @@ export default function SheetEditor({ docId, me }) {
     applyColor(key);
   };
 
+  const applyTextColor = useCallback((hex) => {
+    const inst = jssRef.current;
+    const ydoc = ydocRef.current;
+    const yTextColors = textColorsRef.current;
+    if (!inst || !ydoc || !yTextColors) return;
+    const coords = capturedCoordsRef.current;
+    if (!coords || coords.length === 0) return;
+    const cellName = (c, r) => {
+      let s = ""; let n = c + 1;
+      while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); }
+      return s + (r + 1);
+    };
+    ydoc.transact(() => {
+      coords.forEach(([r, c]) => {
+        if (hex) yTextColors.set(`${r}:${c}`, hex);
+        else yTextColors.delete(`${r}:${c}`);
+      });
+    });
+    coords.forEach(([r, c]) => {
+      try { inst.setStyle(cellName(c, r), "color", hex || ""); } catch {}
+    });
+    capturedCoordsRef.current = [];
+  }, []);
+
+  const setTextColor = (hex) => {
+    setTextColorOpen(false);
+    applyTextColor(hex);
+  };
+
   return (
     <div className="ss-surface">
       <style dangerouslySetInnerHTML={{ __html: SHEET_CSS }} />
@@ -472,7 +528,13 @@ export default function SheetEditor({ docId, me }) {
       {/* toolbar */}
       <div className="ss-toolbar">
         <div style={{ position: "relative" }}>
-          <button className={"ss-btn" + (colorOpen ? " active" : "")} title="Cell color" onMouseDown={(e) => { e.preventDefault(); captureSelection(); }} onClick={() => setColorOpen((o) => !o)}>🎨</button>
+          <button className={"ss-btn" + (colorOpen ? " active" : "")} title="Cell background color" onMouseDown={(e) => { e.preventDefault(); captureSelection(); }} onClick={() => setColorOpen((o) => !o)}>🎨</button>
+          <button className={"ss-btn" + (textColorOpen ? " active" : "")} title="Font color" onMouseDown={(e) => { e.preventDefault(); captureSelection(); }} onClick={() => setTextColorOpen((o) => !o)}>
+            <span style={{ display:"flex",flexDirection:"column",alignItems:"center",gap:1 }}>
+              <span style={{ fontSize:11,fontWeight:700,lineHeight:1 }}>A</span>
+              <span style={{ width:14,height:3,borderRadius:1,background:"var(--accent)" }} />
+            </span>
+          </button>
           {colorOpen && (
             <div
               onMouseDown={(e) => e.preventDefault()}
@@ -505,6 +567,41 @@ export default function SheetEditor({ docId, me }) {
                 onMouseLeave={(e) => { e.currentTarget.style.borderColor = "transparent"; e.currentTarget.style.color = "var(--textdim)"; }}>
                 <span style={{ width: 14, height: 14, borderRadius: 2, border: "1px solid var(--muted)", flexShrink: 0 }} />
                 Clear color
+              </button>
+            </div>
+          )}
+          {textColorOpen && (
+            <div
+              onMouseDown={(e) => e.preventDefault()}
+              style={{
+                position: "absolute", top: 34, left: 36, zIndex: 40, background: "var(--surface)",
+                border: "1px solid var(--border)", borderRadius: 3, padding: 8,
+                boxShadow: "0 6px 24px rgba(0,0,0,0.5)", display: "flex", flexDirection: "column", gap: 6, minWidth: 140,
+              }}>
+              {TEXT_COLORS.filter(tc => tc.hex).map((tc) => (
+                <button key={tc.key} title={tc.label} onClick={() => setTextColor(tc.hex)}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 8, padding: "4px 6px", background: "transparent",
+                    border: "1px solid transparent", cursor: "pointer", borderRadius: 2,
+                    fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)", textAlign: "left",
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--text)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = "transparent"; e.currentTarget.style.color = "var(--textdim)"; }}>
+                  <span style={{ width: 14, height: 14, borderRadius: 2, background: tc.hex, border: "1px solid rgba(255,255,255,0.1)", flexShrink: 0 }} />
+                  {tc.label}
+                </button>
+              ))}
+              <div style={{ height: 1, background: "var(--border)", margin: "2px 0" }} />
+              <button onClick={() => setTextColor("")}
+                style={{
+                  display: "flex", alignItems: "center", gap: 8, padding: "4px 6px", background: "transparent",
+                  border: "1px solid transparent", cursor: "pointer", borderRadius: 2,
+                  fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)", textAlign: "left",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--text)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "transparent"; e.currentTarget.style.color = "var(--textdim)"; }}>
+                <span style={{ width: 14, height: 14, borderRadius: 2, border: "1px solid var(--muted)", flexShrink: 0 }} />
+                Reset color
               </button>
             </div>
           )}

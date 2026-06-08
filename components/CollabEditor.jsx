@@ -19,6 +19,8 @@ import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
 import { Editor } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
+import { Color } from "@tiptap/extension-color";
+import TextStyle from "@tiptap/extension-text-style";
 import Collaboration from "@tiptap/extension-collaboration";
 import CollaborationCursor from "@tiptap/extension-collaboration-cursor";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -61,6 +63,17 @@ const CELL_COLORS = [
   { key: "blue",   label: "Info",           swatch: "#4a8fc4" },
   { key: "purple", label: "Note",           swatch: "#9775cc" },
   { key: "orange", label: "Highlight",      swatch: "#d4873a" },
+];
+
+const TEXT_COLORS = [
+  { key: "#e3e7ee", label: "Default" },
+  { key: "#c8a84b", label: "Gold" },
+  { key: "#4caf7d", label: "Green" },
+  { key: "#e05555", label: "Red" },
+  { key: "#4a8fc4", label: "Blue" },
+  { key: "#9775cc", label: "Purple" },
+  { key: "#d4873a", label: "Orange" },
+  { key: "#888ea0", label: "Muted" },
 ];
 
 const WS_BASE = "wss://api.stateofundeadpurge.site:8443/ws/workspace";
@@ -197,6 +210,7 @@ export default function CollabEditor({ docId, docTitle, me, seed }) {
   const [, forceTick] = useState(0);                  // re-render toolbar active states
   const [saved, setSaved] = useState(true);           // crude dirty indicator
   const [colorOpen, setColorOpen] = useState(false);  // cell-color popover
+  const [textColorOpen, setTextColorOpen] = useState(false); // text-color popover
 
   // Re-mount the whole editor whenever the document changes.
   useEffect(() => {
@@ -240,6 +254,8 @@ export default function CollabEditor({ docId, docTitle, me, seed }) {
       element: holderRef.current,
       extensions: [
         StarterKit.configure({ history: false }), // Yjs owns history
+        TextStyle,
+        Color,
         Placeholder.configure({
           placeholder: "Start writing the plan… headings, lists, notes — it all syncs live.",
         }),
@@ -384,6 +400,51 @@ export default function CollabEditor({ docId, docTitle, me, seed }) {
         <TBtn title="Quote"        active={can(() => ed.isActive("blockquote"))}  onClick={() => run((c) => c.toggleBlockquote().run())}>"</TBtn>
         <TBtn title="Code block"   active={can(() => ed.isActive("codeBlock"))}   onClick={() => run((c) => c.toggleCodeBlock().run())}>{ }</TBtn>
         <TBtn title="Divider"      onClick={() => run((c) => c.setHorizontalRule().run())}>—</TBtn>
+
+        {/* text color picker */}
+        <div style={{ position: "relative" }}>
+          <TBtn title="Text color" active={textColorOpen} onClick={() => setTextColorOpen((o) => !o)}>
+            <span style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, lineHeight: 1 }}>A</span>
+              <span style={{ width: 14, height: 3, borderRadius: 1, background: can(() => ed.getAttributes("textStyle").color) || "var(--accent)" }} />
+            </span>
+          </TBtn>
+          {textColorOpen && (
+            <div style={{
+              position: "absolute", top: 34, left: 0, zIndex: 50, background: "var(--surface)",
+              border: "1px solid var(--border)", borderRadius: 3, padding: 8,
+              boxShadow: "0 6px 24px rgba(0,0,0,0.5)", display: "flex", flexDirection: "column", gap: 4, minWidth: 140,
+            }}>
+              {TEXT_COLORS.map((tc) => (
+                <button key={tc.key} title={tc.label}
+                  onClick={() => { run((c) => c.setColor(tc.key).run()); setTextColorOpen(false); }}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 8, padding: "4px 6px", background: "transparent",
+                    border: "1px solid transparent", cursor: "pointer", borderRadius: 2,
+                    fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)", textAlign: "left",
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--text)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = "transparent"; e.currentTarget.style.color = "var(--textdim)"; }}>
+                  <span style={{ width: 14, height: 14, borderRadius: 2, background: tc.key, border: "1px solid rgba(255,255,255,0.1)", flexShrink: 0 }} />
+                  {tc.label}
+                </button>
+              ))}
+              <div style={{ height: 1, background: "var(--border)", margin: "2px 0" }} />
+              <button
+                onClick={() => { run((c) => c.unsetColor().run()); setTextColorOpen(false); }}
+                style={{
+                  display: "flex", alignItems: "center", gap: 8, padding: "4px 6px", background: "transparent",
+                  border: "1px solid transparent", cursor: "pointer", borderRadius: 2,
+                  fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)", textAlign: "left",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--text)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "transparent"; e.currentTarget.style.color = "var(--textdim)"; }}>
+                <span style={{ width: 14, height: 14, borderRadius: 2, border: "1px solid var(--muted)", flexShrink: 0 }} />
+                Reset color
+              </button>
+            </div>
+          )}
+        </div>
         <Div />
         {/* P4.1 — table operations. Insert is always available; the rest only
             light up when the cursor is inside a table. */}
