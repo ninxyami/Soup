@@ -568,6 +568,16 @@ export default function SheetEditor({ docId, me }) {
                 <span style={{ width: 14, height: 14, borderRadius: 2, border: "1px solid var(--muted)", flexShrink: 0 }} />
                 Clear color
               </button>
+              <div style={{ height: 1, background: "var(--border)", margin: "2px 0" }} />
+              <label style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 6px", cursor: "pointer", borderRadius: 2, border: "1px solid transparent", fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)" }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--text)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "transparent"; e.currentTarget.style.color = "var(--textdim)"; }}>
+                <input type="color" defaultValue="#4caf7d"
+                  onMouseDown={(e) => { captureSelection(); }}
+                  style={{ width: 14, height: 14, border: "none", padding: 0, cursor: "pointer", borderRadius: 2, flexShrink: 0, background: "none" }}
+                  onChange={(e) => { applyColor(e.target.value); }} />
+                Custom…
+              </label>
             </div>
           )}
           {textColorOpen && (
@@ -603,6 +613,16 @@ export default function SheetEditor({ docId, me }) {
                 <span style={{ width: 14, height: 14, borderRadius: 2, border: "1px solid var(--muted)", flexShrink: 0 }} />
                 Reset color
               </button>
+              <div style={{ height: 1, background: "var(--border)", margin: "2px 0" }} />
+              <label style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 6px", cursor: "pointer", borderRadius: 2, border: "1px solid transparent", fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)" }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--text)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "transparent"; e.currentTarget.style.color = "var(--textdim)"; }}>
+                <input type="color" defaultValue="#c8a84b"
+                  onMouseDown={(e) => { captureSelection(); }}
+                  style={{ width: 14, height: 14, border: "none", padding: 0, cursor: "pointer", borderRadius: 2, flexShrink: 0, background: "none" }}
+                  onChange={(e) => { applyTextColor(e.target.value); }} />
+                Custom…
+              </label>
             </div>
           )}
         </div>
