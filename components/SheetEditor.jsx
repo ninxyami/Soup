@@ -463,27 +463,27 @@ export default function SheetEditor({ docId, me }) {
     applyColor(key);
   };
 
-  // After every render, size jss_content to exactly fill containerRef.
-  // Using !important overrides anything jspreadsheet set.
-  // This makes jss_content the sole scroll container — keyboard nav,
-  // arrow keys, mouse wheel all work because jspreadsheet owns the scroll.
+  // Size jss_content height to fill containerRef so vertical scroll works.
+  // We do NOT constrain the width — we let jss_content grow to its natural
+  // table width. The containerRef (overflow-x: auto) handles horizontal scroll.
+  // Keyboard nav (arrow keys auto-scroll) works because jspreadsheet's own
+  // scrollControls fires on jss_content.scrollTop/scrollLeft.
   useLayoutEffect(() => {
     const el = containerRef.current;
     if (!el) return;
     const apply = () => {
       const inst = jssRef.current;
       if (!inst?.content) return;
-      const w = el.clientWidth;
       const h = el.clientHeight;
-      if (!w || !h) return;
+      if (!h) return;
       const s = inst.content.style;
-      s.setProperty("width", w + "px", "important");
-      s.setProperty("max-width", w + "px", "important");
+      // Height only — let width be natural (table width > container = scroll)
       s.setProperty("height", h + "px", "important");
       s.setProperty("max-height", h + "px", "important");
-      s.setProperty("overflow-x", "auto", "important");
       s.setProperty("overflow-y", "auto", "important");
-      s.setProperty("box-sizing", "border-box", "important");
+      // Remove any width constraint jspreadsheet may have set
+      s.removeProperty("width");
+      s.removeProperty("max-width");
     };
     apply();
     const ro = new ResizeObserver(apply);
@@ -670,7 +670,7 @@ export default function SheetEditor({ docId, me }) {
       </div>
 
       {/* the grid + live peer cursors */}
-      <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }} ref={containerRef}>
+      <div style={{ flex: 1, minHeight: 0, overflowX: "auto", overflowY: "hidden" }} ref={containerRef}>
         <div style={{ position: "relative" }} ref={gridWrapRef}>
           <div ref={holderRef} />
           {/* peer cursor overlays — colored outline + name on the cell each
