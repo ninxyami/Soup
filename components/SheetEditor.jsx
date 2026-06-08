@@ -522,11 +522,17 @@ export default function SheetEditor({ docId, me }) {
       const w = el.clientWidth;
       const h = el.clientHeight;
       if (!w || !h) return;
-      // These mirror what jspreadsheet's createTable does for tableWidth/Height.
-      content.style.width = w + "px";
+      // CRITICAL: only constrain, never expand. If we set width to a value
+      // >= scrollWidth, the scroll dies. The container (overflow:hidden, flex:1)
+      // gives us the real bounded width — but during layout thrash it can
+      // transiently report the full table width, which kills the scrollbar.
+      // Guard: only apply if w is genuinely smaller than the table's natural width.
+      const naturalW = content.scrollWidth;
+      if (naturalW > 0 && w < naturalW) {
+        content.style.width = w + "px";
+      }
       content.style.maxHeight = h + "px";
-      // Ensure the overflow stays on (jspreadsheet sets these at init, but a
-      // re-init or theme reset could drop them — cheap to reassert).
+      // Ensure overflow stays on.
       content.style.overflowX = "auto";
       content.style.overflowY = "auto";
     };
