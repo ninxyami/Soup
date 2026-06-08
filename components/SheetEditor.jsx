@@ -152,8 +152,14 @@ export default function SheetEditor({ docId, me }) {
 
     const ydoc = new Y.Doc();
     ydocRef.current = ydoc;
-    // Sheet rooms get a distinct prefix so they never collide with doc rooms.
-    const room = `sheet:${docId}`;
+    // The room name MUST be the bare docId. The backend keys both the relay
+    // room AND the Postgres persistence row (ws_documents.id) off this exact
+    // string: save_ydoc runs `UPDATE ws_documents ... WHERE id = <room>`.
+    // A prefix like `sheet:${docId}` matches no row, so every save silently
+    // affected zero rows and the sheet only ever lived in relay memory —
+    // it vanished on any API restart. Bare docId persists correctly, exactly
+    // like CollabEditor does.
+    const room = docId;
     const provider = new WebsocketProvider(WS_BASE, room, ydoc, { connect: true });
     providerRef.current = provider;
 
