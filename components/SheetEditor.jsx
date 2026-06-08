@@ -226,64 +226,70 @@ export default function SheetEditor({ docId, me }) {
 
       // jspreadsheet v5 takes a `worksheets` array and returns an array of
       // worksheet instances. All per-cell methods live on worksheet[0].
-      const instances = jspreadsheet(holderRef.current, {
-        worksheets: [{
-          data,
-          columns: Array.from({ length: DEFAULT_COLS }, () => ({ width: COL_WIDTH })),
-          minDimensions: [DEFAULT_COLS, DEFAULT_ROWS],
-          worksheetName: "Sheet",
-        }],
-        allowExport: false,
-        about: false,
-        // ── local edit → push just that cell into Yjs ──
-        onchange: (worksheet, cell, x, y, value) => {
-          if (applyingRemote.current) return;
-          const r = parseInt(y, 10), c = parseInt(x, 10);
-          ydoc.transact(() => {
-            if (value === "" || value === null || value === undefined) yCells.delete(`${r}:${c}`);
-            else yCells.set(`${r}:${c}`, String(value));
-          });
-        },
-        // ── local selection → broadcast cursor cell so others see where I am ──
-        onselection: (worksheet, x1, y1, x2, y2) => {
-          if (!awarenessRef.current) return;
-          try {
-            awarenessRef.current.setLocalStateField("cursor", {
-              cell: [parseInt(y1, 10), parseInt(x1, 10)],
+      // jspreadsheet v5 returns an empty array that is populated async via
+      // an internal .then(). We must wait for onload to fire before using
+      // the worksheet instance — grabbing instances[0] synchronously gets undefined.
+      await new Promise((resolve) => {
+        const cfg = {
+          worksheets: [{
+            data,
+            columns: Array.from({ length: DEFAULT_COLS }, () => ({ width: COL_WIDTH })),
+            minDimensions: [DEFAULT_COLS, DEFAULT_ROWS],
+            worksheetName: "Sheet",
+          }],
+          allowExport: false,
+          about: false,
+          onload: (spreadsheet) => {
+            if (destroyed) return;
+            // spreadsheet.worksheets[0] is the real worksheet instance
+            jss = spreadsheet.worksheets ? spreadsheet.worksheets[0] : spreadsheet;
+            jssRef.current = jss;
+            applyStylesFromY();
+            setReady(true);
+            resolve();
+          },
+          // ── local edit → push just that cell into Yjs ──
+          onchange: (worksheet, cell, x, y, value) => {
+            if (applyingRemote.current) return;
+            const r = parseInt(y, 10), c = parseInt(x, 10);
+            ydoc.transact(() => {
+              if (value === "" || value === null || value === undefined) yCells.delete(`${r}:${c}`);
+              else yCells.set(`${r}:${c}`, String(value));
             });
-          } catch {}
-        },
-        // ── live typing: stream the in-progress cell text (Sheets-style) ──
-        // We mirror the RAW text per keystroke — we do NOT evaluate it as a
-        // formula mid-type, so no #ERROR flicker. The real value (and formula
-        // result) lands on commit via onchange.
-        oncreateeditor: (worksheet, td, col, row, input) => {
-          try {
-            const el = input || (td && td.querySelector("input,textarea"));
-            if (!el || !awarenessRef.current) return;
-            const r = parseInt(row, 10), c = parseInt(col, 10);
-            const push = () => {
-              try {
-                awarenessRef.current.setLocalStateField("typing", {
-                  cell: [r, c], text: String(el.value ?? ""),
-                });
-              } catch {}
-            };
-            el.addEventListener("input", push);
-            el.__wsTypingHandler = push; // for cleanup on edition end
-            push(); // initial (cell may open with existing content)
-          } catch {}
-        },
-        oneditionend: (worksheet, td, col, row, editorValue, wasSaved) => {
-          if (!awarenessRef.current) return;
-          try { awarenessRef.current.setLocalStateField("typing", null); } catch {}
-        },
+          },
+          // ── local selection → broadcast cursor cell so others see where I am ──
+          onselection: (worksheet, x1, y1, x2, y2) => {
+            if (!awarenessRef.current) return;
+            try {
+              awarenessRef.current.setLocalStateField("cursor", {
+                cell: [parseInt(y1, 10), parseInt(x1, 10)],
+              });
+            } catch {}
+          },
+          oncreateeditor: (worksheet, td, col, row, input) => {
+            try {
+              const el = input || (td && td.querySelector("input,textarea"));
+              if (!el || !awarenessRef.current) return;
+              const r = parseInt(row, 10), c = parseInt(col, 10);
+              const push = () => {
+                try {
+                  awarenessRef.current.setLocalStateField("typing", {
+                    cell: [r, c], text: String(el.value ?? ""),
+                  });
+                } catch {}
+              };
+              el.addEventListener("input", push);
+              el.__wsTypingHandler = push;
+              push();
+            } catch {}
+          },
+          oneditionend: (worksheet, td, col, row, editorValue, wasSaved) => {
+            if (!awarenessRef.current) return;
+            try { awarenessRef.current.setLocalStateField("typing", null); } catch {}
+          },
+        };
+        jspreadsheet(holderRef.current, cfg);
       });
-      // Grab the single worksheet instance for all surgical cell ops.
-      jss = Array.isArray(instances) ? instances[0] : instances;
-      jssRef.current = jss;
-      applyStylesFromY();
-      setReady(true);
     };
 
     // ── remote cell changes → apply surgically ──
