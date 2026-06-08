@@ -67,7 +67,7 @@ const SHEET_CSS = `
 .ss-surface{display:flex;flex-direction:column;min-height:0;height:100%}
 .ss-surface .jss_container{font-family:var(--mono);color:var(--text);background:transparent}
 .ss-surface .jexcel, .ss-surface .jss{font-family:var(--mono);font-size:12.5px}
-.ss-surface .jss_content{overflow:auto;width:100%;height:100%}
+.ss-surface .jss_content{box-sizing:border-box}
 .ss-surface table.jss{background:var(--surface);border-color:var(--border)}
 .ss-surface table.jss > thead > tr > td,
 .ss-surface table.jss > tbody > tr > td{
@@ -140,6 +140,7 @@ export default function SheetEditor({ docId, me }) {
   const awarenessRef = useRef(null);
   const textColorsRef = useRef(null);
   // Capture selection on mousedown — jspreadsheet clears selection when focus leaves.
+  const containerRef = useRef(null);  // measures available space for jspreadsheet
   const capturedCoordsRef = useRef([]);
   const gridWrapRef = useRef(null);
   const [cursorPos, setCursorPos] = useState([]); // pixel positions per peerCursor
@@ -257,6 +258,8 @@ export default function SheetEditor({ docId, me }) {
           }],
           allowExport: false,
           about: false,
+          tableWidth: String(containerRef.current ? containerRef.current.clientWidth : 900) + "px",
+          tableHeight: String(containerRef.current ? containerRef.current.clientHeight : 500) + "px",
           onload: (spreadsheet) => {
             if (destroyed) return;
             // spreadsheet.worksheets[0] is the real worksheet instance
@@ -462,6 +465,25 @@ export default function SheetEditor({ docId, me }) {
     applyColor(key);
   };
 
+  // Keep jspreadsheet sized to its container so both axes scroll properly
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const update = () => {
+      const inst = jssRef.current;
+      if (!inst || !inst.content) return;
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+      if (w > 0) { inst.content.style.width = w + "px"; inst.content.style.overflowX = "auto"; }
+      if (h > 0) { inst.content.style.maxHeight = h + "px"; inst.content.style.overflowY = "auto"; }
+    };
+    const ro = new ResizeObserver(update);
+    ro.observe(container);
+    // Also run once after a tick so jss is initialized
+    const t = setTimeout(update, 200);
+    return () => { ro.disconnect(); clearTimeout(t); };
+  }, []);
+
   const applyTextColor = useCallback((hex) => {
     const inst = jssRef.current;
     const ydoc = ydocRef.current;
@@ -632,7 +654,7 @@ export default function SheetEditor({ docId, me }) {
       </div>
 
       {/* the grid + live peer cursors */}
-      <div style={{ flex: 1, overflow: "hidden", minHeight: 0 }}>
+      <div style={{ flex: 1, overflow: "hidden", minHeight: 0 }} ref={containerRef}>
         <div style={{ position: "relative", height: "100%" }} ref={gridWrapRef}>
           <div ref={holderRef} />
           {/* peer cursor overlays — colored outline + name on the cell each
