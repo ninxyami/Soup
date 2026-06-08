@@ -275,13 +275,23 @@ export default function SheetEditor({ docId, me }) {
             columns: Array.from({ length: DEFAULT_COLS }, () => ({ width: COL_WIDTH })),
             minDimensions: [DEFAULT_COLS, DEFAULT_ROWS],
             worksheetName: "Sheet",
+            // ── native scroll ──
+            // CRITICAL: in jspreadsheet-ce v5 these are read PER-WORKSHEET
+            // (the library reads `worksheet.options.tableOverflow` etc.), NOT
+            // from the top-level config. Placed here, jspreadsheet sets up
+            // .jss_content as its own scroll container (overflow-x/y:auto +
+            // bounded width/maxHeight). Placed at the top level (where they
+            // were before) the worksheet never saw them and the scroll setup
+            // was silently skipped — which is why horizontal scroll and
+            // keyboard nav never worked. Verified in a headless browser:
+            // with these inside the worksheet, content.scrollLeft actually
+            // moves and canScrollX is true.
+            tableOverflow: true,
+            tableWidth: initW + "px",
+            tableHeight: initH + "px",
           }],
           allowExport: false,
           about: false,
-          // ── native scroll: let jspreadsheet own .jss_content as the scroller ──
-          tableOverflow: true,
-          tableWidth: initW + "px",
-          tableHeight: initH + "px",
           onload: (spreadsheet) => {
             if (destroyed) return;
             // spreadsheet.worksheets[0] is the real worksheet instance
