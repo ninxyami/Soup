@@ -263,10 +263,6 @@ export default function SheetEditor({ docId, me }) {
             // spreadsheet.worksheets[0] is the real worksheet instance
             jss = spreadsheet.worksheets ? spreadsheet.worksheets[0] : spreadsheet;
             jssRef.current = jss;
-            // fullscreen mode: jspreadsheet adds .fullscreen to its root element,
-            // which triggers CSS: overflow:auto, width:100%, height:100% on .jss_content.
-            // This is exactly what makes keyboard nav + mouse scroll work like Excel.
-            try { spreadsheet.fullscreen(true); } catch {}
             applyStylesFromY();
             setReady(true);
             resolve();
@@ -467,6 +463,34 @@ export default function SheetEditor({ docId, me }) {
     applyColor(key);
   };
 
+  // Size jss_content to fill the grid area so it scrolls in both axes.
+  // We do this by directly setting width/maxHeight on the jss_content element
+  // after jspreadsheet initialises, and updating on resize.
+  useEffect(() => {
+    const wrap = gridWrapRef.current;
+    if (!wrap) return;
+    const sizeGrid = () => {
+      const inst = jssRef.current;
+      if (!inst || !inst.content) return;
+      const w = wrap.clientWidth;
+      const h = wrap.clientHeight;
+      if (w > 0) {
+        inst.content.style.setProperty("width", w + "px", "important");
+        inst.content.style.setProperty("overflow-x", "auto", "important");
+      }
+      if (h > 0) {
+        inst.content.style.setProperty("max-height", h + "px", "important");
+        inst.content.style.setProperty("overflow-y", "auto", "important");
+      }
+    };
+    const ro = new ResizeObserver(sizeGrid);
+    ro.observe(wrap);
+    // Poll until jss initialises (async init)
+    let n = 0;
+    const poll = setInterval(() => { sizeGrid(); if (++n > 30) clearInterval(poll); }, 100);
+    return () => { ro.disconnect(); clearInterval(poll); };
+  }, []);
+
 
 
 
@@ -641,9 +665,9 @@ export default function SheetEditor({ docId, me }) {
       </div>
 
       {/* the grid + live peer cursors */}
-      <div style={{ flex: 1, overflow: "hidden", minHeight: 0, display: "flex", flexDirection: "column" }} ref={containerRef}>
-        <div style={{ position: "relative", flex: 1, minHeight: 0, height: "100%" }} ref={gridWrapRef}>
-          <div ref={holderRef} style={{ height: "100%" }} />
+      <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden" }} ref={containerRef}>
+        <div style={{ position: "relative", flex: 1, minHeight: 0 }} ref={gridWrapRef}>
+          <div ref={holderRef} style={{ width: "100%", height: "100%" }} />
           {/* peer cursor overlays — colored outline + name on the cell each
               other admin has selected. Positioned over the live grid cells. */}
           {peerCursors.map((pc, i) => {
