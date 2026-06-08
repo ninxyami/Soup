@@ -248,6 +248,20 @@ export default function SheetEditor({ docId, me }) {
       // jspreadsheet v5 returns an empty array that is populated async via
       // an internal .then(). We must wait for onload to fire before using
       // the worksheet instance — grabbing instances[0] synchronously gets undefined.
+      // Measure the available area so jspreadsheet can set up its OWN native
+      // scroll container (.jss_content). When tableOverflow + tableWidth +
+      // tableHeight are set, jspreadsheet itself applies overflow-x/y:auto and
+      // a bounded width/maxHeight to .jss_content — which is exactly what its
+      // keyboard navigation (content.scrollLeft/scrollTop) needs to work.
+      const measure = () => {
+        const c = containerRef.current;
+        return {
+          w: (c && c.clientWidth) ? c.clientWidth : 800,
+          h: (c && c.clientHeight) ? c.clientHeight : 400,
+        };
+      };
+      const { w: initW, h: initH } = measure();
+
       await new Promise((resolve) => {
         const cfg = {
           worksheets: [{
@@ -258,6 +272,10 @@ export default function SheetEditor({ docId, me }) {
           }],
           allowExport: false,
           about: false,
+          // ── native scroll: let jspreadsheet own .jss_content as the scroller ──
+          tableOverflow: true,
+          tableWidth: initW + "px",
+          tableHeight: initH + "px",
           onload: (spreadsheet) => {
             if (destroyed) return;
             // spreadsheet.worksheets[0] is the real worksheet instance
@@ -463,34 +481,38 @@ export default function SheetEditor({ docId, me }) {
     applyColor(key);
   };
 
-  // Constrain jss_content to exactly fill containerRef in BOTH axes, then give
-  // it overflow: auto in both directions. This is the same pattern that makes
-  // vertical scroll work — apply it to width too. jspreadsheet's own
-  // scrollControls fires scroll on jss_content directly, so keyboard arrow
-  // nav works in both directions once jss_content is the bounded scroll box.
+  // jspreadsheet (via tableOverflow + tableWidth/tableHeight) already made
+  // .jss_content the scroll container at init. This effect only keeps that
+  // container sized to the available space when the window/sidebar resizes.
+  // We set EXACTLY the same properties jspreadsheet sets natively — width +
+  // max-height — so we stay on its supported path instead of fighting it.
   useLayoutEffect(() => {
     const el = containerRef.current;
     if (!el) return;
     const apply = () => {
       const inst = jssRef.current;
-      if (!inst?.content) return;
+      const content = inst && inst.content;
+      if (!content) return;
       const w = el.clientWidth;
       const h = el.clientHeight;
       if (!w || !h) return;
-      const s = inst.content.style;
-      s.setProperty("width",      w + "px", "important");
-      s.setProperty("max-width",  w + "px", "important");
-      s.setProperty("height",     h + "px", "important");
-      s.setProperty("max-height", h + "px", "important");
-      s.setProperty("overflow-x", "auto",   "important");
-      s.setProperty("overflow-y", "auto",   "important");
-      s.setProperty("box-sizing", "border-box", "important");
+      // These mirror what jspreadsheet's createTable does for tableWidth/Height.
+      content.style.width = w + "px";
+      content.style.maxHeight = h + "px";
+      // Ensure the overflow stays on (jspreadsheet sets these at init, but a
+      // re-init or theme reset could drop them — cheap to reassert).
+      content.style.overflowX = "auto";
+      content.style.overflowY = "auto";
     };
     apply();
     const ro = new ResizeObserver(apply);
     ro.observe(el);
+    // jspreadsheet inits async — retry until .content exists, then stop.
     let n = 0;
-    const t = setInterval(() => { apply(); if (jssRef.current?.content || ++n > 40) clearInterval(t); }, 80);
+    const t = setInterval(() => {
+      apply();
+      if (jssRef.current?.content || ++n > 40) clearInterval(t);
+    }, 80);
     return () => { ro.disconnect(); clearInterval(t); };
   }, []);
 
