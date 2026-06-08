@@ -126,6 +126,10 @@ export default function SheetEditor({ docId, me }) {
   const [colorOpen, setColorOpen] = useState(false);
   const [ready, setReady] = useState(false);
   const awarenessRef = useRef(null);
+  // Capture selection on mousedown of the color button — jspreadsheet clears
+  // selectedCell/highlighted when focus leaves the grid, so by the time onClick
+  // fires the selection is already gone. We grab it on the pointer press instead.
+  const capturedCoordsRef = useRef([]);
   const gridWrapRef = useRef(null);
   const [cursorPos, setCursorPos] = useState([]); // pixel positions per peerCursor
 
@@ -361,18 +365,14 @@ export default function SheetEditor({ docId, me }) {
     offline:    { label: "Offline",    color: "var(--red)",    dot: "var(--red)"    },
   }[status];
 
-  const applyColor = useCallback((key) => {
+  // Capture the current selection into capturedCoordsRef.
+  // Must be called on mousedown/pointerdown of any toolbar button, BEFORE
+  // jspreadsheet's global mouseDownControls fires and clears the selection.
+  const captureSelection = useCallback(() => {
     const inst = jssRef.current;
-    const ydoc = ydocRef.current;
-    const yStyles = stylesRef.current;
-    if (!inst || !ydoc || !yStyles) return;
-
-    // jspreadsheet v5: inst.highlighted is the authoritative selection array.
-    // Each entry has an .element with data-x / data-y attributes.
-    // inst.selectedCell is [x1,y1,x2,y2] and covers range selections.
-    let coords = [];
+    const coords = [];
+    if (!inst) { capturedCoordsRef.current = coords; return; }
     try {
-      // Range selection — walk the highlighted cells (most reliable in v5)
       if (inst.highlighted && inst.highlighted.length > 0) {
         for (const entry of inst.highlighted) {
           const el = entry.element || entry;
@@ -382,8 +382,6 @@ export default function SheetEditor({ docId, me }) {
         }
       }
     } catch {}
-
-    // Fallback: selectedCell rectangle [x1,y1,x2,y2]
     if (coords.length === 0) {
       try {
         const s = inst.selectedCell;
@@ -395,8 +393,18 @@ export default function SheetEditor({ docId, me }) {
         }
       } catch {}
     }
+    capturedCoordsRef.current = coords;
+  }, []);
 
-    if (coords.length === 0) return;
+  const applyColor = useCallback((key) => {
+    const inst = jssRef.current;
+    const ydoc = ydocRef.current;
+    const yStyles = stylesRef.current;
+    if (!inst || !ydoc || !yStyles) return;
+
+    // Use the coords captured on mousedown (before jspreadsheet cleared selection).
+    const coords = capturedCoordsRef.current;
+    if (!coords || coords.length === 0) return;
 
     const cellName = (c, r) => {
       let s = ""; let n = c + 1;
@@ -413,6 +421,7 @@ export default function SheetEditor({ docId, me }) {
     coords.forEach(([r, c]) => {
       try { inst.setStyle(cellName(c, r), "background-color", key ? colorBg(key) : ""); } catch {}
     });
+    capturedCoordsRef.current = []; // clear after use
   }, []);
 
   const setColor = (key) => {
@@ -457,9 +466,11 @@ export default function SheetEditor({ docId, me }) {
       {/* toolbar */}
       <div className="ss-toolbar">
         <div style={{ position: "relative" }}>
-          <button className={"ss-btn" + (colorOpen ? " active" : "")} title="Cell color" onClick={() => setColorOpen((o) => !o)}>🎨</button>
+          <button className={"ss-btn" + (colorOpen ? " active" : "")} title="Cell color" onMouseDown={(e) => { e.preventDefault(); captureSelection(); }} onClick={() => setColorOpen((o) => !o)}>🎨</button>
           {colorOpen && (
-            <div style={{
+            <div
+              onMouseDown={(e) => e.preventDefault()}
+              style={{
               position: "absolute", top: 34, left: 0, zIndex: 40, background: "var(--surface)",
               border: "1px solid var(--border)", borderRadius: 3, padding: 8,
               boxShadow: "0 6px 24px rgba(0,0,0,0.5)", display: "flex", flexDirection: "column", gap: 6, minWidth: 150,
