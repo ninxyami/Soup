@@ -463,32 +463,32 @@ export default function SheetEditor({ docId, me }) {
     applyColor(key);
   };
 
-  // Size jss_content height to fill containerRef so vertical scroll works.
-  // We do NOT constrain the width — we let jss_content grow to its natural
-  // table width. The containerRef (overflow-x: auto) handles horizontal scroll.
-  // Keyboard nav (arrow keys auto-scroll) works because jspreadsheet's own
-  // scrollControls fires on jss_content.scrollTop/scrollLeft.
+  // Constrain jss_content to exactly fill containerRef in BOTH axes, then give
+  // it overflow: auto in both directions. This is the same pattern that makes
+  // vertical scroll work — apply it to width too. jspreadsheet's own
+  // scrollControls fires scroll on jss_content directly, so keyboard arrow
+  // nav works in both directions once jss_content is the bounded scroll box.
   useLayoutEffect(() => {
     const el = containerRef.current;
     if (!el) return;
     const apply = () => {
       const inst = jssRef.current;
       if (!inst?.content) return;
+      const w = el.clientWidth;
       const h = el.clientHeight;
-      if (!h) return;
+      if (!w || !h) return;
       const s = inst.content.style;
-      // Height only — let width be natural (table width > container = scroll)
-      s.setProperty("height", h + "px", "important");
+      s.setProperty("width",      w + "px", "important");
+      s.setProperty("max-width",  w + "px", "important");
+      s.setProperty("height",     h + "px", "important");
       s.setProperty("max-height", h + "px", "important");
-      s.setProperty("overflow-y", "auto", "important");
-      // Remove any width constraint jspreadsheet may have set
-      s.removeProperty("width");
-      s.removeProperty("max-width");
+      s.setProperty("overflow-x", "auto",   "important");
+      s.setProperty("overflow-y", "auto",   "important");
+      s.setProperty("box-sizing", "border-box", "important");
     };
     apply();
     const ro = new ResizeObserver(apply);
     ro.observe(el);
-    // Keep retrying until jss_content exists (async init)
     let n = 0;
     const t = setInterval(() => { apply(); if (jssRef.current?.content || ++n > 40) clearInterval(t); }, 80);
     return () => { ro.disconnect(); clearInterval(t); };
@@ -670,7 +670,7 @@ export default function SheetEditor({ docId, me }) {
       </div>
 
       {/* the grid + live peer cursors */}
-      <div style={{ flex: 1, minHeight: 0, overflowX: "auto", overflowY: "hidden" }} ref={containerRef}>
+      <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }} ref={containerRef}>
         <div style={{ position: "relative" }} ref={gridWrapRef}>
           <div ref={holderRef} />
           {/* peer cursor overlays — colored outline + name on the cell each
