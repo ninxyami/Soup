@@ -640,8 +640,8 @@ export default function SheetEditor({ docId, me }) {
 
       {/* the grid + live peer cursors */}
       <div style={{ flex: 1, minHeight: 0, overflow: "auto" }} ref={containerRef}>
-        <div style={{ position: "relative", display: "inline-block", verticalAlign: "top", minWidth: "100%", minHeight: "100%" }} ref={gridWrapRef}>
-          <div ref={holderRef} style={{ width: "100%", height: "100%" }} />
+        <div style={{ position: "relative", display: "inline-block", verticalAlign: "top" }} ref={gridWrapRef}>
+          <div ref={holderRef} />
           {/* peer cursor overlays — colored outline + name on the cell each
               other admin has selected. Positioned over the live grid cells. */}
           {peerCursors.map((pc, i) => {
