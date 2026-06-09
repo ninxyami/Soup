@@ -431,7 +431,7 @@ export default function Workspace({ me, toast, fillViewport = false }) {
                   {activeDoc.title}
                 </span>
               </div>
-              <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+              <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden", height: 0 }}>
                 <EditorBoundary key={`doc:${activeDoc.id}`}>
                   {isBoardDoc(activeDoc) ? (
                     <BoardEditor docId={activeDoc.id} me={me} admins={Object.entries(ADMINS).map(([id, a]) => ({ id, ...a }))} />

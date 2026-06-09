@@ -64,7 +64,7 @@ const colorBg = (key) => (CELL_COLORS.find((c) => c.key === key) || {}).bg || ""
 
 // SOUP theming over jspreadsheet's base CSS. Scoped under .ss-surface.
 const SHEET_CSS = `
-.ss-surface{display:flex;flex-direction:column;min-height:0;height:100%}
+.ss-surface{display:flex;flex-direction:column;flex:1;min-height:0;min-width:0;height:100%}
 .ss-surface .jss_container{font-family:var(--mono);color:var(--text);background:transparent}
 .ss-surface .jexcel, .ss-surface .jss{font-family:var(--mono);font-size:12.5px}
 .ss-surface .jss_content{box-sizing:border-box}
@@ -519,8 +519,12 @@ export default function SheetEditor({ docId, me }) {
       const w = el.clientWidth;
       const h = el.clientHeight;
       if (!w || !h) return;
+      // Cap height: if the container has an unreasonably large clientHeight
+      // (e.g. parent isn't height-constrained and grows to content), clamp to
+      // 80vh so the grid scrolls internally rather than the page scrolling.
+      const cappedH = Math.min(h, Math.round(window.innerHeight * 0.82));
       content.style.width = w + "px";
-      content.style.maxHeight = h + "px";
+      content.style.maxHeight = cappedH + "px";
       content.style.overflowX = "auto";
       content.style.overflowY = "auto";
       updateThumb();
