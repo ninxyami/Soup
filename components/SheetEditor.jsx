@@ -73,10 +73,6 @@ const SHEET_CSS = `
    custom scrollbar outside the container instead. */
 .ss-surface .jss_content{ scrollbar-width: none; }
 .ss-surface .jss_content::-webkit-scrollbar{ display:none; }
-/* Custom external scrollbar track + thumb */
-.ss-sheet-scrollbar{ height:12px; background:rgba(0,0,0,0.25); border-radius:6px; position:relative; cursor:pointer; user-select:none; }
-.ss-sheet-scrollbar-thumb{ height:100%; background:var(--accent); border-radius:6px; position:absolute; top:0; cursor:grab; min-width:30px; }
-.ss-sheet-scrollbar-thumb:active{ cursor:grabbing; }
 .ss-surface table.jss{background:var(--surface);border-color:var(--border)}
 .ss-surface table.jss > thead > tr > td,
 .ss-surface table.jss > tbody > tr > td{
@@ -152,8 +148,6 @@ export default function SheetEditor({ docId, me }) {
   const containerRef = useRef(null);  // measures available space for jspreadsheet
   const capturedCoordsRef = useRef([]);
   const gridWrapRef = useRef(null);
-  const scrollbarThumbRef = useRef(null);
-  const scrollbarTrackRef = useRef(null);
   const [cursorPos, setCursorPos] = useState([]); // pixel positions per peerCursor
 
   useEffect(() => {
@@ -266,18 +260,6 @@ export default function SheetEditor({ docId, me }) {
       // an internal .then(). We must wait for onload to fire before using
       // the worksheet instance — grabbing instances[0] synchronously gets undefined.
       // Measure the available area so jspreadsheet can set up its OWN native
-      // scroll container (.jss_content). When tableOverflow + tableWidth +
-      // tableHeight are set, jspreadsheet itself applies overflow-x/y:auto and
-      // a bounded width/maxHeight to .jss_content — which is exactly what its
-      // keyboard navigation (content.scrollLeft/scrollTop) needs to work.
-      const measure = () => {
-        const c = containerRef.current;
-        return {
-          w: (c && c.clientWidth) ? c.clientWidth : 800,
-          h: (c && c.clientHeight) ? c.clientHeight : 400,
-        };
-      };
-      const { w: initW, h: initH } = measure();
 
       await new Promise((resolve) => {
         const cfg = {
@@ -286,20 +268,6 @@ export default function SheetEditor({ docId, me }) {
             columns: Array.from({ length: DEFAULT_COLS }, () => ({ width: COL_WIDTH })),
             minDimensions: [DEFAULT_COLS, DEFAULT_ROWS],
             worksheetName: "Sheet",
-            // ── native scroll ──
-            // CRITICAL: in jspreadsheet-ce v5 these are read PER-WORKSHEET
-            // (the library reads `worksheet.options.tableOverflow` etc.), NOT
-            // from the top-level config. Placed here, jspreadsheet sets up
-            // .jss_content as its own scroll container (overflow-x/y:auto +
-            // bounded width/maxHeight). Placed at the top level (where they
-            // were before) the worksheet never saw them and the scroll setup
-            // was silently skipped — which is why horizontal scroll and
-            // keyboard nav never worked. Verified in a headless browser:
-            // with these inside the worksheet, content.scrollLeft actually
-            // moves and canScrollX is true.
-            tableOverflow: true,
-            tableWidth: initW + "px",
-            tableHeight: initH + "px",
           }],
           allowExport: false,
           about: false,
@@ -508,142 +476,7 @@ export default function SheetEditor({ docId, me }) {
     applyColor(key);
   };
 
-  useLayoutEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-
-    const apply = () => {
-      const inst = jssRef.current;
-      const content = inst && inst.content;
-      if (!content) return;
-      const w = el.clientWidth;
-      const h = el.clientHeight;
-      if (!w || !h) return;
-      // Cap height: if the container has an unreasonably large clientHeight
-      // (e.g. parent isn't height-constrained and grows to content), clamp to
-      // 80vh so the grid scrolls internally rather than the page scrolling.
-      const cappedH = Math.min(h, Math.round(window.innerHeight * 0.82));
-      content.style.width = w + "px";
-      content.style.maxHeight = cappedH + "px";
-      content.style.overflowX = "auto";
-      content.style.overflowY = "auto";
-      updateThumb();
-    };
-
-    // ── custom external scrollbar ──────────────────────────────────────────
-    const updateThumb = () => {
-      const content = jssRef.current?.content;
-      const track = scrollbarTrackRef.current;
-      const thumb = scrollbarThumbRef.current;
-      if (!content || !track || !thumb) return;
-      const ratio = content.clientWidth / content.scrollWidth;
-      if (ratio >= 1) { track.style.display = "none"; return; }
-      track.style.display = "block";
-      const thumbW = Math.max(30, track.clientWidth * ratio);
-      const maxScroll = content.scrollWidth - content.clientWidth;
-      const maxThumbLeft = track.clientWidth - thumbW;
-      const thumbLeft = maxScroll > 0 ? (content.scrollLeft / maxScroll) * maxThumbLeft : 0;
-      thumb.style.width = thumbW + "px";
-      thumb.style.left = thumbLeft + "px";
-    };
-
-    // Sync thumb when grid scrolls
-    const onContentScroll = () => updateThumb();
-
-    // Drag the thumb
-    let dragStartX = 0, dragStartScrollLeft = 0;
-    const onThumbMouseDown = (e) => {
-      e.preventDefault();
-      const content = jssRef.current?.content;
-      const track = scrollbarTrackRef.current;
-      const thumb = scrollbarThumbRef.current;
-      if (!content || !track || !thumb) return;
-      dragStartX = e.clientX;
-      dragStartScrollLeft = content.scrollLeft;
-      const thumbW = thumb.offsetWidth;
-      const maxThumbLeft = track.clientWidth - thumbW;
-      const maxScroll = content.scrollWidth - content.clientWidth;
-      const onMouseMove = (ev) => {
-        const dx = ev.clientX - dragStartX;
-        const ratio = maxScroll / (maxThumbLeft || 1);
-        content.scrollLeft = Math.max(0, Math.min(maxScroll, dragStartScrollLeft + dx * ratio));
-      };
-      const onMouseUp = () => {
-        window.removeEventListener("mousemove", onMouseMove);
-        window.removeEventListener("mouseup", onMouseUp);
-      };
-      window.addEventListener("mousemove", onMouseMove);
-      window.addEventListener("mouseup", onMouseUp);
-    };
-
-    // Click on track (not thumb) — jump to position
-    const onTrackClick = (e) => {
-      const content = jssRef.current?.content;
-      const track = scrollbarTrackRef.current;
-      const thumb = scrollbarThumbRef.current;
-      if (!content || !track || !thumb || e.target === thumb) return;
-      const rect = track.getBoundingClientRect();
-      const clickRatio = (e.clientX - rect.left) / track.clientWidth;
-      content.scrollLeft = clickRatio * (content.scrollWidth - content.clientWidth);
-    };
-
-    // Wheel handler — Shift+wheel or vertical-only wheel scrolls horizontally
-    const onWheel = (e) => {
-      const content = jssRef.current?.content;
-      if (!content) return;
-      const canX = content.scrollWidth > content.clientWidth;
-      if (!canX) return;
-      const canY = content.scrollHeight > content.clientHeight;
-      const atBottom = content.scrollTop + content.clientHeight >= content.scrollHeight - 1;
-      if (e.shiftKey) {
-        content.scrollLeft += (e.deltaY || e.deltaX);
-        e.preventDefault();
-      } else if (!canY) {
-        content.scrollLeft += e.deltaY;
-        e.preventDefault();
-      } else if (e.deltaY > 0 && atBottom) {
-        content.scrollLeft += e.deltaY;
-        e.preventDefault();
-      }
-    };
-
-    // Wire everything up once content is ready
-    let wired = null;
-    const attachAll = () => {
-      const content = jssRef.current?.content;
-      const thumb = scrollbarThumbRef.current;
-      const track = scrollbarTrackRef.current;
-      if (!content || !thumb || !track || content === wired) return;
-      if (wired) {
-        wired.removeEventListener("scroll", onContentScroll);
-        wired.removeEventListener("wheel", onWheel);
-      }
-      content.addEventListener("scroll", onContentScroll, { passive: true });
-      content.addEventListener("wheel", onWheel, { passive: false });
-      thumb.addEventListener("mousedown", onThumbMouseDown);
-      track.addEventListener("click", onTrackClick);
-      wired = content;
-      apply();
-    };
-
-    apply();
-    const ro = new ResizeObserver(apply);
-    ro.observe(el);
-    let n = 0;
-    const t = setInterval(() => { attachAll(); if (wired || ++n > 40) clearInterval(t); }, 80);
-
-    return () => {
-      ro.disconnect(); clearInterval(t);
-      if (wired) {
-        wired.removeEventListener("scroll", onContentScroll);
-        wired.removeEventListener("wheel", onWheel);
-      }
-      const thumb = scrollbarThumbRef.current;
-      const track = scrollbarTrackRef.current;
-      if (thumb) thumb.removeEventListener("mousedown", onThumbMouseDown);
-      if (track) track.removeEventListener("click", onTrackClick);
-    };
-  }, []);
+  // No layout effect needed — scroll is handled by the overflow-x:auto wrapper div in JSX.
 
 
 
@@ -820,12 +653,10 @@ export default function SheetEditor({ docId, me }) {
         </span>
       </div>
 
-      {/* the grid + live peer cursors */}
-      <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }} ref={containerRef}>
-        <div style={{ position: "relative" }} ref={gridWrapRef}>
+      {/* grid container — simple overflow:auto, grid renders at natural width inside */}
+      <div style={{ flex: 1, minHeight: 0, overflow: "auto" }} ref={containerRef}>
+        <div style={{ position: "relative", display: "inline-block", minWidth: "100%" }} ref={gridWrapRef}>
           <div ref={holderRef} />
-          {/* peer cursor overlays — colored outline + name on the cell each
-              other admin has selected. Positioned over the live grid cells. */}
           {peerCursors.map((pc, i) => {
             const pos = cursorPos[i];
             if (!pos) return null;
@@ -836,7 +667,6 @@ export default function SheetEditor({ docId, me }) {
                 width: pos.width, minHeight: pos.height,
                 border: `2px solid ${color}`, pointerEvents: "none", zIndex: 5, boxSizing: "border-box",
                 boxShadow: `0 0 0 1px ${color}55`,
-                // when they're actively typing, tint the cell and show their text
                 background: pc.typing != null ? `${color}22` : "transparent",
               }}>
                 <span style={{
@@ -855,15 +685,6 @@ export default function SheetEditor({ docId, me }) {
             );
           })}
         </div>
-      </div>
-      {/* Custom horizontal scrollbar rendered OUTSIDE containerRef so it isn't
-          clipped by jss_container's overflow:visible. Wired to .jss_content.scrollLeft. */}
-      <div
-        ref={scrollbarTrackRef}
-        className="ss-sheet-scrollbar"
-        style={{ margin: "4px 0 2px 0", display: "none" }}
-      >
-        <div ref={scrollbarThumbRef} className="ss-sheet-scrollbar-thumb" />
       </div>
     </div>
   );
