@@ -226,12 +226,12 @@ export default function Workspace({ me, toast, fillViewport = false }) {
     : {};
   const gridStyle = fillViewport
     ? {
-        display: "grid", gridTemplateColumns: "260px 1fr", gap: 0,
+        display: "grid", gridTemplateColumns: "260px minmax(0, 1fr)", gap: 0,
         border: "1px solid var(--border)", background: "var(--surface)",
         height: "100%", minHeight: 0, overflow: "hidden",
       }
     : {
-        display: "grid", gridTemplateColumns: "260px 1fr", gap: 0,
+        display: "grid", gridTemplateColumns: "260px minmax(0, 1fr)", gap: 0,
         border: "1px solid var(--border)", background: "var(--surface)",
         height: "78vh", minHeight: "72vh", overflow: "hidden",
       };

@@ -147,8 +147,6 @@ export default function SheetEditor({ docId, me }) {
   const containerRef = useRef(null);  // measures available space for jspreadsheet
   const capturedCoordsRef = useRef([]);
   const gridWrapRef = useRef(null);
-  const hScrollTrackRef = useRef(null);
-  const hScrollThumbRef = useRef(null);
   const [cursorPos, setCursorPos] = useState([]); // pixel positions per peerCursor
 
   useEffect(() => {
@@ -477,91 +475,6 @@ export default function SheetEditor({ docId, me }) {
     applyColor(key);
   };
 
-  // Wire the horizontal scrollbar to .jss_content
-  useEffect(() => {
-    let rafId = null;
-    let dragStartX = 0, dragStartScroll = 0;
-
-    const getContent = () => {
-      // jss_content is jspreadsheet's internal scroll element — driving its
-      // scrollLeft moves the cells. Fall back to containerRef if not ready.
-      const inst = jssRef.current;
-      if (inst && inst.content) return inst.content;
-      return containerRef.current;
-    };
-
-    const updateThumb = () => {
-      const content = getContent();
-      const track = hScrollTrackRef.current;
-      const thumb = hScrollThumbRef.current;
-      if (!content || !track || !thumb) return;
-      const ratio = content.clientWidth / content.scrollWidth;
-      if (ratio >= 1) { thumb.style.display = "none"; return; }
-      thumb.style.display = "block";
-      const thumbW = Math.max(40, track.clientWidth * ratio);
-      const maxLeft = track.clientWidth - thumbW;
-      const scrollRatio = content.scrollLeft / (content.scrollWidth - content.clientWidth);
-      thumb.style.width = thumbW + "px";
-      thumb.style.left = (scrollRatio * maxLeft) + "px";
-    };
-
-    const onScroll = () => { cancelAnimationFrame(rafId); rafId = requestAnimationFrame(updateThumb); };
-
-    const onThumbDown = (e) => {
-      e.preventDefault();
-      const content = getContent();
-      const track = hScrollTrackRef.current;
-      const thumb = hScrollThumbRef.current;
-      if (!content || !track || !thumb) return;
-      dragStartX = e.clientX;
-      dragStartScroll = content.scrollLeft;
-      const thumbW = thumb.offsetWidth;
-      const maxLeft = track.clientWidth - thumbW;
-      const maxScroll = content.scrollWidth - content.clientWidth;
-      const onMove = (ev) => {
-        const dx = ev.clientX - dragStartX;
-        content.scrollLeft = Math.max(0, Math.min(maxScroll, dragStartScroll + (dx / maxLeft) * maxScroll));
-      };
-      const onUp = () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
-      window.addEventListener("mousemove", onMove);
-      window.addEventListener("mouseup", onUp);
-    };
-
-    const onTrackClick = (e) => {
-      const content = getContent();
-      const track = hScrollTrackRef.current;
-      const thumb = hScrollThumbRef.current;
-      if (!content || !track || !thumb || e.target === thumb) return;
-      const rect = track.getBoundingClientRect();
-      content.scrollLeft = ((e.clientX - rect.left) / track.clientWidth) * (content.scrollWidth - content.clientWidth);
-    };
-
-    // Poll until jspreadsheet mounts, then wire up
-    let wired = null;
-    const tryWire = () => {
-      const content = getContent();
-      if (content && content !== wired) {
-        if (wired) wired.removeEventListener("scroll", onScroll);
-        content.addEventListener("scroll", onScroll, { passive: true });
-        wired = content;
-        updateThumb();
-      }
-    };
-
-    const interval = setInterval(() => { tryWire(); updateThumb(); }, 100);
-    const track = hScrollTrackRef.current;
-    const thumb = hScrollThumbRef.current;
-    if (thumb) thumb.addEventListener("mousedown", onThumbDown);
-    if (track) track.addEventListener("click", onTrackClick);
-
-    return () => {
-      clearInterval(interval);
-      cancelAnimationFrame(rafId);
-      if (wired) wired.removeEventListener("scroll", onScroll);
-      if (thumb) thumb.removeEventListener("mousedown", onThumbDown);
-      if (track) track.removeEventListener("click", onTrackClick);
-    };
-  }, []);
 
 
 
@@ -738,8 +651,8 @@ export default function SheetEditor({ docId, me }) {
         </span>
       </div>
 
-      {/* grid — overflow:hidden here, scrolled by the fake scrollbar below */}
-      <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }} ref={containerRef}>
+      {/* grid container */}
+      <div style={{ flex: 1, minHeight: 0, overflow: "auto" }} ref={containerRef}>
         <div style={{ position: "relative", display: "inline-block", minWidth: "100%" }} ref={gridWrapRef}>
           <div ref={holderRef} />
           {peerCursors.map((pc, i) => {
@@ -772,16 +685,6 @@ export default function SheetEditor({ docId, me }) {
         </div>
       </div>
 
-      {/* horizontal scrollbar — sits below the grid, always visible when content overflows */}
-      <div ref={hScrollTrackRef} style={{
-        height: 12, background: "rgba(255,255,255,0.05)", position: "relative", flexShrink: 0, cursor: "pointer",
-        borderTop: "1px solid var(--border)"
-      }}>
-        <div ref={hScrollThumbRef} style={{
-          position: "absolute", top: 1, height: 10, borderRadius: 5,
-          background: "var(--accent)", opacity: 0.7, cursor: "grab", minWidth: 40,
-        }} />
-      </div>
     </div>
   );
 }
