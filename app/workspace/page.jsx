@@ -32,7 +32,7 @@ const blink = { fontFamily: "var(--mono)", fontSize: 12, color: "var(--textdim)"
 const TOKENS = `
 :root{--bg:#080a0c;--surface:#0f1318;--surface2:#141a21;--border:#1e2530;--accent:#c8a84b;--accent2:#7b3f3f;--red:#e05555;--green:#4caf7d;--blue:#4a8fc4;--orange:#d4873a;--purple:#9775cc;--muted:#4a5568;--text:#c8cdd6;--textdim:#6b7280;--mono:'Share Tech Mono',monospace;--display:'Bebas Neue',sans-serif;--body:'Inter',-apple-system,sans-serif}
 @keyframes ap-blink{0%,100%{opacity:.3}50%{opacity:1}}
-.wsx{font-family:var(--body);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
+.wsx{font-family:var(--body);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;overflow-x:hidden}
 .wsx::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.03) 2px,rgba(0,0,0,0.03) 4px);pointer-events:none;z-index:1000}
 `;
 
