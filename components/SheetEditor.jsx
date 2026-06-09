@@ -290,6 +290,13 @@ export default function SheetEditor({ docId, me }) {
           },
           // ── local selection → broadcast cursor cell so others see where I am ──
           onselection: (worksheet, x1, y1, x2, y2) => {
+            // Auto-scroll selected cell into view on keyboard nav
+            try {
+              const td = worksheet.el && worksheet.el.querySelector(
+                `tbody tr:nth-child(${parseInt(y1,10)+1}) td:nth-child(${parseInt(x1,10)+2})`
+              );
+              if (td) td.scrollIntoView({ block: "nearest", inline: "nearest" });
+            } catch {}
             if (!awarenessRef.current) return;
             try {
               awarenessRef.current.setLocalStateField("cursor", {
