@@ -127,7 +127,8 @@ const CSS = `
 .ap-nav-ico{font-size:15px;width:20px;text-align:center;flex-shrink:0}
 .ap-nav-back{display:flex;align-items:center;gap:8px;padding:9px 20px;color:var(--textdim);font-size:11px;letter-spacing:1px;cursor:pointer;transition:color .15s;text-decoration:none;font-family:var(--mono)}
 .ap-nav-back:hover{color:var(--text)}
-.ap-main{padding:32px;overflow-y:auto;min-width:0}
+.ap-main{padding:32px;overflow-y:auto;overflow-x:hidden;min-width:0}
+.ap-main--fill{padding:0!important;overflow:hidden!important;display:flex;flex-direction:column}
 .ap-title{font-family:var(--display);font-size:36px;letter-spacing:4px;color:var(--accent);margin-bottom:4px;line-height:1}
 .ap-sub{color:var(--textdim);font-size:12px;margin-bottom:28px;font-family:var(--mono)}
 .ap-sr{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px}
@@ -488,7 +489,7 @@ export default function AdminPanel() {
             </>
           )}
         </nav>
-        <main className="ap-main">
+        <main className={`ap-main${page === "workspace" ? " ap-main--fill" : ""}`}>
           <ActivePanel key={page} toast={toast} refreshKey={refreshKey} />
         </main>
       </div>

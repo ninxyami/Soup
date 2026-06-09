@@ -36,9 +36,8 @@ export default function WorkspaceTab({ toast }) {
   );
 
   return (
-    <div>
-      <Title t="WORKSPACE" s="Live collaborative planning — projects, documents, real-time" />
-      <Workspace me={me} toast={toast} />
+    <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <Workspace me={me} toast={toast} fillViewport />
     </div>
   );
 }
