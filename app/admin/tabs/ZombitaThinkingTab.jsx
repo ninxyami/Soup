@@ -29,9 +29,17 @@ const ThinkingCard = ({ entry, onAck, busy }) => {
   const acked = !!entry.acknowledged;
 
   const headline = (st.headline || "").trim();
+  const take = (st.take || "").trim();
   const suggestions = (st.suggestions || "").trim();
-  // Prefer the structured observations; fall back to the rendered text body.
-  const body = (st.observations || entry.thinking_text || "").trim();
+  // Prefer the structured observations. Only fall back to the rendered text body
+  // when observations is missing — and strip the "My take:"/"Suggestions:" tails
+  // from that fallback so they don't duplicate the dedicated sections below.
+  let body = (st.observations || "").trim();
+  if (!body) {
+    body = (entry.thinking_text || "")
+      .split(/\n\nMy take:|\n\nSuggestions:/)[0]
+      .trim();
+  }
 
   const accentColor = calm ? "var(--green)" : "var(--accent)";
 
@@ -80,6 +88,23 @@ const ThinkingCard = ({ entry, onAck, busy }) => {
       {body && (
         <div style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--textdim)", lineHeight: 1.8, whiteSpace: "pre-wrap" }}>
           {body}
+        </div>
+      )}
+
+      {/* Her Take — her own opinion, set apart from the neutral observations.
+          Only renders when she actually formed one (conditional in the prompt). */}
+      {take && (
+        <div style={{
+          marginTop: 14, padding: "12px 16px",
+          background: "rgba(200,168,75,0.07)", borderRadius: 3,
+          borderLeft: "3px solid var(--accent)",
+        }}>
+          <div style={{ fontFamily: "var(--mono)", fontSize: 9, letterSpacing: 2, color: "var(--accent)", textTransform: "uppercase", marginBottom: 6 }}>
+            ✦ Her Take
+          </div>
+          <div style={{ fontFamily: "var(--mono)", fontSize: 12.5, color: "var(--text)", lineHeight: 1.8, whiteSpace: "pre-wrap", fontStyle: "italic" }}>
+            {take}
+          </div>
         </div>
       )}
 
