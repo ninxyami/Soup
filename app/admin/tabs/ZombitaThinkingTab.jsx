@@ -26,7 +26,8 @@ const parseStructured = (s) => {
 const ThinkingCard = ({ entry, onAck, busy }) => {
   const st = parseStructured(entry.structured);
   const calm = !!entry.no_change;
-  const acked = !!entry.acknowledged;
+  // Per-admin acknowledgment: "have *I* seen this", not the old global flag.
+  const acked = entry.acked_by_me != null ? !!entry.acked_by_me : !!entry.acknowledged;
 
   const headline = (st.headline || "").trim();
   const take = (st.take || "").trim();
@@ -223,14 +224,19 @@ export default function ZombitaThinkingTab({ toast }) {
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [ackBusy, setAckBusy] = useState(false);
-  const [showAcked, setShowAcked] = useState(false);
+  const [unacked, setUnacked] = useState(0);
+  // sub-view of the thinking section: "nightly" (un-acked by me) | "acked" (my archive)
+  const [thinkView, setThinkView] = useState("nightly");
   const [view, setView]       = useState("thinking"); // "thinking" | "memory"
+
+  const isAcked = (e) => (e.acked_by_me != null ? !!e.acked_by_me : !!e.acknowledged);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const data = await fetchApi("/api/admin/zombita/thinking?limit=30");
       setEntries(data.thinking || []);
+      if (typeof data.unacked_count === "number") setUnacked(data.unacked_count);
     } catch (e) {
       toast(e.message, "error");
     }
@@ -242,19 +248,41 @@ export default function ZombitaThinkingTab({ toast }) {
   const ack = async (thinking_date, acknowledged) => {
     setAckBusy(true);
     try {
-      await postApi("/api/admin/zombita/thinking/ack", { thinking_date, acknowledged });
+      const res = await postApi("/api/admin/zombita/thinking/ack", { thinking_date, acknowledged });
+      // per-admin: update acked_by_me for ME only (others unaffected server-side)
       setEntries(prev => prev.map(e =>
-        e.thinking_date === thinking_date ? { ...e, acknowledged } : e));
+        e.thinking_date === thinking_date ? { ...e, acked_by_me: acknowledged } : e));
+      if (res && typeof res.unacked_count === "number") setUnacked(res.unacked_count);
+      else setUnacked(u => Math.max(0, u + (acknowledged ? -1 : 1)));
     } catch (e) { toast(e.message, "error"); }
     setAckBusy(false);
   };
 
-  const visible = showAcked ? entries : entries.filter(e => !e.acknowledged);
-  const flaggedOpen = entries.filter(e => !e.no_change && !e.acknowledged).length;
+  // oldest un-acked entry age (days) → escalates the badge: older = louder
+  const oldestUnackedDays = (() => {
+    const un = entries.filter(e => !isAcked(e));
+    if (un.length === 0) return 0;
+    const now = Date.now() / 1000;
+    let oldest = 0;
+    for (const e of un) {
+      const ts = Number(e.created_at) || 0;
+      if (ts) { const d = (now - ts) / 86400; if (d > oldest) oldest = d; }
+    }
+    return oldest;
+  })();
+  const badgeHot = oldestUnackedDays >= 2;
+
+  const visible = thinkView === "acked"
+    ? entries.filter(e => isAcked(e))
+    : entries.filter(e => !isAcked(e));
+  const flaggedOpen = entries.filter(e => !e.no_change && !isAcked(e)).length;
   const calmCount   = entries.filter(e => e.no_change).length;
 
   return (
     <>
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes zm-badgepulse { 0%,100% { opacity: 1 } 50% { opacity: .5 } }
+      ` }} />
       <Title t="ZOMBITA'S THINKING" s="her nightly read on the community · read-only · season 1: new dawn" />
 
       <div className="ap-sr">
@@ -267,6 +295,17 @@ export default function ZombitaThinkingTab({ toast }) {
       <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
         <B c={view === "thinking" ? "gold" : "ghost"} sm onClick={() => setView("thinking")}>
           🧠 Nightly Thinking
+          {unacked > 0 && (
+            <span style={{
+              marginLeft: 7, minWidth: 17, height: 17, padding: "0 5px", borderRadius: 9,
+              display: "inline-flex", alignItems: "center", justifyContent: "center",
+              fontFamily: "var(--mono)", fontSize: 10, fontWeight: 800, lineHeight: 1,
+              color: "#0b0d10",
+              background: badgeHot ? "var(--red, #e05555)" : "var(--accent)",
+              boxShadow: badgeHot ? "0 0 9px rgba(224,85,85,0.6)" : "0 0 7px rgba(200,168,75,0.4)",
+              animation: badgeHot ? "zm-badgepulse 1.5s ease-in-out infinite" : "none",
+            }}>{unacked}</span>
+          )}
         </B>
         <B c={view === "memory" ? "gold" : "ghost"} sm onClick={() => setView("memory")}>
           📖 Living Memory
@@ -281,19 +320,26 @@ export default function ZombitaThinkingTab({ toast }) {
         </TW>
       ) : (
         <TW
-          title="NIGHTLY ENTRIES"
+          title={thinkView === "acked" ? "ACKNOWLEDGED BY YOU" : "NIGHTLY ENTRIES"}
           right={
-            <label style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: "var(--mono)", fontSize: 10, color: "var(--textdim)", cursor: "pointer" }}>
-              <input type="checkbox" checked={showAcked} onChange={e => setShowAcked(e.target.checked)} />
-              show acknowledged
-            </label>
+            <div style={{ display: "flex", gap: 6 }}>
+              <B c={thinkView === "nightly" ? "gold" : "ghost"} sm onClick={() => setThinkView("nightly")}>
+                Unread{unacked > 0 ? ` (${unacked})` : ""}
+              </B>
+              <B c={thinkView === "acked" ? "gold" : "ghost"} sm onClick={() => setThinkView("acked")}>
+                Acknowledged
+              </B>
+            </div>
           }
         >
           {loading ? <Load /> : (
             visible.length === 0
-              ? <Empty text={entries.length === 0
-                  ? "no thinking entries yet — she starts once the pipeline is live and summaries accumulate"
-                  : "all caught up — no unacknowledged entries"} />
+              ? <Empty text={
+                  thinkView === "acked"
+                    ? "nothing acknowledged yet — entries you acknowledge move here"
+                    : (entries.length === 0
+                      ? "no thinking entries yet — she starts once the pipeline is live and summaries accumulate"
+                      : "all caught up — you've acknowledged everything")} />
               : <div>{visible.map(e => (
                   <ThinkingCard key={e.thinking_date} entry={e} onAck={ack} busy={ackBusy} />
                 ))}</div>
