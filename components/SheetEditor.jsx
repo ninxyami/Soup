@@ -30,7 +30,7 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
-import { DataGrid, renderTextEditor } from "react-data-grid";
+import { DataGrid, textEditor } from "react-data-grid";
 import "react-data-grid/lib/styles.css";
 
 const TEXT_COLORS = [
@@ -323,7 +323,7 @@ export default function SheetEditor({ docId, me }) {
       name: colName(c),
       width: colWidths[c] ?? COL_WIDTH,
       resizable: true,
-      renderEditCell: renderTextEditor,
+      renderEditCell: textEditor,
       renderCell: ({ row }) => {
         const style = cellStyle(row._r, c);
         const peer = peerCursors.find((pc) => pc.cell[0] === row._r && pc.cell[1] === c);
