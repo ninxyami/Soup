@@ -80,6 +80,21 @@ const isSheetDoc = (doc) =>
 const isBoardDoc = (doc) =>
   doc?.kind === "board" || doc?.type === "board" || doc?.seed === "board" || doc?.icon === "▤";
 
+// epoch-seconds → "3m", "2h", "4d" (server stores BIGINT epoch seconds)
+const relTime = (epoch) => {
+  if (!epoch) return "";
+  const s = Math.max(0, Math.floor(Date.now() / 1000 - Number(epoch)));
+  if (s < 60) return "just now";
+  const m = Math.floor(s / 60); if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60); if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24); return `${d}d ago`;
+};
+// age in days, for escalating badge intensity
+const ageDays = (epoch) => {
+  if (!epoch) return 0;
+  return (Date.now() / 1000 - Number(epoch)) / 86400;
+};
+
 export default function Workspace({ me, toast, fillViewport = false }) {
   const [projects, setProjects] = useState([]);
   const [docsByProject, setDocsByProject] = useState({}); // pid -> [docs]
@@ -99,6 +114,44 @@ export default function Workspace({ me, toast, fillViewport = false }) {
   const dragDoc = useRef(null);   // { pid, index }
   const [dragOver, setDragOver] = useState(null); // { pid, index } drop target
 
+  // ── unread notifications (Feature 1) ──
+  // unread.docs: per-doc { document_id, unread, last_editor_name, current_version, updated_at }
+  const [unread, setUnread] = useState({ docs: [], unread_count: 0, per_project: {} });
+  const unreadByDoc = {};
+  (unread.docs || []).forEach((d) => { unreadByDoc[d.document_id] = d; });
+
+  const loadUnread = useCallback(async () => {
+    try {
+      const d = await fetchApi(`/api/workspace/unread`);
+      setUnread(d || { docs: [], unread_count: 0, per_project: {} });
+    } catch (e) { /* non-fatal: badges just won't show */ }
+  }, []);
+
+  // ── changes/history panel (Feature 2) ──
+  const [changesOpen, setChangesOpen] = useState(false);
+  const [changes, setChanges] = useState([]);
+  const [changesLoading, setChangesLoading] = useState(false);
+
+  const loadChanges = useCallback(async (docId) => {
+    if (!docId) return;
+    setChangesLoading(true);
+    try {
+      const d = await fetchApi(`/api/workspace/documents/${docId}/changes?limit=100`);
+      setChanges(d.changes || []);
+    } catch (e) {
+      setChanges([]);
+    } finally {
+      setChangesLoading(false);
+    }
+  }, []);
+
+  // mark a doc seen (auto, on open) + refresh unread badges
+  const markSeen = useCallback(async (docId) => {
+    if (!docId) return;
+    try { await postApi(`/api/workspace/documents/${docId}/seen`, {}); } catch (e) {}
+    loadUnread();
+  }, [loadUnread]);
+
   // ── load projects ──
   const loadProjects = useCallback(async () => {
     try {
@@ -112,6 +165,14 @@ export default function Workspace({ me, toast, fillViewport = false }) {
   }, [toast]);
 
   useEffect(() => { loadProjects(); }, [loadProjects]);
+
+  // Load unread state on mount and refresh every 45s so badges stay current
+  // as other admins edit. Lightweight (one indexed query).
+  useEffect(() => {
+    loadUnread();
+    const t = setInterval(loadUnread, 45000);
+    return () => clearInterval(t);
+  }, [loadUnread]);
 
   const loadDocs = useCallback(async (pid) => {
     try {
@@ -215,6 +276,22 @@ export default function Workspace({ me, toast, fillViewport = false }) {
     }
   };
 
+  // When a document becomes active: mark it seen (clears its NEW badge for me)
+  // and load its change history. Opening the doc IS the acknowledgment — no button.
+  useEffect(() => {
+    if (activeDoc?.id) {
+      markSeen(activeDoc.id);
+      if (changesOpen) loadChanges(activeDoc.id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeDoc?.id]);
+
+  // If the user opens the changes panel while a doc is active, load on demand.
+  useEffect(() => {
+    if (changesOpen && activeDoc?.id) loadChanges(activeDoc.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [changesOpen]);
+
   const kindMeta = (k) => PROJECT_KINDS.find((x) => x.id === k) || PROJECT_KINDS[3];
 
   // Outer height: standalone page gives a 100vh parent → fill it; admin <main>
@@ -243,6 +320,7 @@ export default function Workspace({ me, toast, fillViewport = false }) {
         .ws-doc-row:hover .ws-drag-handle { opacity: 1 !important; }
         .ws-doc-row:hover { background: rgba(255,255,255,0.02); }
         @keyframes ap-blink { 0%,100% { opacity: .3 } 50% { opacity: 1 } }
+        @keyframes ws-newpulse { 0%,100% { opacity: 1 } 50% { opacity: .55 } }
         .wsx-inp {
           width: 100%; box-sizing: border-box; padding: 9px 12px;
           background: var(--bg, #080a0c); border: 1px solid var(--border, #1e2530);
@@ -355,6 +433,14 @@ export default function Workspace({ me, toast, fillViewport = false }) {
                       <span style={{ fontSize: 10, color: "var(--muted)", transform: isOpen ? "rotate(90deg)" : "none", transition: "transform .12s" }}>▶</span>
                       <span style={{ fontSize: 13 }}>{km.icon}</span>
                       <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</span>
+                      {(unread.per_project?.[p.id] > 0) && (
+                        <span title={`${unread.per_project[p.id]} unread`} style={{
+                          minWidth: 16, height: 16, padding: "0 5px", borderRadius: 8,
+                          background: "var(--accent)", color: "#0b0d10", fontFamily: "var(--mono)",
+                          fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center",
+                          justifyContent: "center", lineHeight: 1, flexShrink: 0,
+                        }}>{unread.per_project[p.id]}</span>
+                      )}
                       <span style={{ fontSize: 9, color: "var(--muted)" }}>{docs.length || ""}</span>
                     </div>
 
@@ -390,7 +476,33 @@ export default function Workspace({ me, toast, fillViewport = false }) {
                                 style={{ fontSize: 9, color: "var(--muted)", opacity: 0, cursor: "grab", flexShrink: 0, lineHeight: 1, userSelect: "none" }}
                               >⠿</span>
                               <span style={{ fontSize: 11, opacity: 0.7, flexShrink: 0 }}>{doc.icon || "📄"}</span>
-                              <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{doc.title}</span>
+                              <span style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 1 }}>
+                                <span style={{
+                                  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                                  fontWeight: unreadByDoc[doc.id]?.unread ? 700 : 400,
+                                  color: unreadByDoc[doc.id]?.unread && !active ? "var(--text)" : "inherit",
+                                }}>{doc.title}</span>
+                                {unreadByDoc[doc.id]?.unread && (
+                                  <span style={{ fontSize: 10, color: "var(--muted)", fontFamily: "var(--mono)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                    {unreadByDoc[doc.id]?.last_editor_name || "someone"} · {relTime(unreadByDoc[doc.id]?.updated_at)}
+                                  </span>
+                                )}
+                              </span>
+                              {unreadByDoc[doc.id]?.unread && (() => {
+                                const d = ageDays(unreadByDoc[doc.id]?.updated_at);
+                                // escalate: fresh = soft accent; older = hotter + pulse
+                                const hot = d >= 2;
+                                return (
+                                  <span title={`NEW — edited by ${unreadByDoc[doc.id]?.last_editor_name || "someone"} ${relTime(unreadByDoc[doc.id]?.updated_at)}`} style={{
+                                    flexShrink: 0, fontFamily: "var(--mono)", fontSize: 8.5, fontWeight: 800,
+                                    letterSpacing: 0.5, padding: "1px 5px", borderRadius: 3,
+                                    color: "#0b0d10",
+                                    background: hot ? "var(--red, #e05555)" : "var(--accent)",
+                                    boxShadow: hot ? "0 0 8px rgba(224,85,85,0.5)" : "0 0 6px rgba(200,168,75,0.35)",
+                                    animation: hot ? "ws-newpulse 1.6s ease-in-out infinite" : "none",
+                                  }}>NEW</span>
+                                );
+                              })()}
                               <button
                                 className="ws-doc-del"
                                 title="Delete document"
@@ -427,20 +539,41 @@ export default function Workspace({ me, toast, fillViewport = false }) {
           {activeDoc && me ? (
             <>
               <div style={{ padding: "12px 20px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ fontFamily: "var(--display)", fontSize: 22, letterSpacing: 1.5, color: "var(--text)" }}>
+                <span style={{ fontFamily: "var(--display)", fontSize: 22, letterSpacing: 1.5, color: "var(--text)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {activeDoc.title}
                 </span>
+                <button
+                  onClick={() => setChangesOpen((v) => !v)}
+                  title="See who changed what"
+                  className="wsx-ft"
+                  style={{
+                    padding: "5px 10px", fontFamily: "var(--mono)", fontSize: 11,
+                    color: changesOpen ? "var(--accent)" : "var(--textdim)",
+                    borderColor: changesOpen ? "var(--accent)" : "var(--border)",
+                    display: "flex", alignItems: "center", gap: 6, flexShrink: 0,
+                  }}
+                >🕓 Changes</button>
               </div>
-              <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-                <EditorBoundary key={`doc:${activeDoc.id}`}>
-                  {isBoardDoc(activeDoc) ? (
-                    <BoardEditor docId={activeDoc.id} me={me} admins={Object.entries(ADMINS).map(([id, a]) => ({ id, ...a }))} />
-                  ) : isSheetDoc(activeDoc) ? (
-                    <SheetEditor docId={activeDoc.id} me={me} />
-                  ) : (
-                    <CollabEditor docId={activeDoc.id} docTitle={activeDoc.title} me={me} seed={activeDoc.seed} />
-                  )}
-                </EditorBoundary>
+              <div style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden" }}>
+                <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                  <EditorBoundary key={`doc:${activeDoc.id}`}>
+                    {isBoardDoc(activeDoc) ? (
+                      <BoardEditor docId={activeDoc.id} me={me} admins={Object.entries(ADMINS).map(([id, a]) => ({ id, ...a }))} />
+                    ) : isSheetDoc(activeDoc) ? (
+                      <SheetEditor docId={activeDoc.id} me={me} />
+                    ) : (
+                      <CollabEditor docId={activeDoc.id} docTitle={activeDoc.title} me={me} seed={activeDoc.seed} />
+                    )}
+                  </EditorBoundary>
+                </div>
+                {changesOpen && (
+                  <ChangesPanel
+                    changes={changes}
+                    loading={changesLoading}
+                    onRefresh={() => loadChanges(activeDoc.id)}
+                    onClose={() => setChangesOpen(false)}
+                  />
+                )}
               </div>
             </>
           ) : (
@@ -602,6 +735,80 @@ function Modal({ title, onClose, children }) {
         }}>×</button>
         <h3 style={{ fontFamily: "var(--display)", fontSize: 20, letterSpacing: 1.5, color: "var(--text)", margin: "0 0 20px" }}>{title}</h3>
         {children}
+      </div>
+    </div>
+  );
+}
+
+// ── CHANGES PANEL ── the "who changed what" timeline (Feature 2).
+// Reads /api/workspace/documents/{id}/changes — attributed block/cell edits.
+function ChangesPanel({ changes, loading, onRefresh, onClose }) {
+  const kindMeta = (k) =>
+    k === "add" ? { c: "#4caf7d", label: "added" }
+    : k === "delete" ? { c: "#e05555", label: "removed" }
+    : { c: "var(--accent)", label: "edited" };
+
+  // pretty block ref: "para[3]" → "¶ 4", "sheet:B1" → "cell B1"
+  const prettyRef = (ref) => {
+    if (!ref) return "";
+    let m = ref.match(/para\[(\d+)\]/);
+    if (m) return `¶ ${Number(m[1]) + 1}`;
+    m = ref.match(/^([a-z]+):(.+)$/i);
+    if (m) return `${m[1]} ${m[2]}`;
+    return ref;
+  };
+
+  return (
+    <div style={{
+      width: 320, flexShrink: 0, borderLeft: "1px solid var(--border)",
+      background: "var(--bg, #0b0d10)", display: "flex", flexDirection: "column", minHeight: 0,
+    }}>
+      <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 10 }}>
+        <span style={{ fontFamily: "var(--mono)", fontSize: 11, letterSpacing: 2, color: "var(--textdim)", textTransform: "uppercase", flex: 1 }}>
+          Recent Changes
+        </span>
+        <button onClick={onRefresh} title="Refresh" className="wsx-ft" style={{ padding: "3px 8px", fontSize: 11, color: "var(--textdim)" }}>↻</button>
+        <button onClick={onClose} title="Close" style={{ background: "transparent", border: "none", color: "var(--textdim)", fontSize: 18, lineHeight: 1, cursor: "pointer" }}>×</button>
+      </div>
+      <div style={{ flex: 1, overflowY: "auto", padding: "8px 0" }}>
+        {loading ? (
+          <div style={{ textAlign: "center", padding: 30 }}>
+            <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)", letterSpacing: 2, animation: "ap-blink 1.2s infinite" }}>LOADING…</span>
+          </div>
+        ) : (changes || []).length === 0 ? (
+          <div style={{ padding: "20px 18px", fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)", lineHeight: 1.7 }}>
+            No tracked edits yet.<br />Changes appear here as admins edit, with who changed what.
+          </div>
+        ) : (
+          (changes || []).map((c) => {
+            const km = kindMeta(c.change_kind);
+            return (
+              <div key={c.id} style={{ padding: "8px 16px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
+                  <span style={{ fontFamily: "var(--mono)", fontSize: 11.5, color: "var(--text)", fontWeight: 600 }}>
+                    {c.actor_name || c.actor_id}
+                  </span>
+                  <span style={{ fontFamily: "var(--mono)", fontSize: 9.5, color: km.c, textTransform: "uppercase", letterSpacing: 0.5 }}>{km.label}</span>
+                  <span style={{ fontFamily: "var(--mono)", fontSize: 9.5, color: "var(--muted)" }}>{prettyRef(c.block_ref)}</span>
+                  <span style={{ flex: 1 }} />
+                  <span style={{ fontFamily: "var(--mono)", fontSize: 9.5, color: "var(--muted)" }}>{relTime(c.timestamp)}</span>
+                </div>
+                {(c.before_excerpt || c.after_excerpt) && (
+                  <div style={{ fontFamily: "var(--mono)", fontSize: 10.5, lineHeight: 1.5, paddingLeft: 2 }}>
+                    {c.before_excerpt && (
+                      <div style={{ color: "#b06b6b", textDecoration: c.change_kind === "delete" ? "line-through" : "none" }}>
+                        − {c.before_excerpt}
+                      </div>
+                    )}
+                    {c.after_excerpt && (
+                      <div style={{ color: "#7db48a" }}>+ {c.after_excerpt}</div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
       </div>
     </div>
   );
