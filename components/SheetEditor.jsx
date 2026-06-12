@@ -2,35 +2,36 @@
 // @ts-nocheck
 // components/SheetEditor.jsx
 //
-// The collaborative SPREADSHEET surface — a real grid (jspreadsheet-ce), not a
-// rich-text table. Used for "Sheet" type documents (economy, inventory, mod
-// lists). Document type keeps using CollabEditor (TipTap); this is its sibling.
+// The collaborative SPREADSHEET surface — now built on react-data-grid (MIT,
+// React-19 compatible) instead of jspreadsheet-ce. The switch fixes the entire
+// class of scroll bugs that plagued the jspreadsheet version: react-data-grid
+// owns its own virtualized scroll viewport, so horizontal/vertical overflow can
+// never escape to the page and drag the sidebar away. Keyboard nav auto-scroll,
+// column resize, and large row counts are all handled natively.
 //
-// COLLABORATION MODEL (the whole point — live, no lost work):
-//   The sheet is NOT serialized whole-doc. Instead each cell lives as its own
-//   key in a Yjs Y.Map ("cells"), keyed "r:c" -> { v: value, s: styleId }.
-//   - Local edit  → write just that cell key into the Y.Map → relay broadcasts.
-//   - Remote edit → observe the Y.Map, apply ONLY the changed cells via
-//     setValueFromCoords — never setData on the whole grid, so nobody's cursor
-//     or in-progress typing is yanked away.
+// COLLABORATION MODEL — UNCHANGED from the jspreadsheet version (the whole point):
+//   The sheet is NOT serialized whole-doc. Each cell lives as its own key in a
+//   Yjs Y.Map ("cells"), keyed "r:c" -> string value. Styles + text colors live
+//   in parallel maps. Yjs is the source of truth; the grid is a view.
+//     - Local edit  → write just that cell key into the Y.Map → relay broadcasts.
+//     - Remote edit → observe the Y.Map → rebuild affected rows in React state.
 //   Two admins editing DIFFERENT cells merge cleanly (separate keys). Same cell
-//   resolves last-write-wins — the only unavoidable conflict, same as Sheets.
-//   Yjs is the source of truth; the grid is a view. Persists through the SAME
-//   pycrdt relay as everything else (no backend change). Structured cells also
-//   mean Zombita can read {B5: 750} later, not a blob.
+//   resolves last-write-wins. Persists through the SAME pycrdt relay (no backend
+//   change). Structured cells mean Zombita can still read {B5: 750}, not a blob.
 //
-// SSR: jspreadsheet touches `document`, so this loads client-only via
-// next/dynamic({ ssr:false }) — same pattern as CollabEditor.
+//   IMPORTANT — data preserved: the Yjs maps ("cells"/"styles"/"textColors") and
+//   the room name (bare docId) are byte-for-byte the same as the jspreadsheet
+//   version, so every existing sheet loads unchanged. This is a VIEW swap, not a
+//   data migration. The new "colWidths" map is additive (persisted column widths).
+//
+// SSR: react-data-grid touches the DOM, so this loads client-only via
+// next/dynamic({ ssr:false }) from Workspace — same pattern as before.
 
-import { useEffect, useLayoutEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
-// jspreadsheet + jsuites styles. This whole component is loaded via
-// next/dynamic({ssr:false}) from WorkspaceTab, so these CSS imports are
-// client-only and safe in the static export.
-import "jspreadsheet-ce/dist/jspreadsheet.css";
-import "jspreadsheet-ce/dist/jspreadsheet.themes.css";
-import "jsuites/dist/jsuites.css";
+import { DataGrid, renderTextEditor } from "react-data-grid";
+import "react-data-grid/lib/styles.css";
 
 const TEXT_COLORS = [
   { key: "default", label: "Default",  hex: "" },
@@ -45,13 +46,16 @@ const TEXT_COLORS = [
 
 const WS_BASE = "wss://api.stateofundeadpurge.site:8443/ws/workspace";
 
-// Grid geometry for a fresh sheet.
-const DEFAULT_ROWS = 30;
+// Grid geometry. MIN_ROWS is the *minimum* a fresh sheet shows; the grid
+// auto-grows beyond it (computeRowCount). This is what fixes the old
+// "only keeps 30 rows" data-loss bug — we never cap reads at 30.
+const MIN_ROWS = 30;
 const DEFAULT_COLS = 12;
 const COL_WIDTH = 130;
+// Empty rows kept available below the last filled row, so there's always
+// somewhere to type/paste next.
+const ROW_BUFFER = 12;
 
-// Status colors — same palette/keys as the TipTap table cell colors so the two
-// editors feel like one product. Stored as a style id per cell.
 const CELL_COLORS = [
   { key: "green",  label: "Added / done",  bg: "rgba(76,175,125,0.22)" },
   { key: "yellow", label: "Pending / WIP", bg: "rgba(212,178,75,0.22)" },
@@ -62,53 +66,53 @@ const CELL_COLORS = [
 ];
 const colorBg = (key) => (CELL_COLORS.find((c) => c.key === key) || {}).bg || "";
 
-// SOUP theming over jspreadsheet's base CSS. Scoped under .ss-surface.
+// column index -> "A".."Z","AA"...
+const colName = (c) => {
+  let s = ""; let n = c + 1;
+  while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); }
+  return s;
+};
+
+// SOUP theming over react-data-grid's base CSS. Scoped under .ss-surface.
 const SHEET_CSS = `
 .ss-surface{display:flex;flex-direction:column;flex:1;min-height:0;min-width:0;height:100%}
-.ss-surface .jss_container{font-family:var(--mono);color:var(--text);background:transparent}
-.ss-surface .jexcel, .ss-surface .jss{font-family:var(--mono);font-size:12.5px}
-.ss-surface .jss_content{box-sizing:border-box}
-/* Hide the native scrollbar inside .jss_content — it's clipped by .jss_container
-   (overflow:visible, same width) and never visible anyway. We render our own
-   custom scrollbar outside the container instead. */
-/* jss_content scrolls natively — don't hide its scrollbar */
-.ss-surface table.jss{background:var(--surface);border-color:var(--border)}
-.ss-surface table.jss > thead > tr > td,
-.ss-surface table.jss > tbody > tr > td{
-  border-color:var(--border); color:var(--text); background:var(--surface);
+.ss-status{display:flex;align-items:center;gap:12px;padding:8px 14px;border-bottom:1px solid var(--border);flex-shrink:0}
+.ss-toolbar{display:flex;align-items:center;gap:6px;padding:6px 12px;border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
+.ss-btn{min-width:30px;height:30px;padding:0 8px;background:transparent;border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:13px;cursor:pointer;border-radius:2px;display:flex;align-items:center;justify-content:center}
+.ss-btn:hover{border-color:var(--accent)}
+.ss-btn.active{border-color:var(--accent);color:var(--accent);background:rgba(200,168,75,0.06)}
+
+/* ── react-data-grid theming — the grid owns its own scroll; we just style it ── */
+.ss-grid-wrap{flex:1;min-height:0;min-width:0;position:relative;display:flex}
+.ss-surface .rdg{
+  flex:1; min-height:0; block-size:100%;
+  border:none; font-family:var(--mono); font-size:12.5px;
+  --rdg-color:var(--text);
+  --rdg-background-color:var(--surface);
+  --rdg-header-background-color:rgba(0,0,0,0.3);
+  --rdg-row-hover-background-color:rgba(255,255,255,0.02);
+  --rdg-selection-color:var(--accent);
+  --rdg-border-color:var(--border);
+  --rdg-font-size:12.5px;
 }
-/* column + row headers */
-.ss-surface table.jss > thead > tr > td{
-  background:rgba(0,0,0,0.3); color:var(--accent); font-family:var(--mono);
-  font-size:10px; letter-spacing:1px; text-transform:uppercase; font-weight:400;
+.ss-surface .rdg-header-row{
+  font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;
+  color:var(--accent);font-weight:400;
 }
-.ss-surface table.jss > tbody > tr > td:first-child{
-  background:rgba(0,0,0,0.3); color:var(--textdim); font-size:10px;
+.ss-surface .rdg-cell{
+  border-right:1px solid var(--border);border-bottom:1px solid var(--border);
+  color:var(--text);
 }
-/* selected cell */
-.ss-surface table.jss > tbody > tr > td.highlight{
-  background:rgba(200,168,75,0.14) !important;
+.ss-surface .rdg-index-cell{
+  background:rgba(0,0,0,0.3);color:var(--textdim);font-size:10px;
+  text-align:center;justify-content:center;display:flex;align-items:center;
 }
-.ss-surface table.jss > tbody > tr > td.highlight-selected{
-  background:rgba(200,168,75,0.22) !important;
+.ss-surface .rdg-cell:focus,.ss-surface .rdg-cell:focus-within{outline:1.5px solid var(--accent);outline-offset:-2px}
+.ss-surface input.rdg-text-editor,
+.ss-surface .rdg-text-editor{
+  font-family:var(--mono);font-size:12.5px;background:var(--bg,#0b0d10);
+  color:var(--text);border:1.5px solid var(--accent);padding:0 6px;box-sizing:border-box;
 }
-/* the toolbar strip */
-.ss-toolbar{
-  display:flex;align-items:center;gap:4px;padding:8px 16px;flex-wrap:wrap;
-  border-bottom:1px solid var(--border);background:rgba(0,0,0,0.15);
-}
-.ss-status{
-  display:flex;align-items:center;gap:16px;padding:10px 16px;flex-wrap:wrap;
-  border-bottom:1px solid var(--border);background:var(--surface);
-}
-.ss-btn{
-  min-width:30px;height:30px;padding:0 8px;background:transparent;
-  border:1px solid var(--border);color:var(--textdim);font-family:var(--mono);
-  font-size:12px;letter-spacing:.5px;cursor:pointer;border-radius:2px;
-  transition:all .12s;line-height:1;
-}
-.ss-btn:hover{border-color:var(--muted);color:var(--text)}
-.ss-btn.active{border-color:var(--accent);color:var(--accent);background:rgba(200,168,75,0.12)}
 `;
 
 function Avatar({ u, ring }) {
@@ -124,55 +128,67 @@ function Avatar({ u, ring }) {
   );
 }
 
+const pickerItem = {
+  display: "flex", alignItems: "center", gap: 8, padding: "4px 6px", background: "transparent",
+  border: "1px solid transparent", cursor: "pointer", borderRadius: 2,
+  fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)", textAlign: "left",
+};
+
 export default function SheetEditor({ docId, me }) {
-  const holderRef = useRef(null);
-  const jssRef = useRef(null);       // jspreadsheet instance
   const ydocRef = useRef(null);
   const providerRef = useRef(null);
-  const cellsRef = useRef(null);     // Y.Map of cells
-  const stylesRef = useRef(null);    // Y.Map of cell -> color key
-  const applyingRemote = useRef(false); // guard: don't echo remote edits back
-  const jspreadsheetModRef = useRef(null); // the imported module (for destroy)
-  const holderEl = useRef(null);     // captured holder element for teardown
+  const cellsRef = useRef(null);     // Y.Map "r:c" -> value
+  const stylesRef = useRef(null);    // Y.Map "r:c" -> bg color key
+  const textColorsRef = useRef(null);// Y.Map "r:c" -> hex
+  const widthsRef = useRef(null);    // Y.Map "c" -> width px (persisted)
+  const awarenessRef = useRef(null);
+  const applyingRemote = useRef(false);
 
   const [status, setStatus] = useState("connecting");
   const [peers, setPeers] = useState([]);
-  const [peerCursors, setPeerCursors] = useState([]); // [{user, cell:[r,c]}]
+  const [peerCursors, setPeerCursors] = useState([]); // [{user, cell:[r,c], typing}]
   const [colorOpen, setColorOpen] = useState(false);
   const [textColorOpen, setTextColorOpen] = useState(false);
   const [ready, setReady] = useState(false);
-  const awarenessRef = useRef(null);
-  const textColorsRef = useRef(null);
-  // Capture selection on mousedown — jspreadsheet clears selection when focus leaves.
-  const containerRef = useRef(null);  // measures available space for jspreadsheet
-  const capturedCoordsRef = useRef([]);
-  const gridWrapRef = useRef(null);
-  const [cursorPos, setCursorPos] = useState([]); // pixel positions per peerCursor
 
+  const [rowCount, setRowCount] = useState(MIN_ROWS);
+  const [colWidths, setColWidths] = useState({});      // c -> px
+  const [dataVersion, setDataVersion] = useState(0);   // bump to re-read Yjs
+  const [selected, setSelected] = useState({ rowIdx: 0, colKey: "c0" });
+  const selectedRef = useRef(selected);
+  selectedRef.current = selected;
+
+  // how many rows to show: max filled row + buffer, at least MIN_ROWS
+  const computeRowCount = useCallback(() => {
+    const yCells = cellsRef.current;
+    if (!yCells) return MIN_ROWS;
+    let maxRow = -1;
+    yCells.forEach((_v, k) => {
+      const r = parseInt(k.split(":")[0], 10);
+      if (Number.isFinite(r) && r > maxRow) maxRow = r;
+    });
+    return Math.max(MIN_ROWS, maxRow + 1 + ROW_BUFFER);
+  }, []);
+
+  // ── Yjs + relay (collaboration core, unchanged data shapes) ──
   useEffect(() => {
-    if (!docId || !holderRef.current) return;
+    if (!docId) return;
     let destroyed = false;
-    let jss = null;
 
     const ydoc = new Y.Doc();
     ydocRef.current = ydoc;
-    // The room name MUST be the bare docId. The backend keys both the relay
-    // room AND the Postgres persistence row (ws_documents.id) off this exact
-    // string: save_ydoc runs `UPDATE ws_documents ... WHERE id = <room>`.
-    // A prefix like `sheet:${docId}` matches no row, so every save silently
-    // affected zero rows and the sheet only ever lived in relay memory —
-    // it vanished on any API restart. Bare docId persists correctly, exactly
-    // like CollabEditor does.
-    const room = docId;
+    const room = docId; // bare docId — backend keys relay room + Postgres row off this
     const provider = new WebsocketProvider(WS_BASE, room, ydoc, { connect: true });
     providerRef.current = provider;
 
-    const yCells = ydoc.getMap("cells");      // "r:c" -> string value
-    const yStyles = ydoc.getMap("styles");    // "r:c" -> bg color key
-    const yTextColors = ydoc.getMap("textColors"); // "r:c" -> hex color string
+    const yCells = ydoc.getMap("cells");
+    const yStyles = ydoc.getMap("styles");
+    const yTextColors = ydoc.getMap("textColors");
+    const yWidths = ydoc.getMap("colWidths");
     cellsRef.current = yCells;
     stylesRef.current = yStyles;
     textColorsRef.current = yTextColors;
+    widthsRef.current = yWidths;
     awarenessRef.current = provider.awareness;
 
     provider.on("status", (e) => {
@@ -180,7 +196,6 @@ export default function SheetEditor({ docId, me }) {
       setStatus(e.status === "connected" ? "connected" : e.status === "connecting" ? "connecting" : "offline");
     });
 
-    // presence
     provider.awareness.setLocalStateField("user", {
       name: me.name, color: me.color, id: me.id, initials: me.initials,
     });
@@ -194,14 +209,8 @@ export default function SheetEditor({ docId, me }) {
       for (const s of others) {
         const u = s.user;
         const k = u.id || u.name; if (seen.has(k)) continue; seen.add(k); uniq.push(u);
-        // A peer's cursor cell; if they're mid-edit in that cell, carry the
-        // live in-progress text so we can render it (Sheets-style).
-        let cell = s.cursor && Array.isArray(s.cursor.cell) ? s.cursor.cell : null;
-        let typing = null;
-        if (s.typing && Array.isArray(s.typing.cell)) {
-          cell = s.typing.cell;           // edit cell takes precedence
-          typing = s.typing.text ?? "";
-        }
+        const cell = s.cursor && Array.isArray(s.cursor.cell) ? s.cursor.cell : null;
+        const typing = s.cursor && s.cursor.typing != null ? s.cursor.typing : null;
         if (cell) cursors.push({ user: u, cell, typing });
       }
       setPeers(uniq);
@@ -209,322 +218,183 @@ export default function SheetEditor({ docId, me }) {
     };
     provider.awareness.on("change", refreshPeers);
 
-    // Build the initial grid data array from the Yjs maps (after sync).
-    const buildDataFromY = () => {
-      const data = [];
-      for (let r = 0; r < DEFAULT_ROWS; r++) {
-        const row = [];
-        for (let c = 0; c < DEFAULT_COLS; c++) row.push(yCells.get(`${r}:${c}`) ?? "");
-        data.push(row);
-      }
-      return data;
-    };
+    const bump = () => { if (!destroyed) { setRowCount(computeRowCount()); setDataVersion((v) => v + 1); } };
+    const onCells = () => { if (applyingRemote.current) return; bump(); };
+    yCells.observe(onCells);
+    yStyles.observe(bump);
+    yTextColors.observe(bump);
 
-    const applyStylesFromY = () => {
-      if (!jss) return;
-      yStyles.forEach((key, coord) => {
-        const [r, c] = coord.split(":").map(Number);
-        const bg = colorBg(key);
-        if (bg) {
-          try { jss.setStyle(cellName(c, r), "background-color", bg); } catch {}
-        }
-      });
-      // restore font colors
-      yTextColors.forEach((hex, coord) => {
-        const [r, c] = coord.split(":").map(Number);
-        if (hex) try { jss.setStyle(cellName(c, r), "color", hex); } catch {}
-      });
-    };
-
-    // r,c -> "B5" style cell name
-    const cellName = (c, r) => {
-      let s = ""; let n = c + 1;
-      while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); }
-      return s + (r + 1);
-    };
-
-    const initGrid = async () => {
+    const loadWidths = () => {
       if (destroyed) return;
-      const jspreadsheetMod = await import("jspreadsheet-ce");
-      const jspreadsheet = jspreadsheetMod.default || jspreadsheetMod;
-      jspreadsheetModRef.current = jspreadsheet;
-      holderEl.current = holderRef.current;
-      if (destroyed || !holderRef.current) return;
-
-      const data = buildDataFromY();
-
-      // jspreadsheet v5 takes a `worksheets` array and returns an array of
-      // worksheet instances. All per-cell methods live on worksheet[0].
-      // jspreadsheet v5 returns an empty array that is populated async via
-      // an internal .then(). We must wait for onload to fire before using
-      // the worksheet instance — grabbing instances[0] synchronously gets undefined.
-      // Measure the available area so jspreadsheet can set up its OWN native
-
-      await new Promise((resolve) => {
-        const cfg = {
-          worksheets: [{
-            data,
-            columns: Array.from({ length: DEFAULT_COLS }, () => ({ width: COL_WIDTH })),
-            minDimensions: [DEFAULT_COLS, DEFAULT_ROWS],
-            worksheetName: "Sheet",
-          }],
-          allowExport: false,
-          about: false,
-          onload: (spreadsheet) => {
-            if (destroyed) return;
-            // spreadsheet.worksheets[0] is the real worksheet instance
-            jss = spreadsheet.worksheets ? spreadsheet.worksheets[0] : spreadsheet;
-            jssRef.current = jss;
-            applyStylesFromY();
-            setReady(true);
-            resolve();
-          },
-          // ── local edit → push just that cell into Yjs ──
-          onchange: (worksheet, cell, x, y, value) => {
-            if (applyingRemote.current) return;
-            const r = parseInt(y, 10), c = parseInt(x, 10);
-            ydoc.transact(() => {
-              if (value === "" || value === null || value === undefined) yCells.delete(`${r}:${c}`);
-              else yCells.set(`${r}:${c}`, String(value));
-            });
-          },
-          // ── local selection → broadcast cursor cell so others see where I am ──
-          onselection: (worksheet, x1, y1, x2, y2) => {
-            // Auto-scroll: nudge jss_content so the selected cell is visible
-            try {
-              const content = jssRef.current && jssRef.current.content;
-              const td = content && content.querySelector(
-                `td[data-x="${x1}"][data-y="${y1}"]`
-              );
-              if (content && td) {
-                const tdRect = td.getBoundingClientRect();
-                const cRect = content.getBoundingClientRect();
-                if (tdRect.right > cRect.right) content.scrollLeft += tdRect.right - cRect.right + 10;
-                else if (tdRect.left < cRect.left) content.scrollLeft -= cRect.left - tdRect.left + 10;
-                if (tdRect.bottom > cRect.bottom) content.scrollTop += tdRect.bottom - cRect.bottom + 10;
-                else if (tdRect.top < cRect.top) content.scrollTop -= cRect.top - tdRect.top + 10;
-              }
-            } catch {}
-            if (!awarenessRef.current) return;
-            try {
-              awarenessRef.current.setLocalStateField("cursor", {
-                cell: [parseInt(y1, 10), parseInt(x1, 10)],
-              });
-            } catch {}
-          },
-          oncreateeditor: (worksheet, td, col, row, input) => {
-            try {
-              const el = input || (td && td.querySelector("input,textarea"));
-              if (!el || !awarenessRef.current) return;
-              const r = parseInt(row, 10), c = parseInt(col, 10);
-              const push = () => {
-                try {
-                  awarenessRef.current.setLocalStateField("typing", {
-                    cell: [r, c], text: String(el.value ?? ""),
-                  });
-                } catch {}
-              };
-              el.addEventListener("input", push);
-              el.__wsTypingHandler = push;
-              push();
-            } catch {}
-          },
-          oneditionend: (worksheet, td, col, row, editorValue, wasSaved) => {
-            if (!awarenessRef.current) return;
-            try { awarenessRef.current.setLocalStateField("typing", null); } catch {}
-          },
-        };
-        jspreadsheet(holderRef.current, cfg);
-      });
+      const w = {};
+      yWidths.forEach((px, c) => { const ci = parseInt(c, 10); if (Number.isFinite(ci)) w[ci] = px; });
+      setColWidths(w);
     };
+    yWidths.observe(loadWidths);
 
-    // ── remote cell changes → apply surgically ──
-    const onCellsChange = (event, txn) => {
-      if (txn.local || !jssRef.current) return; // ignore our own writes
-      applyingRemote.current = true;
-      try {
-        event.keysChanged.forEach((coord) => {
-          const [r, c] = coord.split(":").map(Number);
-          const val = yCells.get(coord) ?? "";
-          try { jssRef.current.setValueFromCoords(c, r, val, true); } catch {}
-        });
-      } finally {
-        applyingRemote.current = false;
-      }
+    const onSync = () => {
+      if (destroyed) return;
+      setReady(true);
+      setRowCount(computeRowCount());
+      loadWidths();
+      setDataVersion((v) => v + 1);
     };
-    const onStylesChange = (event, txn) => {
-      if (txn.local || !jssRef.current) return;
-      event.keysChanged.forEach((coord) => {
-        const [r, c] = coord.split(":").map(Number);
-        const key = yStyles.get(coord);
-        const bg = key ? colorBg(key) : "";
-        try { jssRef.current.setStyle(cellName(c, r), "background-color", bg || ""); } catch {}
-      });
-    };
-    const onTextColorsChange = (event, txn) => {
-      if (txn.local || !jssRef.current) return;
-      event.keysChanged.forEach((coord) => {
-        const [r, c] = coord.split(":").map(Number);
-        const hex = yTextColors.get(coord) || "";
-        try { jssRef.current.setStyle(cellName(c, r), "color", hex); } catch {}
-      });
-    };
-    yCells.observe(onCellsChange);
-    yStyles.observe(onStylesChange);
-    yTextColors.observe(onTextColorsChange);
-
-    // Wait for first sync so we don't seed an empty grid over existing data.
-    const start = () => { if (!destroyed) initGrid(); };
-    if (provider.synced) start();
-    else provider.once("synced", start);
-    // safety fallback
-    const t = setTimeout(() => { if (!jssRef.current) start(); }, 1500);
+    provider.on("sync", onSync);
+    const t = setTimeout(() => {
+      if (!destroyed) { setReady(true); setRowCount(computeRowCount()); loadWidths(); setDataVersion((v) => v + 1); }
+    }, 400);
 
     return () => {
       destroyed = true;
       clearTimeout(t);
-      try { yCells.unobserve(onCellsChange); } catch {}
-      try { yStyles.unobserve(onStylesChange); } catch {}
+      try { yCells.unobserve(onCells); } catch {}
+      try { yStyles.unobserve(bump); } catch {}
+      try { yTextColors.unobserve(bump); } catch {}
+      try { yWidths.unobserve(loadWidths); } catch {}
       try { provider.awareness.off("change", refreshPeers); } catch {}
-      // v5 teardown: prefer module-level destroy on the holder element.
-      try {
-        if (jspreadsheetModRef.current) {
-          const j = jspreadsheetModRef.current;
-          if (typeof j.destroy === "function" && holderEl.current) j.destroy(holderEl.current, true);
-        }
-      } catch {}
-      try { if (jssRef.current && typeof jssRef.current.destroy === "function") jssRef.current.destroy(); } catch {}
+      try { provider.disconnect(); } catch {}
       try { provider.destroy(); } catch {}
       try { ydoc.destroy(); } catch {}
-      jssRef.current = null; providerRef.current = null;
-      ydocRef.current = null; cellsRef.current = null; stylesRef.current = null;
     };
-  }, [docId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [docId, me, computeRowCount]);
 
-  // Compute pixel positions for peer cursors from the live grid cells.
-  useEffect(() => {
-    const wrap = gridWrapRef.current;
-    if (!wrap) { setCursorPos([]); return; }
-    const compute = () => {
-      const positions = peerCursors.map((pc) => {
-        const [r, c] = pc.cell;
-        const td = wrap.querySelector(`td[data-x="${c}"][data-y="${r}"]`);
-        if (!td) return null;
-        return { left: td.offsetLeft, top: td.offsetTop, width: td.offsetWidth, height: td.offsetHeight };
-      });
-      setCursorPos(positions);
+  // ── rows array react-data-grid renders, derived from Yjs ──
+  const rows = useMemo(() => {
+    const yCells = cellsRef.current;
+    const out = [];
+    for (let r = 0; r < rowCount; r++) {
+      const row = { _idx: r + 1, _r: r };
+      for (let c = 0; c < DEFAULT_COLS; c++) {
+        row[`c${c}`] = yCells ? (yCells.get(`${r}:${c}`) ?? "") : "";
+      }
+      out.push(row);
+    }
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rowCount, dataVersion]);
+
+  const writeCell = useCallback((r, c, value) => {
+    const ydoc = ydocRef.current; const yCells = cellsRef.current;
+    if (!ydoc || !yCells) return;
+    ydoc.transact(() => {
+      if (value === "" || value === null || value === undefined) yCells.delete(`${r}:${c}`);
+      else yCells.set(`${r}:${c}`, String(value));
+    });
+  }, []);
+
+  const onRowsChange = useCallback((newRows, { indexes, column }) => {
+    const yCells = cellsRef.current;
+    if (!yCells) return;
+    applyingRemote.current = true; // our own write — don't echo a rebuild
+    try {
+      for (const i of indexes) {
+        const row = newRows[i];
+        const r = row._r;
+        const c = parseInt(column.key.slice(1), 10); // "c3" -> 3
+        if (Number.isFinite(c)) writeCell(r, c, row[`c${c}`]);
+      }
+    } finally {
+      applyingRemote.current = false;
+    }
+    setRowCount(computeRowCount());
+    setDataVersion((v) => v + 1);
+  }, [writeCell, computeRowCount]);
+
+  const cellStyle = useCallback((r, c) => {
+    const yStyles = stylesRef.current;
+    const yText = textColorsRef.current;
+    const st = {};
+    const bgKey = yStyles ? yStyles.get(`${r}:${c}`) : null;
+    if (bgKey) st.background = colorBg(bgKey);
+    const hex = yText ? yText.get(`${r}:${c}`) : null;
+    if (hex) st.color = hex;
+    return st;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataVersion]);
+
+  const columns = useMemo(() => {
+    const idxCol = {
+      key: "_idx", name: "", width: 48, frozen: true, resizable: false, sortable: false,
+      cellClass: "rdg-index-cell",
+      renderCell: ({ row }) => row._idx,
     };
-    compute();
-    // recompute shortly after, in case the grid is mid-layout
-    const t = setTimeout(compute, 80);
-    return () => clearTimeout(t);
-  }, [peerCursors]);
+    const dataCols = Array.from({ length: DEFAULT_COLS }, (_, c) => ({
+      key: `c${c}`,
+      name: colName(c),
+      width: colWidths[c] ?? COL_WIDTH,
+      resizable: true,
+      renderEditCell: renderTextEditor,
+      renderCell: ({ row }) => {
+        const style = cellStyle(row._r, c);
+        const peer = peerCursors.find((pc) => pc.cell[0] === row._r && pc.cell[1] === c);
+        return (
+          <div style={{
+            width: "100%", height: "100%", display: "flex", alignItems: "center",
+            padding: "0 6px", boxSizing: "border-box", position: "relative",
+            ...style,
+            ...(peer ? { boxShadow: `inset 0 0 0 2px ${peer.user.color || "#4a8fc4"}` } : {}),
+          }}>
+            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {peer && peer.typing != null && peer.typing !== "" ? peer.typing : (row[`c${c}`] ?? "")}
+            </span>
+            {peer && (
+              <span style={{
+                position: "absolute", top: -14, left: -1, background: peer.user.color || "#4a8fc4",
+                color: "#0a0a0a", fontFamily: "var(--mono)", fontSize: 8.5, lineHeight: "13px",
+                padding: "0 4px", borderRadius: 2, whiteSpace: "nowrap", fontWeight: 600, zIndex: 6,
+              }}>{peer.user.name}{peer.typing != null ? " ✎" : ""}</span>
+            )}
+          </div>
+        );
+      },
+    }));
+    return [idxCol, ...dataCols];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [colWidths, peerCursors, dataVersion, cellStyle]);
+
+  const onColumnResize = useCallback((column, width) => {
+    const ydoc = ydocRef.current; const yWidths = widthsRef.current;
+    if (!ydoc || !yWidths || !column.key.startsWith("c")) return;
+    const c = parseInt(column.key.slice(1), 10);
+    if (!Number.isFinite(c)) return;
+    ydoc.transact(() => { yWidths.set(String(c), Math.round(width)); });
+  }, []);
+
+  const onSelectedCellChange = useCallback((args) => {
+    const aw = awarenessRef.current;
+    if (!args || !args.row) return;
+    const r = args.row._r;
+    const c = args.column && args.column.key && args.column.key.startsWith("c")
+      ? parseInt(args.column.key.slice(1), 10) : null;
+    setSelected({ rowIdx: r, colKey: args.column ? args.column.key : "c0" });
+    if (aw && c != null && Number.isFinite(c)) {
+      try { aw.setLocalStateField("cursor", { cell: [r, c] }); } catch {}
+    }
+  }, []);
+
+  const applyColorToSelection = useCallback((val, isText) => {
+    const ydoc = ydocRef.current;
+    const map = isText ? textColorsRef.current : stylesRef.current;
+    if (!ydoc || !map) return;
+    const sel = selectedRef.current;
+    const c = sel.colKey && sel.colKey.startsWith("c") ? parseInt(sel.colKey.slice(1), 10) : null;
+    const r = sel.rowIdx;
+    if (c == null || !Number.isFinite(c)) return;
+    ydoc.transact(() => {
+      if (val) map.set(`${r}:${c}`, val);
+      else map.delete(`${r}:${c}`);
+    });
+    setDataVersion((v) => v + 1);
+  }, []);
+
+  const setColor = (key) => { setColorOpen(false); applyColorToSelection(key, false); };
+  const setTextColor = (hex) => { setTextColorOpen(false); applyColorToSelection(hex, true); };
 
   const statusMeta = {
-    connecting: { label: "Connecting", color: "var(--orange)", dot: "var(--orange)" },
-    connected:  { label: "Live",       color: "var(--green)",  dot: "var(--green)"  },
-    offline:    { label: "Offline",    color: "var(--red)",    dot: "var(--red)"    },
-  }[status];
-
-  // Capture the current selection into capturedCoordsRef.
-  // Must be called on mousedown/pointerdown of any toolbar button, BEFORE
-  // jspreadsheet's global mouseDownControls fires and clears the selection.
-  const captureSelection = useCallback(() => {
-    const inst = jssRef.current;
-    const coords = [];
-    if (!inst) { capturedCoordsRef.current = coords; return; }
-    try {
-      if (inst.highlighted && inst.highlighted.length > 0) {
-        for (const entry of inst.highlighted) {
-          const el = entry.element || entry;
-          const x = parseInt(el.getAttribute("data-x"), 10);
-          const y = parseInt(el.getAttribute("data-y"), 10);
-          if (!isNaN(x) && !isNaN(y)) coords.push([y, x]); // [row, col]
-        }
-      }
-    } catch {}
-    if (coords.length === 0) {
-      try {
-        const s = inst.selectedCell;
-        if (s && s.length === 4) {
-          const [x1, y1, x2, y2] = s;
-          for (let c = Math.min(x1, x2); c <= Math.max(x1, x2); c++)
-            for (let r = Math.min(y1, y2); r <= Math.max(y1, y2); r++)
-              coords.push([r, c]);
-        }
-      } catch {}
-    }
-    capturedCoordsRef.current = coords;
-  }, []);
-
-  const applyColor = useCallback((key) => {
-    const inst = jssRef.current;
-    const ydoc = ydocRef.current;
-    const yStyles = stylesRef.current;
-    if (!inst || !ydoc || !yStyles) return;
-
-    // Use the coords captured on mousedown (before jspreadsheet cleared selection).
-    const coords = capturedCoordsRef.current;
-    if (!coords || coords.length === 0) return;
-
-    const cellName = (c, r) => {
-      let s = ""; let n = c + 1;
-      while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); }
-      return s + (r + 1);
-    };
-
-    ydoc.transact(() => {
-      coords.forEach(([r, c]) => {
-        if (key) yStyles.set(`${r}:${c}`, key);
-        else yStyles.delete(`${r}:${c}`);
-      });
-    });
-    coords.forEach(([r, c]) => {
-      try { inst.setStyle(cellName(c, r), "background-color", key ? colorBg(key) : ""); } catch {}
-    });
-    capturedCoordsRef.current = []; // clear after use
-  }, []);
-
-  const setColor = (key) => {
-    setColorOpen(false);
-    applyColor(key);
-  };
-
-
-
-
-
-
-
-
-  const applyTextColor = useCallback((hex) => {
-    const inst = jssRef.current;
-    const ydoc = ydocRef.current;
-    const yTextColors = textColorsRef.current;
-    if (!inst || !ydoc || !yTextColors) return;
-    const coords = capturedCoordsRef.current;
-    if (!coords || coords.length === 0) return;
-    const cellName = (c, r) => {
-      let s = ""; let n = c + 1;
-      while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); }
-      return s + (r + 1);
-    };
-    ydoc.transact(() => {
-      coords.forEach(([r, c]) => {
-        if (hex) yTextColors.set(`${r}:${c}`, hex);
-        else yTextColors.delete(`${r}:${c}`);
-      });
-    });
-    coords.forEach(([r, c]) => {
-      try { inst.setStyle(cellName(c, r), "color", hex || ""); } catch {}
-    });
-    capturedCoordsRef.current = [];
-  }, []);
-
-  const setTextColor = (hex) => {
-    setTextColorOpen(false);
-    applyTextColor(hex);
-  };
+    connected:  { dot: "#4caf7d", color: "#4caf7d", label: "live" },
+    connecting: { dot: "#d4b24b", color: "#d4b24b", label: "connecting" },
+    offline:    { dot: "#e05555", color: "#e05555", label: "offline" },
+  }[status] || { dot: "#888", color: "#888", label: status };
 
   return (
     <div className="ss-surface">
@@ -563,28 +433,15 @@ export default function SheetEditor({ docId, me }) {
       {/* toolbar */}
       <div className="ss-toolbar">
         <div style={{ position: "relative" }}>
-          <button className={"ss-btn" + (colorOpen ? " active" : "")} title="Cell background color" onMouseDown={(e) => { e.preventDefault(); captureSelection(); }} onClick={() => setColorOpen((o) => !o)}>🎨</button>
-          <button className={"ss-btn" + (textColorOpen ? " active" : "")} title="Font color" onMouseDown={(e) => { e.preventDefault(); captureSelection(); }} onClick={() => setTextColorOpen((o) => !o)}>
-            <span style={{ display:"flex",flexDirection:"column",alignItems:"center",gap:1 }}>
-              <span style={{ fontSize:11,fontWeight:700,lineHeight:1 }}>A</span>
-              <span style={{ width:14,height:3,borderRadius:1,background:"var(--accent)" }} />
-            </span>
-          </button>
+          <button className={"ss-btn" + (colorOpen ? " active" : "")} title="Cell background color" onClick={() => { setTextColorOpen(false); setColorOpen((o) => !o); }}>🎨</button>
           {colorOpen && (
-            <div
-              onMouseDown={(e) => e.preventDefault()}
-              style={{
+            <div style={{
               position: "absolute", top: 34, left: 0, zIndex: 40, background: "var(--surface)",
               border: "1px solid var(--border)", borderRadius: 3, padding: 8,
               boxShadow: "0 6px 24px rgba(0,0,0,0.5)", display: "flex", flexDirection: "column", gap: 6, minWidth: 150,
             }}>
               {CELL_COLORS.map((col) => (
-                <button key={col.key} title={col.label} onClick={() => setColor(col.key)}
-                  style={{
-                    display: "flex", alignItems: "center", gap: 8, padding: "4px 6px", background: "transparent",
-                    border: "1px solid transparent", cursor: "pointer", borderRadius: 2,
-                    fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)", textAlign: "left",
-                  }}
+                <button key={col.key} title={col.label} onClick={() => setColor(col.key)} style={pickerItem}
                   onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--text)"; }}
                   onMouseLeave={(e) => { e.currentTarget.style.borderColor = "transparent"; e.currentTarget.style.color = "var(--textdim)"; }}>
                   <span style={{ width: 14, height: 14, borderRadius: 2, background: col.bg, flexShrink: 0 }} />
@@ -592,44 +449,30 @@ export default function SheetEditor({ docId, me }) {
                 </button>
               ))}
               <div style={{ height: 1, background: "var(--border)", margin: "2px 0" }} />
-              <button onClick={() => setColor(null)}
-                style={{
-                  display: "flex", alignItems: "center", gap: 8, padding: "4px 6px", background: "transparent",
-                  border: "1px solid transparent", cursor: "pointer", borderRadius: 2,
-                  fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)", textAlign: "left",
-                }}
+              <button onClick={() => setColor(null)} style={pickerItem}
                 onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--text)"; }}
                 onMouseLeave={(e) => { e.currentTarget.style.borderColor = "transparent"; e.currentTarget.style.color = "var(--textdim)"; }}>
                 <span style={{ width: 14, height: 14, borderRadius: 2, border: "1px solid var(--muted)", flexShrink: 0 }} />
                 Clear color
               </button>
-              <div style={{ height: 1, background: "var(--border)", margin: "2px 0" }} />
-              <label style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 6px", cursor: "pointer", borderRadius: 2, border: "1px solid transparent", fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)" }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--text)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "transparent"; e.currentTarget.style.color = "var(--textdim)"; }}>
-                <input type="color" defaultValue="#4caf7d"
-                  onMouseDown={(e) => { captureSelection(); }}
-                  style={{ width: 14, height: 14, border: "none", padding: 0, cursor: "pointer", borderRadius: 2, flexShrink: 0, background: "none" }}
-                  onChange={(e) => { applyColor(e.target.value); }} />
-                Custom…
-              </label>
             </div>
           )}
+        </div>
+        <div style={{ position: "relative" }}>
+          <button className={"ss-btn" + (textColorOpen ? " active" : "")} title="Font color" onClick={() => { setColorOpen(false); setTextColorOpen((o) => !o); }}>
+            <span style={{ display:"flex",flexDirection:"column",alignItems:"center",gap:1 }}>
+              <span style={{ fontSize:11,fontWeight:700,lineHeight:1 }}>A</span>
+              <span style={{ width:14,height:3,borderRadius:1,background:"var(--accent)" }} />
+            </span>
+          </button>
           {textColorOpen && (
-            <div
-              onMouseDown={(e) => e.preventDefault()}
-              style={{
-                position: "absolute", top: 34, left: 36, zIndex: 40, background: "var(--surface)",
-                border: "1px solid var(--border)", borderRadius: 3, padding: 8,
-                boxShadow: "0 6px 24px rgba(0,0,0,0.5)", display: "flex", flexDirection: "column", gap: 6, minWidth: 140,
-              }}>
+            <div style={{
+              position: "absolute", top: 34, left: 0, zIndex: 40, background: "var(--surface)",
+              border: "1px solid var(--border)", borderRadius: 3, padding: 8,
+              boxShadow: "0 6px 24px rgba(0,0,0,0.5)", display: "flex", flexDirection: "column", gap: 6, minWidth: 140,
+            }}>
               {TEXT_COLORS.filter(tc => tc.hex).map((tc) => (
-                <button key={tc.key} title={tc.label} onClick={() => setTextColor(tc.hex)}
-                  style={{
-                    display: "flex", alignItems: "center", gap: 8, padding: "4px 6px", background: "transparent",
-                    border: "1px solid transparent", cursor: "pointer", borderRadius: 2,
-                    fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)", textAlign: "left",
-                  }}
+                <button key={tc.key} title={tc.label} onClick={() => setTextColor(tc.hex)} style={pickerItem}
                   onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--text)"; }}
                   onMouseLeave={(e) => { e.currentTarget.style.borderColor = "transparent"; e.currentTarget.style.color = "var(--textdim)"; }}>
                   <span style={{ width: 14, height: 14, borderRadius: 2, background: tc.hex, border: "1px solid rgba(255,255,255,0.1)", flexShrink: 0 }} />
@@ -637,69 +480,34 @@ export default function SheetEditor({ docId, me }) {
                 </button>
               ))}
               <div style={{ height: 1, background: "var(--border)", margin: "2px 0" }} />
-              <button onClick={() => setTextColor("")}
-                style={{
-                  display: "flex", alignItems: "center", gap: 8, padding: "4px 6px", background: "transparent",
-                  border: "1px solid transparent", cursor: "pointer", borderRadius: 2,
-                  fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)", textAlign: "left",
-                }}
+              <button onClick={() => setTextColor("")} style={pickerItem}
                 onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--text)"; }}
                 onMouseLeave={(e) => { e.currentTarget.style.borderColor = "transparent"; e.currentTarget.style.color = "var(--textdim)"; }}>
                 <span style={{ width: 14, height: 14, borderRadius: 2, border: "1px solid var(--muted)", flexShrink: 0 }} />
                 Reset color
               </button>
-              <div style={{ height: 1, background: "var(--border)", margin: "2px 0" }} />
-              <label style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 6px", cursor: "pointer", borderRadius: 2, border: "1px solid transparent", fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)" }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--text)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "transparent"; e.currentTarget.style.color = "var(--textdim)"; }}>
-                <input type="color" defaultValue="#c8a84b"
-                  onMouseDown={(e) => { captureSelection(); }}
-                  style={{ width: 14, height: 14, border: "none", padding: 0, cursor: "pointer", borderRadius: 2, flexShrink: 0, background: "none" }}
-                  onChange={(e) => { applyTextColor(e.target.value); }} />
-                Custom…
-              </label>
             </div>
           )}
         </div>
         <span style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)", marginLeft: 8, letterSpacing: 0.5 }}>
-          Formulas: =B2*C2, =SUM(B2:B10) — type into a cell
+          Select a cell, then pick a color · type to edit · drag column edges to resize
         </span>
       </div>
 
-      {/* grid container */}
-      <div style={{ flex: 1, minHeight: 0, overflow: "auto" }} ref={containerRef}>
-        <div style={{ position: "relative", display: "inline-block", minWidth: "100%" }} ref={gridWrapRef}>
-          <div ref={holderRef} />
-          {peerCursors.map((pc, i) => {
-            const pos = cursorPos[i];
-            if (!pos) return null;
-            const color = pc.user.color || "#4a8fc4";
-            return (
-              <div key={(pc.user.id || pc.user.name) + i} style={{
-                position: "absolute", left: pos.left, top: pos.top,
-                width: pos.width, minHeight: pos.height,
-                border: `2px solid ${color}`, pointerEvents: "none", zIndex: 5, boxSizing: "border-box",
-                boxShadow: `0 0 0 1px ${color}55`,
-                background: pc.typing != null ? `${color}22` : "transparent",
-              }}>
-                <span style={{
-                  position: "absolute", top: -16, left: -2, background: color, color: "#0a0a0a",
-                  fontFamily: "var(--mono)", fontSize: 9, lineHeight: "14px", padding: "0 5px",
-                  borderRadius: 2, whiteSpace: "nowrap", fontWeight: 600,
-                }}>{pc.user.name}{pc.typing != null ? " ✎" : ""}</span>
-                {pc.typing != null && pc.typing !== "" && (
-                  <div style={{
-                    fontFamily: "var(--mono)", fontSize: 12, color: "var(--text)",
-                    padding: "3px 5px", whiteSpace: "pre", overflow: "hidden",
-                    textOverflow: "ellipsis",
-                  }}>{pc.typing}</div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+      {/* grid — react-data-grid owns its own scroll viewport */}
+      <div className="ss-grid-wrap">
+        <DataGrid
+          columns={columns}
+          rows={rows}
+          rowKeyGetter={(row) => row._r}
+          onRowsChange={onRowsChange}
+          onColumnResize={onColumnResize}
+          onSelectedCellChange={onSelectedCellChange}
+          className="rdg-dark"
+          style={{ height: "100%" }}
+          defaultColumnOptions={{ resizable: true }}
+        />
       </div>
-
     </div>
   );
 }
