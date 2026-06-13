@@ -84,10 +84,41 @@ const Msg = ({ m, prevSame }) => {
         )}
         {m.content && (
           <div style={{
-            color: "var(--text)", fontSize: 14, lineHeight: 1.5,
+            color: m.deleted ? "var(--muted)" : "var(--text)", fontSize: 14, lineHeight: 1.5,
             whiteSpace: "pre-wrap", wordBreak: "break-word",
+            textDecoration: m.deleted ? "line-through" : "none",
+            fontStyle: m.deleted ? "italic" : "normal",
+            opacity: m.deleted ? 0.7 : 1,
           }}>
             {m.content}
+            {m.deleted && (
+              <span style={{
+                marginLeft: 8, fontStyle: "italic", fontSize: 11.5, color: "#d98a8a",
+                textDecoration: "none", display: "inline-block",
+              }}>
+                — this message was deleted
+              </span>
+            )}
+            {m.edited && !m.deleted && (
+              <span style={{ marginLeft: 6, fontSize: 11, color: "var(--muted)", fontStyle: "italic" }}>
+                (edited)
+              </span>
+            )}
+          </div>
+        )}
+        {m.edited && !m.deleted && m.edited_content && m.edited_content !== m.content && (
+          <div style={{
+            marginTop: 4, paddingLeft: 10, borderLeft: "2px solid var(--border)",
+            fontSize: 13.5, lineHeight: 1.45, color: "var(--text)",
+            whiteSpace: "pre-wrap", wordBreak: "break-word",
+          }}>
+            <span style={{
+              fontFamily: "var(--mono)", fontSize: 9.5, letterSpacing: 0.6,
+              textTransform: "uppercase", color: "var(--muted)", display: "block", marginBottom: 2,
+            }}>
+              edited to:
+            </span>
+            {m.edited_content}
           </div>
         )}
         {Array.isArray(m.images) && m.images.length > 0 && (
@@ -173,22 +204,54 @@ export default function ZombitaChannelTab() {
 
   useEffect(() => { loadInitial(); }, [loadInitial]);
 
-  // live poll — only asks for messages newer than the last one we hold
+  // live poll — fetch new messages (after the last id) AND refresh edit/delete state
+  // on the most recent already-visible messages (edits/deletes mutate old rows, which
+  // an after_id query alone would never re-see).
   useEffect(() => {
     if (!live) return;
     let alive = true;
     const tick = async () => {
       if (!alive || lastIdRef.current == null) return;
       try {
+        // (a) new messages
         const r = await fetchApi(`/api/admin/zombita/channel?after_id=${lastIdRef.current}`);
         const fresh = r.messages || [];
-        if (fresh.length && alive) {
-          setMessages((prev) => {
-            // de-dupe defensively
-            const seen = new Set(prev.map((m) => m.id));
+        // (b) refresh recent rows for edit/delete flags (cheap: newest ~40)
+        let refreshed = [];
+        try {
+          const rr = await fetchApi(`/api/admin/zombita/channel?limit=40`);
+          refreshed = rr.messages || [];
+        } catch { /* refresh is best-effort */ }
+
+        if (!alive) return;
+        setMessages((prev) => {
+          let next = prev;
+          // merge edit/delete state onto existing messages
+          if (refreshed.length) {
+            const byId = new Map(refreshed.map((m) => [m.id, m]));
+            let touched = false;
+            next = prev.map((m) => {
+              const u = byId.get(m.id);
+              if (u && (u.edited !== m.edited || u.deleted !== m.deleted ||
+                        u.edited_content !== m.edited_content)) {
+                touched = true;
+                return { ...m, edited: u.edited, deleted: u.deleted,
+                         edited_content: u.edited_content, edited_ts: u.edited_ts };
+              }
+              return m;
+            });
+            if (!touched) next = prev;
+          }
+          // append genuinely new messages
+          if (fresh.length) {
+            const seen = new Set(next.map((m) => m.id));
             const add = fresh.filter((m) => !seen.has(m.id));
-            return add.length ? [...prev, ...add] : prev;
-          });
+            if (add.length) next = [...next, ...add];
+          }
+          return next;
+        });
+
+        if (fresh.length) {
           lastIdRef.current = fresh[fresh.length - 1].id;
           if (atBottomRef.current) {
             requestAnimationFrame(() =>
