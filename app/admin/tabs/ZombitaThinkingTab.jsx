@@ -132,7 +132,6 @@ const ThinkingCard = ({ entry, onAck, busy }) => {
           {entry.window_start && entry.window_end
             ? ` · ${fmtDate(entry.window_start)} → ${fmtDate(entry.window_end)}`
             : ""}
-          {entry.model ? ` · ${entry.model}` : ""}
         </span>
         <div style={{ flex: 1 }} />
         <B c={acked ? "ghost" : "blue"} sm disabled={busy}
