@@ -41,38 +41,44 @@ const RatingControl = ({ label, mine, others, busy, onRate }) => {
   };
   const saveReason = () => { onRate(current, reason); setOpenReason(false); };
 
-  const pill = (val, txt, col) => (
-    <button
-      onClick={() => pick(val)}
-      disabled={busy}
-      style={{
-        fontFamily: "var(--mono)", fontSize: 9.5, letterSpacing: 1, textTransform: "uppercase",
-        padding: "3px 9px", borderRadius: 2, cursor: busy ? "default" : "pointer",
-        border: `1px solid ${current === val ? col : "var(--border, #2a2f37)"}`,
-        background: current === val ? `${col}22` : "transparent",
-        color: current === val ? col : "var(--muted)",
-        transition: "all .15s",
-      }}>
-      {txt}
-    </button>
-  );
+  const pill = (val, txt, col) => {
+    const active = current === val;
+    return (
+      <button
+        onClick={() => pick(val)}
+        disabled={busy}
+        style={{
+          fontFamily: "var(--mono)", fontSize: 10.5, letterSpacing: 0.8,
+          fontWeight: active ? 800 : 600, textTransform: "uppercase",
+          padding: "4px 11px", borderRadius: 3, cursor: busy ? "default" : "pointer",
+          border: `1.5px solid ${col}`,
+          background: active ? col : `${col}1a`,
+          color: active ? "#0b0d10" : col,
+          boxShadow: active ? `0 0 8px ${col}66` : "none",
+          transition: "all .15s",
+        }}>
+        {txt}
+      </button>
+    );
+  };
 
   return (
-    <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
-        <span style={{ fontFamily: "var(--mono)", fontSize: 8.5, letterSpacing: 1.5, color: "var(--muted)", textTransform: "uppercase" }}>
+    <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 7 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <span style={{ fontFamily: "var(--mono)", fontSize: 9, letterSpacing: 1.5, color: "var(--textdim)", textTransform: "uppercase" }}>
           rate {label}:
         </span>
-        {pill("good", "✓ good call", "var(--green, #4a7c59)")}
+        {pill("good", "✓ good call", "var(--green, #5bbb6f)")}
         {pill("off", "✕ off", "var(--red, #e05555)")}
         <button
           onClick={() => setOpenReason(o => !o)}
           disabled={busy}
           style={{
-            fontFamily: "var(--mono)", fontSize: 9, letterSpacing: 0.5,
-            padding: "3px 7px", borderRadius: 2, cursor: "pointer",
-            border: "1px solid var(--border, #2a2f37)", background: "transparent",
-            color: reason ? "var(--accent)" : "var(--muted)",
+            fontFamily: "var(--mono)", fontSize: 10, letterSpacing: 0.5, fontWeight: 600,
+            padding: "4px 9px", borderRadius: 3, cursor: "pointer",
+            border: `1.5px solid ${reason ? "var(--accent)" : "var(--textdim, #6b7280)"}`,
+            background: reason ? "rgba(200,168,75,0.12)" : "transparent",
+            color: reason ? "var(--accent)" : "var(--textdim)",
           }}>
           {reason ? "✎ why" : "+ why"}
         </button>
