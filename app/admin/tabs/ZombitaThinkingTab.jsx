@@ -22,8 +22,99 @@ const parseStructured = (s) => {
   try { return JSON.parse(s); } catch { return {}; }
 };
 
+// ── A rating control for one target (take or suggestions) ─────────────────
+// good / off toggle + optional reason box + "what others said". Neutral = no
+// pick (the absence of a rating is itself the neutral signal). Per-admin;
+// everyone's ratings are shown so admins see each other's verdicts.
+const RatingControl = ({ label, mine, others, busy, onRate }) => {
+  const current = mine?.rating || null;            // 'good' | 'off' | null(neutral)
+  const [openReason, setOpenReason] = useState(false);
+  const [reason, setReason] = useState(mine?.reason || "");
+
+  useEffect(() => { setReason(mine?.reason || ""); }, [mine?.reason]);
+
+  const pick = (val) => {
+    // tapping the active one again clears it back to neutral
+    const next = current === val ? null : val;
+    onRate(next, reason);
+    if (next && !reason) setOpenReason(true);
+  };
+  const saveReason = () => { onRate(current, reason); setOpenReason(false); };
+
+  const pill = (val, txt, col) => (
+    <button
+      onClick={() => pick(val)}
+      disabled={busy}
+      style={{
+        fontFamily: "var(--mono)", fontSize: 9.5, letterSpacing: 1, textTransform: "uppercase",
+        padding: "3px 9px", borderRadius: 2, cursor: busy ? "default" : "pointer",
+        border: `1px solid ${current === val ? col : "var(--border, #2a2f37)"}`,
+        background: current === val ? `${col}22` : "transparent",
+        color: current === val ? col : "var(--muted)",
+        transition: "all .15s",
+      }}>
+      {txt}
+    </button>
+  );
+
+  return (
+    <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
+        <span style={{ fontFamily: "var(--mono)", fontSize: 8.5, letterSpacing: 1.5, color: "var(--muted)", textTransform: "uppercase" }}>
+          rate {label}:
+        </span>
+        {pill("good", "✓ good call", "var(--green, #4a7c59)")}
+        {pill("off", "✕ off", "var(--red, #e05555)")}
+        <button
+          onClick={() => setOpenReason(o => !o)}
+          disabled={busy}
+          style={{
+            fontFamily: "var(--mono)", fontSize: 9, letterSpacing: 0.5,
+            padding: "3px 7px", borderRadius: 2, cursor: "pointer",
+            border: "1px solid var(--border, #2a2f37)", background: "transparent",
+            color: reason ? "var(--accent)" : "var(--muted)",
+          }}>
+          {reason ? "✎ why" : "+ why"}
+        </button>
+      </div>
+
+      {openReason && (
+        <div style={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
+          <textarea
+            value={reason}
+            onChange={e => setReason(e.target.value)}
+            placeholder={`what was ${label === "take" ? "right/wrong about her take" : "good/off about the suggestion"}? (optional — she reads this)`}
+            rows={2}
+            style={{
+              flex: 1, fontFamily: "var(--mono)", fontSize: 11, lineHeight: 1.5,
+              color: "var(--text)", background: "rgba(255,255,255,0.02)",
+              border: "1px solid var(--border, #2a2f37)", borderRadius: 2,
+              padding: "6px 8px", resize: "vertical",
+            }} />
+          <B c="blue" sm disabled={busy} onClick={saveReason}>save</B>
+        </div>
+      )}
+
+      {/* what other admins said about this target */}
+      {others && others.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          {others.map((r, i) => (
+            <div key={i} style={{ fontFamily: "var(--mono)", fontSize: 9.5, color: "var(--muted)", lineHeight: 1.5 }}>
+              <span style={{ color: r.rating === "good" ? "var(--green, #4a7c59)" : "var(--red, #e05555)" }}>
+                {r.rating === "good" ? "✓" : "✕"}
+              </span>{" "}
+              <span style={{ color: "var(--textdim)" }}>{r.admin_name || "an admin"}</span>
+              {r.reason ? <span> — “{r.reason}”</span> : null}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ── A single thinking entry card ──────────────────────────────────────────
-const ThinkingCard = ({ entry, onAck, busy }) => {
+const ThinkingCard = ({ entry, onAck, onRate, busy, myId }) => {
   const st = parseStructured(entry.structured);
   const calm = !!entry.no_change;
   // Per-admin acknowledgment: "have *I* seen this", not the old global flag.
@@ -43,6 +134,13 @@ const ThinkingCard = ({ entry, onAck, busy }) => {
   }
 
   const accentColor = calm ? "var(--green)" : "var(--accent)";
+
+  // ratings split by target; separate MY rating from OTHERS' for each
+  const allRatings = entry.ratings || [];
+  const myR = entry.my_ratings || {};
+  const othersFor = (target) =>
+    allRatings.filter(r => r.target === target && String(r.admin_id) !== String(myId));
+  const rate = (target) => (rating, reason) => onRate(entry.thinking_date, target, rating, reason);
 
   return (
     <div style={{
@@ -106,6 +204,13 @@ const ThinkingCard = ({ entry, onAck, busy }) => {
           <div style={{ fontFamily: "var(--mono)", fontSize: 12.5, color: "var(--text)", lineHeight: 1.8, whiteSpace: "pre-wrap", fontStyle: "italic" }}>
             {take}
           </div>
+          <RatingControl
+            label="take"
+            mine={myR.take}
+            others={othersFor("take")}
+            busy={busy}
+            onRate={rate("take")}
+          />
         </div>
       )}
 
@@ -122,6 +227,13 @@ const ThinkingCard = ({ entry, onAck, busy }) => {
           <div style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--textdim)", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>
             {suggestions}
           </div>
+          <RatingControl
+            label="suggestions"
+            mine={myR.suggestions}
+            others={othersFor("suggestions")}
+            busy={busy}
+            onRate={rate("suggestions")}
+          />
         </div>
       )}
 
@@ -257,6 +369,26 @@ export default function ZombitaThinkingTab({ toast }) {
     setAckBusy(false);
   };
 
+  // Rate her take / suggestions. rating: 'good'|'off'|null(clear). Per-admin,
+  // visible to all — the server returns the entry's full updated ratings list.
+  const rate = async (thinking_date, target, rating, reason) => {
+    setAckBusy(true);
+    try {
+      const res = await postApi("/api/admin/zombita/thinking/rate",
+        { thinking_date, target, rating, reason });
+      setEntries(prev => prev.map(e => {
+        if (e.thinking_date !== thinking_date) return e;
+        const ratings = (res && res.ratings) ? res.ratings : (e.ratings || []);
+        // recompute my_ratings from the returned list (server is source of truth)
+        const my = { ...(e.my_ratings || {}) };
+        if (rating) my[target] = { rating, reason: reason || "" };
+        else delete my[target];
+        return { ...e, ratings, my_ratings: my };
+      }));
+    } catch (e) { toast(e.message, "error"); }
+    setAckBusy(false);
+  };
+
   // oldest un-acked entry age (days) → escalates the badge: older = louder
   const oldestUnackedDays = (() => {
     const un = entries.filter(e => !isAcked(e));
@@ -340,7 +472,8 @@ export default function ZombitaThinkingTab({ toast }) {
                       ? "no thinking entries yet — she starts once the pipeline is live and summaries accumulate"
                       : "all caught up — you've acknowledged everything")} />
               : <div>{visible.map(e => (
-                  <ThinkingCard key={e.thinking_date} entry={e} onAck={ack} busy={ackBusy} />
+                  <ThinkingCard key={e.thinking_date} entry={e} onAck={ack} onRate={rate}
+                                myId={e.my_admin_id} busy={ackBusy} />
                 ))}</div>
           )}
         </TW>
