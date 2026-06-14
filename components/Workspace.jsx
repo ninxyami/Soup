@@ -145,6 +145,45 @@ export default function Workspace({ me, toast, fillViewport = false }) {
     }
   }, []);
 
+  // ── versions / rollback panel ──
+  const [versionsOpen, setVersionsOpen] = useState(false);
+  const [versions, setVersions] = useState([]);
+  const [versionsLoading, setVersionsLoading] = useState(false);
+  const [restoringId, setRestoringId] = useState(null);
+
+  const loadVersions = useCallback(async (docId) => {
+    if (!docId) return;
+    setVersionsLoading(true);
+    try {
+      const d = await fetchApi(`/api/workspace/documents/${docId}/versions`);
+      setVersions(d.versions || []);
+    } catch (e) {
+      setVersions([]);
+    } finally {
+      setVersionsLoading(false);
+    }
+  }, []);
+
+  const restoreVersion = useCallback(async (docId, versionId) => {
+    if (!docId || !versionId) return;
+    setRestoringId(versionId);
+    try {
+      const d = await postApi(`/api/workspace/documents/${docId}/versions/${versionId}/restore`, {});
+      toast?.(
+        d.live_push
+          ? "Restored — open editors updated live."
+          : "Restored. Reopen the document to see it.",
+        "success"
+      );
+      // refresh the version list (a pre_restore snapshot was just added)
+      loadVersions(docId);
+    } catch (e) {
+      toast?.(`Restore failed: ${e.message}`, "error");
+    } finally {
+      setRestoringId(null);
+    }
+  }, [toast, loadVersions]);
+
   // mark a doc seen (auto, on open) + refresh unread badges
   const markSeen = useCallback(async (docId) => {
     if (!docId) return;
@@ -282,6 +321,7 @@ export default function Workspace({ me, toast, fillViewport = false }) {
     if (activeDoc?.id) {
       markSeen(activeDoc.id);
       if (changesOpen) loadChanges(activeDoc.id);
+      if (versionsOpen) loadVersions(activeDoc.id);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeDoc?.id]);
@@ -291,6 +331,12 @@ export default function Workspace({ me, toast, fillViewport = false }) {
     if (changesOpen && activeDoc?.id) loadChanges(activeDoc.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [changesOpen]);
+
+  // Same for the versions panel.
+  useEffect(() => {
+    if (versionsOpen && activeDoc?.id) loadVersions(activeDoc.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [versionsOpen]);
 
   const kindMeta = (k) => PROJECT_KINDS.find((x) => x.id === k) || PROJECT_KINDS[3];
 
@@ -543,7 +589,7 @@ export default function Workspace({ me, toast, fillViewport = false }) {
                   {activeDoc.title}
                 </span>
                 <button
-                  onClick={() => setChangesOpen((v) => !v)}
+                  onClick={() => { setChangesOpen((v) => !v); setVersionsOpen(false); }}
                   title="See who changed what"
                   className="wsx-ft"
                   style={{
@@ -553,6 +599,17 @@ export default function Workspace({ me, toast, fillViewport = false }) {
                     display: "flex", alignItems: "center", gap: 6, flexShrink: 0,
                   }}
                 >🕓 Changes</button>
+                <button
+                  onClick={() => { setVersionsOpen((v) => !v); setChangesOpen(false); }}
+                  title="Browse & restore previous versions"
+                  className="wsx-ft"
+                  style={{
+                    padding: "5px 10px", fontFamily: "var(--mono)", fontSize: 11,
+                    color: versionsOpen ? "var(--accent)" : "var(--textdim)",
+                    borderColor: versionsOpen ? "var(--accent)" : "var(--border)",
+                    display: "flex", alignItems: "center", gap: 6, flexShrink: 0,
+                  }}
+                >🗂 Versions</button>
               </div>
               <div style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden" }}>
                 <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
@@ -572,6 +629,16 @@ export default function Workspace({ me, toast, fillViewport = false }) {
                     loading={changesLoading}
                     onRefresh={() => loadChanges(activeDoc.id)}
                     onClose={() => setChangesOpen(false)}
+                  />
+                )}
+                {versionsOpen && (
+                  <VersionsPanel
+                    versions={versions}
+                    loading={versionsLoading}
+                    restoringId={restoringId}
+                    onRestore={(vid) => restoreVersion(activeDoc.id, vid)}
+                    onRefresh={() => loadVersions(activeDoc.id)}
+                    onClose={() => setVersionsOpen(false)}
                   />
                 )}
               </div>
@@ -742,6 +809,107 @@ function Modal({ title, onClose, children }) {
 
 // ── CHANGES PANEL ── the "who changed what" timeline (Feature 2).
 // Reads /api/workspace/documents/{id}/changes — attributed block/cell edits.
+function VersionsPanel({ versions, loading, restoringId, onRestore, onRefresh, onClose }) {
+  const [confirmId, setConfirmId] = useState(null);
+
+  const reasonMeta = (r) =>
+    r === "session_end" ? { label: "session end", c: "var(--textdim)" }
+    : r === "pre_restore" ? { label: "before restore", c: "#c89a6b" }
+    : r === "manual" ? { label: "manual", c: "var(--accent)" }
+    : { label: "auto", c: "var(--textdim)" };
+
+  const prettySize = (n) => {
+    if (!n && n !== 0) return "";
+    if (n < 1024) return `${n} B`;
+    return `${(n / 1024).toFixed(1)} KB`;
+  };
+
+  return (
+    <div style={{
+      width: 320, flexShrink: 0, borderLeft: "1px solid var(--border)",
+      background: "var(--bg, #0b0d10)", display: "flex", flexDirection: "column", minHeight: 0,
+    }}>
+      <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 10 }}>
+        <span style={{ fontFamily: "var(--mono)", fontSize: 11, letterSpacing: 2, color: "var(--textdim)", textTransform: "uppercase", flex: 1 }}>
+          Version History
+        </span>
+        <button onClick={onRefresh} title="Refresh" className="wsx-ft" style={{ padding: "3px 8px", fontSize: 11, color: "var(--textdim)" }}>↻</button>
+        <button onClick={onClose} title="Close" style={{ background: "transparent", border: "none", color: "var(--textdim)", fontSize: 18, lineHeight: 1, cursor: "pointer" }}>×</button>
+      </div>
+      <div style={{ flex: 1, overflowY: "auto", padding: "8px 0" }}>
+        {loading ? (
+          <div style={{ textAlign: "center", padding: 30 }}>
+            <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)", letterSpacing: 2, animation: "ap-blink 1.2s infinite" }}>LOADING…</span>
+          </div>
+        ) : (versions || []).length === 0 ? (
+          <div style={{ padding: "20px 18px", fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)", lineHeight: 1.7 }}>
+            No snapshots yet.<br />Versions are captured automatically as the document is edited, and when an editing session ends.
+          </div>
+        ) : (
+          (versions || []).map((v, i) => {
+            const rm = reasonMeta(v.reason);
+            const isLatest = i === 0;
+            const busy = restoringId === v.id;
+            return (
+              <div key={v.id} style={{ padding: "9px 16px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                  <span style={{ fontFamily: "var(--mono)", fontSize: 11.5, color: "var(--text)", fontWeight: 600 }}>
+                    {relTime(v.created_at)}
+                  </span>
+                  {isLatest && (
+                    <span style={{ fontFamily: "var(--mono)", fontSize: 9, color: "#4caf7d", border: "1px solid #2e5b44", borderRadius: 3, padding: "0 4px", letterSpacing: 0.5 }}>NEWEST</span>
+                  )}
+                  <span style={{ flex: 1 }} />
+                  <span style={{ fontFamily: "var(--mono)", fontSize: 9.5, color: rm.c, textTransform: "uppercase", letterSpacing: 0.5 }}>{rm.label}</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: "var(--mono)", fontSize: 9.5, color: "var(--muted)" }}>
+                  <span>{v.actor_name || v.actor_id || "unknown"}</span>
+                  <span>·</span>
+                  <span>{prettySize(v.byte_len)}</span>
+                  {v.ydoc_version != null && (<><span>·</span><span>v{v.ydoc_version}</span></>)}
+                  <span style={{ flex: 1 }} />
+                  {confirmId === v.id ? (
+                    <span style={{ display: "flex", gap: 5, alignItems: "center" }}>
+                      <button
+                        onClick={() => { onRestore(v.id); setConfirmId(null); }}
+                        disabled={busy}
+                        className="wsx-ft"
+                        style={{ padding: "2px 8px", fontSize: 10, color: "#e0a55a", borderColor: "#7a5a2a" }}
+                      >{busy ? "…" : "Confirm"}</button>
+                      <button
+                        onClick={() => setConfirmId(null)}
+                        className="wsx-ft"
+                        style={{ padding: "2px 6px", fontSize: 10, color: "var(--textdim)" }}
+                      >Cancel</button>
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => setConfirmId(v.id)}
+                      disabled={busy || isLatest}
+                      title={isLatest ? "This is already the current state" : "Roll the document back to this snapshot"}
+                      className="wsx-ft"
+                      style={{
+                        padding: "2px 8px", fontSize: 10,
+                        color: isLatest ? "var(--muted)" : "var(--textdim)",
+                        opacity: isLatest ? 0.5 : 1,
+                        cursor: isLatest ? "default" : "pointer",
+                      }}
+                    >Restore</button>
+                  )}
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+      <div style={{ padding: "8px 16px", borderTop: "1px solid var(--border)", fontFamily: "var(--mono)", fontSize: 9.5, color: "var(--muted)", lineHeight: 1.6 }}>
+        Restoring snapshots the current state first, so a rollback can be undone.
+      </div>
+    </div>
+  );
+}
+
+
 function ChangesPanel({ changes, loading, onRefresh, onClose }) {
   const kindMeta = (k) =>
     k === "add" ? { c: "#4caf7d", label: "added" }
