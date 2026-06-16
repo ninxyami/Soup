@@ -121,17 +121,17 @@ const EDITOR_CSS = `
 .cfg-surface .ProseMirror{
   outline:none; min-height:60vh; font-family:var(--mono);
   font-size:13.5px; line-height:23px; color:var(--text);
-  padding:0; caret-color:var(--accent); white-space:pre-wrap; word-break:break-all; tab-size:4;
+  padding:0; caret-color:var(--accent); white-space:pre-wrap; overflow-wrap:break-word; word-break:normal; tab-size:4;
 }
 .cfg-surface .ProseMirror:focus{outline:none}
 .cfg-surface .ProseMirror pre{
   font-family:var(--mono); font-size:13.5px; line-height:23px; background:transparent;
   border:none; padding:16px 20px 140px; margin:0; overflow:visible;
-  white-space:pre-wrap; word-break:break-all; min-height:60vh;
+  white-space:pre-wrap; overflow-wrap:break-word; word-break:normal; min-height:60vh;
 }
 .cfg-surface .ProseMirror pre code{
   background:none; border:none; padding:0; color:var(--text); font-family:var(--mono);
-  line-height:23px; white-space:pre-wrap; word-break:break-all;
+  line-height:23px; white-space:pre-wrap; overflow-wrap:break-word; word-break:normal;
 }
 /* ini/lua syntax highlighting */
 .cfg-surface .hl-comment { color: #5a6478; font-style: italic; }
