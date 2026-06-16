@@ -19,7 +19,9 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
-import { Editor } from "@tiptap/core";
+import { Editor, Extension } from "@tiptap/core";
+import { Plugin, PluginKey } from "@tiptap/pm/state";
+import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import Document from "@tiptap/extension-document";
 import Text from "@tiptap/extension-text";
 import CodeBlock from "@tiptap/extension-code-block";
@@ -28,6 +30,69 @@ import CollaborationCursor from "@tiptap/extension-collaboration-cursor";
 
 const WS_BASE = "wss://api.stateofundeadpurge.site:8443/ws/workspace";
 const API = "https://api.stateofundeadpurge.site:8443";
+
+// ── INI / Lua syntax highlight via ProseMirror decorations ──────────────────
+const INI_HIGHLIGHT_KEY = new PluginKey("iniHighlight");
+
+function buildDecorations(doc) {
+  const decos = [];
+  doc.descendants((node, pos) => {
+    if (node.type.name !== "codeBlock") return;
+    const text = node.textContent;
+    let offset = pos + 1;
+    const lines = text.split("\n");
+    let cursor = 0;
+    for (const line of lines) {
+      const lineStart = offset + cursor;
+      const trimmed = line.trimStart();
+      const indent = line.length - trimmed.length;
+
+      if (trimmed.startsWith("#") || trimmed.startsWith(";") || trimmed.startsWith("--")) {
+        decos.push(Decoration.inline(lineStart, lineStart + line.length, { class: "hl-comment" }));
+      } else {
+        const eqIdx = line.indexOf("=");
+        if (eqIdx > 0) {
+          const keyStart = lineStart;
+          const keyEnd = lineStart + eqIdx;
+          const valStart = lineStart + eqIdx + 1;
+          const valEnd = lineStart + line.length;
+          decos.push(Decoration.inline(keyStart + indent, keyEnd, { class: "hl-key" }));
+          decos.push(Decoration.inline(keyEnd, keyEnd + 1, { class: "hl-eq" }));
+          const val = line.slice(eqIdx + 1);
+          if (val.includes(";") || val.includes(",")) {
+            decos.push(Decoration.inline(valStart, valEnd, { class: "hl-list" }));
+          } else if (val === "true" || val === "false") {
+            decos.push(Decoration.inline(valStart, valEnd, { class: "hl-bool" }));
+          } else if (!isNaN(Number(val)) && val.trim() !== "") {
+            decos.push(Decoration.inline(valStart, valEnd, { class: "hl-num" }));
+          } else {
+            decos.push(Decoration.inline(valStart, valEnd, { class: "hl-val" }));
+          }
+        }
+      }
+      cursor += line.length + 1;
+    }
+  });
+  return DecorationSet.create(doc, decos);
+}
+
+const IniHighlight = Extension.create({
+  name: "iniHighlight",
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        key: INI_HIGHLIGHT_KEY,
+        state: {
+          init(_, { doc }) { return buildDecorations(doc); },
+          apply(tr, old) { return tr.docChanged ? buildDecorations(tr.doc) : old; },
+        },
+        props: {
+          decorations(state) { return this.getState(state); },
+        },
+      }),
+    ];
+  },
+});
 
 // A document that is exactly ONE code block, holding the whole file.
 // This keeps the Yjs doc plain-text and impossible to format into garbage.
@@ -56,18 +121,26 @@ const EDITOR_CSS = `
 .cfg-surface .ProseMirror{
   outline:none; min-height:60vh; font-family:var(--mono);
   font-size:13.5px; line-height:23px; color:var(--text);
-  padding:0; caret-color:var(--accent); white-space:pre; tab-size:4;
+  padding:0; caret-color:var(--accent); white-space:pre-wrap; word-break:break-all; tab-size:4;
 }
 .cfg-surface .ProseMirror:focus{outline:none}
 .cfg-surface .ProseMirror pre{
   font-family:var(--mono); font-size:13.5px; line-height:23px; background:transparent;
   border:none; padding:16px 20px 140px; margin:0; overflow:visible;
-  white-space:pre; min-height:60vh;
+  white-space:pre-wrap; word-break:break-all; min-height:60vh;
 }
 .cfg-surface .ProseMirror pre code{
   background:none; border:none; padding:0; color:var(--text); font-family:var(--mono);
-  line-height:23px;
+  line-height:23px; white-space:pre-wrap; word-break:break-all;
 }
+/* ini/lua syntax highlighting */
+.cfg-surface .hl-comment { color: #5a6478; font-style: italic; }
+.cfg-surface .hl-key     { color: #7eb8d4; }
+.cfg-surface .hl-eq      { color: #4a5568; }
+.cfg-surface .hl-list    { color: #c8a84b; }
+.cfg-surface .hl-val     { color: #b8c9a3; }
+.cfg-surface .hl-bool    { color: #e07b6b; }
+.cfg-surface .hl-num     { color: #9b8fd4; }
 /* remote collaboration cursors */
 .cfg-surface .collaboration-cursor__caret{
   border-left:1.5px solid; border-right:1.5px solid; margin-left:-1px; margin-right:-1px;
@@ -175,6 +248,7 @@ export default function ConfigEditor({ fileKey, fileLabel, me }) {
         CodeBlock,
         Collaboration.configure({ document: ydoc }),
         CollaborationCursor.configure({ provider, user: { name: me.name, color: me.color } }),
+        IniHighlight,
       ],
       onUpdate: ({ editor, transaction }) => {
         const t = editor.getText({ blockSeparator: "\n" });
