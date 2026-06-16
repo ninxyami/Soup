@@ -25,6 +25,8 @@ import WorkspaceTab      from "./tabs/WorkspaceTab";
 import ZombitaThinkingTab from "./tabs/ZombitaThinkingTab";
 import ZombitaChannelTab  from "./tabs/ZombitaChannelTab";
 import SettingsTab        from "./tabs/SettingsTab";
+import TestServerTab      from "./tabs/TestServerTab";
+import SystemResourcesTab from "./tabs/SystemResourcesTab";
 
 const NAV_SECTIONS = [
   { label: "COMMAND", items: [
@@ -33,6 +35,8 @@ const NAV_SECTIONS = [
     { key: "zombita_thinking", icon: "🧠", label: "Zombita's Mind" },
     { key: "zombita_channel",  icon: "💬", label: "Admin Channel" },
     { key: "server",          icon: "🖥️", label: "Server" },
+    { key: "sys_resources",   icon: "📊", label: "System Resources" },
+    { key: "test_server",     icon: "🧪", label: "Test Server" },
     { key: "server_activity", icon: "📋", label: "Server Activity" },
     { key: "console",         icon: "⌨️", label: "Console" },
     { key: "pz_console",      icon: "🧟", label: "PZ Console" },
@@ -78,6 +82,8 @@ const NAV_SECTIONS = [
 const PANELS = {
   overview:    OverviewTab,
   server:      ServerTab,
+  sys_resources: SystemResourcesTab,
+  test_server:   TestServerTab,
   console:         ConsoleTab,
   pz_console:      PZConsoleTab,
   server_activity: ServerActivityTab,
