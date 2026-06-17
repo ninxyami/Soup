@@ -137,7 +137,7 @@ const EDITOR_CSS = `
 .cfg-surface .hl-comment { color: #5a6478; font-style: italic; }
 .cfg-surface .hl-key     { color: #7eb8d4; }
 .cfg-surface .hl-eq      { color: #4a5568; }
-.cfg-surface .hl-list    { color: #c8a84b; }
+.cfg-surface .hl-list    { color: #c8a84b; word-break: break-word; overflow-wrap: anywhere; }
 .cfg-surface .hl-val     { color: #b8c9a3; }
 .cfg-surface .hl-bool    { color: #e07b6b; }
 .cfg-surface .hl-num     { color: #9b8fd4; }
