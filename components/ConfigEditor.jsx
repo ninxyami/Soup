@@ -60,7 +60,21 @@ function buildDecorations(doc) {
           decos.push(Decoration.inline(keyEnd, keyEnd + 1, { class: "hl-eq" }));
           const val = line.slice(eqIdx + 1);
           if (val.includes(";") || val.includes(",")) {
-            decos.push(Decoration.inline(valStart, valEnd, { class: "hl-list" }));
+            // Wrap each semicolon-separated segment individually so the browser
+            // can only break BETWEEN segments (after the ;), never inside them.
+            const sep = val.includes(";") ? ";" : ",";
+            let segCursor = valStart;
+            const segments = val.split(sep);
+            for (let i = 0; i < segments.length; i++) {
+              const seg = segments[i];
+              const segEnd = segCursor + seg.length;
+              decos.push(Decoration.inline(segCursor, segEnd, { class: "hl-list-seg" }));
+              if (i < segments.length - 1) {
+                // the separator character itself
+                decos.push(Decoration.inline(segEnd, segEnd + 1, { class: "hl-list-sep" }));
+              }
+              segCursor = segEnd + 1; // +1 for the separator
+            }
           } else if (val === "true" || val === "false") {
             decos.push(Decoration.inline(valStart, valEnd, { class: "hl-bool" }));
           } else if (!isNaN(Number(val)) && val.trim() !== "") {
@@ -134,13 +148,14 @@ const EDITOR_CSS = `
   line-height:23px; white-space:pre-wrap; overflow-wrap:break-word; word-break:normal;
 }
 /* ini/lua syntax highlighting */
-.cfg-surface .hl-comment { color: #5a6478; font-style: italic; }
-.cfg-surface .hl-key     { color: #7eb8d4; }
-.cfg-surface .hl-eq      { color: #4a5568; }
-.cfg-surface .hl-list    { color: #c8a84b; word-break: break-word; overflow-wrap: anywhere; }
-.cfg-surface .hl-val     { color: #b8c9a3; }
-.cfg-surface .hl-bool    { color: #e07b6b; }
-.cfg-surface .hl-num     { color: #9b8fd4; }
+.cfg-surface .hl-comment  { color: #5a6478; font-style: italic; }
+.cfg-surface .hl-key      { color: #7eb8d4; }
+.cfg-surface .hl-eq       { color: #4a5568; }
+.cfg-surface .hl-list-seg { color: #c8a84b; white-space: nowrap; }
+.cfg-surface .hl-list-sep { color: #c8a84b; white-space: normal; overflow-wrap: normal; }
+.cfg-surface .hl-val      { color: #b8c9a3; }
+.cfg-surface .hl-bool     { color: #e07b6b; }
+.cfg-surface .hl-num      { color: #9b8fd4; }
 /* remote collaboration cursors */
 .cfg-surface .collaboration-cursor__caret{
   border-left:1.5px solid; border-right:1.5px solid; margin-left:-1px; margin-right:-1px;
