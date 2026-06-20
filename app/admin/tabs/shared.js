@@ -35,10 +35,11 @@ export const ADMINS = {
   228533264174940160: { name: "Nin Nin",   color: "#c8a84b", initials: "NN" },
   698164264950693950: { name: "Nikki",     color: "#4a8fc4", initials: "NK" },
   925854911378370600: { name: "Dawnie",    color: "#9775cc", initials: "DW" },
-  805074936807948298: { name: "Sheo",      color: "#4caf7d", initials: "SH" },
+  805074936807948298: { name: "Nikki's alt",color: "#4caf7d", initials: "NA" },
   733259839429410847: { name: "Sunday",    color: "#d4873a", initials: "SN" },
   1076244823121612850:{ name: "Queen Sheo",color: "#e05555", initials: "QS" },
   1363822135642161192:{ name: "Sheo Alt",  color: "#4caf7d", initials: "SA" },
+  413868653742653470: { name: "Harome",    color: "#3bb5b0", initials: "HA" },
 };
 
 /* ═══ HELPERS ═══ */
