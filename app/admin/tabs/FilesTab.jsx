@@ -45,9 +45,20 @@ const fileIcon = (e) => {
   return "📄";
 };
 
+const JAIL_ROOT = "/home/zomboid";
+
 export default function FilesTab({ toast }) {
-  const [path, setPath] = useStickyState("/home/zomboid", "files.path");
+  const [path, setPath] = useStickyState(JAIL_ROOT, "files.path");
   const [data, setData] = useState(null);   // { path, parent, entries }
+
+  // A previously-saved sticky path from before the jail existed (e.g. "/home")
+  // would now 403. Snap anything outside the jail back to the root on mount.
+  useEffect(() => {
+    if (!path || (path !== JAIL_ROOT && !path.startsWith(JAIL_ROOT + "/"))) {
+      setPath(JAIL_ROOT);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -86,9 +97,12 @@ export default function FilesTab({ toast }) {
   // ── Breadcrumb segments ─────────────────────────────────────────────────────
   const crumbs = (() => {
     const cur = data?.path || path;
-    const parts = cur.split("/").filter(Boolean);
-    const out = [{ label: "/", path: "/" }];
-    let acc = "";
+    // Show the jail root as a single "zomboid" crumb, then only the segments
+    // BELOW it — the breadcrumb can never navigate above /home/zomboid.
+    const rel = cur.startsWith(JAIL_ROOT) ? cur.slice(JAIL_ROOT.length) : "";
+    const parts = rel.split("/").filter(Boolean);
+    const out = [{ label: "zomboid", path: JAIL_ROOT }];
+    let acc = JAIL_ROOT;
     for (const part of parts) { acc += "/" + part; out.push({ label: part, path: acc }); }
     return out;
   })();
