@@ -143,6 +143,7 @@ export default function SheetEditor({ docId, me }) {
   const widthsRef = useRef(null);    // Y.Map "c" -> width px (persisted)
   const awarenessRef = useRef(null);
   const applyingRemote = useRef(false);
+  const fileInputRef = useRef(null); // hidden <input type=file> for CSV import
 
   const [status, setStatus] = useState("connecting");
   const [peers, setPeers] = useState([]);
@@ -299,6 +300,80 @@ export default function SheetEditor({ docId, me }) {
     setRowCount(computeRowCount());
     setDataVersion((v) => v + 1);
   }, [writeCell, computeRowCount]);
+
+  // ── CSV import ──────────────────────────────────────────────────────────
+  // A small, correct RFC-4180-ish parser: handles quoted fields, escaped
+  // quotes (""), and commas / newlines embedded inside quotes. Returns a 2D
+  // array of strings (rows of cells). We avoid pulling in a CSV dependency so
+  // the build stays unchanged.
+  const parseCsv = useCallback((text) => {
+    // Normalize newlines; strip a leading UTF-8 BOM if present.
+    const s = text.replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+    const rows = [];
+    let row = [];
+    let field = "";
+    let inQuotes = false;
+    for (let i = 0; i < s.length; i++) {
+      const ch = s[i];
+      if (inQuotes) {
+        if (ch === '"') {
+          if (s[i + 1] === '"') { field += '"'; i++; }   // escaped quote
+          else inQuotes = false;                           // end of quoted field
+        } else field += ch;
+      } else {
+        if (ch === '"') inQuotes = true;
+        else if (ch === ",") { row.push(field); field = ""; }
+        else if (ch === "\n") { row.push(field); rows.push(row); row = []; field = ""; }
+        else field += ch;
+      }
+    }
+    // flush trailing field/row (file may not end with newline)
+    if (field !== "" || row.length > 0) { row.push(field); rows.push(row); }
+    // drop a single trailing fully-empty row (common from a final newline)
+    if (rows.length && rows[rows.length - 1].every((c) => c === "")) rows.pop();
+    return rows;
+  }, []);
+
+  // Where to drop the data: anchor at the currently selected cell so admins can
+  // place an import wherever the cursor is. Defaults to A1 (0:0).
+  const importCsvText = useCallback((text) => {
+    const ydoc = ydocRef.current; const yCells = cellsRef.current;
+    if (!ydoc || !yCells) return;
+    const grid = parseCsv(text);
+    if (!grid.length) return;
+    const sel = selectedRef.current || { rowIdx: 0, colKey: "c0" };
+    const baseR = Number.isFinite(sel.rowIdx) ? sel.rowIdx : 0;
+    const baseC = parseInt(String(sel.colKey || "c0").slice(1), 10) || 0;
+    let cellCount = 0;
+    applyingRemote.current = true; // our own bulk write — suppress echo rebuilds
+    try {
+      ydoc.transact(() => {                // one transaction = one relay broadcast
+        for (let ri = 0; ri < grid.length; ri++) {
+          const cols = grid[ri];
+          for (let ci = 0; ci < cols.length; ci++) {
+            const val = cols[ci];
+            const key = `${baseR + ri}:${baseC + ci}`;
+            if (val === "" || val == null) yCells.delete(key);
+            else { yCells.set(key, String(val)); cellCount++; }
+          }
+        }
+      });
+    } finally {
+      applyingRemote.current = false;
+    }
+    setRowCount(computeRowCount());
+    setDataVersion((v) => v + 1);
+  }, [parseCsv, computeRowCount]);
+
+  const onCsvFile = useCallback((e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-importing the same file later
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => importCsvText(String(reader.result || ""));
+    reader.onerror = () => {};
+    reader.readAsText(file);
+  }, [importCsvText]);
 
   const cellStyle = useCallback((r, c) => {
     const yStyles = stylesRef.current;
@@ -489,6 +564,18 @@ export default function SheetEditor({ docId, me }) {
             </div>
           )}
         </div>
+        <button
+          className="ss-btn"
+          title="Import a CSV file — fills cells starting at the selected cell (A1 if none)"
+          onClick={() => fileInputRef.current?.click()}
+        >⬆ Import CSV</button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".csv,text/csv,text/plain"
+          onChange={onCsvFile}
+          style={{ display: "none" }}
+        />
         <span style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)", marginLeft: 8, letterSpacing: 0.5 }}>
           Select a cell, then pick a color · type to edit · drag column edges to resize
         </span>

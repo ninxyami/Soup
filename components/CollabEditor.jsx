@@ -273,6 +273,48 @@ export default function CollabEditor({ docId, docTitle, me, seed }) {
     provider.awareness.on("change", refreshPeers);
     refreshPeers();
 
+    // Ctrl/Cmd+A inside a table selects the whole table (like a spreadsheet),
+    // instead of selecting the entire document. Press it again (or when not in
+    // a table) and it falls through to the editor's normal select-all.
+    const TableSelectAll = Extension.create({
+      name: "tableSelectAll",
+      addKeyboardShortcuts() {
+        return {
+          "Mod-a": ({ editor }) => {
+            const { state } = editor;
+            const { selection } = state;
+            // If we already have a full-table CellSelection, let the default
+            // Mod-a run so a second press selects the whole document.
+            if (selection instanceof CellSelection) return false;
+            const { $from } = selection;
+            let tableStart = null;
+            let tableNode = null;
+            for (let d = $from.depth; d > 0; d--) {
+              if ($from.node(d).type.name === "table") {
+                tableStart = $from.before(d);
+                tableNode = $from.node(d);
+                break;
+              }
+            }
+            if (tableStart == null || !tableNode) return false; // not in a table
+            const cells = [];
+            tableNode.descendants((node, pos) => {
+              if (node.type.name === "tableCell" || node.type.name === "tableHeader") {
+                cells.push(tableStart + 1 + pos);
+              }
+              return node.type.name === "tableRow";
+            });
+            if (cells.length === 0) return false;
+            const tr = state.tr.setSelection(
+              CellSelection.create(state.doc, cells[0], cells[cells.length - 1])
+            );
+            editor.view.dispatch(tr);
+            return true; // handled — stop the default select-all
+          },
+        };
+      },
+    });
+
     const editor = new Editor({
       element: holderRef.current,
       extensions: [
@@ -299,6 +341,7 @@ export default function CollabEditor({ docId, docTitle, me, seed }) {
         TableRow,
         ColorTableHeader,
         ColorTableCell,
+        TableSelectAll,
       ],
       onTransaction: () => forceTick((n) => n + 1),
       onUpdate: () => { setSaved(false); scheduleSavedFlag(); },
