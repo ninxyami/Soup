@@ -31,11 +31,8 @@ const ADMINS = {
   228533264174940160: { name: "Nin Nin",   color: "#c8a84b", initials: "NN" },
   698164264950693950: { name: "Nikki",     color: "#4a8fc4", initials: "NK" },
   925854911378370600: { name: "Dawnie",    color: "#9775cc", initials: "DW" },
-  805074936807948298: { name: "Nikki's alt",color: "#4caf7d", initials: "NA" },
-  733259839429410847: { name: "Sunday",    color: "#d4873a", initials: "SN" },
+  805074936807948298: { name: "Sheo",      color: "#4caf7d", initials: "SH" },
   1076244823121612850:{ name: "Queen Sheo",color: "#e05555", initials: "QS" },
-  1363822135642161192:{ name: "Sheo Alt",  color: "#4caf7d", initials: "SA" },
-  413868653742653470: { name: "Harome",    color: "#3bb5b0", initials: "HA" },
 };
 
 // ── REST helpers (credentialed, same cookie session both hosts use) ──
@@ -296,6 +293,26 @@ export default function Workspace({ me, toast, fillViewport = false }) {
     }
   };
 
+  // ── delete project (with confirm) ──
+  const deleteProject = async (p) => {
+    if (!p?.id) return;
+    if (!window.confirm(
+      `Delete project "${p.name}" and all its documents? This can't be undone.`
+    )) return;
+    try {
+      await fetchApi(`/api/workspace/projects/${p.id}`, { method: "DELETE" });
+      toast?.("Project deleted", "success");
+      // If a doc from this project was open, close it.
+      if (activeDoc?.project_id === p.id) setActiveDoc(null);
+      // Drop its cached docs and collapse state, then refresh the rail.
+      setDocsByProject((prev) => { const n = { ...prev }; delete n[p.id]; return n; });
+      setExpanded((prev) => { const n = { ...prev }; delete n[p.id]; return n; });
+      await loadProjects();
+    } catch (e) {
+      toast?.(`Delete failed: ${e?.message || "unknown"}`, "error");
+    }
+  };
+
   // ── create document ──
   const createDoc = async () => {
     if (!newDocTitle.trim() || !newDocFor) return;
@@ -366,6 +383,7 @@ export default function Workspace({ me, toast, fillViewport = false }) {
     <div style={outerStyle}>
       <style dangerouslySetInnerHTML={{ __html: `
         .ws-doc-row:hover .ws-doc-del { opacity: 1 !important; }
+        .ws-proj-row:hover .ws-proj-del { opacity: 1 !important; }
         .ws-doc-row:hover .ws-drag-handle { opacity: 1 !important; }
         .ws-doc-row:hover { background: rgba(255,255,255,0.02); }
         @keyframes ap-blink { 0%,100% { opacity: .3 } 50% { opacity: 1 } }
@@ -471,6 +489,7 @@ export default function Workspace({ me, toast, fillViewport = false }) {
                 return (
                   <div key={p.id}>
                     <div
+                      className="ws-proj-row"
                       onClick={() => toggleProject(p.id)}
                       style={{
                         display: "flex", alignItems: "center", gap: 8, padding: "8px 14px",
@@ -491,6 +510,19 @@ export default function Workspace({ me, toast, fillViewport = false }) {
                         }}>{unread.per_project[p.id]}</span>
                       )}
                       <span style={{ fontSize: 9, color: "var(--muted)" }}>{docs.length || ""}</span>
+                      <button
+                        className="ws-proj-del"
+                        title="Delete project"
+                        onClick={(e) => { e.stopPropagation(); deleteProject(p); }}
+                        style={{
+                          background: "transparent", border: "none", cursor: "pointer",
+                          color: "var(--muted)", fontSize: 13, lineHeight: 1, padding: "2px 4px",
+                          borderRadius: 2, opacity: 0, transition: "opacity .12s, color .12s",
+                          flexShrink: 0,
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.color = "var(--red, #e05555)"; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.color = "var(--muted)"; }}
+                      >🗑</button>
                     </div>
 
                     {isOpen && (

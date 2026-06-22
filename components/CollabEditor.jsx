@@ -50,6 +50,7 @@ import Table from "@tiptap/extension-table";
 import TableRow from "@tiptap/extension-table-row";
 import TableHeader from "@tiptap/extension-table-header";
 import TableCell from "@tiptap/extension-table-cell";
+import { CellSelection } from "@tiptap/pm/tables";
 
 // P4 — cell background colors (the red/yellow/green status coding admins use
 // in their Sheets). We extend the official cell/header nodes with a
@@ -347,6 +348,51 @@ export default function CollabEditor({ docId, docTitle, me, seed }) {
   const ed = editorRef.current;
   const can = (fn) => !!ed && fn();
   const run = useCallback((fn) => { if (ed) fn(ed.chain().focus()); }, [ed]);
+  // Cell-scoped commands (color, etc.) must NOT call focus() first: focusing
+  // collapses an active multi-cell CellSelection back to a single text cursor,
+  // which is why "color the whole table" only ever painted one cell. Running
+  // the chain without focus keeps the CellSelection intact so the attribute is
+  // applied to every selected cell at once.
+  const runCell = useCallback((fn) => { if (ed) fn(ed.chain()); }, [ed]);
+  // Select every cell in the current table (so one color click hits all rows
+  // and columns). Walks up to the table node, collects the absolute positions
+  // of the first and last cells, and builds a CellSelection spanning them —
+  // which is exactly the selection a corner-to-corner drag would produce.
+  const selectWholeTable = useCallback(() => {
+    if (!ed) return;
+    const { state } = ed;
+    const { $from } = state.selection;
+    let tableStart = null;
+    let tableNode = null;
+    for (let d = $from.depth; d > 0; d--) {
+      if ($from.node(d).type.name === "table") {
+        tableStart = $from.before(d);
+        tableNode = $from.node(d);
+        break;
+      }
+    }
+    if (tableStart == null || !tableNode) return;
+    try {
+      // Collect absolute positions of every cell. `pos` from descendants is
+      // relative to the table node's content, so add tableStart + 1.
+      const cellPositions = [];
+      tableNode.descendants((node, pos) => {
+        if (node.type.name === "tableCell" || node.type.name === "tableHeader") {
+          cellPositions.push(tableStart + 1 + pos);
+        }
+        // don't descend into cell contents
+        return node.type.name === "tableRow";
+      });
+      if (cellPositions.length === 0) return;
+      const first = cellPositions[0];
+      const last = cellPositions[cellPositions.length - 1];
+      const tr = state.tr.setSelection(CellSelection.create(state.doc, first, last));
+      ed.view.dispatch(tr);
+      ed.view.focus();
+    } catch (err) {
+      console.warn("selectWholeTable failed", err);
+    }
+  }, [ed]);
   const inTable = !!ed && ed.isActive("table");
 
   const statusMeta = {
@@ -485,6 +531,7 @@ export default function CollabEditor({ docId, docTitle, me, seed }) {
         >▦</TBtn>
         {inTable && (
           <>
+            <TBtn title="Select whole table (then pick a color to fill every cell)" onClick={selectWholeTable}>▣ all</TBtn>
             <TBtn title="Add column"      onClick={() => run((c) => c.addColumnAfter().run())}>+col</TBtn>
             <TBtn title="Delete column"   onClick={() => run((c) => c.deleteColumn().run())}>−col</TBtn>
             <TBtn title="Add row"         onClick={() => run((c) => c.addRowAfter().run())}>+row</TBtn>
@@ -507,7 +554,7 @@ export default function CollabEditor({ docId, docTitle, me, seed }) {
                     <button
                       key={col.key}
                       title={col.label}
-                      onClick={() => { run((c) => c.setCellAttribute("backgroundColor", col.key).run()); setColorOpen(false); }}
+                      onClick={() => { runCell((c) => c.setCellAttribute("backgroundColor", col.key).run()); setColorOpen(false); }}
                       style={{
                         display: "flex", alignItems: "center", gap: 8, padding: "4px 6px",
                         background: "transparent", border: "1px solid transparent",
@@ -523,7 +570,7 @@ export default function CollabEditor({ docId, docTitle, me, seed }) {
                   ))}
                   <div style={{ height: 1, background: "var(--border)", margin: "2px 0" }} />
                   <button
-                    onClick={() => { run((c) => c.setCellAttribute("backgroundColor", null).run()); setColorOpen(false); }}
+                    onClick={() => { runCell((c) => c.setCellAttribute("backgroundColor", null).run()); setColorOpen(false); }}
                     style={{
                       display: "flex", alignItems: "center", gap: 8, padding: "4px 6px",
                       background: "transparent", border: "1px solid transparent",
@@ -542,7 +589,7 @@ export default function CollabEditor({ docId, docTitle, me, seed }) {
                     onMouseLeave={(e) => { e.currentTarget.style.borderColor = "transparent"; e.currentTarget.style.color = "var(--textdim)"; }}>
                     <input type="color" defaultValue="#4caf7d"
                       style={{ width: 14, height: 14, border: "none", padding: 0, cursor: "pointer", borderRadius: 2, flexShrink: 0, background: "none" }}
-                      onChange={(e) => { run((c) => c.setCellAttribute("backgroundColor", e.target.value).run()); }} />
+                      onChange={(e) => { runCell((c) => c.setCellAttribute("backgroundColor", e.target.value).run()); }} />
                     Custom…
                   </label>
                 </div>
