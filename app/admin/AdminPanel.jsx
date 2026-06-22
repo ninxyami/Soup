@@ -27,20 +27,22 @@ import ZombitaChannelTab  from "./tabs/ZombitaChannelTab";
 import SettingsTab        from "./tabs/SettingsTab";
 import TestServerTab      from "./tabs/TestServerTab";
 import SystemResourcesTab from "./tabs/SystemResourcesTab";
+import FilesTab           from "./tabs/FilesTab";
 
 const NAV_SECTIONS = [
   { label: "COMMAND", items: [
     { key: "overview",        icon: "📡", label: "Overview" },
+    { key: "server",          icon: "🖥️", label: "Server" },
+    { key: "console",         icon: "⌨️", label: "Console" },
+    { key: "pz_console",      icon: "🧟", label: "PZ Console" },
+    { key: "files",           icon: "📂", label: "File Browser" },
+    { key: "sys_resources",   icon: "📊", label: "System Resources" },
+    { key: "server_activity", icon: "📋", label: "Server Activity" },
+    { key: "test_server",     icon: "🧪", label: "Test Server" },
+    { key: "system",          icon: "⚙️",  label: "System Panel" },
     { key: "workspace",       icon: "⌬", label: "Workspace" },
     { key: "zombita_thinking", icon: "🧠", label: "Zombita's Mind" },
     { key: "zombita_channel",  icon: "💬", label: "Admin Channel" },
-    { key: "server",          icon: "🖥️", label: "Server" },
-    { key: "sys_resources",   icon: "📊", label: "System Resources" },
-    { key: "test_server",     icon: "🧪", label: "Test Server" },
-    { key: "server_activity", icon: "📋", label: "Server Activity" },
-    { key: "console",         icon: "⌨️", label: "Console" },
-    { key: "pz_console",      icon: "🧟", label: "PZ Console" },
-    { key: "system",          icon: "⚙️",  label: "System Panel" },
     { key: "settings",        icon: "🎛️", label: "Settings" },
   ]},
   { label: "ECONOMY", items: [
@@ -111,6 +113,7 @@ const PANELS = {
   pl_modlog:   (props) => <PlannerTab {...props} initialTab="modlog" />,
   pl_settingslog: (props) => <PlannerTab {...props} initialTab="settingslog" />,
   workspace:   WorkspaceTab,
+  files:       FilesTab,
   zombita_thinking: ZombitaThinkingTab,
   zombita_channel: ZombitaChannelTab,
   settings:    SettingsTab,
