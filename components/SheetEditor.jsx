@@ -50,7 +50,7 @@ const WS_BASE = "wss://api.stateofundeadpurge.site:8443/ws/workspace";
 // auto-grows beyond it (computeRowCount). This is what fixes the old
 // "only keeps 30 rows" data-loss bug — we never cap reads at 30.
 const MIN_ROWS = 30;
-const DEFAULT_COLS = 12;
+const DEFAULT_COLS = 16;
 const COL_WIDTH = 130;
 // Empty rows kept available below the last filled row, so there's always
 // somewhere to type/paste next.
@@ -375,6 +375,92 @@ export default function SheetEditor({ docId, me }) {
     reader.readAsText(file);
   }, [importCsvText]);
 
+  // ── XLSX import (with colours) ──────────────────────────────────────────
+  // CSV can only carry text. To import a STYLED .xlsx — fill colours + font
+  // colours — we hand the file to the backend (routers/workspace_import.py),
+  // which reads it with openpyxl and returns three already-mapped maps:
+  //   { cells:{ "r:c":text }, styles:{ "r:c":paletteKey }, textColors:{ "r:c":hex } }
+  // We then write all three into the SAME Yjs maps the 🎨 button uses, inside a
+  // single transaction → the relay persists + broadcasts once, so the imported
+  // sheet (data AND colour) appears live for every connected admin and survives
+  // reload. Anchored at the selected cell, same as CSV.
+  const [importing, setImporting] = useState(false);
+
+  const importXlsxMaps = useCallback((data) => {
+    const ydoc = ydocRef.current;
+    const yCells = cellsRef.current;
+    const yStyles = stylesRef.current;
+    const yText = textColorsRef.current;
+    if (!ydoc || !yCells || !yStyles || !yText) return;
+
+    const sel = selectedRef.current || { rowIdx: 0, colKey: "c0" };
+    const baseR = Number.isFinite(sel.rowIdx) ? sel.rowIdx : 0;
+    const baseC = parseInt(String(sel.colKey || "c0").slice(1), 10) || 0;
+
+    // helper: shift an "r:c" key by the anchor offset
+    const shift = (k) => {
+      const [r, c] = k.split(":").map((n) => parseInt(n, 10));
+      return `${baseR + r}:${baseC + c}`;
+    };
+
+    applyingRemote.current = true; // bulk write — suppress echo rebuilds
+    try {
+      ydoc.transact(() => {
+        for (const [k, v] of Object.entries(data.cells || {})) {
+          const key = shift(k);
+          if (v === "" || v == null) yCells.delete(key);
+          else yCells.set(key, String(v));
+        }
+        for (const [k, v] of Object.entries(data.styles || {})) {
+          if (v) yStyles.set(shift(k), v); else yStyles.delete(shift(k));
+        }
+        for (const [k, v] of Object.entries(data.textColors || {})) {
+          if (v) yText.set(shift(k), v); else yText.delete(shift(k));
+        }
+      });
+    } finally {
+      applyingRemote.current = false;
+    }
+    setRowCount(computeRowCount());
+    setDataVersion((v) => v + 1);
+  }, [computeRowCount]);
+
+  const onXlsxFile = useCallback(async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setImporting(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const r = await fetch(
+        "https://api.stateofundeadpurge.site:8443/api/workspace/import-xlsx",
+        { method: "POST", credentials: "include", body: fd }
+      );
+      if (!r.ok) {
+        const txt = await r.text().catch(() => "");
+        throw new Error(`HTTP ${r.status} ${txt.slice(0, 140)}`);
+      }
+      const data = await r.json();
+      importXlsxMaps(data);
+      if (data.truncated_cols) {
+        // non-fatal: warn that columns beyond the grid width were skipped
+        // eslint-disable-next-line no-alert
+        alert(
+          `Imported ${data.rows} rows. Note: this workbook has more than ${DEFAULT_COLS} columns, ` +
+          `so columns beyond ${DEFAULT_COLS} were not imported.`
+        );
+      }
+    } catch (err) {
+      // eslint-disable-next-line no-alert
+      alert(`XLSX import failed: ${err.message}`);
+    } finally {
+      setImporting(false);
+    }
+  }, [importXlsxMaps]);
+
+  const xlsxInputRef = useRef(null);
+
   const cellStyle = useCallback((r, c) => {
     const yStyles = stylesRef.current;
     const yText = textColorsRef.current;
@@ -574,6 +660,20 @@ export default function SheetEditor({ docId, me }) {
           type="file"
           accept=".csv,text/csv,text/plain"
           onChange={onCsvFile}
+          style={{ display: "none" }}
+        />
+        <button
+          className="ss-btn"
+          title="Import a styled .xlsx — keeps fill colours and font colours, mapped to the sheet palette. Fills from the selected cell."
+          onClick={() => xlsxInputRef.current?.click()}
+          disabled={importing}
+          style={importing ? { opacity: 0.6, cursor: "wait" } : undefined}
+        >{importing ? "importing…" : "⬆ Import XLSX"}</button>
+        <input
+          ref={xlsxInputRef}
+          type="file"
+          accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          onChange={onXlsxFile}
           style={{ display: "none" }}
         />
         <span style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)", marginLeft: 8, letterSpacing: 0.5 }}>
