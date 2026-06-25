@@ -134,7 +134,7 @@ const pickerItem = {
   fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)", textAlign: "left",
 };
 
-export default function SheetEditor({ docId, me }) {
+export default function SheetEditor({ docId, me, docTitle }) {
   const ydocRef = useRef(null);
   const providerRef = useRef(null);
   const cellsRef = useRef(null);     // Y.Map "r:c" -> value
@@ -461,6 +461,65 @@ export default function SheetEditor({ docId, me }) {
 
   const xlsxInputRef = useRef(null);
 
+  // ── XLSX export (with colours) ──────────────────────────────────────────
+  // Reverse of import: walk the three Yjs maps into plain JSON, POST to the
+  // backend which rebuilds a styled .xlsx via openpyxl, and trigger a download.
+  // Symmetrical with import (server-side styling) so colours round-trip exactly.
+  const [exporting, setExporting] = useState(false);
+
+  const onExportXlsx = useCallback(async () => {
+    const yCells = cellsRef.current;
+    const yStyles = stylesRef.current;
+    const yText = textColorsRef.current;
+    if (!yCells) return;
+    setExporting(true);
+    try {
+      const cells = {}, styles = {}, textColors = {};
+      let maxR = 0, maxC = 0;
+      yCells.forEach((v, k) => {
+        if (v === "" || v == null) return;
+        cells[k] = String(v);
+        const [r, c] = k.split(":").map(Number);
+        if (r > maxR) maxR = r;
+        if (c > maxC) maxC = c;
+      });
+      if (yStyles) yStyles.forEach((v, k) => { if (v) styles[k] = v; });
+      if (yText) yText.forEach((v, k) => { if (v) textColors[k] = v; });
+
+      const body = JSON.stringify({
+        sheet_name: (typeof docTitle === "string" && docTitle) ? docTitle : "Sheet1",
+        rows: maxR + 1,
+        cols: maxC + 1,
+        cells, styles, textColors,
+      });
+
+      const r = await fetch(
+        "https://api.stateofundeadpurge.site:8443/api/workspace/export-xlsx",
+        { method: "POST", credentials: "include",
+          headers: { "Content-Type": "application/json" }, body }
+      );
+      if (!r.ok) {
+        const txt = await r.text().catch(() => "");
+        throw new Error(`HTTP ${r.status} ${txt.slice(0, 140)}`);
+      }
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = ((typeof docTitle === "string" && docTitle) ? docTitle : "sheet")
+        .replace(/[^a-z0-9_-]+/gi, "_") + ".xlsx";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      // eslint-disable-next-line no-alert
+      alert(`XLSX export failed: ${err.message}`);
+    } finally {
+      setExporting(false);
+    }
+  }, [docTitle]);
+
   const cellStyle = useCallback((r, c) => {
     const yStyles = stylesRef.current;
     const yText = textColorsRef.current;
@@ -676,6 +735,13 @@ export default function SheetEditor({ docId, me }) {
           onChange={onXlsxFile}
           style={{ display: "none" }}
         />
+        <button
+          className="ss-btn"
+          title="Download this sheet as a styled .xlsx — keeps fill colours and font colours."
+          onClick={onExportXlsx}
+          disabled={exporting}
+          style={exporting ? { opacity: 0.6, cursor: "wait" } : undefined}
+        >{exporting ? "exporting…" : "⬇ Export XLSX"}</button>
         <span style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)", marginLeft: 8, letterSpacing: 0.5 }}>
           Select a cell, then pick a color · type to edit · drag column edges to resize
         </span>

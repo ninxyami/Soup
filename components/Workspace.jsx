@@ -652,7 +652,7 @@ export default function Workspace({ me, toast, fillViewport = false }) {
                     {isBoardDoc(activeDoc) ? (
                       <BoardEditor docId={activeDoc.id} me={me} admins={Object.entries(ADMINS).map(([id, a]) => ({ id, ...a }))} />
                     ) : isSheetDoc(activeDoc) ? (
-                      <SheetEditor docId={activeDoc.id} me={me} />
+                      <SheetEditor docId={activeDoc.id} me={me} docTitle={activeDoc.title} />
                     ) : (
                       <CollabEditor docId={activeDoc.id} docTitle={activeDoc.title} me={me} seed={activeDoc.seed} />
                     )}
