@@ -50,7 +50,7 @@ const WS_BASE = "wss://api.stateofundeadpurge.site:8443/ws/workspace";
 // auto-grows beyond it (computeRowCount). This is what fixes the old
 // "only keeps 30 rows" data-loss bug — we never cap reads at 30.
 const MIN_ROWS = 30;
-const DEFAULT_COLS = 16;
+const DEFAULT_COLS = 30;
 const COL_WIDTH = 130;
 // Empty rows kept available below the last filled row, so there's always
 // somewhere to type/paste next.
