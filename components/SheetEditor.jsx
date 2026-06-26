@@ -403,21 +403,46 @@ export default function SheetEditor({ docId, me, docTitle }) {
       return `${baseR + r}:${baseC + c}`;
     };
 
+    // ── Batched writes ──────────────────────────────────────────────────────
+    // A big sheet (e.g. Tailor: ~2,800 rows × 18 cols ≈ 54k map entries) written
+    // in ONE transaction produces a single ~1.4 MB Yjs update. That lone message
+    // can exceed the websocket relay's max-message size, which drops the socket
+    // mid-sync and surfaces in the UI as a generic "Failed to fetch". Splitting
+    // the writes into smaller transactions keeps every update message tiny, so
+    // the import syncs reliably no matter how large the workbook is (and the UI
+    // doesn't freeze on one huge apply).
+    const BATCH = 4000; // map ops per transaction → each update stays well under 1 MB
+
+    // Flatten all three maps into a single ordered list of write ops so we can
+    // chunk them uniformly regardless of which map they target.
+    const ops = [];
+    for (const [k, v] of Object.entries(data.cells || {})) {
+      ops.push(["cell", shift(k), v]);
+    }
+    for (const [k, v] of Object.entries(data.styles || {})) {
+      ops.push(["style", shift(k), v]);
+    }
+    for (const [k, v] of Object.entries(data.textColors || {})) {
+      ops.push(["text", shift(k), v]);
+    }
+
     applyingRemote.current = true; // bulk write — suppress echo rebuilds
     try {
-      ydoc.transact(() => {
-        for (const [k, v] of Object.entries(data.cells || {})) {
-          const key = shift(k);
-          if (v === "" || v == null) yCells.delete(key);
-          else yCells.set(key, String(v));
-        }
-        for (const [k, v] of Object.entries(data.styles || {})) {
-          if (v) yStyles.set(shift(k), v); else yStyles.delete(shift(k));
-        }
-        for (const [k, v] of Object.entries(data.textColors || {})) {
-          if (v) yText.set(shift(k), v); else yText.delete(shift(k));
-        }
-      });
+      for (let i = 0; i < ops.length; i += BATCH) {
+        const slice = ops.slice(i, i + BATCH);
+        ydoc.transact(() => {
+          for (const [kind, key, v] of slice) {
+            if (kind === "cell") {
+              if (v === "" || v == null) yCells.delete(key);
+              else yCells.set(key, String(v));
+            } else if (kind === "style") {
+              if (v) yStyles.set(key, v); else yStyles.delete(key);
+            } else {
+              if (v) yText.set(key, v); else yText.delete(key);
+            }
+          }
+        });
+      }
     } finally {
       applyingRemote.current = false;
     }
