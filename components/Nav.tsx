@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { NAV_LINKS, API } from "@/lib/constants";
 import NotificationBell from "./NotificationBell";
+import GameTimeWidget from "./GameTimeWidget";
 
 interface Me {
   discord_id: number;
@@ -51,6 +52,7 @@ export default function Nav() {
 
         {/* Desktop: right side — bell + auth */}
         <div className="hidden md:flex items-center gap-3">
+          <GameTimeWidget />
           {user && <NotificationBell discordId={user.discord_id} />}
           {user ? (
             <Link href="/profile" className="nav-link no-underline flex items-center gap-2">
@@ -71,6 +73,7 @@ export default function Nav() {
 
         {/* Mobile: bell + hamburger */}
         <div className="flex md:hidden items-center gap-2">
+          <GameTimeWidget />
           {user && <NotificationBell discordId={user.discord_id} />}
           <button
             className="flex flex-col gap-[5px] cursor-pointer p-1 bg-transparent border-none"
