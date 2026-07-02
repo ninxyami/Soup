@@ -11,6 +11,29 @@ import { API, fetchApi, postApi, Title, B, FB, Inp, Sel, Load } from "./shared";
 
 const apiFetch = fetchApi;
 
+const WS_URL   = API.replace(/^https/, "wss").replace(/^http/, "ws");
+const MAX_LINES = 1000;
+
+const LINE_COLORS = {
+  err:     "#e05555",
+  warn:    "#c8a84b",
+  ok:      "#4caf7d",
+  cmd:     "#4a8fc4",
+  mod:     "#b07dff",
+  player:  "#4fc3f7",
+  rcon:    "#4a8fc4",
+  system:  "#9775cc",
+  default: "#8a8a8a",
+};
+
+// Quick RCON commands surfaced as one-tap buttons in the console.
+const QUICK_CMDS = [
+  { label: "Players",    cmd: "players" },
+  { label: "Save World", cmd: "save" },
+  { label: "Server Msg", cmd: 'servermsg "Test server message"' },
+  { label: "Check Mods", cmd: "checkModsNeedUpdate" },
+];
+
 function StatusBadge({ running, exists }) {
   if (!exists) return (
     <span style={{ fontFamily: "var(--mono)", fontSize: 11, padding: "3px 10px",
@@ -336,6 +359,236 @@ function DeletePanel({ toast, onDeleted }) {
   );
 }
 
+// ── console panel ─────────────────────────────────────────────────────────────
+
+function PlayerManager({ toast }) {
+  const [players, setPlayers] = useState(null); // null = not loaded, [] = none online
+  const [loading, setLoading] = useState(false);
+  const [manual,  setManual]  = useState("");   // manual username entry
+  const [busyFor, setBusyFor] = useState("");
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetchApi("/api/admin/testserver/players");
+      setPlayers(res.ok ? (res.names || []) : []);
+      if (!res.ok && res.error) toast(res.error, "error");
+    } catch (e) {
+      setPlayers([]);
+      toast(`Player list failed: ${e.message}`, "error");
+    }
+    setLoading(false);
+  }, [toast]);
+
+  useEffect(() => { refresh(); }, [refresh]);
+
+  const act = async (username, action, extra = {}) => {
+    if (!username) { toast("Enter or pick a username first", "error"); return; }
+    setBusyFor(`${username}:${action}`);
+    try {
+      const res = await postApi("/api/admin/testserver/player/action", { action, username, ...extra });
+      toast(res.message || (res.ok ? "Done" : "Failed"), res.ok ? "success" : "error");
+    } catch (e) {
+      toast(`Failed: ${e.message}`, "error");
+    }
+    setBusyFor("");
+  };
+
+  const PlayerRow = ({ name }) => (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
+      padding: "8px 12px", background: "var(--surface2)", border: "1px solid var(--border)",
+      borderRadius: 3, marginBottom: 6 }}>
+      <span style={{ fontFamily: "var(--mono)", fontSize: 13, color: "var(--text)", minWidth: 120 }}>
+        👤 {name}
+      </span>
+      <div style={{ marginLeft: "auto", display: "flex", gap: 6, flexWrap: "wrap" }}>
+        <B c="gold"  sm disabled={busyFor === `${name}:make_admin`} onClick={() => act(name, "make_admin")}>Make Admin</B>
+        <B c="ghost" sm disabled={busyFor === `${name}:demote`}     onClick={() => act(name, "demote")}>Demote</B>
+        <B c="danger" sm disabled={busyFor === `${name}:kick`}      onClick={() => act(name, "kick")}>Kick</B>
+      </div>
+    </div>
+  );
+
+  return (
+    <FB title="👥 PLAYER MANAGEMENT">
+      <div className="ap-note" style={{ marginBottom: 12 }}>
+        Actions apply to the <strong>test server only</strong>. Access levels: admin, moderator, gm, observer, priority, user.
+      </div>
+
+      <div style={{ display: "flex", gap: 8, marginBottom: 14, alignItems: "flex-end", flexWrap: "wrap" }}>
+        <div style={{ flex: 1, minWidth: 180 }}>
+          <Inp label="Username (manual)" placeholder="exact in-game name" value={manual}
+            onChange={e => setManual(e.target.value)} />
+        </div>
+        <B c="gold"  sm disabled={busyFor.startsWith(`${manual}:`)} onClick={() => act(manual.trim(), "make_admin")}>Make Admin</B>
+        <B c="ghost" sm onClick={() => act(manual.trim(), "demote")}>Demote</B>
+        <B c="danger" sm onClick={() => act(manual.trim(), "kick")}>Kick</B>
+      </div>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+        <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)", letterSpacing: 1 }}>
+          ONLINE NOW
+        </span>
+        <B c="ghost" sm onClick={refresh} disabled={loading}>{loading ? "…" : "⟳ Refresh"}</B>
+      </div>
+
+      {players === null ? (
+        <Load />
+      ) : players.length === 0 ? (
+        <div style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--textdim)", padding: "8px 0" }}>
+          No players online (or server not running). You can still act on a username manually above.
+        </div>
+      ) : (
+        players.map(n => <PlayerRow key={n} name={n} />)
+      )}
+    </FB>
+  );
+}
+
+function ConsolePanel({ status, toast }) {
+  const [lines,      setLines]      = useState([]);
+  const [connStatus, setConnStatus] = useState("disconnected");
+  const [cmd,        setCmd]        = useState("");
+  const [autoScroll, setAutoScroll] = useState(true);
+
+  const wsRef        = useRef(null);
+  const termRef      = useRef(null);
+  const reconnectRef = useRef(null);
+  const lineIdRef    = useRef(0);
+
+  const addLine = useCallback((msg) => {
+    setLines(prev => {
+      const next = [...prev, { ...msg, id: lineIdRef.current++ }];
+      return next.length > MAX_LINES ? next.slice(next.length - MAX_LINES) : next;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (autoScroll && termRef.current) termRef.current.scrollTop = termRef.current.scrollHeight;
+  }, [lines, autoScroll]);
+
+  const handleScroll = useCallback(() => {
+    if (!termRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = termRef.current;
+    setAutoScroll(scrollHeight - scrollTop - clientHeight < 40);
+  }, []);
+
+  const connect = useCallback(() => {
+    if (wsRef.current && wsRef.current.readyState <= 1) return;
+    setConnStatus("connecting");
+    const ws = new WebSocket(`${WS_URL}/ws/admin/testserver-console`);
+    wsRef.current = ws;
+    ws.onopen    = () => { setConnStatus("connected"); clearTimeout(reconnectRef.current); };
+    ws.onmessage = (e) => { try { addLine(JSON.parse(e.data)); } catch {} };
+    ws.onerror   = () => setConnStatus("error");
+    ws.onclose   = () => {
+      setConnStatus("disconnected");
+      reconnectRef.current = setTimeout(() => {
+        addLine({ source: "system", line: "🔄 Reconnecting...", color: "system" });
+        connect();
+      }, 3000);
+    };
+  }, [addLine]);
+
+  const disconnect = useCallback(() => {
+    clearTimeout(reconnectRef.current);
+    if (wsRef.current) { wsRef.current.onclose = null; wsRef.current.close(); wsRef.current = null; }
+    setConnStatus("disconnected");
+  }, []);
+
+  useEffect(() => {
+    connect();
+    return () => {
+      clearTimeout(reconnectRef.current);
+      if (wsRef.current) { wsRef.current.onclose = null; wsRef.current.close(); }
+    };
+  }, [connect]);
+
+  const sendCmd = useCallback((override) => {
+    const c = (override ?? cmd).trim();
+    if (!c) return;
+    if (wsRef.current && wsRef.current.readyState === 1) {
+      wsRef.current.send(JSON.stringify({ action: "rcon", command: c }));
+      if (!override) setCmd("");
+    } else {
+      addLine({ source: "system", line: "⚠ Not connected", color: "warn" });
+    }
+  }, [cmd, addLine]);
+
+  const dotColor = connStatus === "connected" ? "var(--green)"
+    : connStatus === "connecting" ? "var(--gold, #c8a84b)" : "var(--red)";
+
+  return (
+    <div>
+      {!status.running && (
+        <div style={{ marginBottom: 16, padding: "10px 14px", borderRadius: 3,
+          background: "rgba(224,85,85,0.1)", border: "1px solid var(--red)",
+          fontFamily: "var(--mono)", fontSize: 12, color: "var(--red)" }}>
+          ⚠️ Test server is not running — RCON commands will fail until you start it (Status &amp; Control tab).
+          The log tail below still works and will show output once it boots.
+        </div>
+      )}
+
+      <FB title="🖥️ TEST SERVER CONSOLE">
+        {/* Toolbar */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
+          <span style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)" }}>
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: dotColor, display: "inline-block" }} />
+            {connStatus.toUpperCase()}
+          </span>
+          {connStatus === "connected"
+            ? <B c="ghost" sm onClick={disconnect}>⏹ Stop</B>
+            : <B c="gold"  sm onClick={connect}>▶ Connect</B>}
+          <B c="ghost" sm onClick={() => setLines([])}>🗑 Clear</B>
+          <div style={{ marginLeft: "auto", display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {QUICK_CMDS.map(q => (
+              <button key={q.label} onClick={() => sendCmd(q.cmd)}
+                disabled={connStatus !== "connected"}
+                style={{ fontFamily: "var(--mono)", fontSize: 11, padding: "4px 10px",
+                  background: "var(--surface2)", color: "var(--textdim)",
+                  border: "1px solid var(--border)", borderRadius: 2,
+                  cursor: connStatus === "connected" ? "pointer" : "not-allowed" }}>
+                {q.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Terminal */}
+        <div ref={termRef} onScroll={handleScroll}
+          style={{ height: 380, overflowY: "auto", background: "#0d0d0f",
+            border: "1px solid var(--border)", borderRadius: 3, padding: "10px 12px",
+            fontFamily: "var(--mono)", fontSize: 12, lineHeight: 1.55 }}>
+          {lines.length === 0 ? (
+            <div style={{ color: "#555" }}>Waiting for output…</div>
+          ) : lines.map(l => (
+            <div key={l.id} style={{ color: LINE_COLORS[l.color] || LINE_COLORS.default, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+              {l.line}
+            </div>
+          ))}
+        </div>
+
+        {/* Command input */}
+        <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+          <input
+            value={cmd}
+            onChange={e => setCmd(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter") sendCmd(); }}
+            placeholder="type an RCON command and press Enter…"
+            className="ap-inp"
+            style={{ flex: 1, fontFamily: "var(--mono)", fontSize: 13 }}
+          />
+          <B c="gold" sm onClick={() => sendCmd()} disabled={connStatus !== "connected" || !cmd.trim()}>Send ↵</B>
+        </div>
+      </FB>
+
+      <div style={{ marginTop: 20 }}>
+        <PlayerManager toast={toast} />
+      </div>
+    </div>
+  );
+}
+
 // ── main tab ─────────────────────────────────────────────────────────────────
 
 export default function TestServerTab({ toast }) {
@@ -363,9 +616,10 @@ export default function TestServerTab({ toast }) {
   const tabs = [
     ...(serverExists
       ? [
-          { key: "status", label: "Status & Control" },
-          { key: "config", label: "Configuration" },
-          { key: "delete", label: "Delete" },
+          { key: "status",  label: "Status & Control" },
+          { key: "console", label: "Console & RCON" },
+          { key: "config",  label: "Configuration" },
+          { key: "delete",  label: "Delete" },
         ]
       : [{ key: "create", label: "Create Server" }]
     ),
@@ -418,6 +672,11 @@ export default function TestServerTab({ toast }) {
           onRefresh={load}
           setBusy={setBusy}
           busy={busy}
+        />
+      ) : sub === "console" ? (
+        <ConsolePanel
+          status={status}
+          toast={toast}
         />
       ) : sub === "config" ? (
         <ConfigPanel
