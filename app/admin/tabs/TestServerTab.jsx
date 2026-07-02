@@ -589,6 +589,175 @@ function ConsolePanel({ status, toast }) {
   );
 }
 
+// ── config files panel ────────────────────────────────────────────────────────
+
+const CONFIG_FILE_TABS = [
+  { key: "ini",          label: ".ini" },
+  { key: "sandbox",      label: "SandboxVars.lua" },
+  { key: "spawnregions", label: "spawnregions.lua" },
+  { key: "spawnpoints",  label: "spawnpoints.lua" },
+];
+
+function ConfigFilesPanel({ status, toast }) {
+  const [active,    setActive]    = useState("ini");
+  const [content,   setContent]   = useState("");
+  const [original,  setOriginal]  = useState("");
+  const [loading,   setLoading]   = useState(false);
+  const [saving,    setSaving]    = useState(false);
+  const [backups,   setBackups]   = useState([]);
+  const [showBackups, setShowBackups] = useState(false);
+
+  const dirty = content !== original;
+
+  const loadFile = useCallback(async (name) => {
+    setLoading(true);
+    setShowBackups(false);
+    try {
+      const res = await fetchApi(`/api/admin/testserver/file?name=${encodeURIComponent(name)}`);
+      setContent(res.content || "");
+      setOriginal(res.content || "");
+    } catch (e) {
+      toast(`Load failed: ${e.message}`, "error");
+      setContent(""); setOriginal("");
+    }
+    setLoading(false);
+  }, [toast]);
+
+  useEffect(() => { loadFile(active); }, [active, loadFile]);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const res = await postApi("/api/admin/testserver/file", { name: active, content });
+      setOriginal(content);
+      toast(res.message || "Saved", "success");
+      if (res.restart_hint) {
+        toast("Server is running — restart it to apply config changes.", "info");
+      }
+    } catch (e) {
+      toast(`Save failed: ${e.message}`, "error");
+    }
+    setSaving(false);
+  };
+
+  const loadBackups = async () => {
+    try {
+      const res = await fetchApi(`/api/admin/testserver/file/backups?name=${encodeURIComponent(active)}`);
+      setBackups(res.backups || []);
+      setShowBackups(true);
+    } catch (e) {
+      toast(`Couldn't list backups: ${e.message}`, "error");
+    }
+  };
+
+  const restore = async (filename) => {
+    if (!confirm(`Restore ${filename}? Current file will be backed up first.`)) return;
+    try {
+      const res = await postApi("/api/admin/testserver/file/restore", { name: active, filename });
+      toast(res.message || "Restored", "success");
+      setShowBackups(false);
+      loadFile(active);
+    } catch (e) {
+      toast(`Restore failed: ${e.message}`, "error");
+    }
+  };
+
+  return (
+    <div>
+      <div className="ap-note" style={{ marginBottom: 16 }}>
+        Edit the test server's config files directly. These live in the isolated test
+        cachedir — the <strong>main server is never touched</strong>. Every save backs up
+        the previous version first. Restart the server to apply changes.
+      </div>
+
+      {/* File selector */}
+      <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
+        {CONFIG_FILE_TABS.map(f => (
+          <button
+            key={f.key}
+            onClick={() => {
+              if (dirty && !confirm("Discard unsaved changes?")) return;
+              setActive(f.key);
+            }}
+            style={{
+              fontFamily: "var(--mono)", fontSize: 11, padding: "5px 14px",
+              background: active === f.key ? "var(--accent)" : "transparent",
+              color: active === f.key ? "#000" : "var(--textdim)",
+              border: `1px solid ${active === f.key ? "var(--accent)" : "var(--border)"}`,
+              borderRadius: 2, cursor: "pointer", letterSpacing: 1,
+            }}
+          >
+            {f.label}{active === f.key && dirty ? " ●" : ""}
+          </button>
+        ))}
+        <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+          <B c="ghost" sm onClick={loadBackups}>🕘 Backups</B>
+          <B c="ghost" sm onClick={() => loadFile(active)} disabled={loading}>⟳ Reload</B>
+        </div>
+      </div>
+
+      {showBackups && (
+        <FB title="🕘 BACKUPS">
+          {backups.length === 0 ? (
+            <div style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--textdim)" }}>
+              No backups yet for this file.
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {backups.map(b => (
+                <div key={b.filename} style={{ display: "flex", alignItems: "center", gap: 10,
+                  fontFamily: "var(--mono)", fontSize: 12, padding: "6px 10px",
+                  background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 3 }}>
+                  <span style={{ color: "var(--text)" }}>{b.filename}</span>
+                  <span style={{ color: "var(--textdim)", marginLeft: "auto" }}>
+                    {new Date(b.modified * 1000).toLocaleString()}
+                  </span>
+                  <B c="ghost" sm onClick={() => restore(b.filename)}>Restore</B>
+                </div>
+              ))}
+            </div>
+          )}
+          <div style={{ marginTop: 10 }}>
+            <B c="ghost" sm onClick={() => setShowBackups(false)}>Close</B>
+          </div>
+        </FB>
+      )}
+
+      {/* Editor */}
+      {loading ? (
+        <Load />
+      ) : (
+        <>
+          <textarea
+            value={content}
+            onChange={e => setContent(e.target.value)}
+            spellCheck={false}
+            style={{
+              width: "100%", minHeight: 460, resize: "vertical",
+              background: "#0d0d0f", color: "#d0d0d0",
+              border: "1px solid var(--border)", borderRadius: 3,
+              padding: "12px 14px", fontFamily: "var(--mono)", fontSize: 12.5,
+              lineHeight: 1.5, whiteSpace: "pre", overflowWrap: "normal", overflowX: "auto",
+            }}
+          />
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 10 }}>
+            <B c="gold" onClick={save} disabled={saving || !dirty}>
+              {saving ? "Saving…" : dirty ? "💾 Save" : "Saved"}
+            </B>
+            {dirty && (
+              <B c="ghost" sm onClick={() => setContent(original)}>Revert</B>
+            )}
+            <span style={{ marginLeft: "auto", fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)" }}>
+              {content.length.toLocaleString()} chars
+              {dirty ? " · unsaved" : ""}
+            </span>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ── main tab ─────────────────────────────────────────────────────────────────
 
 export default function TestServerTab({ toast }) {
@@ -618,6 +787,7 @@ export default function TestServerTab({ toast }) {
       ? [
           { key: "status",  label: "Status & Control" },
           { key: "console", label: "Console & RCON" },
+          { key: "files",   label: "Config Files" },
           { key: "config",  label: "Configuration" },
           { key: "delete",  label: "Delete" },
         ]
@@ -675,6 +845,11 @@ export default function TestServerTab({ toast }) {
         />
       ) : sub === "console" ? (
         <ConsolePanel
+          status={status}
+          toast={toast}
+        />
+      ) : sub === "files" ? (
+        <ConfigFilesPanel
           status={status}
           toast={toast}
         />
