@@ -318,63 +318,173 @@ function ConfigPanel({ status, toast, onRefresh }) {
   );
 }
 
-function WipePanel({ status, toast, onWiped }) {
-  const [confirm, setConfirm] = useState(false);
-  const [restart, setRestart] = useState(true);
-  const [busy,    setBusy]    = useState(false);
+// Progress bar for the streamed wipe (mirrors the main-server System tab).
+function WipeProgressBar({ step, total, label }) {
+  const pct = total > 1 ? Math.round((step / (total - 1)) * 100) : 100;
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <div style={{ display: "flex", justifyContent: "space-between",
+        fontFamily: "var(--mono)", fontSize: 10, color: "var(--textdim)", marginBottom: 4 }}>
+        <span>{label}</span><span>{pct}%</span>
+      </div>
+      <div style={{ height: 6, background: "rgba(255,255,255,0.05)", border: "1px solid var(--border)", overflow: "hidden" }}>
+        <div style={{ height: "100%", width: `${pct}%`,
+          background: pct === 100 ? "var(--green)" : "var(--accent)",
+          boxShadow: pct === 100 ? "0 0 8px var(--green)" : "0 0 8px rgba(200,168,75,0.5)",
+          transition: "width 0.4s ease" }} />
+      </div>
+    </div>
+  );
+}
 
-  const doWipe = async () => {
-    setBusy(true);
+// Streamed wipe modal — consumes the SSE progress from the backend, same as the
+// main server's wipe. mode = "world" | "pure".
+function WipeModal({ mode, status, onClose, toast, onWiped }) {
+  const [phase,    setPhase]    = useState("confirm"); // confirm | running | done
+  const [steps,    setSteps]    = useState([]);
+  const [progress, setProgress] = useState({ step: 0, total: 1 });
+
+  const cfg = {
+    world: {
+      icon:  "🌍", title: "World Wipe", color: "var(--orange, #d98a3d)",
+      warning: "Deletes the test server's MAP and resets the world.\nRegistered accounts, config, mods and SandboxVars are KEPT.\nFresh map, same test setup.",
+      label: "Confirm World Wipe",
+      endpoint: "/api/admin/testserver/wipe-world",
+    },
+    pure: {
+      icon:  "☠️", title: "Pure Wipe", color: "var(--red)",
+      warning: "FULL RESET of the test server:\n• World & map data\n• Player database (accounts)\n• Config .ini reset to defaults (mods cleared)\n\nThe old .ini is backed up first. This cannot be undone.",
+      label: "YES — Wipe Everything",
+      endpoint: "/api/admin/testserver/wipe-pure",
+    },
+  }[mode];
+
+  const run = async () => {
+    setPhase("running");
+    setSteps([]);
     try {
-      const res = await postApi("/api/admin/testserver/wipe", { confirm: true, restart });
-      toast(res.message || "Test server world wiped.", "success");
-      setConfirm(false);
-      onWiped?.();
+      const resp = await fetch(`${API}${cfg.endpoint}`, { method: "POST", credentials: "include" });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+        throw new Error(err.detail || resp.statusText);
+      }
+      const reader  = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop();
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          try {
+            const update = JSON.parse(line.slice(6));
+            if (update.error) throw new Error(update.error);
+            setProgress({ step: update.step, total: update.total });
+            setSteps(prev => [...prev, { msg: update.msg, done: !!update.done }]);
+            if (update.done) setPhase("done");
+          } catch {}
+        }
+      }
     } catch (e) {
-      toast(`Failed: ${e.message}`, "error");
+      toast(e.message, "error");
+      setPhase("confirm");
     }
-    setBusy(false);
   };
 
   return (
-    <FB title="🧹 WIPE WORLD">
-      <div className="ap-note" style={{ marginBottom: 12 }}>
-        Erases the generated <strong>world &amp; saves</strong> and the test server's
-        {" "}<strong>player database</strong>, so a brand-new world regenerates on the
-        next start. Your configuration (.ini, SandboxVars, mods, RAM, ports) is
-        {" "}<strong>kept</strong> — only the world is reset. Use this instead of Delete
-        when you want a clean slate without re-provisioning. The main server is
-        {" "}<strong>never affected</strong>. This cannot be undone.
+    <div className="ap-mbd" onClick={e => { if (e.target === e.currentTarget && phase !== "running") onClose(); }}>
+      <div className="ap-mod" style={{ borderColor: cfg.color }}>
+        <button className="ap-mod-x" onClick={() => phase !== "running" && onClose()}>×</button>
+        <h3 style={{ color: cfg.color }}>{cfg.icon} {cfg.title}</h3>
+
+        {phase === "confirm" && (
+          <>
+            <div className="ap-note danger" style={{ whiteSpace: "pre-line", lineHeight: 1.8 }}>
+              {cfg.warning}
+            </div>
+            {status?.running && (
+              <div className="ap-note" style={{ marginTop: 10, fontSize: 11 }}>
+                The test server is running — it will be stopped and restarted automatically. The main server is never touched.
+              </div>
+            )}
+            <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+              <B c="danger" onClick={run}>{cfg.label}</B>
+              <B c="ghost" onClick={onClose}>Cancel</B>
+            </div>
+          </>
+        )}
+
+        {phase === "running" && (
+          <>
+            <WipeProgressBar step={progress.step} total={progress.total} label="Wipe in progress..." />
+            <div style={{ background: "#0d0d0f", border: "1px solid var(--border)",
+              padding: "12px 16px", fontFamily: "var(--mono)", fontSize: 11,
+              maxHeight: 220, overflowY: "auto", color: "var(--textdim)" }}>
+              {steps.map((s, i) => (
+                <div key={i} style={{ marginBottom: 4, color: s.done ? "var(--green)" : "var(--textdim)" }}>
+                  {s.done ? "✅" : "⏳"} {s.msg}
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {phase === "done" && (
+          <>
+            <WipeProgressBar step={1} total={1} label="Complete" />
+            <div className="ap-note" style={{ color: "var(--green)", borderColor: "var(--green)" }}>
+              ✅ {cfg.title} complete. Test server is restarting — a fresh world is generating now.
+            </div>
+            <B c="gold" onClick={() => { onWiped?.(); onClose(); }}>Close</B>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function WipePanel({ status, toast, onWiped }) {
+  const [modal, setModal] = useState(null); // "world" | "pure"
+
+  return (
+    <div>
+      <div className="ap-note" style={{ marginBottom: 16 }}>
+        Wipe operations stop the test server, delete files, and restart it — streamed
+        live below. The <strong>main server is never affected</strong>. Always confirm before proceeding.
       </div>
 
-      {status?.running && (
-        <div style={{ marginBottom: 12, padding: "8px 12px", borderRadius: 3,
-          background: "rgba(200,168,75,0.08)", border: "1px solid rgba(200,168,75,0.3)",
-          fontFamily: "var(--mono)", fontSize: 11.5, color: "var(--gold, #c8a84b)" }}>
-          ⚠️ The server is running — it will be stopped automatically before the wipe.
-        </div>
-      )}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        <FB title="🌍 WORLD WIPE">
+          <div className="ap-note" style={{ marginBottom: 12 }}>
+            Deletes the map and resets the world. <strong>Accounts, config, mods and
+            SandboxVars are kept.</strong> Fresh map, same test setup.
+          </div>
+          <B c="gold" onClick={() => setModal("world")}>🌍 World Wipe…</B>
+        </FB>
 
-      <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16,
-        fontFamily: "var(--mono)", fontSize: 12, color: "var(--textdim)", cursor: "pointer" }}>
-        <input type="checkbox" checked={restart} onChange={e => setRestart(e.target.checked)} />
-        Restart the server after wiping (start generating the fresh world right away)
-      </label>
+        <FB title="☠️ PURE WIPE">
+          <div className="ap-note danger" style={{ marginBottom: 12 }}>
+            Full reset — world + player database + config <strong>.ini reset to defaults
+            (mods cleared)</strong>. The old .ini is backed up first. Also the way to
+            fix a test server whose config got messed up.
+          </div>
+          <B c="danger" onClick={() => setModal("pure")}>☠️ Pure Wipe…</B>
+        </FB>
+      </div>
 
-      {!confirm ? (
-        <B c="danger" onClick={() => setConfirm(true)}>🧹 Wipe World…</B>
-      ) : (
-        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          <span style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--red)" }}>
-            Are you sure? The world and all saves will be erased{restart ? " and a fresh world started" : ""}.
-          </span>
-          <B c="danger" onClick={doWipe} disabled={busy}>
-            {busy ? "Wiping…" : "⚠️ Yes, Wipe The World"}
-          </B>
-          <B c="ghost" onClick={() => setConfirm(false)} disabled={busy}>Cancel</B>
-        </div>
+      {modal && (
+        <WipeModal
+          mode={modal}
+          status={status}
+          toast={toast}
+          onClose={() => setModal(null)}
+          onWiped={onWiped}
+        />
       )}
-    </FB>
+    </div>
   );
 }
 
@@ -849,7 +959,7 @@ export default function TestServerTab({ toast }) {
           { key: "console", label: "Console & RCON" },
           { key: "files",   label: "Config Files" },
           { key: "config",  label: "Configuration" },
-          { key: "wipe",    label: "Wipe World" },
+          { key: "wipe",    label: "Wipe" },
           { key: "delete",  label: "Delete" },
         ]
       : [{ key: "create", label: "Create Server" }]
