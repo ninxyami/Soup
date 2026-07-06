@@ -318,6 +318,66 @@ function ConfigPanel({ status, toast, onRefresh }) {
   );
 }
 
+function WipePanel({ status, toast, onWiped }) {
+  const [confirm, setConfirm] = useState(false);
+  const [restart, setRestart] = useState(true);
+  const [busy,    setBusy]    = useState(false);
+
+  const doWipe = async () => {
+    setBusy(true);
+    try {
+      const res = await postApi("/api/admin/testserver/wipe", { confirm: true, restart });
+      toast(res.message || "Test server world wiped.", "success");
+      setConfirm(false);
+      onWiped?.();
+    } catch (e) {
+      toast(`Failed: ${e.message}`, "error");
+    }
+    setBusy(false);
+  };
+
+  return (
+    <FB title="🧹 WIPE WORLD">
+      <div className="ap-note" style={{ marginBottom: 12 }}>
+        Erases the generated <strong>world &amp; saves</strong> and the test server's
+        {" "}<strong>player database</strong>, so a brand-new world regenerates on the
+        next start. Your configuration (.ini, SandboxVars, mods, RAM, ports) is
+        {" "}<strong>kept</strong> — only the world is reset. Use this instead of Delete
+        when you want a clean slate without re-provisioning. The main server is
+        {" "}<strong>never affected</strong>. This cannot be undone.
+      </div>
+
+      {status?.running && (
+        <div style={{ marginBottom: 12, padding: "8px 12px", borderRadius: 3,
+          background: "rgba(200,168,75,0.08)", border: "1px solid rgba(200,168,75,0.3)",
+          fontFamily: "var(--mono)", fontSize: 11.5, color: "var(--gold, #c8a84b)" }}>
+          ⚠️ The server is running — it will be stopped automatically before the wipe.
+        </div>
+      )}
+
+      <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16,
+        fontFamily: "var(--mono)", fontSize: 12, color: "var(--textdim)", cursor: "pointer" }}>
+        <input type="checkbox" checked={restart} onChange={e => setRestart(e.target.checked)} />
+        Restart the server after wiping (start generating the fresh world right away)
+      </label>
+
+      {!confirm ? (
+        <B c="danger" onClick={() => setConfirm(true)}>🧹 Wipe World…</B>
+      ) : (
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <span style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--red)" }}>
+            Are you sure? The world and all saves will be erased{restart ? " and a fresh world started" : ""}.
+          </span>
+          <B c="danger" onClick={doWipe} disabled={busy}>
+            {busy ? "Wiping…" : "⚠️ Yes, Wipe The World"}
+          </B>
+          <B c="ghost" onClick={() => setConfirm(false)} disabled={busy}>Cancel</B>
+        </div>
+      )}
+    </FB>
+  );
+}
+
 function DeletePanel({ toast, onDeleted }) {
   const [confirm, setConfirm] = useState(false);
   const [busy,    setBusy]    = useState(false);
@@ -789,6 +849,7 @@ export default function TestServerTab({ toast }) {
           { key: "console", label: "Console & RCON" },
           { key: "files",   label: "Config Files" },
           { key: "config",  label: "Configuration" },
+          { key: "wipe",    label: "Wipe World" },
           { key: "delete",  label: "Delete" },
         ]
       : [{ key: "create", label: "Create Server" }]
@@ -858,6 +919,12 @@ export default function TestServerTab({ toast }) {
           status={status}
           toast={toast}
           onRefresh={load}
+        />
+      ) : sub === "wipe" ? (
+        <WipePanel
+          status={status}
+          toast={toast}
+          onWiped={() => { load(); setSub("status"); }}
         />
       ) : sub === "delete" ? (
         <DeletePanel
