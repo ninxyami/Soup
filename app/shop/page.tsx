@@ -2,22 +2,34 @@
 import { useEffect, useState } from "react";
 import { API } from "@/lib/constants";
 
+// id MUST equal the backend shop_type string (see zombita_shop_catalog).
+// NPC names / roles / locations mirror the in-game ZS_NPCData.lua keepers.
 const SHOPS = [
-  { id: "food",     label: "Maya's Kitchen",    npc: "Maya Chen",    role: "Food & Supplies",       icon: "🍽️", location: "Riverside Strip Mall",        portrait: "/shop/maya.png"   },
-  { id: "weapons",  label: "Viktor's Armory",    npc: "Viktor Rask",  role: "Arms & Ammunition",     icon: "⚔️", location: "Gun Store, West Point",        portrait: "/shop/viktor.png" },
-  { id: "carparts", label: "Sera's Garage",       npc: "Sera Okafor",  role: "Parts & Mechanics",     icon: "🔧", location: "Muldraugh Garage",             portrait: "/shop/sera.png"   },
-  { id: "gas",      label: "Gas Stations",        npc: "Various",      role: "Road Supplies",         icon: "⛽", location: "Scattered across the map",     portrait: null               },
-  { id: "all",      label: "Community Hub",       npc: "Lena Vasquez", role: "Everything + Vehicles", icon: "🏪", location: "Fallas Lake Community Centre", portrait: "/shop/lena.png"   },
-  { id: "all",      label: "Eli's General Store", npc: "Eli Marsh",    role: "General Store",         icon: "🏬", location: "Rosewood — General Store",     portrait: null               },
-  { id: "medical",  label: "Dr. Voss's Clinic",   npc: "Dr. Emil Voss",role: "Medical Supplies",      icon: "🏥", location: "Medical Clinic",               portrait: null               },
+  { id: "weapons",   label: "Viktor's Armory",   npc: "Viktor Rask",   role: "Arms & Ammunition",  icon: "⚔️", location: "Nettle Township",                 portrait: "/shop/viktor.png" },
+  { id: "mechanic",  label: "Sera's Garage",     npc: "Sera Okafor",   role: "Parts & Mechanics",  icon: "🔧", location: "West Point",                      portrait: "/shop/sera.png"   },
+  { id: "medical",   label: "Dr. Voss's Clinic", npc: "Dr. Emil Voss", role: "Medical Supplies",   icon: "🏥", location: "Oakshire",                        portrait: null               },
+  { id: "gardener",  label: "Maya's Greenhouse", npc: "Maya Chen",     role: "Gardener & Produce", icon: "🌱", location: "Raccoon City",                    portrait: "/shop/maya.png"   },
+  { id: "tailor",    label: "Colette's Atelier", npc: "Colette Vance", role: "Tailor & Apparel",   icon: "🧵", location: "March Ridge",                     portrait: null               },
+  { id: "librarian", label: "Miles's Library",   npc: "Miles Ashford", role: "Books & Skills",     icon: "📚", location: "Grapeseed",                       portrait: null               },
+  { id: "melee",     label: "Bruno's Workshop",  npc: "Bruno Kessler", role: "Melee & Tools",      icon: "🔨", location: "Constown",                        portrait: null               },
+  { id: "global",    label: "General Stores",    npc: "Various keepers",role: "Everyday Goods",     icon: "⛽", location: "Gas stations & shops, map-wide",  portrait: null               },
 ];
 
 const TIER_COLOR: Record<string,string> = {
-  common:"#6b7280", uncommon:"#4caf7d", rare:"#4a8fc4", legendary:"#c8a84b",
+  common:"#6b7280", uncommon:"#4caf7d", rare:"#4a8fc4", epic:"#a06cd5",
+  legendary:"#c8a84b", special:"#e0574e", transit:"#3fa9a0",
 };
 const TIER_LABEL: Record<string,string> = {
-  common:"Common", uncommon:"Uncommon", rare:"Rare", legendary:"Legendary",
+  common:"Common", uncommon:"Uncommon", rare:"Rare", epic:"Epic",
+  legendary:"Legendary", special:"Special", transit:"Transit",
 };
+// tier priority for surfacing anchors on top (higher = shown first)
+const TIER_RANK: Record<string,number> = {
+  special:6, legendary:5, epic:4, rare:3, uncommon:2, common:1, transit:0,
+};
+
+const SHOP_TYPES = SHOPS.map(s => s.id);
+const PAGE_SIZE  = 24;
 
 interface Item {
   item_id:      string;
@@ -105,28 +117,32 @@ function ItemCard({ item }: { item: Item }) {
 export default function ShopPage() {
   const [rotations,   setRotations]   = useState<Record<string,Item[]>>({});
   const [nextTimes,   setNextTimes]   = useState<Record<string,number>>({});
-  const [active,      setActive]      = useState("food");
+  const [active,      setActive]      = useState("weapons");
   const [loading,     setLoading]     = useState(true);
+  const [search,      setSearch]      = useState("");
+  const [page,        setPage]        = useState(1);
 
   useEffect(() => {
     const loadAll = async () => {
       try {
-        // Load all rotations with dynamic prices
-        const types = ["food","weapons","carparts","gas","all"];
         const results: Record<string,Item[]> = {};
         const times:   Record<string,number> = {};
 
-        await Promise.all(types.map(async (t) => {
+        await Promise.all(SHOP_TYPES.map(async (t) => {
           try {
             const r = await fetch(`${API}/api/marketplace/rotation-with-prices?shop_type=${t}`);
             if (r.ok) {
               const d = await r.json();
-              results[t] = d.items || [];
+              const list: Item[] = d.items || [];
+              // anchors (high tier) first, then by price desc — permanents/legendaries surface on top
+              list.sort((a,b) =>
+                (TIER_RANK[b.tier]||0) - (TIER_RANK[a.tier]||0) ||
+                (b.buy||0) - (a.buy||0));
+              results[t] = list;
             }
           } catch {}
         }));
 
-        // Get next times separately
         try {
           const r = await fetch(`${API}/api/marketplace/all-rotations`);
           if (r.ok) {
@@ -145,8 +161,18 @@ export default function ShopPage() {
     return () => clearInterval(iv);
   }, []);
 
-  const shop  = SHOPS.find(s=>s.id===active)!;
-  const items = rotations[active]||[];
+  // reset to page 1 whenever the shop or the search term changes
+  useEffect(() => { setPage(1); }, [active, search]);
+
+  const shop     = SHOPS.find(s=>s.id===active)!;
+  const allItems = rotations[active]||[];
+  const q        = search.trim().toLowerCase();
+  const filtered = q
+    ? allItems.filter(i => i.name.toLowerCase().includes(q) || i.item_id.toLowerCase().includes(q))
+    : allItems;
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage  = Math.min(page, pageCount);
+  const pageItems = filtered.slice((safePage-1)*PAGE_SIZE, safePage*PAGE_SIZE);
 
   return (
     <div className="scanline min-h-screen" style={{background:"#080a0c",color:"#c8cdd6"}}>
@@ -184,14 +210,14 @@ export default function ShopPage() {
             SHOP NETWORK
           </h1>
           <p className="font-mono text-[0.72rem] text-[#555]">
-            Five shops. Eight characters. Stock rotates every 2–5 days.{" "}
+            Eight specialist shops across Kentucky. Stock rotates regularly.{" "}
             <a href="/news" className="text-accent no-underline hover:underline">Zombita drops hints</a> before it happens.
             Marketplace via <kbd className="font-mono text-[0.62rem] bg-[#1a1a1a] border border-[#333] px-1 py-0.5">F7</kbd> anywhere in-game.
           </p>
         </div>
 
         {/* Shop selector */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6">
           {SHOPS.map(s => (
             <button key={s.id} onClick={()=>setActive(s.id)}
               className={`p-3 border text-left transition-all cursor-pointer bg-transparent ${
@@ -214,11 +240,15 @@ export default function ShopPage() {
 
           {/* Shop header with portrait */}
           <div className="p-4 sm:p-5 border-b border-[#1e2530] flex items-start gap-4">
-            {shop.portrait && (
+            {shop.portrait ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={shop.portrait} alt={shop.npc}
                 className="w-16 h-20 object-cover border border-[#1e2530] flex-shrink-0 hidden sm:block"
                 style={{imageRendering:"auto"}} />
+            ) : (
+              <div className="w-16 h-20 border border-[#1e2530] flex-shrink-0 hidden sm:flex items-center justify-center text-3xl bg-[#0f1318]">
+                {shop.icon}
+              </div>
             )}
             <div className="flex-1">
               <div className="font-display text-xl sm:text-2xl tracking-[2px] text-[#c8cdd6]" style={{fontFamily:"'Bebas Neue',sans-serif"}}>
@@ -239,22 +269,53 @@ export default function ShopPage() {
           <div className="p-4 sm:p-5">
             {loading ? (
               <p className="font-mono text-[0.72rem] text-[#2a2a2a] py-8 text-center tracking-widest">loading stock...</p>
-            ) : items.length===0 ? (
+            ) : allItems.length===0 ? (
               <div className="py-8 text-center">
                 <p className="font-mono text-[0.75rem] text-[#333]">No stock data available.</p>
                 <p className="font-mono text-[0.65rem] text-[#2a2a2a] mt-1">Check the <a href="/news" className="text-accent no-underline hover:underline">intel channel</a> for hints.</p>
               </div>
             ) : (
               <>
-                <div className="flex items-center gap-3 mb-4">
+                <div className="flex flex-wrap items-center gap-3 mb-4">
                   <span className="font-mono text-[0.62rem] uppercase tracking-widest text-[#555]">
-                    {items.length} item{items.length!==1?"s":""} in rotation
+                    {filtered.length} item{filtered.length!==1?"s":""}{q ? " matched" : " in rotation"}
                   </span>
-                  <span className="font-mono text-[0.58rem] text-[#2a2a2a]">· ▲▼ = dynamic price vs base</span>
+                  <span className="font-mono text-[0.58rem] text-[#2a2a2a] hidden sm:inline">· ▲▼ = dynamic price vs base</span>
+                  <div className="flex-1" />
+                  <input
+                    value={search}
+                    onChange={e=>setSearch(e.target.value)}
+                    placeholder="search items…"
+                    className="font-mono text-[0.65rem] bg-[#0c0f13] border border-[#1e2530] px-2 py-1 text-[#c8cdd6] outline-none focus:border-[rgba(200,168,75,0.4)] w-full sm:w-48"
+                  />
                 </div>
-                <div className="grid gap-2 sm:gap-3" style={{gridTemplateColumns:"repeat(auto-fill,minmax(165px,1fr))"}}>
-                  {items.map(item => <ItemCard key={item.item_id} item={item} />)}
-                </div>
+
+                {filtered.length===0 ? (
+                  <p className="font-mono text-[0.7rem] text-[#333] py-8 text-center">No items match “{search}”.</p>
+                ) : (
+                  <>
+                    <div className="grid gap-2 sm:gap-3" style={{gridTemplateColumns:"repeat(auto-fill,minmax(165px,1fr))"}}>
+                      {pageItems.map(item => <ItemCard key={item.item_id} item={item} />)}
+                    </div>
+
+                    {/* Pagination */}
+                    {pageCount > 1 && (
+                      <div className="flex items-center justify-center gap-3 mt-5">
+                        <button onClick={()=>setPage(p=>Math.max(1,p-1))} disabled={safePage<=1}
+                          className={`font-mono text-[0.65rem] px-3 py-1.5 border transition-all ${safePage<=1 ? "border-[#1a1a1a] text-[#2a2a2a] cursor-not-allowed" : "border-[#1e2530] text-[#888] hover:border-accent hover:text-accent cursor-pointer"}`}>
+                          ‹ Prev
+                        </button>
+                        <span className="font-mono text-[0.62rem] text-[#555] tracking-widest">
+                          Page {safePage} / {pageCount}
+                        </span>
+                        <button onClick={()=>setPage(p=>Math.min(pageCount,p+1))} disabled={safePage>=pageCount}
+                          className={`font-mono text-[0.65rem] px-3 py-1.5 border transition-all ${safePage>=pageCount ? "border-[#1a1a1a] text-[#2a2a2a] cursor-not-allowed" : "border-[#1e2530] text-[#888] hover:border-accent hover:text-accent cursor-pointer"}`}>
+                          Next ›
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
               </>
             )}
           </div>
@@ -269,8 +330,8 @@ export default function ShopPage() {
         {/* How it works */}
         <div className="mt-8 grid sm:grid-cols-3 gap-3">
           {[
-            {icon:"🔄",title:"Rotating Stock",    body:"Each shop rotates every 2–5 days. Zombita hints at what's coming before it happens."},
-            {icon:"📈",title:"Dynamic Prices",    body:"Prices shift based on how much is being bought, sold, and traded. High demand → prices rise. Scarcity → prices rise."},
+            {icon:"🔄",title:"Rotating Stock",    body:"Each shop rotates its catalog regularly. Zombita hints at what's coming before it happens."},
+            {icon:"📈",title:"Dynamic Prices",    body:"Prices shift with the treasury and with what's being bought, sold, and traded. High demand or scarcity → prices rise."},
             {icon:"🏪",title:"Player Marketplace",body:"Players list items for each other. Browse any shop's Marketplace tab in-game, or view all listings online."},
           ].map(c => (
             <div key={c.title} className="border border-[#1e2530] bg-[#0c0f13] p-4">
