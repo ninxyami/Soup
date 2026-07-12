@@ -5,7 +5,7 @@
 // per-player knowledge files, cognition, the economy brain, treasury, and shop
 // pricing. Two modes: browse any table (sortable + CSV export) or look up one
 // person across every gauge at once. Backend: /api/admin/zombita/data/*.
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { API, fetchApi, relTime, Load, Empty, Title } from "./shared";
 
 // columns whose big-int values are unix timestamps — show a relative hint next to raw
@@ -18,8 +18,18 @@ const TIME_COLS = new Set([
 const isTs = (col, v) =>
   TIME_COLS.has(col) && typeof v === "number" && v > 1_000_000_000;
 
-const cell = (col, v) => {
-  if (v === null || v === undefined) return <span style={{ color: "var(--muted)" }}>—</span>;
+// columns holding a discord id → resolve to the player's name (id kept alongside)
+const isIdCol = (col) =>
+  col === "discord_id" || col.endsWith("_discord") || col.endsWith("discord_id");
+
+// `names` is an {idString: displayName} map; resolves id columns to "Name (id)".
+const cell = (col, v, names) => {
+  if (v === null || v === undefined || v === "") return <span style={{ color: "var(--muted)" }}>—</span>;
+  if (isIdCol(col)) {
+    // raw id, no thousands-grouping. The name lives in the separate `player`
+    // column the backend injects beside discord_id.
+    return <span style={{ color: "var(--textdim)" }}>{String(v)}</span>;
+  }
   if (isTs(col, v)) {
     return (
       <span title={new Date((v > 1e12 ? v : v * 1000)).toISOString()}>
@@ -66,7 +76,7 @@ function Btn({ children, onClick, disabled, active, color = "gold", sm }) {
 }
 
 // ── one data table (sortable, paginated, exportable) ─────────────────────────
-function TableView({ name, toast }) {
+function TableView({ name, toast, names }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [limit] = useState(50);
@@ -139,7 +149,7 @@ function TableView({ name, toast }) {
             {data.rows.map((row, i) => (
               <tr key={i}>
                 {row.map((v, j) => (
-                  <td key={j} style={td}>{cell(data.columns[j], v)}</td>
+                  <td key={j} style={td}>{cell(data.columns[j], v, names)}</td>
                 ))}
               </tr>
             ))}
@@ -172,6 +182,10 @@ function PersonView({ toast }) {
       .then(d => setPeople(d.people || []))
       .catch(e => toast?.(e.message, "error"));
   }, []);
+
+  const names = useMemo(
+    () => Object.fromEntries((people || []).map(p => [p.discord_id, p.name])),
+    [people]);
 
   useEffect(() => {
     if (!sel) { setSnap(null); return; }
@@ -220,7 +234,7 @@ function PersonView({ toast }) {
                     <thead><tr>{sec.columns.map(c => <th key={c} style={{ ...th, cursor: "default" }}>{c}</th>)}</tr></thead>
                     <tbody>
                       {sec.rows.map((row, i) => (
-                        <tr key={i}>{row.map((v, j) => <td key={j} style={td}>{cell(sec.columns[j], v)}</td>)}</tr>
+                        <tr key={i}>{row.map((v, j) => <td key={j} style={td}>{cell(sec.columns[j], v, names)}</td>)}</tr>
                       ))}
                     </tbody>
                   </table>
@@ -239,12 +253,21 @@ export default function ZombitaDataTab({ toast }) {
   const [mode, setMode] = useState("table");
   const [catalog, setCatalog] = useState(null);
   const [table, setTable] = useState("zombita_trust");
+  const [people, setPeople] = useState([]);
 
   useEffect(() => {
     fetchApi("/api/admin/zombita/data/catalog")
       .then(d => setCatalog(d.groups || []))
       .catch(e => toast?.(e.message, "error"));
+    fetchApi("/api/admin/zombita/data/people")
+      .then(d => setPeople(d.people || []))
+      .catch(() => {});
   }, []);
+
+  // {idString: name} — resolves discord_id columns to player names in the table view
+  const names = useMemo(
+    () => Object.fromEntries((people || []).map(p => [p.discord_id, p.name])),
+    [people]);
 
   return (
     <div style={{ padding: "4px 2px" }}>
@@ -279,7 +302,7 @@ export default function ZombitaDataTab({ toast }) {
               </div>
             ))}
           </div>
-          <TableView name={table} toast={toast} />
+          <TableView name={table} toast={toast} names={names} />
         </div>
       )}
     </div>
