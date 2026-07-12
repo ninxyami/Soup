@@ -24,6 +24,7 @@ import ServerActivityTab from "./tabs/ServerActivityTab";
 import WorkspaceTab      from "./tabs/WorkspaceTab";
 import ZombitaThinkingTab from "./tabs/ZombitaThinkingTab";
 import ZombitaChannelTab  from "./tabs/ZombitaChannelTab";
+import ZombitaDataTab     from "./tabs/ZombitaDataTab";
 import SettingsTab        from "./tabs/SettingsTab";
 import TestServerTab      from "./tabs/TestServerTab";
 import SystemResourcesTab from "./tabs/SystemResourcesTab";
@@ -43,6 +44,7 @@ const NAV_SECTIONS = [
     { key: "workspace",       icon: "⌬", label: "Workspace" },
     { key: "zombita_thinking", icon: "🧠", label: "Zombita's Mind" },
     { key: "zombita_channel",  icon: "💬", label: "Admin Channel" },
+    { key: "zombita_data",     icon: "🔬", label: "Zombita Data" },
     { key: "settings",        icon: "🎛️", label: "Settings" },
   ]},
   { label: "ECONOMY", items: [
@@ -116,6 +118,7 @@ const PANELS = {
   files:       FilesTab,
   zombita_thinking: ZombitaThinkingTab,
   zombita_channel: ZombitaChannelTab,
+  zombita_data:    ZombitaDataTab,
   settings:    SettingsTab,
 };
 

@@ -7,11 +7,11 @@ import { API } from "@/lib/constants";
 const SHOPS = [
   { id: "weapons",   label: "Viktor's Armory",   npc: "Viktor Rask",   role: "Arms & Ammunition",  icon: "⚔️", location: "Nettle Township",                 portrait: "/shop/viktor.png" },
   { id: "mechanic",  label: "Sera's Garage",     npc: "Sera Okafor",   role: "Parts & Mechanics",  icon: "🔧", location: "West Point",                      portrait: "/shop/sera.png"   },
-  { id: "medical",   label: "Dr. Voss's Clinic", npc: "Dr. Emil Voss", role: "Medical Supplies",   icon: "🏥", location: "Oakshire",                        portrait: null               },
+  { id: "medical",   label: "Dr. Voss's Clinic", npc: "Dr. Emil Voss", role: "Medical Supplies",   icon: "🏥", location: "Oakshire",                        portrait: "/shop/emil.png"    },
   { id: "gardener",  label: "Maya's Greenhouse", npc: "Maya Chen",     role: "Gardener & Produce", icon: "🌱", location: "Raccoon City",                    portrait: "/shop/maya.png"   },
-  { id: "tailor",    label: "Colette's Atelier", npc: "Colette Vance", role: "Tailor & Apparel",   icon: "🧵", location: "March Ridge",                     portrait: null               },
-  { id: "librarian", label: "Miles's Library",   npc: "Miles Ashford", role: "Books & Skills",     icon: "📚", location: "Grapeseed",                       portrait: null               },
-  { id: "melee",     label: "Bruno's Workshop",  npc: "Bruno Kessler", role: "Melee & Tools",      icon: "🔨", location: "Constown",                        portrait: null               },
+  { id: "tailor",    label: "Colette's Atelier", npc: "Colette Vance", role: "Tailor & Apparel",   icon: "🧵", location: "March Ridge",                     portrait: "/shop/colette.png" },
+  { id: "librarian", label: "Miles's Library",   npc: "Miles Ashford", role: "Books & Skills",     icon: "📚", location: "Grapeseed",                       portrait: "/shop/miles.png"   },
+  { id: "melee",     label: "Bruno's Workshop",  npc: "Bruno Kessler", role: "Melee & Tools",      icon: "🔨", location: "Constown",                        portrait: "/shop/bruno.png"   },
   { id: "global",    label: "General Stores",    npc: "Various keepers",role: "Everyday Goods",     icon: "⛽", location: "Gas stations & shops, map-wide",  portrait: null               },
 ];
 
