@@ -5,15 +5,17 @@ import { API } from "@/lib/constants";
 // id MUST equal the backend shop_type string (see zombita_shop_catalog).
 // NPC names / roles / locations mirror the in-game ZS_NPCData.lua keepers.
 const SHOPS = [
-  { id: "weapons",   label: "Viktor's Armory",   npc: "Viktor Rask",   role: "Arms & Ammunition",  icon: "⚔️", location: "Nettle Township",                 portrait: "/shop/viktor.png" },
-  { id: "mechanic",  label: "Sera's Garage",     npc: "Sera Okafor",   role: "Parts & Mechanics",  icon: "🔧", location: "West Point",                      portrait: "/shop/sera.png"   },
-  { id: "medical",   label: "Dr. Voss's Clinic", npc: "Dr. Emil Voss", role: "Medical Supplies",   icon: "🏥", location: "Oakshire",                        portrait: "/shop/emil.png"    },
-  { id: "gardener",  label: "Maya's Greenhouse", npc: "Maya Chen",     role: "Gardener & Produce", icon: "🌱", location: "Raccoon City",                    portrait: "/shop/maya.png"   },
-  { id: "tailor",    label: "Colette's Atelier", npc: "Colette Vance", role: "Tailor & Apparel",   icon: "🧵", location: "March Ridge",                     portrait: "/shop/colette.png" },
-  { id: "librarian", label: "Miles's Library",   npc: "Miles Ashford", role: "Books & Skills",     icon: "📚", location: "Grapeseed",                       portrait: "/shop/miles.png"   },
-  { id: "melee",     label: "Bruno's Workshop",  npc: "Bruno Kessler", role: "Melee & Tools",      icon: "🔨", location: "Constown",                        portrait: "/shop/bruno.png"   },
-  { id: "global",    label: "General Stores",    npc: "Various keepers",role: "Everyday Goods",     icon: "⛽", location: "Gas stations & shops, map-wide",  portrait: null               },
+  { id: "weapons",   label: "Viktor's Armory",   npc: "Viktor Rask",    role: "Arms & Ammunition",  icon: "⚔️", location: "Nettle Township",                portrait: "/shop/viktor.png"  },
+  { id: "mechanic",  label: "Sera's Garage",     npc: "Sera Okafor",    role: "Parts & Mechanics",  icon: "🔧", location: "West Point",                     portrait: "/shop/sera.png"    },
+  { id: "medical",   label: "Dr. Voss's Clinic", npc: "Dr. Emil Voss",  role: "Medical Supplies",   icon: "🏥", location: "Oakshire",                       portrait: "/shop/emil.png"    },
+  { id: "gardener",  label: "Maya's Greenhouse", npc: "Maya Chen",      role: "Gardener & Produce", icon: "🌱", location: "Raccoon City",                   portrait: "/shop/maya.png"    },
+  { id: "tailor",    label: "Colette's Atelier", npc: "Colette Vance",  role: "Tailor & Apparel",   icon: "🧵", location: "March Ridge",                    portrait: "/shop/colette.png" },
+  { id: "librarian", label: "Miles's Library",   npc: "Miles Ashford",  role: "Books & Skills",     icon: "📚", location: "Grapeseed",                      portrait: "/shop/miles.png"   },
+  { id: "melee",     label: "Bruno's Workshop",  npc: "Bruno Kessler",  role: "Melee & Tools",      icon: "🔨", location: "Constown",                       portrait: "/shop/bruno.png"   },
+  { id: "global",    label: "General Stores",    npc: "Various keepers",role: "Everyday Goods",     icon: "⛽", location: "Gas stations & shops, map-wide", portrait: null                },
 ];
+
+const ALL = "__all__";
 
 const TIER_COLOR: Record<string,string> = {
   common:"#6b7280", uncommon:"#4caf7d", rare:"#4a8fc4", epic:"#a06cd5",
@@ -29,17 +31,34 @@ const TIER_RANK: Record<string,number> = {
 };
 
 const SHOP_TYPES = SHOPS.map(s => s.id);
-const PAGE_SIZE  = 24;
+const SHOP_BY_ID: Record<string, typeof SHOPS[number]> =
+  Object.fromEntries(SHOPS.map(s => [s.id, s]));
+const PAGE_SIZE = 24;
 
 interface Item {
-  item_id:      string;
-  name:         string;
-  buy?:         number;
-  base_buy?:    number;
-  tier:         string;
+  item_id:       string;
+  name:          string;
+  buy?:          number;
+  base_buy?:     number;
+  tier:          string;
   price_factor?: number;
-  stock?:       number;
-  max_stock?:   number;
+  stock?:        number;
+  max_stock?:    number;
+  permanent?:    boolean;
+  icon_url?:     string | null;
+  shop_type?:    string;   // attached client-side for the all-shops view
+}
+
+interface Treasury {
+  balance: number; cap: number; health_pct: number; depleted?: boolean;
+}
+
+// Permanent anchors first, then rarity, then price — so the always-available
+// goods and the rare finds are what you see before any scrolling.
+function sortItems(a: Item, b: Item): number {
+  return (Number(b.permanent||false) - Number(a.permanent||false))
+      || ((TIER_RANK[b.tier]||0) - (TIER_RANK[a.tier]||0))
+      || ((b.buy||0) - (a.buy||0));
 }
 
 function timeUntil(ts:number):string {
@@ -48,19 +67,6 @@ function timeUntil(ts:number):string {
   const d=Math.floor(diff/86400), h=Math.floor((diff%86400)/3600);
   if (d>0) return `~${d}d ${h}h`;
   return `~${h}h ${Math.floor((diff%3600)/60)}m`;
-}
-
-function PriceBadge({ factor }: { factor?: number }) {
-  if (!factor || Math.abs(factor - 1.0) < 0.05) return null;
-  const up    = factor > 1.0;
-  const pct   = Math.round(Math.abs(factor - 1.0) * 100);
-  return (
-    <span className="font-mono text-[0.55rem] px-1 py-0.5 ml-1"
-          style={{ background: up ? "rgba(224,85,85,0.15)" : "rgba(76,175,77,0.15)",
-                   color: up ? "#e05555" : "#4caf7d", border: `1px solid ${up?"#e05555":"#4caf7d"}44` }}>
-      {up ? "▲" : "▼"}{pct}%
-    </span>
-  );
 }
 
 function formatPrice(bronze: number): string {
@@ -76,18 +82,91 @@ function formatPrice(bronze: number): string {
   return parts.join(" ") || "0 🟤";
 }
 
-function ItemCard({ item }: { item: Item }) {
-  const color  = TIER_COLOR[item.tier]||TIER_COLOR.common;
-  const isDyn  = item.price_factor && Math.abs(item.price_factor-1.0) >= 0.05;
-  const price  = item.buy ?? 0;
-  const stock  = item.stock ?? -1;
+function PriceBadge({ factor }: { factor?: number }) {
+  if (!factor || Math.abs(factor - 1.0) < 0.05) return null;
+  const up  = factor > 1.0;
+  const pct = Math.round(Math.abs(factor - 1.0) * 100);
+  return (
+    <span className="font-mono text-[0.55rem] px-1 py-0.5 ml-1"
+          style={{ background: up ? "rgba(224,85,85,0.15)" : "rgba(76,175,77,0.15)",
+                   color: up ? "#e05555" : "#4caf7d", border: `1px solid ${up?"#e05555":"#4caf7d"}44` }}>
+      {up ? "▲" : "▼"}{pct}%
+    </span>
+  );
+}
+
+// Zombita's treasury is the engine behind every price on this page, so it is
+// shown rather than hidden: a starving treasury is why things got expensive.
+function TreasuryBar({ t }: { t: Treasury | null }) {
+  if (!t) return null;
+  const pct = Math.max(0, Math.min(100, t.health_pct ?? 0));
+  const state =
+    pct >= 40 ? { label:"BOOMING",  color:"#4caf7d" } :
+    pct >= 25 ? { label:"HEALTHY",  color:"#4a8fc4" } :
+    pct >= 15 ? { label:"TIGHT",    color:"#c8a84b" } :
+    pct >=  8 ? { label:"LOW",      color:"#e0954e" } :
+                { label:"CRITICAL", color:"#e05555" };
+  return (
+    <div className="border border-[#1e2530] bg-[#0c0f13] p-4 mb-6">
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 mb-2">
+        <span className="font-mono text-[0.58rem] uppercase tracking-widest text-[#555]">
+          Zombita&apos;s Treasury
+        </span>
+        <span className="font-mono text-[0.72rem] px-1.5 py-0.5 border"
+              style={{color:state.color, borderColor:state.color+"44", background:state.color+"11"}}>
+          {state.label}
+        </span>
+        <div className="flex-1" />
+        <span className="font-mono text-[0.62rem] text-[#555]">
+          {formatPrice(t.balance)} <span className="text-[#333]">of {formatPrice(t.cap)}</span>
+        </span>
+      </div>
+      <div className="h-[6px] bg-[#0a0d10] border border-[#1a1f28] overflow-hidden">
+        <div className="h-full transition-all" style={{width:`${pct}%`, background:state.color}} />
+      </div>
+      <p className="font-mono text-[0.6rem] text-[#3a3a3a] mt-2 m-0">
+        {pct.toFixed(1)}% full. Every purchase feeds it, every price reacts to it.{" "}
+        {t.depleted ? "It is running dry — expect her to tighten." : "Buy, sell and survive to keep it moving."}
+      </p>
+    </div>
+  );
+}
+
+function ItemCard({ item, showShop }: { item: Item; showShop?: boolean }) {
+  const color      = TIER_COLOR[item.tier]||TIER_COLOR.common;
+  const isDyn      = item.price_factor && Math.abs(item.price_factor-1.0) >= 0.05;
+  const price      = item.buy ?? 0;
+  const stock      = item.stock ?? -1;
   const outOfStock = stock === 0;
+  const home       = item.shop_type ? SHOP_BY_ID[item.shop_type] : undefined;
   return (
     <div className={`bg-[#0f1318] border p-3 relative transition-all ${outOfStock ? "border-[#1a1a1a] opacity-50" : "border-[#1e2530] hover:border-[rgba(200,168,75,0.2)]"}`}>
       <div className="absolute top-0 left-0 right-0 h-[2px]" style={{background: outOfStock ? "#333" : color}} />
-      <div className="mt-1 font-medium text-[0.88rem] text-[#c8cdd6] leading-tight mb-1">{item.name}</div>
-      <div className="font-mono text-[0.58rem] text-[#2a2a2a] mb-2 truncate">{item.item_id}</div>
-      <div className="flex items-end justify-between">
+
+      {item.permanent && (
+        <div className="font-mono text-[0.5rem] tracking-widest mb-1 text-accent">★ ALWAYS STOCKED</div>
+      )}
+
+      <div className="flex items-start gap-2">
+        {item.icon_url && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={item.icon_url} alt="" aria-hidden="true"
+               className="w-7 h-7 object-contain flex-shrink-0 mt-0.5"
+               style={{imageRendering:"pixelated"}} />
+        )}
+        <div className="min-w-0 flex-1">
+          <div className="mt-0.5 font-medium text-[0.88rem] text-[#c8cdd6] leading-tight mb-1">{item.name}</div>
+          <div className="font-mono text-[0.58rem] text-[#2a2a2a] truncate">{item.item_id}</div>
+        </div>
+      </div>
+
+      {showShop && home && (
+        <div className="font-mono text-[0.55rem] text-[#4a8fc4] mt-1.5">
+          {home.icon} {home.npc}
+        </div>
+      )}
+
+      <div className="flex items-end justify-between mt-2">
         <div>
           {outOfStock ? (
             <div className="font-mono text-[0.65rem] text-[#444]">OUT OF STOCK</div>
@@ -106,7 +185,8 @@ function ItemCard({ item }: { item: Item }) {
             </div>
           )}
         </div>
-        <span className="font-mono text-[0.55rem] px-1.5 py-0.5 border" style={{color: outOfStock ? "#333" : color, borderColor:(outOfStock?"#333":color)+"44", background:(outOfStock?"#333":color)+"11"}}>
+        <span className="font-mono text-[0.55rem] px-1.5 py-0.5 border"
+              style={{color: outOfStock ? "#333" : color, borderColor:(outOfStock?"#333":color)+"44", background:(outOfStock?"#333":color)+"11"}}>
           {TIER_LABEL[item.tier]||item.tier}
         </span>
       </div>
@@ -115,12 +195,13 @@ function ItemCard({ item }: { item: Item }) {
 }
 
 export default function ShopPage() {
-  const [rotations,   setRotations]   = useState<Record<string,Item[]>>({});
-  const [nextTimes,   setNextTimes]   = useState<Record<string,number>>({});
-  const [active,      setActive]      = useState("weapons");
-  const [loading,     setLoading]     = useState(true);
-  const [search,      setSearch]      = useState("");
-  const [page,        setPage]        = useState(1);
+  const [rotations, setRotations] = useState<Record<string,Item[]>>({});
+  const [nextTimes, setNextTimes] = useState<Record<string,number>>({});
+  const [treasury,  setTreasury]  = useState<Treasury|null>(null);
+  const [active,    setActive]    = useState<string>("weapons");
+  const [loading,   setLoading]   = useState(true);
+  const [search,    setSearch]    = useState("");
+  const [page,      setPage]      = useState(1);
 
   useEffect(() => {
     const loadAll = async () => {
@@ -133,22 +214,22 @@ export default function ShopPage() {
             const r = await fetch(`${API}/api/marketplace/rotation-with-prices?shop_type=${t}`);
             if (r.ok) {
               const d = await r.json();
-              const list: Item[] = d.items || [];
-              // anchors (high tier) first, then by price desc — permanents/legendaries surface on top
-              list.sort((a,b) =>
-                (TIER_RANK[b.tier]||0) - (TIER_RANK[a.tier]||0) ||
-                (b.buy||0) - (a.buy||0));
-              results[t] = list;
+              // Tag each item with its home shop so the all-shops view can say
+              // WHERE to go — the same routing the in-game search tab does.
+              const list: Item[] = (d.items || []).map((i: Item) => ({ ...i, shop_type: t }));
+              results[t] = list.sort(sortItems);
             }
           } catch {}
         }));
 
         try {
           const r = await fetch(`${API}/api/marketplace/all-rotations`);
-          if (r.ok) {
-            const d = await r.json();
-            Object.assign(times, d.next_times || {});
-          }
+          if (r.ok) Object.assign(times, (await r.json()).next_times || {});
+        } catch {}
+
+        try {
+          const r = await fetch(`${API}/api/treasury/status`);
+          if (r.ok) setTreasury(await r.json());
         } catch {}
 
         setRotations(results);
@@ -164,15 +245,20 @@ export default function ShopPage() {
   // reset to page 1 whenever the shop or the search term changes
   useEffect(() => { setPage(1); }, [active, search]);
 
-  const shop     = SHOPS.find(s=>s.id===active)!;
-  const allItems = rotations[active]||[];
-  const q        = search.trim().toLowerCase();
+  const isAll   = active === ALL;
+  const shop    = isAll ? null : SHOP_BY_ID[active];
+  const allItems: Item[] = isAll
+    ? SHOP_TYPES.flatMap(t => rotations[t] || []).sort(sortItems)
+    : (rotations[active] || []);
+
+  const q = search.trim().toLowerCase();
   const filtered = q
     ? allItems.filter(i => i.name.toLowerCase().includes(q) || i.item_id.toLowerCase().includes(q))
     : allItems;
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage  = Math.min(page, pageCount);
   const pageItems = filtered.slice((safePage-1)*PAGE_SIZE, safePage*PAGE_SIZE);
+  const totalAll  = SHOP_TYPES.reduce((n,t) => n + (rotations[t]?.length || 0), 0);
 
   return (
     <div className="scanline min-h-screen" style={{background:"#080a0c",color:"#c8cdd6"}}>
@@ -216,6 +302,8 @@ export default function ShopPage() {
           </p>
         </div>
 
+        <TreasuryBar t={treasury} />
+
         {/* Shop selector */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6">
           {SHOPS.map(s => (
@@ -233,36 +321,57 @@ export default function ShopPage() {
               )}
             </button>
           ))}
+
+          {/* Search every shop at once — mirrors the in-game SEARCH tab, which
+              routes any item to its own keeper no matter where you found it. */}
+          <button onClick={()=>setActive(ALL)}
+            className={`p-3 border text-left transition-all cursor-pointer bg-transparent ${
+              isAll ? "border-[rgba(74,143,196,0.5)] bg-[rgba(74,143,196,0.06)]" : "border-[#1e2530] bg-[#0c0f13] hover:border-[#2a2f3a]"
+            }`}>
+            <div className="text-lg mb-1">🔍</div>
+            <div className="font-mono text-[0.65rem] text-[#4a8fc4] leading-tight">Search all shops</div>
+            <div className="font-mono text-[0.55rem] text-[#444] mt-0.5">Every item in rotation</div>
+            <div className="font-mono text-[0.55rem] mt-1.5" style={{color:isAll?"#4a8fc4":"#333"}}>
+              {totalAll || "—"} items
+            </div>
+          </button>
         </div>
 
         {/* Active shop */}
         <div className="border border-[#1e2530] bg-[#0a0d10]">
 
-          {/* Shop header with portrait */}
+          {/* Shop header */}
           <div className="p-4 sm:p-5 border-b border-[#1e2530] flex items-start gap-4">
-            {shop.portrait ? (
+            {isAll ? (
+              <div className="w-16 h-20 border border-[#1e2530] flex-shrink-0 hidden sm:flex items-center justify-center text-3xl bg-[#0f1318]">🔍</div>
+            ) : shop!.portrait ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={shop.portrait} alt={shop.npc}
-                className="w-16 h-20 object-cover border border-[#1e2530] flex-shrink-0 hidden sm:block"
-                style={{imageRendering:"auto"}} />
+              <img src={shop!.portrait} alt={shop!.npc}
+                className="w-16 h-20 object-cover border border-[#1e2530] flex-shrink-0 hidden sm:block" />
             ) : (
               <div className="w-16 h-20 border border-[#1e2530] flex-shrink-0 hidden sm:flex items-center justify-center text-3xl bg-[#0f1318]">
-                {shop.icon}
+                {shop!.icon}
               </div>
             )}
             <div className="flex-1">
               <div className="font-display text-xl sm:text-2xl tracking-[2px] text-[#c8cdd6]" style={{fontFamily:"'Bebas Neue',sans-serif"}}>
-                {shop.label.toUpperCase()}
+                {isAll ? "EVERY SHOP" : shop!.label.toUpperCase()}
               </div>
-              <div className="font-mono text-[0.68rem] text-[#555]">{shop.npc} · {shop.role}</div>
-              <div className="font-mono text-[0.6rem] text-[#3a3a3a]">📍 {shop.location}</div>
-            </div>
-            <div className="text-right hidden sm:block flex-shrink-0">
-              <div className="font-mono text-[0.58rem] text-[#3a3a3a] uppercase tracking-widest mb-0.5">Next restock</div>
-              <div className="font-mono text-[0.72rem] text-accent">
-                {nextTimes[active] ? timeUntil(nextTimes[active]) : "—"}
+              <div className="font-mono text-[0.68rem] text-[#555]">
+                {isAll ? "Search the whole network — each result shows its keeper" : `${shop!.npc} · ${shop!.role}`}
+              </div>
+              <div className="font-mono text-[0.6rem] text-[#3a3a3a]">
+                {isAll ? "🗺️ Items are only sold by their own keeper" : `📍 ${shop!.location}`}
               </div>
             </div>
+            {!isAll && (
+              <div className="text-right hidden sm:block flex-shrink-0">
+                <div className="font-mono text-[0.58rem] text-[#3a3a3a] uppercase tracking-widest mb-0.5">Next restock</div>
+                <div className="font-mono text-[0.72rem] text-accent">
+                  {nextTimes[active] ? timeUntil(nextTimes[active]) : "—"}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Items */}
@@ -285,17 +394,27 @@ export default function ShopPage() {
                   <input
                     value={search}
                     onChange={e=>setSearch(e.target.value)}
-                    placeholder="search items…"
+                    placeholder={isAll ? "search every shop…" : "search items…"}
                     className="font-mono text-[0.65rem] bg-[#0c0f13] border border-[#1e2530] px-2 py-1 text-[#c8cdd6] outline-none focus:border-[rgba(200,168,75,0.4)] w-full sm:w-48"
                   />
                 </div>
 
                 {filtered.length===0 ? (
-                  <p className="font-mono text-[0.7rem] text-[#333] py-8 text-center">No items match “{search}”.</p>
+                  <div className="py-8 text-center">
+                    <p className="font-mono text-[0.7rem] text-[#333] m-0">No items match “{search}”.</p>
+                    {!isAll && (
+                      <button onClick={()=>setActive(ALL)}
+                        className="font-mono text-[0.65rem] mt-3 px-3 py-1.5 border border-[#4a8fc4] text-[#4a8fc4] bg-transparent cursor-pointer hover:bg-[#4a8fc4] hover:text-black transition-all">
+                        🔍 Search every shop instead
+                      </button>
+                    )}
+                  </div>
                 ) : (
                   <>
                     <div className="grid gap-2 sm:gap-3" style={{gridTemplateColumns:"repeat(auto-fill,minmax(165px,1fr))"}}>
-                      {pageItems.map(item => <ItemCard key={item.item_id} item={item} />)}
+                      {pageItems.map(item => (
+                        <ItemCard key={`${item.shop_type}:${item.item_id}`} item={item} showShop={isAll} />
+                      ))}
                     </div>
 
                     {/* Pagination */}
@@ -322,7 +441,9 @@ export default function ShopPage() {
 
           <div className="px-4 sm:px-5 py-2.5 border-t border-[#1e2530]" style={{background:"rgba(255,255,255,0.01)"}}>
             <p className="font-mono text-[0.6rem] text-[#333]">
-              💡 Right-click <strong style={{color:"#555"}}>{shop.npc}</strong> in-game → open shop. Prices shown include dynamic adjustments.
+              {isAll
+                ? "💡 Every item is sold by its own keeper — the card tells you whose shop to visit."
+                : <>💡 Right-click <strong style={{color:"#555"}}>{shop!.npc}</strong> in-game → open shop. Prices shown include dynamic adjustments.</>}
             </p>
           </div>
         </div>
@@ -330,7 +451,7 @@ export default function ShopPage() {
         {/* How it works */}
         <div className="mt-8 grid sm:grid-cols-3 gap-3">
           {[
-            {icon:"🔄",title:"Rotating Stock",    body:"Each shop rotates its catalog regularly. Zombita hints at what's coming before it happens."},
+            {icon:"🔄",title:"Rotating Stock",    body:"Each shop rotates its catalog regularly. Anchors marked ★ never rotate out — everything else comes and goes."},
             {icon:"📈",title:"Dynamic Prices",    body:"Prices shift with the treasury and with what's being bought, sold, and traded. High demand or scarcity → prices rise."},
             {icon:"🏪",title:"Player Marketplace",body:"Players list items for each other. Browse any shop's Marketplace tab in-game, or view all listings online."},
           ].map(c => (

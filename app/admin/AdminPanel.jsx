@@ -10,6 +10,7 @@ import MarketplaceTab  from "./tabs/MarketplaceTab";
 import TreasuryTab    from "./tabs/TreasuryTab";
 import EconomyTab     from "./tabs/EconomyTab";
 import DotdTab        from "./tabs/DotdTab";
+import MiraTab        from "./tabs/MiraTab";
 import HuntTab        from "./tabs/HuntTab";
 import PlayersTab     from "./tabs/PlayersTab";
 import GamesTab       from "./tabs/GamesTab";
@@ -55,6 +56,7 @@ const NAV_SECTIONS = [
   ]},
   { label: "WORLD", items: [
     { key: "dotd",           icon: "💀", label: "Dawn of Dead" },
+    { key: "mira",           icon: "🛰️", label: "Project MIRA" },
     { key: "hunt",           icon: "🗺️", label: "Treasure Hunt" },
   ]},
   { label: "COMMUNITY", items: [
@@ -96,6 +98,7 @@ const PANELS = {
   treasury:    TreasuryTab,
   economy:     EconomyTab,
   dotd:        DotdTab,
+  mira:        MiraTab,
   hunt:        HuntTab,
   players:     PlayersTab,
   games:       GamesTab,
