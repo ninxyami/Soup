@@ -4,16 +4,21 @@ import { useState, useEffect, useCallback } from "react";
 import { useLiveRefresh } from "../realtime";
 import { fetchApi, postApi, fmt, relTime, fmtDate, Title, SC, TW, B, Inp, FB, Empty, Load, useStickyState } from "./shared";
 
+// keys MUST equal the backend shop_type; names mirror ZS_NPCData.lua
 const SHOPS = {
-  food:     { label: "🍽️ Maya's Kitchen",   npc: "Maya Chen"    },
-  weapons:  { label: "⚔️ Viktor's Armory",   npc: "Viktor Rask"  },
-  carparts: { label: "🔧 Sera's Garage",      npc: "Sera Okafor"  },
-  gas:      { label: "⛽ Gas Stations",       npc: "Various"      },
-  all:      { label: "🏪 Community Hub",      npc: "Lena Vasquez" },
+  weapons:   { label: "⚔️ Viktor's Armory",   npc: "Viktor Rask"    },
+  mechanic:  { label: "🔧 Sera's Garage",     npc: "Sera Okafor"    },
+  medical:   { label: "🏥 Dr. Voss's Clinic", npc: "Dr. Emil Voss"  },
+  gardener:  { label: "🌱 Maya's Greenhouse", npc: "Maya Chen"      },
+  tailor:    { label: "🧵 Colette's Atelier", npc: "Colette Vance"  },
+  librarian: { label: "📚 Miles's Library",   npc: "Miles Ashford"  },
+  melee:     { label: "🔨 Bruno's Workshop",  npc: "Bruno Kessler"  },
+  global:    { label: "⛽ General Stores",    npc: "General stores" },
 };
 
 const TIER_COLOR = {
-  common: "#6b7280", uncommon: "#4caf7d", rare: "#4a8fc4", legendary: "#c8a84b",
+  common: "#6b7280", uncommon: "#4caf7d", rare: "#4a8fc4", epic: "#a06cd5",
+  legendary: "#c8a84b", special: "#e0574e", transit: "#3fa9a0",
 };
 
 function timeUntil(ts) {
@@ -29,7 +34,7 @@ function RotationPanel({ toast }) {
   const [nextTimes,  setNextTimes]  = useState({});
   const [loading,    setLoading]    = useState(true);
   const [forcing,    setForcing]    = useState(null);
-  const [activeShop, setActiveShop] = useState("food");
+  const [activeShop, setActiveShop] = useState("weapons");
 
   const load = useCallback(async () => {
     try {
@@ -89,7 +94,7 @@ function RotationPanel({ toast }) {
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                 <thead>
                   <tr>
-                    {["Item", "ID", "Buy Price", "Sell Price", "Tier"].map(h => (
+                    {["Item", "ID", "Buy Price", "Tier"].map(h => (
                       <th key={h} className="admin-th">{h}</th>
                     ))}
                   </tr>
@@ -100,7 +105,6 @@ function RotationPanel({ toast }) {
                       <td className="admin-td" style={{ color: TIER_COLOR[item.tier] || "#9ca3af", fontWeight: 500 }}>{item.name}</td>
                       <td className="admin-td"><code style={{ fontSize: 11, color: "#555" }}>{item.item_id}</code></td>
                       <td className="admin-td">{item.buy != null ? `${item.buy.toLocaleString()} 🟤` : "—"}</td>
-                      <td className="admin-td">{item.sell != null ? `${item.sell.toLocaleString()} 🟤` : "—"}</td>
                       <td className="admin-td">
                         <span style={{ color: TIER_COLOR[item.tier], fontSize: 11, textTransform: "capitalize" }}>
                           {item.tier}

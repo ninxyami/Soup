@@ -1,355 +1,457 @@
 "use client";
 // @ts-nocheck
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { fetchApi, postApi, fmt, fmtDate, Title, SC, TW, B, Inp, Sel, FB, Empty, Load, useStickyState } from "./shared";
+// Admin SHOP — the live shop network: 8 keepers, the authored catalog, what is on
+// each shelf right now, stock, and Zombita's restock decisions.
+// Backend: routers/admin_shop_live.py (/api/admin/shop/live/*).
+import { useState, useEffect, useCallback } from "react";
+import { fetchApi, postApi, fmt, fmtFull, relTime, Title, SC, TW, B, Empty, Load, useStickyState } from "./shared";
 import { useLiveRefresh } from "../realtime";
 
-const SHOP_TYPES = [
-  { value: "global",   label: "🌍 Global (gas stations + diner + web/discord)" },
-  { value: "food",     label: "🍕 Food (gas stations + diner)" },
-  { value: "ammo",     label: "🔫 Ammo (gas stations + diner)" },
-  { value: "carparts", label: "🔧 Car Parts (gas stations + diner)" },
-  { value: "cars",     label: "🚗 Cars (diner only)" },
-];
-
-const SHOP_TYPE_ICON = {
-  global:   "🌍",
-  food:     "🍕",
-  ammo:     "🔫",
-  carparts: "🔧",
-  cars:     "🚗",
+// id MUST equal the backend shop_type. Names mirror ZS_NPCData.lua.
+const SHOPS = {
+  weapons:   { icon: "⚔️", npc: "Viktor Rask",    label: "Viktor's Armory" },
+  mechanic:  { icon: "🔧", npc: "Sera Okafor",    label: "Sera's Garage" },
+  medical:   { icon: "🏥", npc: "Dr. Emil Voss",  label: "Dr. Voss's Clinic" },
+  gardener:  { icon: "🌱", npc: "Maya Chen",      label: "Maya's Greenhouse" },
+  tailor:    { icon: "🧵", npc: "Colette Vance",  label: "Colette's Atelier" },
+  librarian: { icon: "📚", npc: "Miles Ashford",  label: "Miles's Library" },
+  melee:     { icon: "🔨", npc: "Bruno Kessler",  label: "Bruno's Workshop" },
+  global:    { icon: "⛽", npc: "General stores", label: "General Stores" },
 };
+const SHOP_ORDER = Object.keys(SHOPS);
+const shopName = (st) => SHOPS[st] ? `${SHOPS[st].icon} ${SHOPS[st].npc}` : st;
 
-const SingleRestock = ({ items, toast, onDone }) => {
-  const [itemId, setItemId] = useState("");
-  const [mode,   setMode]   = useState("set");
-  const [amount, setAmount] = useState("10");
-  const enabled = items.filter(i => i.enabled);
-  useEffect(() => { if (enabled.length && !itemId) setItemId(enabled[0]?.item_id || ""); }, [enabled.length]);
-  const apply = async () => {
-    if (!itemId || isNaN(parseInt(amount))) { toast("Fill fields", "error"); return; }
+const TIERS = ["common", "uncommon", "rare", "epic", "legendary", "special", "transit"];
+const TIER_COLOR = {
+  common: "#9ca3af", uncommon: "#4caf7d", rare: "#4a8fc4", epic: "#a06cd5",
+  legendary: "#c8a84b", special: "#e0574e", transit: "#3fa9a0",
+};
+const Tier = ({ t }) => {
+  const c = TIER_COLOR[t] || TIER_COLOR.common;
+  return <span className="ap-pill" style={{ background: c + "22", color: c }}>{t || "common"}</span>;
+};
+const Perm = () => <span className="ap-pill" style={{ background: "rgba(200,168,75,0.15)", color: "var(--accent)" }}>★ permanent</span>;
+
+const mono = { fontFamily: "var(--mono)" };
+const dim  = { fontFamily: "var(--mono)", fontSize: 10, color: "var(--textdim)" };
+
+function untilText(ts) {
+  if (!ts) return "—";
+  const diff = ts - Math.floor(Date.now() / 1000);
+  const abs = Math.abs(diff), d = Math.floor(abs / 86400), h = Math.floor((abs % 86400) / 3600), m = Math.floor((abs % 3600) / 60);
+  const span = d > 0 ? `${d}d ${h}h` : h > 0 ? `${h}h ${m}m` : `${m}m`;
+  return diff >= 0 ? `in ${span}` : `${span} overdue`;
+}
+
+const stockColor = (s, max) =>
+  s < 0 ? "var(--textdim)" : s === 0 ? "var(--red)" : (max > 0 && s * 3 <= max) ? "var(--accent)" : "var(--green)";
+
+// ── SHOPS: the network at a glance ──────────────────────────────────────────
+function ShopsView({ data, toast, onOpenShelf, reload }) {
+  const [rolling, setRolling] = useState(null);
+  const roll = async (st) => {
+    if (!confirm(`Put a new rotation on ${SHOPS[st]?.npc}'s shelf?\n\nEverything except permanents is replaced and stock is refilled. Players see it immediately.`)) return;
+    setRolling(st);
     try {
-      const d = await postApi("/api/admin/shop/stock", { item_id: itemId, mode, amount: parseInt(amount), note: "Admin restock" });
-      toast(`Stock → ${d.new_stock}`, "success");
-      onDone();
-    } catch { toast("Failed", "error"); }
+      const d = await postApi("/api/admin/shop/live/roll", { shop_type: st });
+      toast(`${SHOPS[st]?.npc}: ${d.items} items on the shelf, ${d.repriced} prices refreshed`, "success");
+      reload();
+    } catch (e) { toast(`Roll failed: ${e.message}`, "error"); }
+    setRolling(null);
   };
-  return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 100px", gap: 16, alignItems: "end" }}>
-      <Sel label="Item" value={itemId} onChange={e => setItemId(e.target.value)}>
-        {enabled.map(i => <option key={i.item_id} value={i.item_id}>{SHOP_TYPE_ICON[i.shop_type] || "?"} {i.name} ({i.stock === -1 ? "∞" : i.stock})</option>)}
-      </Sel>
-      <Sel label="Mode" value={mode} onChange={e => setMode(e.target.value)}>
-        <option value="set">Set exact</option>
-        <option value="add">Add to current</option>
-      </Sel>
-      <Inp label="Amount" type="number" value={amount} onChange={e => setAmount(e.target.value)} />
-      <B c="green" onClick={apply}>Apply</B>
-    </div>
-  );
-};
 
-export default function ShopTab({ toast }) {
-  const [sub,        setSub]        = useStickyState("inventory", "shop.sub");
-  const [items,      setItems]      = useState([]);
-  const [search,     setSearch]     = useState("");
-  const [filterType, setFilterType] = useState("all");
-  const [loading,    setLoading]    = useState(true);
-  const [editItem,   setEditItem]   = useState(null);
-  const [restockLog, setRestockLog] = useState([]);
-  const [newItem,    setNewItem]    = useState({
-    item_id: "", name: "", shop_type: "global", buy_price: "", sell_price: "",
-    category: "misc", tier: "common", stock: "5", base_stock: "5",
-    restock_interval_days: "30", variance: "0.3",
+  const t = data.totals;
+  const byShop = Object.fromEntries(data.shops.map(s => [s.shop_type, s]));
+  return (<>
+    <div className="ap-sr">
+      <SC label="Catalog"       value={fmt(t.catalog_total)} sub={`${fmt(t.catalog_total - t.catalog_active)} hidden`} />
+      <SC label="On Shelves"    value={fmt(t.on_shelf)}      color="blue"   sub={`${t.permanent} permanent`} />
+      <SC label="Out of Stock"  value={t.out_of_stock}       color="red" />
+      <SC label="Low Stock"     value={t.low_stock}          color="orange" sub="≤ ⅓ of full rack" />
+      <SC label="Overdue Shops" value={t.overdue_shops}      color={t.overdue_shops ? "red" : "green"} sub="past next rotation" />
+      <SC label="Restock Asks"  value={t.requests_7d}        sub={`last 7d · ${t.pending_restocks} queued`} />
+    </div>
+
+    {t.overdue_shops > 0 && (
+      <div className="ap-note" style={{ marginBottom: 16 }}>
+        ⚠️ {t.overdue_shops} shop{t.overdue_shops > 1 ? "s are" : " is"} past the scheduled rotation. Shops only rotate when
+        someone rolls them (here or from the in-game Zombita Control panel) — nothing rotates them on a timer yet.
+      </div>
+    )}
+
+    <TW title="KEEPERS">
+      <table className="ap-t">
+        <thead><tr>
+          <th>Shop</th><th>Catalog</th><th>On shelf</th><th>Out</th><th>Low</th><th>Queued</th>
+          <th>Rotated</th><th>Next rotation</th><th>Actions</th>
+        </tr></thead>
+        <tbody>
+          {SHOP_ORDER.filter(st => byShop[st]).map(st => {
+            const s = byShop[st];
+            return (
+              <tr key={st}>
+                <td>
+                  <div style={{ fontWeight: 500 }}>{SHOPS[st].icon} {SHOPS[st].label}</div>
+                  <div style={dim}>{SHOPS[st].npc} · {st}</div>
+                </td>
+                <td style={mono}>
+                  {fmt(s.catalog_active)}
+                  {s.catalog_active < s.catalog_total && <span style={{ color: "var(--textdim)" }}> / {fmt(s.catalog_total)}</span>}
+                  {s.permanent > 0 && <div style={dim}>★ {s.permanent} permanent</div>}
+                </td>
+                <td style={mono}>{s.on_shelf}</td>
+                <td style={{ ...mono, color: s.out_of_stock ? "var(--red)" : "var(--textdim)" }}>{s.out_of_stock}</td>
+                <td style={{ ...mono, color: s.low_stock ? "var(--accent)" : "var(--textdim)" }}>{s.low_stock}</td>
+                <td style={mono}>{s.pending_restocks || "—"}</td>
+                <td style={dim}>{s.rotated_at ? relTime(s.rotated_at) : "never"}</td>
+                <td style={{ ...mono, fontSize: 12, color: s.overdue ? "var(--red)" : "var(--text)" }}>{untilText(s.next_rotation)}</td>
+                <td>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <B c="blue" sm onClick={() => onOpenShelf(st)}>Shelf</B>
+                    <B c="orange" sm onClick={() => roll(st)} disabled={rolling === st}>
+                      {rolling === st ? "Rolling…" : "🔄 Roll"}
+                    </B>
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </TW>
+  </>);
+}
+
+// ── SHELF: what one keeper is selling right now ─────────────────────────────
+function ShelfView({ shop, setShop, toast }) {
+  const [data, setData]       = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch]   = useState("");
+
+  const load = useCallback(async () => {
+    try { setData(await fetchApi(`/api/admin/shop/live/shelf?shop_type=${shop}`)); }
+    catch (e) { toast(`Failed to load shelf: ${e.message}`, "error"); }
+    setLoading(false);
+  }, [shop, toast]);
+
+  useEffect(() => { setLoading(true); load(); }, [load]);
+  useLiveRefresh("shop", load);
+
+  const setStock = async (item, mode, raw) => {
+    const amount = parseInt(raw);
+    if (isNaN(amount) || (mode === "set" && amount < 0)) return;
+    if (mode === "set" && amount === item.stock) return;
+    try {
+      const d = await postApi("/api/admin/shop/live/stock", { item_id: item.item_id, shop_type: shop, mode, amount });
+      toast(`${item.name}: ${d.old_stock} → ${d.new_stock}`, "success");
+      load();
+    } catch (e) { toast(`Stock update failed: ${e.message}`, "error"); }
+  };
+
+  const items = (data?.items || []).filter(i => {
+    const q = search.trim().toLowerCase();
+    return !q || i.name.toLowerCase().includes(q) || i.item_id.toLowerCase().includes(q);
   });
 
-  const loadItems = useCallback(async () => {
-    setLoading(true);
-    try { setItems((await fetchApi("/api/admin/shop/items")).items || []); }
-    catch (e) { toast("Failed to load", "error"); }
+  return (
+    <TW title={`SHELF — ${SHOPS[shop]?.label?.toUpperCase() || shop}`} right={<>
+      <select className="ap-search" style={{ padding: "4px 8px" }} value={shop} onChange={e => setShop(e.target.value)}>
+        {SHOP_ORDER.map(st => <option key={st} value={st}>{shopName(st)}</option>)}
+      </select>
+      <input className="ap-search" placeholder="search shelf…" value={search} onChange={e => setSearch(e.target.value)} />
+      <B c="gold" sm onClick={load}>↻</B>
+    </>}>
+      {loading ? <Load /> : !data?.items?.length ? <Empty text="Nothing on this shelf — roll the shop from the Shops view." /> : (<>
+        <div style={{ ...dim, marginBottom: 10 }}>
+          {data.items.length} on the shelf · rotated {data.rotated_at ? relTime(data.rotated_at) : "—"} · next rotation {untilText(data.next_rotation)}
+          {" · "}prices come from the pricing pass (treasury, demand, Zombita's brain)
+        </div>
+        <table className="ap-t">
+          <thead><tr>
+            <th>Item</th><th>Tier</th><th>Base</th><th>Live price</th><th>Stock</th><th>Set stock</th><th>Quick</th>
+          </tr></thead>
+          <tbody>
+            {items.length === 0 ? <tr><td colSpan={7}><Empty text="no match" /></td></tr> : items.map(item => {
+              const pct = item.factor != null ? Math.round((item.factor - 1) * 100) : null;
+              return (
+                <tr key={item.item_id}>
+                  <td>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      {item.icon_url && <img src={item.icon_url} alt="" style={{ width: 22, height: 22, objectFit: "contain", imageRendering: "pixelated" }} />}
+                      <div>
+                        <div style={{ fontWeight: 500 }}>{item.name} {item.permanent && <Perm />}</div>
+                        <div style={dim}>{item.item_id}{!item.active && " · hidden in catalog (leaves at next roll)"}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td><Tier t={item.tier} /></td>
+                  <td style={{ ...mono, color: "var(--textdim)" }}>{fmt(item.base_price)}</td>
+                  <td style={mono} title={item.price_reason || ""}>
+                    {fmt(item.price)} 🟤
+                    {pct != null && Math.abs(pct) >= 1 && (
+                      <span style={{ fontSize: 10, marginLeft: 6, color: pct > 0 ? "var(--red)" : "var(--green)" }}>
+                        {pct > 0 ? "▲" : "▼"}{Math.abs(pct)}%
+                      </span>
+                    )}
+                  </td>
+                  <td style={{ ...mono, fontSize: 13, color: stockColor(item.stock, item.max_stock) }}>
+                    {item.stock < 0 ? "—" : item.stock}
+                    {item.max_stock > 0 && <span style={{ color: "var(--textdim)", fontSize: 10 }}> / {item.max_stock}</span>}
+                  </td>
+                  <td>
+                    <div className="ap-se">
+                      <input type="number" min="0" key={`${item.item_id}:${item.stock}`} defaultValue={item.stock < 0 ? "" : item.stock}
+                        onBlur={e => { if (e.target.value !== "") setStock(item, "set", e.target.value); }}
+                        onKeyDown={e => { if (e.key === "Enter") e.currentTarget.blur(); }} />
+                    </div>
+                  </td>
+                  <td>
+                    <div style={{ display: "flex", gap: 4 }}>
+                      <B c="ghost" sm onClick={() => setStock(item, "add", -1)} disabled={item.stock <= 0}>−1</B>
+                      <B c="ghost" sm onClick={() => setStock(item, "add", 1)}>+1</B>
+                      <B c="green" sm onClick={() => setStock(item, "set", item.max_stock > 0 ? item.max_stock : item.stock)} disabled={item.max_stock <= 0 || item.stock >= item.max_stock}>Fill</B>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </>)}
+    </TW>
+  );
+}
+
+// ── CATALOG: all authored items, searchable, active/permanent toggles ───────
+const PAGE_SIZE = 50;
+function CatalogView({ toast }) {
+  const [q, setQ]           = useState("");
+  const [query, setQuery]   = useState("");
+  const [shop, setShop]     = useState("");
+  const [tier, setTier]     = useState("");
+  const [status, setStatus] = useState("all");
+  const [page, setPage]     = useState(1);
+  const [data, setData]     = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // debounce the search box so typing doesn't fire a query per keystroke
+  useEffect(() => { const h = setTimeout(() => setQuery(q), 300); return () => clearTimeout(h); }, [q]);
+  useEffect(() => { setPage(1); }, [query, shop, tier, status]);
+
+  const load = useCallback(async () => {
+    const p = new URLSearchParams({ q: query, shop_type: shop, tier, status, page: String(page), page_size: String(PAGE_SIZE) });
+    try { setData(await fetchApi(`/api/admin/shop/live/catalog?${p}`)); }
+    catch (e) { toast(`Catalog failed: ${e.message}`, "error"); }
+    setLoading(false);
+  }, [query, shop, tier, status, page, toast]);
+
+  useEffect(() => { load(); }, [load]);
+  useLiveRefresh("shop", load);
+
+  const update = async (item, patch, msg) => {
+    try {
+      await postApi("/api/admin/shop/live/catalog", { item_id: item.item_id, shop_type: item.shop_type, ...patch });
+      toast(`${item.name}: ${msg} — applies on the next roll of ${SHOPS[item.shop_type]?.npc || item.shop_type}`, "success");
+      load();
+    } catch (e) { toast(`Update failed: ${e.message}`, "error"); }
+  };
+
+  const pages = data ? Math.max(1, Math.ceil(data.total / PAGE_SIZE)) : 1;
+  return (<>
+    <div className="ap-note" style={{ marginBottom: 16 }}>
+      Names, tiers and price bands come from the economy sheets — a catalog reload rewrites them and
+      re-enables hidden items. Here you can <b>hide</b> an item from future rotations or mark it
+      <b> permanent</b> (always on the shelf). Both take effect the next time that shop is rolled.
+    </div>
+    <TW title={`CATALOG${data ? ` — ${fmt(data.total)} items` : ""}`} right={<>
+      <select className="ap-search" style={{ padding: "4px 8px" }} value={shop} onChange={e => setShop(e.target.value)}>
+        <option value="">All shops</option>
+        {SHOP_ORDER.map(st => <option key={st} value={st}>{shopName(st)}</option>)}
+      </select>
+      <select className="ap-search" style={{ padding: "4px 8px" }} value={tier} onChange={e => setTier(e.target.value)}>
+        <option value="">All tiers</option>
+        {TIERS.map(t => <option key={t} value={t}>{t}</option>)}
+      </select>
+      <select className="ap-search" style={{ padding: "4px 8px" }} value={status} onChange={e => setStatus(e.target.value)}>
+        <option value="all">Any status</option>
+        <option value="on_shelf">On a shelf now</option>
+        <option value="permanent">Permanent</option>
+        <option value="active">Active</option>
+        <option value="hidden">Hidden</option>
+      </select>
+      <input className="ap-search" placeholder="name or item id…" value={q} onChange={e => setQ(e.target.value)} />
+    </>}>
+      {loading && !data ? <Load /> : (<>
+        <table className="ap-t">
+          <thead><tr>
+            <th style={{ width: 36 }}>⚡</th><th>Item</th><th>Shop</th><th>Tier</th>
+            <th>Base</th><th title="Prices rise as the treasury drains">Booming → Critical</th><th>Actions</th>
+          </tr></thead>
+          <tbody>
+            {!data?.items?.length ? <tr><td colSpan={7}><Empty text="no catalog items match" /></td></tr> : data.items.map(item => (
+              <tr key={`${item.shop_type}:${item.item_id}`} style={{ opacity: item.active ? 1 : 0.5 }}>
+                <td><span className={`ap-dot ${item.active ? "on" : "off"}`} /></td>
+                <td>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    {item.icon_url && <img src={item.icon_url} alt="" style={{ width: 22, height: 22, objectFit: "contain", imageRendering: "pixelated" }} />}
+                    <div>
+                      <div style={{ fontWeight: 500 }}>
+                        {item.name} {item.permanent && <Perm />}
+                        {item.on_shelf && <span className="ap-pill" style={{ background: "rgba(74,143,196,0.15)", color: "#4a8fc4", marginLeft: 4 }}>on shelf</span>}
+                        {item.needs_review && <span className="ap-pill" style={{ background: "rgba(224,149,78,0.15)", color: "#e0954e", marginLeft: 4 }}>needs review</span>}
+                      </div>
+                      <div style={dim}>{item.item_id}</div>
+                    </div>
+                  </div>
+                </td>
+                <td style={{ fontSize: 12 }}>{shopName(item.shop_type)}</td>
+                <td><Tier t={item.tier} /></td>
+                <td style={mono}>{fmt(item.base_buy)}</td>
+                <td style={{ ...mono, fontSize: 12, color: "var(--textdim)" }}>{fmt(item.band_booming)} → {fmt(item.band_critical)}</td>
+                <td>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <B c={item.active ? "red" : "green"} sm
+                       onClick={() => update(item, { active: !item.active }, item.active ? "hidden" : "re-enabled")}>
+                      {item.active ? "Hide" : "Show"}
+                    </B>
+                    <B c={item.permanent ? "ghost" : "gold"} sm disabled={!item.active}
+                       onClick={() => update(item, { permanent: !item.permanent }, item.permanent ? "no longer permanent" : "now permanent")}>
+                      {item.permanent ? "Unpin" : "★ Pin"}
+                    </B>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {pages > 1 && (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginTop: 14 }}>
+            <B c="ghost" sm onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1}>‹ Prev</B>
+            <span style={dim}>Page {page} / {pages}</span>
+            <B c="ghost" sm onClick={() => setPage(p => Math.min(pages, p + 1))} disabled={page >= pages}>Next ›</B>
+          </div>
+        )}
+      </>)}
+    </TW>
+  </>);
+}
+
+// ── RESTOCKS: player requests and Zombita's verdicts ────────────────────────
+function RestocksView({ toast }) {
+  const [data, setData]       = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    try { setData(await fetchApi("/api/admin/shop/live/restocks")); }
+    catch (e) { toast(`Failed to load restocks: ${e.message}`, "error"); }
     setLoading(false);
   }, [toast]);
 
-  useEffect(() => { loadItems(); }, [loadItems]);
-  // P1: live refresh shop data in place when any admin changes the shop
-  useLiveRefresh("shop", loadItems);
+  useEffect(() => { load(); }, [load]);
+  useLiveRefresh("shop", load);
 
-  const loadLog = useCallback(async () => {
-    try { setRestockLog((await fetchApi("/api/admin/shop/restock-log")).log || []); } catch {}
-  }, []);
+  if (loading) return <Load />;
+  const reqs = data?.requests || [], queue = data?.queue || [];
+  const granted = reqs.filter(r => r.verdict === "granted").length;
+  const waiting = queue.filter(x => !x.delivered).length;
 
-  const filtered = useMemo(() => {
-    let result = items;
-    if (filterType !== "all") result = result.filter(i => i.shop_type === filterType);
-    if (search) {
-      const q = search.toLowerCase();
-      result = result.filter(i =>
-        i.name.toLowerCase().includes(q) ||
-        i.item_id.toLowerCase().includes(q) ||
-        i.category?.toLowerCase().includes(q) ||
-        i.shop_type?.toLowerCase().includes(q)
-      );
-    }
-    return result;
-  }, [items, search, filterType]);
+  return (<>
+    <div className="ap-note" style={{ marginBottom: 16 }}>
+      Players ask for an out-of-stock item (in a shop or the SEARCH tab). Zombita decides from their hidden respect,
+      trust, the item's rarity and her mood. A grant costs full reputation and the item arrives at that shop's next
+      restock; a refusal keeps half the cost as a fee. Either way she posts the verdict in the shop-news channel.
+    </div>
+    <div className="ap-sr">
+      <SC label="Requests"         value={reqs.length} sub="most recent 100" />
+      <SC label="Granted"          value={granted} color="green" />
+      <SC label="Refused"          value={reqs.length - granted} color="red" />
+      <SC label="Awaiting Delivery" value={waiting} color="orange" />
+    </div>
 
-  const stats = useMemo(() => ({
-    total:    items.length,
-    empty:    items.filter(i => i.stock === 0).length,
-    low:      items.filter(i => i.stock > 0 && i.stock < 5).length,
-    enabled:  items.filter(i => i.enabled).length,
-    global:   items.filter(i => i.shop_type === "global").length,
-    food:     items.filter(i => i.shop_type === "food").length,
-    ammo:     items.filter(i => i.shop_type === "ammo").length,
-    carparts: items.filter(i => i.shop_type === "carparts").length,
-    cars:     items.filter(i => i.shop_type === "cars").length,
-  }), [items]);
+    <TW title="DELIVERY QUEUE" right={<B c="ghost" sm onClick={load}>↻</B>}>
+      {queue.length === 0 ? <Empty text="No granted restocks queued." /> : (
+        <table className="ap-t">
+          <thead><tr><th>Item</th><th>Shop</th><th>For</th><th>Price</th><th>Stock</th><th>Delivery</th></tr></thead>
+          <tbody>{queue.map(x => (
+            <tr key={x.id}>
+              <td><div style={{ fontWeight: 500 }}>{x.name} <Tier t={x.tier} /></div><div style={dim}>{x.item_id}</div></td>
+              <td style={{ fontSize: 12 }}>{shopName(x.shop_type)}</td>
+              <td style={mono}>{x.username}</td>
+              <td style={mono}>{fmt(x.price)} 🟤</td>
+              <td style={mono}>{x.stock}</td>
+              <td style={{ ...mono, fontSize: 12, color: x.delivered ? "var(--green)" : "var(--accent)" }}>
+                {x.delivered ? `delivered ${relTime(x.delivered_at)}` : `due ${untilText(x.deliver_after)}`}
+              </td>
+            </tr>
+          ))}</tbody>
+        </table>
+      )}
+    </TW>
 
-  const toggleItem  = async (id, en)  => { try { await postApi("/api/admin/shop/toggle", { item_id: id, enabled: en }); toast(en ? "Enabled" : "Disabled", "success"); loadItems(); } catch { toast("Failed", "error"); } };
-  const quickStock  = async (id, val) => { const n = parseInt(val); if (isNaN(n) || n < 0) return; try { await postApi("/api/admin/shop/stock", { item_id: id, mode: "set", amount: n, note: "Quick edit" }); toast("Stock updated", "success"); loadItems(); } catch { toast("Failed", "error"); } };
-  const triggerRestock = async () => { if (!confirm("Trigger full Zombita restock?")) return; try { const d = await postApi("/api/admin/shop/restock-all", { note: "Admin triggered" }); toast(`Restocked ${d.restocked?.length || 0} items!`, "success"); loadItems(); } catch { toast("Restock failed", "error"); } };
+    <TW title="REQUEST HISTORY">
+      {reqs.length === 0 ? <Empty text="No restock requests yet." /> : (
+        <table className="ap-t">
+          <thead><tr><th>When</th><th>Player</th><th>Item</th><th>Shop</th><th>Verdict</th><th>Rep spent</th><th>Price set</th></tr></thead>
+          <tbody>{reqs.map(r => (
+            <tr key={r.id}>
+              <td style={dim} title={fmtFull(r.created_at)}>{relTime(r.created_at)}</td>
+              <td style={mono}>{r.username}</td>
+              <td><div style={{ fontWeight: 500 }}>{r.name} {r.tier && <Tier t={r.tier} />}</div><div style={dim}>{r.item_id}</div></td>
+              <td style={{ fontSize: 12 }}>{shopName(r.shop_type)}</td>
+              <td>
+                <span className="ap-pill" style={r.verdict === "granted"
+                  ? { background: "rgba(76,175,125,0.15)", color: "var(--green)" }
+                  : { background: "rgba(224,85,85,0.15)", color: "var(--red)" }}>
+                  {r.verdict === "granted" ? "✓ granted" : "✗ refused"}
+                </span>
+              </td>
+              <td style={mono}>{fmt(r.rep_spent)}{r.verdict === "refused" && <span style={dim}> fee</span>}</td>
+              <td style={mono}>{r.price_set ? `${fmt(r.price_set)} 🟤` : "—"}</td>
+            </tr>
+          ))}</tbody>
+        </table>
+      )}
+    </TW>
+  </>);
+}
 
-  const saveEdit = async () => {
-    if (!editItem) return;
-    // sell_price only applies to global shop
-    const sellPrice = editItem.shop_type === "global" ? (parseInt(editItem.sell_price) || null) : null;
-    try {
-      await postApi("/api/admin/shop/item", {
-        item_id: editItem.item_id, name: editItem.name,
-        shop_type: editItem.shop_type,
-        buy_price: parseInt(editItem.buy_price) || null,
-        sell_price: sellPrice,
-        category: editItem.category, tier: editItem.tier,
-        stock: editItem.stock, base_stock: parseInt(editItem.base_stock) ?? 10,
-        restock_interval_days: parseInt(editItem.restock_interval_days) ?? 30,
-        variance: parseFloat(editItem.variance) ?? 0.3, enabled: editItem.enabled,
-      });
-      toast("Item saved", "success"); setEditItem(null); loadItems();
-    } catch (e) { toast("Failed: " + e.message, "error"); }
-  };
+export default function ShopTab({ toast }) {
+  const [sub, setSub]     = useStickyState("shops", "shop.live.sub");
+  const [shelf, setShelf] = useStickyState("weapons", "shop.live.shelf");
+  const [overview, setOverview] = useState(null);
+  const [loading, setLoading]   = useState(true);
 
-  const ni  = newItem;
-  const sni = (k, v) => setNewItem({ ...ni, [k]: v });
-  const addItem = async () => {
-    if (!ni.item_id || !ni.name) { toast("ID and name required", "error"); return; }
-    const sellPrice = ni.shop_type === "global" ? (parseInt(ni.sell_price) || null) : null;
-    try {
-      await postApi("/api/admin/shop/item", {
-        ...ni,
-        buy_price: parseInt(ni.buy_price) || null,
-        sell_price: sellPrice,
-        stock: parseInt(ni.stock) || 0,
-        base_stock: parseInt(ni.base_stock) || 0,
-        restock_interval_days: parseInt(ni.restock_interval_days) || 30,
-        variance: parseFloat(ni.variance) || 0.3,
-        enabled: 1,
-      });
-      toast(`${ni.name} added!`, "success");
-      setNewItem({ item_id: "", name: "", shop_type: "global", buy_price: "", sell_price: "", category: "misc", tier: "common", stock: "5", base_stock: "5", restock_interval_days: "30", variance: "0.3" });
-      loadItems();
-    } catch (e) { toast(e.message, "error"); }
-  };
+  const loadOverview = useCallback(async () => {
+    try { setOverview(await fetchApi("/api/admin/shop/live/overview")); }
+    catch (e) { toast(`Failed to load shop network: ${e.message}`, "error"); }
+    setLoading(false);
+  }, [toast]);
 
-  const stColor = (s) => s === -1 ? "var(--textdim)" : s === 0 ? "var(--red)" : s < 5 ? "var(--accent)" : "var(--green)";
+  useEffect(() => { loadOverview(); }, [loadOverview]);
+  useLiveRefresh("shop", loadOverview);
+
   const tabs = [
-    { key: "inventory", icon: "📦", label: "Inventory" },
-    { key: "add",       icon: "➕", label: "Add Item"  },
-    { key: "restock",   icon: "🔄", label: "Restock"   },
-    { key: "log",       icon: "📋", label: "Stock Log"  },
+    { key: "shops",    icon: "🏪", label: "Shops" },
+    { key: "shelf",    icon: "📦", label: "Shelf & Stock" },
+    { key: "catalog",  icon: "📚", label: "Catalog" },
+    { key: "restocks", icon: "🧟", label: "Zombita's Restocks" },
   ];
 
   return (<>
-    <Title t="SHOP" s="manage inventory · stock levels · pricing" />
-    <div style={{ display: "flex", gap: 6, marginBottom: 24 }}>
+    <Title t="SHOP" s="8 keepers · catalog · shelves & stock · Zombita's restock decisions" />
+    <div style={{ display: "flex", gap: 6, marginBottom: 24, flexWrap: "wrap" }}>
       {tabs.map(t => (
-        <button key={t.key} className={`ap-ft ${sub === t.key ? "act" : ""}`}
-          onClick={() => { setSub(t.key); if (t.key === "log") loadLog(); }}>
+        <button key={t.key} className={`ap-ft ${sub === t.key ? "act" : ""}`} onClick={() => setSub(t.key)}>
           {t.icon} {t.label}
         </button>
       ))}
     </div>
 
-    {sub === "inventory" && <>
-      {/* Stats */}
-      <div className="ap-sr">
-        <SC label="Total"      value={stats.total}    />
-        <SC label="Out Stock"  value={stats.empty}    color="red"    />
-        <SC label="Low Stock"  value={stats.low}      color="orange" />
-        <SC label="Enabled"    value={stats.enabled}  color="green"  />
-        <SC label="🌍 Global"  value={stats.global}   />
-        <SC label="🍕 Food"    value={stats.food}     />
-        <SC label="🔫 Ammo"    value={stats.ammo}     />
-        <SC label="🔧 Parts"   value={stats.carparts} />
-        <SC label="🚗 Cars"    value={stats.cars}     />
-      </div>
-
-      <TW title="ITEMS" right={<>
-        <select className="ap-search" style={{ padding: "4px 8px" }} value={filterType} onChange={e => setFilterType(e.target.value)}>
-          <option value="all">All shops</option>
-          {SHOP_TYPES.map(st => <option key={st.value} value={st.value}>{st.label}</option>)}
-        </select>
-        <input className="ap-search" placeholder="search items..." value={search} onChange={e => setSearch(e.target.value)} />
-        <B c="gold" sm onClick={loadItems}>↻</B>
-      </>}>
-        {loading ? <Load /> : (
-          <table className="ap-t">
-            <thead>
-              <tr>
-                <th style={{ width: 40 }}>⚡</th>
-                <th>Item</th>
-                <th>Shop</th>
-                <th>Category</th>
-                <th>Tier</th>
-                <th>Buy</th>
-                <th>Sell</th>
-                <th>Stock</th>
-                <th>Base</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.length === 0
-                ? <tr><td colSpan={10}><Empty text="no items found" /></td></tr>
-                : filtered.map(item => (
-                  <tr key={item.item_id}>
-                    <td><span className={`ap-dot ${item.enabled ? "on" : "off"}`} /></td>
-                    <td>
-                      <div style={{ fontWeight: 500 }}>{item.name}</div>
-                      <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--textdim)" }}>{item.item_id}</div>
-                    </td>
-                    <td>
-                      <span className="ap-cat">{SHOP_TYPE_ICON[item.shop_type] || "?"} {item.shop_type}</span>
-                    </td>
-                    <td><span className="ap-cat">{item.category}</span></td>
-                    <td><span className={`ap-pill ap-tier-${item.tier || "common"}`}>{item.tier || "common"}</span></td>
-                    <td style={{ fontFamily: "var(--mono)" }}>{item.buy_price != null ? `${fmt(item.buy_price)} 🟤` : "—"}</td>
-                    <td style={{ fontFamily: "var(--mono)" }}>
-                      {item.shop_type === "global" && item.sell_price != null ? `${fmt(item.sell_price)} 🟤` : "—"}
-                    </td>
-                    <td>
-                      <div className="ap-se">
-                        <span style={{ fontFamily: "var(--mono)", fontSize: 13, color: stColor(item.stock) }}>
-                          {item.stock === -1 ? "∞" : item.stock}
-                        </span>
-                        <input type="number" defaultValue={item.stock === -1 ? "" : item.stock} min="0" placeholder="—"
-                          onBlur={e => { if (e.target.value !== "" && parseInt(e.target.value) !== item.stock) quickStock(item.item_id, e.target.value); }} />
-                      </div>
-                    </td>
-                    <td style={{ fontFamily: "var(--mono)", color: "var(--textdim)" }}>{item.base_stock === -1 ? "∞" : item.base_stock}</td>
-                    <td>
-                      <div style={{ display: "flex", gap: 6 }}>
-                        <B c="blue" sm onClick={() => setEditItem({ ...item })}>Edit</B>
-                        <B c={item.enabled ? "red" : "green"} sm onClick={() => toggleItem(item.item_id, item.enabled ? 0 : 1)}>
-                          {item.enabled ? "Off" : "On"}
-                        </B>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              }
-            </tbody>
-          </table>
-        )}
-      </TW>
-    </>}
-
-    {sub === "add" && <FB title="ADD ITEM">
-      <div className="ap-fgrid">
-        <div style={{ gridColumn: "1/3" }}>
-          <Inp label="Item ID" placeholder="Base.Katana" value={ni.item_id} onChange={e => sni("item_id", e.target.value)} />
-        </div>
-        <Inp label="Display Name" placeholder="Katana" value={ni.name} onChange={e => sni("name", e.target.value)} />
-        <Sel label="Shop Type" value={ni.shop_type} onChange={e => sni("shop_type", e.target.value)}>
-          {SHOP_TYPES.map(st => <option key={st.value} value={st.value}>{st.label}</option>)}
-        </Sel>
-        <Sel label="Category" value={ni.category} onChange={e => sni("category", e.target.value)}>
-          <option value="food">Food</option>
-          <option value="medical">Medical</option>
-          <option value="tools">Tools</option>
-          <option value="weapons">Weapons</option>
-          <option value="vehicles">Vehicles</option>
-          <option value="ammo">Ammo</option>
-          <option value="misc">Misc</option>
-        </Sel>
-        <Sel label="Tier" value={ni.tier} onChange={e => sni("tier", e.target.value)}>
-          <option value="common">Common</option>
-          <option value="uncommon">Uncommon</option>
-          <option value="rare">Rare</option>
-          <option value="epic">Epic</option>
-          <option value="legendary">Legendary</option>
-        </Sel>
-        <Inp label="Buy Price" type="number" placeholder="5000" value={ni.buy_price} onChange={e => sni("buy_price", e.target.value)} />
-        {ni.shop_type === "global" && (
-          <Inp label="Sell Price" type="number" placeholder="0" value={ni.sell_price} onChange={e => sni("sell_price", e.target.value)} />
-        )}
-        <Inp label="Stock"       type="number" value={ni.stock}                  onChange={e => sni("stock", e.target.value)} />
-        <Inp label="Base Stock"  type="number" value={ni.base_stock}             onChange={e => sni("base_stock", e.target.value)} />
-        <Inp label="Restock Days" type="number" value={ni.restock_interval_days} onChange={e => sni("restock_interval_days", e.target.value)} />
-        <Inp label="Variance (±%)" type="number" step="0.05" value={ni.variance} onChange={e => sni("variance", e.target.value)} />
-      </div>
-      <B c="gold" onClick={addItem}>➕ ADD TO SHOP</B>
-    </FB>}
-
-    {sub === "restock" && <>
-      <FB title="FULL RESTOCK">
-        <div className="ap-note">⚡ Triggers Zombita restock on all enabled items. Random amounts within variance.</div>
-        <B c="gold" onClick={triggerRestock}>⚡ TRIGGER ZOMBITA RESTOCK</B>
-      </FB>
-      <FB title="SINGLE ITEM"><SingleRestock items={items} toast={toast} onDone={loadItems} /></FB>
-    </>}
-
-    {sub === "log" && <TW title="STOCK LOG" right={<B c="ghost" sm onClick={loadLog}>↻</B>}>
-      {restockLog.length
-        ? <div>{restockLog.map((e, i) => {
-            const d = (e.new_stock || 0) - (e.old_stock || 0);
-            return (
-              <div key={i} className="ap-lr">
-                <span className="ap-lr-t">{fmtDate(e.timestamp)}</span>
-                <span style={{ color: "var(--text)", flex: 1 }}>{e.name || e.item_id}</span>
-                <span className={`ap-pill ${e.restock_type === "auto" ? "ap-tier-rare" : "ap-tier-legendary"}`}>{e.restock_type}</span>
-                <span style={{ color: "var(--textdim)", fontSize: 11, flex: 1, fontFamily: "var(--mono)" }}>{e.note || ""}</span>
-                <span className={`ap-lr-v ${d < 0 ? "neg" : "pos"}`}>{d >= 0 ? "+" : ""}{d} → {e.new_stock}</span>
-              </div>
-            );
-          })}</div>
-        : <Empty text="no log entries" />
-      }
-    </TW>}
-
-    {/* Edit modal */}
-    {editItem && (
-      <div className="ap-mbd" onClick={e => { if (e.target === e.currentTarget) setEditItem(null); }}>
-        <div className="ap-mod">
-          <button className="ap-mod-x" onClick={() => setEditItem(null)}>✕</button>
-          <h3>EDIT ITEM</h3>
-          <div style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--textdim)", marginBottom: 20 }}>
-            {editItem.name} — {editItem.item_id}
-          </div>
-          <div className="ap-fgrid">
-            <Sel label="Shop Type" value={editItem.shop_type || "global"} onChange={e => setEditItem({ ...editItem, shop_type: e.target.value })}>
-              {SHOP_TYPES.map(st => <option key={st.value} value={st.value}>{st.label}</option>)}
-            </Sel>
-            <Inp label="Buy Price"   type="number" value={editItem.buy_price || ""}  onChange={e => setEditItem({ ...editItem, buy_price: e.target.value })} />
-            {editItem.shop_type === "global" && (
-              <Inp label="Sell Price" type="number" value={editItem.sell_price || ""} onChange={e => setEditItem({ ...editItem, sell_price: e.target.value })} />
-            )}
-            <Sel label="Tier" value={editItem.tier || "common"} onChange={e => setEditItem({ ...editItem, tier: e.target.value })}>
-              <option value="common">Common</option>
-              <option value="uncommon">Uncommon</option>
-              <option value="rare">Rare</option>
-              <option value="epic">Epic</option>
-              <option value="legendary">Legendary</option>
-            </Sel>
-            <Inp label="Base Stock"   type="number" value={editItem.base_stock ?? ""}             onChange={e => setEditItem({ ...editItem, base_stock: e.target.value })} />
-            <Inp label="Restock Days" type="number" value={editItem.restock_interval_days ?? ""}  onChange={e => setEditItem({ ...editItem, restock_interval_days: e.target.value })} />
-            <Inp label="Variance"     type="number" step="0.05" value={editItem.variance ?? ""}   onChange={e => setEditItem({ ...editItem, variance: e.target.value })} />
-          </div>
-          <div style={{ display: "flex", gap: 12, marginTop: 16 }}>
-            <B c="gold"  onClick={saveEdit}>Save</B>
-            <B c="ghost" onClick={() => setEditItem(null)}>Cancel</B>
-          </div>
-        </div>
-      </div>
-    )}
+    {sub === "shops" && (loading ? <Load /> : overview
+      ? <ShopsView data={overview} toast={toast} reload={loadOverview} onOpenShelf={(st) => { setShelf(st); setSub("shelf"); }} />
+      : <Empty text="Shop network unavailable" />)}
+    {sub === "shelf"    && <ShelfView shop={shelf} setShop={setShelf} toast={toast} />}
+    {sub === "catalog"  && <CatalogView toast={toast} />}
+    {sub === "restocks" && <RestocksView toast={toast} />}
   </>);
 }

@@ -123,7 +123,7 @@ export default function OverviewTab({ toast }) {
     try {
       const [tres, shopR, comR] = await Promise.allSettled([
         fetchApi("/api/treasury/admin/overview"),
-        fetchApi("/api/admin/shop/items"),
+        fetchApi("/api/admin/shop/live/overview"),
         fetchApi("/api/community"),
       ]);
       setD({
@@ -139,14 +139,14 @@ export default function OverviewTab({ toast }) {
 
   if (loading) return <Load />;
 
-  const t = d?.t?.treasury, s24 = d?.t?.stats_24h, items = d?.shop?.items || [], com = d?.com, log = d?.t?.recent_log || [], oos = items.filter(i => i.stock === 0).length;
+  const t = d?.t?.treasury, s24 = d?.t?.stats_24h, shopTotals = d?.shop?.totals, com = d?.com, log = d?.t?.recent_log || [];
 
   return (<>
     <Title t="COMMAND CENTER" s="system overview · treasury health · recent activity" />
     <div className="ap-sr">
       <SC label="Treasury Balance" value={t ? fmt(t.balance) : "—"} sub={t ? `${t.health_pct}% health` : ""} />
       <SC label="Paid Out (24h)" value={s24 ? fmt(s24.paid_out) : "—"} color="green" sub={s24 ? `${s24.payout_count} payouts` : ""} />
-      <SC label="Shop Items" value={items.filter(i => i.enabled).length || "—"} color="blue" sub={`${oos} out of stock`} />
+      <SC label="On Shop Shelves" value={shopTotals ? fmt(shopTotals.on_shelf) : "—"} color="blue" sub={shopTotals ? `${shopTotals.out_of_stock} out of stock · ${shopTotals.overdue_shops} overdue` : ""} />
       <SC label="Total Players" value={com?.total_players ?? "—"} color="orange" sub={com?.total_games ? `${com.total_games} games played` : ""} />
     </div>
 
