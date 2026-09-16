@@ -144,7 +144,7 @@ export default function OverviewTab({ toast }) {
   return (<>
     <Title t="COMMAND CENTER" s="system overview · treasury health · recent activity" />
     <div className="ap-sr">
-      <SC label="Treasury Balance" value={t ? fmt(t.balance) : "—"} sub={t ? `${t.health_pct}% health` : ""} />
+      <SC label="Treasury Balance" value={t ? fmt(t.balance) : "—"} sub={t ? `${d?.t?.money?.health ? d.t.money.health + " · " : ""}${t.health_pct}% of cap` : ""} />
       <SC label="Paid Out (24h)" value={s24 ? fmt(s24.paid_out) : "—"} color="green" sub={s24 ? `${s24.payout_count} payouts` : ""} />
       <SC label="On Shop Shelves" value={shopTotals ? fmt(shopTotals.on_shelf) : "—"} color="blue" sub={shopTotals ? `${shopTotals.out_of_stock} out of stock · ${shopTotals.overdue_shops} overdue` : ""} />
       <SC label="Total Players" value={com?.total_players ?? "—"} color="orange" sub={com?.total_games ? `${com.total_games} games played` : ""} />
@@ -156,7 +156,7 @@ export default function OverviewTab({ toast }) {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
         <div>
           <div style={{ fontFamily: "var(--mono)", fontSize: 10, letterSpacing: 3, color: "var(--textdim)", textTransform: "uppercase", marginBottom: 6 }}>Treasury Status</div>
-          <div style={{ fontFamily: "var(--display)", fontSize: 42, letterSpacing: 3, color: t.balance === 0 ? "var(--red)" : t.health_pct < 20 ? "var(--orange)" : "var(--accent)", lineHeight: 1 }}>{fmt(t.balance)} <span style={{ fontSize: 18, color: "var(--textdim)" }}>🟤</span></div>
+          <div style={{ fontFamily: "var(--display)", fontSize: 42, letterSpacing: 3, color: t.balance === 0 ? "var(--red)" : ["LOW", "CRITICAL"].includes(d?.t?.money?.health) ? "var(--orange)" : "var(--accent)", lineHeight: 1 }}>{fmt(t.balance)} <span style={{ fontSize: 18, color: "var(--textdim)" }}>🟤</span></div>
           <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)", marginTop: 4 }}>{bronzeToCoins(t.balance)}</div>
         </div>
         <div style={{ textAlign: "right" }}>
@@ -165,8 +165,8 @@ export default function OverviewTab({ toast }) {
           <div style={{ fontFamily: "var(--display)", fontSize: 24, letterSpacing: 2, color: "var(--text)" }}>{t.cycle_days_remaining > 0 ? `${t.cycle_days_remaining}d left` : "OVERDUE"}</div>
         </div>
       </div>
-      <div className="ap-hbar"><div className={`ap-hfill ${t.health_pct < 10 ? "red" : t.health_pct < 25 ? "amber" : ""}`} style={{ width: `${t.health_pct}%` }} /></div>
-      <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "var(--mono)", fontSize: 10, color: "var(--textdim)" }}><span>{t.health_pct}% of cap</span><span>Cap: {fmt(t.cap)} 🟤</span></div>
+      <div className="ap-hbar"><div className={`ap-hfill ${d?.t?.money?.health === "CRITICAL" ? "red" : ["LOW", "TIGHT"].includes(d?.t?.money?.health) ? "amber" : ""}`} style={{ width: `${Math.min(100, t.health_pct)}%` }} /></div>
+      <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "var(--mono)", fontSize: 10, color: "var(--textdim)" }}><span>{t.health_pct}% of cap</span><span>Cap: {fmt(t.cap)} 🟤 (automatic){d?.t?.money?.burn_mode ? " · 🔥 burn mode" : ""}</span></div>
     </div>}
 
     <div className="ap-fb" style={{ marginBottom: 24 }}>
