@@ -5,4 +5,5 @@ node_modules/
 .cloudflare/
 .vercel/
 out/
-wrangler.jsoncsoup-next.zip
+wrangler.jsonc
+soup-next.zip
