@@ -2,7 +2,7 @@
 // @ts-nocheck
 import { useState, useEffect, useCallback } from "react";
 import { useLiveRefresh } from "../realtime";
-import { fetchApi, fmt, relTime, Title, SC, TW, B, FB, Empty, Load, EvBadge, useStickyState } from "./shared";
+import { fetchApi, postApi, fmt, relTime, Title, SC, TW, B, FB, Inp, Sel, Empty, Load, EvBadge, useStickyState } from "./shared";
 
 const mono = { fontFamily: "var(--mono)", fontSize: 12 };
 const dim = { ...mono, fontSize: 11, color: "var(--textdim)" };
@@ -30,13 +30,43 @@ const LedgerRows = ({ rows, showKeeper }) => rows.length ? <div>{rows.map((e, i)
     <span style={{ ...dim, minWidth: 80, textAlign: "right" }}>→ {e.balance_after != null ? fmt(e.balance_after) : "—"}</span>
   </div>))}</div> : <Empty text="no activity yet" />;
 
-const KeeperDetail = ({ persona, onClose }) => {
+const TillForm = ({ d, toast, onDone }) => {
+  const [amt, setAmt] = useState(""); const [src, setSrc] = useState("treasury"); const [reason, setReason] = useState(""); const [busy, setBusy] = useState(false);
+  const n = parseInt(amt, 10);
+  const what = !n ? "" : n > 0
+    ? (src === "treasury" ? `Moves ${fmt(n)} bronze from the treasury into ${d.name}'s till.` : `Creates ${fmt(n)} new bronze in ${d.name}'s till.`)
+    : (src === "treasury" ? `Takes ${fmt(-n)} bronze out of ${d.name}'s till and puts it back in the treasury.` : `Takes ${fmt(-n)} bronze out of ${d.name}'s till and destroys it.`);
+  const go = async () => {
+    if (!n || busy) return;
+    if (!window.confirm(what + " Continue?")) return;
+    setBusy(true);
+    try { const r = await postApi("/api/treasury/admin/keepers/adjust", { persona: d.persona, amount: n, source: src, reason }); (toast || alert)(r.message, "success"); setAmt(""); setReason(""); onDone(); }
+    catch (e) { (toast || alert)("Failed: " + e.message, "error"); }
+    setBusy(false);
+  };
+  return (<FB title="CHANGE THIS TILL">
+    <div className="ap-note">Positive adds coins, negative takes them out (e.g. 500 or -500). Logged with your name.</div>
+    <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end" }}>
+      <Inp label="Bronze" type="number" placeholder="500 or -500" value={amt} onChange={e => setAmt(e.target.value)} />
+      <Sel label="Money" value={src} onChange={e => setSrc(e.target.value)}>
+        <option value="treasury">From / back to the treasury</option>
+        <option value="new">Create new / destroy coins</option>
+      </Sel>
+      <Inp label="Reason (optional)" placeholder="Event prize float" value={reason} onChange={e => setReason(e.target.value)} />
+      <B c={n < 0 ? "red" : "gold"} onClick={go} disabled={!n || busy}>{busy ? "…" : n < 0 ? "Take coins" : "Add coins"}</B>
+    </div>
+    {what && <div style={{ ...dim, marginTop: 6 }}>{what}</div>}
+  </FB>);
+};
+
+const KeeperDetail = ({ persona, onClose, toast, onChanged }) => {
   const [d, setD] = useState(null);
   const load = useCallback(async () => { try { setD(await fetchApi(`/api/treasury/admin/keepers?persona=${encodeURIComponent(persona)}`)); } catch { setD({ error: true }); } }, [persona]);
   useEffect(() => { setD(null); load(); }, [load]);
   if (!d) return <TW title={persona.toUpperCase()}><Load /></TW>;
   if (d.error) return <TW title={persona.toUpperCase()} right={<B c="ghost" sm onClick={onClose}>✕</B>}><Empty text="couldn't load this shopkeeper" /></TW>;
-  return (<TW title={`${d.name} · ${SHOP_LABEL[d.shop_type] || d.shop_type} · ${d.kiosks} kiosk${d.kiosks === 1 ? "" : "s"}`} right={<><span style={dim}>till {fmt(d.balance)} / float {fmt(d.target)}</span><B c="ghost" sm onClick={load}>↻</B><B c="ghost" sm onClick={onClose}>✕</B></>}>
+  return (<TW title={`${d.name} · ${SHOP_LABEL[d.shop_type] || d.shop_type} · ${d.kiosks} kiosk${d.kiosks === 1 ? "" : "s"}`} right={<><span style={dim}>till {fmt(d.balance)} / restocks to {fmt(d.target)}</span><B c="ghost" sm onClick={load}>↻</B><B c="ghost" sm onClick={onClose}>✕</B></>}>
+    <TillForm d={d} toast={toast} onDone={() => { load(); onChanged && onChanged(); }} />
     <div style={{ ...dim, textTransform: "uppercase", letterSpacing: 2, fontSize: 10, margin: "4px 0 6px" }}>Customers (all time)</div>
     {d.customers.length ? <div style={{ overflowX: "auto" }}><table className="ap-t"><thead><tr><th>Player</th><th>Bought</th><th>Spent</th><th>Sold to them</th><th>Paid out</th><th>Refused</th><th>Last</th></tr></thead><tbody>
       {d.customers.map(c => <tr key={c.discord_id}>
@@ -51,7 +81,7 @@ const KeeperDetail = ({ persona, onClose }) => {
   </TW>);
 };
 
-export default function KeepersTab() {
+export default function KeepersTab({ toast }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useStickyState(null, "keepers.open");
@@ -71,7 +101,7 @@ export default function KeepersTab() {
 
   return (<>
     <Title t="SHOPKEEPERS" s="every persona keeps a till · buys fill it · sells empty it · Zombita sweeps and refills every 3 days" />
-    {!seeded && <div className="ap-alert low">⚠ Keepers haven't opened the season yet. The shop watcher restocks them to their floats the next time it starts.</div>}
+    {!seeded && <div className="ap-alert low">⚠ Keepers haven't opened the season yet. The shop watcher restocks them the next time it starts.</div>}
     {data.burn_mode && <div className="ap-alert dep">🔥 Burn mode: Zombita's cut of every sale and any swept surplus is being destroyed.</div>}
     <div className="ap-sr">
       <SC label="In All Tills" value={fmt(data.total)} sub={`${ks.length} shopkeepers`} />
@@ -82,7 +112,7 @@ export default function KeepersTab() {
 
     <TW title="TILLS" right={<B c="ghost" sm onClick={load}>↻</B>}>
       <div style={{ overflowX: "auto" }}><table className="ap-t"><thead><tr>
-        <th>Shopkeeper</th><th>Till</th><th>Float · rate</th><th>Sales (3d)</th><th>Kept</th><th>Bought back (3d)</th><th>Refused</th><th>Customers</th><th>Swept / Funded</th>
+        <th>Shopkeeper</th><th>Till</th><th>Restocks to · per player</th><th>Sales (3d)</th><th>Kept</th><th>Bought back (3d)</th><th>Refused</th><th>Customers</th><th>Swept / Funded</th>
       </tr></thead><tbody>
         {ks.map(k => <tr key={k.persona} onClick={() => setOpen(open === k.persona ? null : k.persona)} style={{ cursor: "pointer", background: open === k.persona ? "rgba(200,168,75,0.06)" : undefined }}>
           <td><div style={{ ...mono, color: "var(--text)" }}>{k.name}</div><div style={dim}>{SHOP_LABEL[k.shop_type] || k.shop_type || "—"} · {k.kiosks} kiosk{k.kiosks === 1 ? "" : "s"}</div></td>
@@ -99,10 +129,10 @@ export default function KeepersTab() {
           <td style={dim}>{fmt(k.swept_total)} / {fmt(k.funded_total)}</td>
         </tr>)}
       </tbody></table></div>
-      <div style={{ ...dim, padding: "10px 4px 2px" }}>Click a shopkeeper for their customers and ledger. Hover a float to see why Zombita set that rate.</div>
+      <div style={{ ...dim, padding: "10px 4px 2px" }}>Click a shopkeeper to add or take coins, and to see their customers and ledger. Hover "restocks to" to see why Zombita chose that amount per player (green = she raised it, orange = she lowered it).</div>
     </TW>
 
-    {open && ks.some(k => k.persona === open) && <KeeperDetail persona={open} onClose={() => setOpen(null)} />}
+    {open && ks.some(k => k.persona === open) && <KeeperDetail persona={open} onClose={() => setOpen(null)} toast={toast} onChanged={load} />}
 
     <div className="ap-2c">
       <TW title="RECENT ACTIVITY"><LedgerRows rows={data.ledger || []} showKeeper /></TW>
@@ -110,9 +140,9 @@ export default function KeepersTab() {
         <div className="ap-note" style={{ lineHeight: 1.8 }}>
           <strong style={{ color: "var(--text)" }}>Player buys:</strong> Zombita takes her tier cut (to the treasury, destroyed in burn mode); the keeper keeps the rest.<br />
           <strong style={{ color: "var(--text)" }}>Player sells:</strong> the keeper pays from their till, or refuses if they can't.<br />
-          <strong style={{ color: "var(--text)" }}>Float:</strong> each keeper works with a rate × active whitelisted players (never fewer than {st.min_players || 4}). Neutral rate {fmt(st.rate_general || 750)} for general stores, {fmt(st.rate_specialist || 250)} for specialists.<br />
-          <strong style={{ color: "var(--text)" }}>Every 3 days:</strong> Zombita re-decides every rate (×{st.mult_min || 0.6}–×{st.mult_max || 1.6}) from demand at that keeper, their business, her mood and treasury health. Tills above {st.sweep_over || 1.5}× float are swept to the treasury; tills below are restocked with new coin, never past the money limit.<br />
-          <strong style={{ color: "var(--text)" }}>A player joins:</strong> every keeper gets that player's share at their current rate straight away.<br />
+          <strong style={{ color: "var(--text)" }}>Restocks to:</strong> each keeper gets an amount per active whitelisted player (counted as at least {st.min_players || 4}). Normally {fmt(st.rate_general || 750)} for general stores and {fmt(st.rate_specialist || 250)} for specialists.<br />
+          <strong style={{ color: "var(--text)" }}>Every 3 days:</strong> Zombita re-decides each keeper's amount per player (between ×{st.mult_min || 0.6} and ×{st.mult_max || 1.6}) from how busy they were, how many players bought from them, her mood and the treasury's health. Tills below their restock amount are topped up with new coins; tills far above it send the extra to the treasury. Never past the money limit.<br />
+          <strong style={{ color: "var(--text)" }}>A player joins:</strong> every keeper gets that player's share straight away.<br />
           <strong style={{ color: "var(--text)" }}>Every trade</strong> is recorded with the player, for keeper relationships later.
         </div>
       </FB>

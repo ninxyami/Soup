@@ -103,7 +103,7 @@ export default function TreasuryTab({ toast }) {
 
   const t = data?.treasury, s24 = data?.stats_24h, rLog = data?.recent_log || [], m = data?.money;
   const health = m && !m.error ? m.health : null;
-  const doAdjust = async (amt, reason) => { try { await postApi("/api/treasury/admin/adjust", { amount: amt, reason: reason || "Admin" }); toast(`Adjusted ${amt > 0 ? "+" : ""}${fmt(amt)}`, "success"); loadOv(); } catch (e) { toast("Failed: " + e.message, "error"); } };
+  const doAdjust = async (amt, reason) => { try { const r = await postApi("/api/treasury/admin/adjust", { amount: amt, reason: reason || "Admin" }); const got = r?.treasury?.applied ?? amt; toast(got === amt ? `Adjusted ${amt > 0 ? "+" : ""}${fmt(amt)}` : `Adjusted ${got > 0 ? "+" : ""}${fmt(got)} (asked for ${fmt(amt)}: ${amt > 0 ? "the cap stopped it" : "it can't go below 0"})`, got === amt ? "success" : "error"); loadOv(); } catch (e) { toast("Failed: " + e.message, "error"); } };
   const doConfig = async (body) => { try { await postApi("/api/treasury/admin/config", body); toast("Updated", "success"); loadOv(); } catch (e) { toast("Failed: " + e.message, "error"); } };
   const doReset = async (bal) => { try { await postApi("/api/treasury/admin/reset-cycle", bal ? { new_balance: parseInt(bal) } : {}); toast("Cycle reset!", "success"); setShowReset(false); loadOv(); } catch (e) { toast("Reset failed", "error"); setShowReset(false); } };
   const doPayout = async (did, amt, reason) => { try { await postApi("/api/treasury/admin/payout", { discord_id: parseInt(did), amount: parseInt(amt), reason: reason || "Admin payout" }); toast(`Sent ${fmt(amt)} 🟤`, "success"); loadOv(); } catch (e) { toast("Payout failed: " + e.message, "error"); } };
