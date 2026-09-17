@@ -18,8 +18,8 @@ const SHOPS = [
 ];
 
 const MONEY_FLOWS = [
-  { dir: "IN", items: ["60% of NPC shop purchases recycled", "100% marketplace listing taxes", "100% marketplace purchase taxes", "100% PvP death taxes", "Weekly 30,000 bronze injection", "5% rake from RPS and Connect Four bets", "Manual admin adjustments"] },
-  { dir: "OUT", items: ["Weekly leaderboard rewards: 1st (500), 2nd (250), 3rd (100)", "Weekly game rewards: Werewolf/Quizarium (300), CAH (200)", "Reputation gift items delivered via RCON", "Player crop and jewelry sell-backs", "Admin manual payouts"] },
+  { dir: "IN", items: ["A base fund when the season opens", "Each whitelisted player's first join of the season: 1,000–8,000 bronze, depending on how Zombita feels about them", "Zombita's cut of shop purchases (4% for common items up to 50% for specials) — shopkeepers keep the rest", "Marketplace listing fees, purchase tax and delivery fees", "Shopkeepers' surplus, swept back every 3 days", "100% PvP death taxes", "5% rake from RPS and Connect Four bets"] },
+  { dir: "OUT", items: ["Shopkeeper tills topped up every 3 days — keepers pay players for crops and jewelry", "Weekly leaderboard rewards: 1st (500), 2nd (250), 3rd (100)", "Weekly game rewards: Werewolf/Quizarium (300), CAH (200)", "Reputation gift items delivered via RCON", "Admin manual payouts"] },
 ];
 
 export default function EconomyPage() {
@@ -191,7 +191,7 @@ export default function EconomyPage() {
         <section className="mb-16">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {[
-              { icon: "🏷️", name: "Marketplace", color: "#4a8fc4", desc: "Player-to-player listings. Listing tax + purchase tax scale with treasury state (3%/4% when BOOMING → 12%/15% when CRITICAL).", href: "/marketplace" },
+              { icon: "🏷️", name: "Marketplace", color: "#4a8fc4", desc: "Player-to-player listings at shop kiosks. 10 bronze to list plus 0.5% a day while unsold; buyers pay purchase tax and a delivery fee by distance.", href: "/marketplace" },
               { icon: "🎰", name: "Lottery", color: "#9775cc", desc: "1 Silver ticket. Tiered prizes: Bandages at the low end, Assault Rifle and Katana at the top. Weekly draw.", href: "/shop" },
               { icon: "🚗", name: "Teleport", color: "#4caf7d", desc: "Fast-travel to 7 named map locations for 5 Silver. Bot fires RCON teleport command for instant in-game travel.", href: "/shop" },
             ].map(f => (

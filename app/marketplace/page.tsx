@@ -177,7 +177,7 @@ export default function MarketplacePage() {
       <div className="border-b border-[#1e2530]" style={{ background: "rgba(74,143,196,0.05)" }}>
         <div className="max-w-[1000px] mx-auto px-4 sm:px-8 py-2">
           <p className="font-mono text-[0.63rem] text-center" style={{ color: "#4a8fc4" }}>
-            Press <kbd className="font-mono text-[0.6rem] bg-[#1a1a1a] border border-[#333] px-1 py-0.5">F7</kbd> anywhere in-game to list items · Visit any shopkeeper to buy · 3% listing tax · Listings expire after 7 days
+            List and buy at any shop kiosk · <kbd className="font-mono text-[0.6rem] bg-[#1a1a1a] border border-[#333] px-1 py-0.5">F7</kbd> browses anywhere · 10 bronze to list, +0.5% of your price per day unsold · Delivery fee between kiosks · Listings expire after 7 days
           </p>
         </div>
       </div>
@@ -266,10 +266,10 @@ export default function MarketplacePage() {
           </div>
           <div className="grid sm:grid-cols-2 gap-4">
             {[
-              { step: "01", title: "List anywhere",      body: "Press F7 anywhere in-game to open the marketplace. Set your price, select quantity, list it. 3% listing tax is charged upfront." },
-              { step: "02", title: "Players browse",     body: "Anyone can check listings here on the website, or open the Marketplace tab at any shopkeeper NPC in-game." },
-              { step: "03", title: "Buy at a shopkeeper", body: "To buy a listing, visit any shopkeeper in-game and open their Marketplace tab. The item is handed to you on the spot." },
-              { step: "04", title: "Seller gets paid",   body: "Coins go to the seller automatically when someone buys. Listing expires after 7 days if unsold — item returned to seller." },
+              { step: "01", title: "List at a kiosk",    body: "Stand at any shopkeeper kiosk and open the Marketplace tab. Listing costs 10 bronze, and every day it sits unsold adds 0.5% of your asking total — price it to sell." },
+              { step: "02", title: "Browse anywhere",    body: "Check listings here, press F7 anywhere in-game, or open the Marketplace tab at a kiosk. The website and F7 are for looking only." },
+              { step: "03", title: "Buy at a kiosk",     body: "Buy at any kiosk. Items listed at another kiosk cost a delivery fee by distance (free at the same kiosk), plus purchase tax. The item is handed to you on the spot." },
+              { step: "04", title: "Seller gets paid",   body: "Coins reach the seller when the item is delivered, minus the daily listing fee. Cancelled or unsold after 7 days, it comes back — if you can't pay the fee, Zombita keeps it." },
             ].map(s => (
               <div key={s.step} className="flex gap-3">
                 <span className="font-display text-2xl text-[#1e2530] flex-shrink-0" style={{ fontFamily: "'Bebas Neue', sans-serif", lineHeight: 1 }}>{s.step}</span>

@@ -8,6 +8,7 @@ import ServerTab      from "./tabs/ServerTab";
 import ShopTab        from "./tabs/ShopTab";
 import MarketplaceTab  from "./tabs/MarketplaceTab";
 import TreasuryTab    from "./tabs/TreasuryTab";
+import KeepersTab     from "./tabs/KeepersTab";
 import EconomyTab     from "./tabs/EconomyTab";
 import DotdTab        from "./tabs/DotdTab";
 import MiraTab        from "./tabs/MiraTab";
@@ -52,6 +53,7 @@ const NAV_SECTIONS = [
     { key: "shop",           icon: "📦", label: "Shop" },
     { key: "marketplace",    icon: "🏪", label: "Marketplace" },
     { key: "treasury",       icon: "🏦", label: "Treasury" },
+    { key: "keepers",        icon: "🧑‍💼", label: "Shopkeepers" },
     { key: "economy",        icon: "💰", label: "Wallets" },
   ]},
   { label: "WORLD", items: [
@@ -96,6 +98,7 @@ const PANELS = {
   shop:        ShopTab,
   marketplace: MarketplaceTab,
   treasury:    TreasuryTab,
+  keepers:     KeepersTab,
   economy:     EconomyTab,
   dotd:        DotdTab,
   mira:        MiraTab,
@@ -209,6 +212,11 @@ table.ap-t{width:100%;border-collapse:collapse}
 .ap-ev-burn{background:rgba(224,85,85,0.12);border:1px solid rgba(224,85,85,0.3);color:var(--red)}
 .ap-ev-recycle{background:rgba(212,135,58,0.12);border:1px solid rgba(212,135,58,0.3);color:var(--orange)}
 .ap-ev-reset{background:rgba(200,168,75,0.12);border:1px solid rgba(200,168,75,0.3);color:var(--accent)}
+.ap-ev-sale{background:rgba(200,168,75,0.12);border:1px solid rgba(200,168,75,0.3);color:var(--accent)}
+.ap-ev-buyback{background:rgba(212,135,58,0.12);border:1px solid rgba(212,135,58,0.3);color:var(--orange)}
+.ap-ev-refusal{background:rgba(224,85,85,0.12);border:1px solid rgba(224,85,85,0.3);color:var(--red)}
+.ap-ev-seed,.ap-ev-fund{background:rgba(76,175,125,0.15);border:1px solid rgba(76,175,125,0.3);color:var(--green)}
+.ap-ev-sweep{background:rgba(74,143,196,0.12);border:1px solid rgba(74,143,196,0.3);color:var(--blue)}
 .ap-ev-inject{background:rgba(76,175,125,0.15);border:1px solid rgba(76,175,125,0.3);color:var(--green)}
 .ap-ev-adjust{background:rgba(74,143,196,0.12);border:1px solid rgba(74,143,196,0.3);color:var(--blue)}
 .ap-ev-admin_grant{background:rgba(76,175,125,0.15);border:1px solid rgba(76,175,125,0.3);color:var(--green)}
