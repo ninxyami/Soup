@@ -175,30 +175,47 @@ const LogEntry = ({ entry, onRevertBackup }) => {
   );
 };
 
-const BackupCard = ({ backup, onRestore, isBusy }) => (
-  <div style={{
-    display: "flex", alignItems: "center", gap: 12, padding: "12px 16px",
-    background: "var(--surface)", border: "1px solid var(--border)", marginBottom: 6,
-  }}>
-    <div style={{ fontSize: 18 }}>💾</div>
-    <div style={{ flex: 1 }}>
-      <div style={{ fontSize: 12, fontFamily: "var(--mono)", color: "var(--text)" }}>{backup.filename}</div>
-      <div style={{ fontSize: 11, color: "var(--textdim)", marginTop: 2 }}>
-        {backup.label && <span style={{ marginRight: 8, color: "var(--accent)" }}>{backup.label}</span>}
-        <TimeStamp ts={backup.created_at} />
-        {backup.size && <span style={{ marginLeft: 8 }}>{Math.round(backup.size / 1024)}KB</span>}
+// Where a backup was made. Website backups are pruned to the last 10 by the website;
+// in-game backups (Zombita Control > SERVER FILES) live in their own folder and are kept.
+const BACKUP_SOURCE = {
+  website: { icon: "🌐", text: "Made on the website", color: "var(--accent)", border: "rgba(200,168,75,.45)" },
+  game:    { icon: "🎮", text: "Made in game (Zombita Control)", color: "var(--green, #7fcf6a)", border: "rgba(127,207,106,.45)" },
+};
+
+const BackupCard = ({ backup, onRestore, isBusy }) => {
+  const src = BACKUP_SOURCE[backup.source] || BACKUP_SOURCE.website;
+  const when = new Date(backup.created_at);
+  const whenText = isNaN(when) ? "" : when.toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  return (
+    <div style={{
+      display: "flex", alignItems: "center", gap: 12, padding: "12px 16px",
+      background: "var(--surface)", border: "1px solid var(--border)", borderLeft: `3px solid ${src.border}`, marginBottom: 6,
+    }}>
+      <div style={{ fontSize: 18 }} title={src.text}>{src.icon}</div>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: 11, fontFamily: "var(--mono)", color: src.color, letterSpacing: 1, marginBottom: 2 }}>
+          {src.text.toUpperCase()} · {backup.type === "sandbox" ? "SandboxVars.lua" : "servertest.ini"}
+        </div>
+        <div style={{ fontSize: 12, fontFamily: "var(--mono)", color: "var(--text)" }}>{backup.filename}</div>
+        <div style={{ fontSize: 11, color: "var(--textdim)", marginTop: 2 }}>
+          {backup.label && <span style={{ marginRight: 8, color: "var(--accent)" }}>{backup.label}</span>}
+          {backup.by && <span style={{ marginRight: 8 }}>by {backup.by}</span>}
+          {whenText && <span style={{ marginRight: 8, color: "var(--text)" }}>{whenText}</span>}
+          <TimeStamp ts={backup.created_at} />
+          {backup.size && <span style={{ marginLeft: 8 }}>{Math.round(backup.size / 1024)}KB</span>}
+        </div>
       </div>
+      <button onClick={() => onRestore(backup.filename, backup.source || "website")} disabled={isBusy}
+        style={{
+          padding: "6px 14px", fontSize: 10, fontFamily: "var(--mono)", letterSpacing: 1,
+          background: "rgba(212,135,58,.1)", border: "1px solid rgba(212,135,58,.5)",
+          color: isBusy ? "var(--textdim)" : "var(--orange)", cursor: isBusy ? "not-allowed" : "pointer",
+        }}>
+        {isBusy ? "Restoring..." : "↩ Restore This"}
+      </button>
     </div>
-    <button onClick={() => onRestore(backup.filename)} disabled={isBusy}
-      style={{
-        padding: "6px 14px", fontSize: 10, fontFamily: "var(--mono)", letterSpacing: 1,
-        background: "rgba(212,135,58,.1)", border: "1px solid rgba(212,135,58,.5)",
-        color: isBusy ? "var(--textdim)" : "var(--orange)", cursor: isBusy ? "not-allowed" : "pointer",
-      }}>
-      {isBusy ? "Restoring..." : "↩ Restore This"}
-    </button>
-  </div>
-);
+  );
+};
 
 export default function ActivityLogTab({ toast }) {
   const [logs, setLogs] = useState([]);
@@ -226,11 +243,12 @@ export default function ActivityLogTab({ toast }) {
 
   useEffect(() => { load(); }, [load]);
 
-  const revertBackup = async (filename) => {
-    if (!confirm(`Restore backup "${filename}"? Current settings will be overwritten.`)) return;
+  const revertBackup = async (filename, source = "website") => {
+    const where = source === "game" ? "made in game (Zombita Control)" : "made on the website";
+    if (!confirm(`Restore backup "${filename}" (${where})? Current settings will be overwritten.`)) return;
     setRestoring(true);
     try {
-      await postApi("/api/admin/config/restore", { filename });
+      await postApi("/api/admin/config/restore", { filename, source });
       toast(`Restored from ${filename}`, "success");
       load();
     } catch (e) { toast(e.message, "error"); }
@@ -259,7 +277,7 @@ export default function ActivityLogTab({ toast }) {
 
   const subTabs = [
     { key: "activity", label: "📋 Activity Feed" },
-    { key: "backups",  label: "💾 Backups (last 10)" },
+    { key: "backups",  label: "💾 Backups" },
   ];
 
   return (
@@ -371,10 +389,10 @@ export default function ActivityLogTab({ toast }) {
         ) : (
           <div>
             <div style={{ fontSize: 11, color: "var(--textdim)", fontFamily: "var(--mono)", marginBottom: 12 }}>
-              Last {backups.length} backups shown — older ones are auto-deleted
+              {backups.length} backups shown · 🌐 website backups: last 10 kept, older ones auto-deleted · 🎮 in-game backups (Zombita Control) are kept separately
             </div>
             {backups.map((b, i) => (
-              <BackupCard key={b.filename || i} backup={b} onRestore={revertBackup} isBusy={restoring} />
+              <BackupCard key={(b.source || "website") + ":" + (b.filename || i)} backup={b} onRestore={revertBackup} isBusy={restoring} />
             ))}
           </div>
         )}
