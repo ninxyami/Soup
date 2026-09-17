@@ -36,7 +36,7 @@ const KeeperDetail = ({ persona, onClose }) => {
   useEffect(() => { setD(null); load(); }, [load]);
   if (!d) return <TW title={persona.toUpperCase()}><Load /></TW>;
   if (d.error) return <TW title={persona.toUpperCase()} right={<B c="ghost" sm onClick={onClose}>✕</B>}><Empty text="couldn't load this shopkeeper" /></TW>;
-  return (<TW title={`${d.name} · ${SHOP_LABEL[d.shop_type] || d.shop_type} · ${d.kiosks} kiosk${d.kiosks === 1 ? "" : "s"}`} right={<><span style={dim}>till {fmt(d.balance)} / target {fmt(d.target)}</span><B c="ghost" sm onClick={load}>↻</B><B c="ghost" sm onClick={onClose}>✕</B></>}>
+  return (<TW title={`${d.name} · ${SHOP_LABEL[d.shop_type] || d.shop_type} · ${d.kiosks} kiosk${d.kiosks === 1 ? "" : "s"}`} right={<><span style={dim}>till {fmt(d.balance)} / float {fmt(d.target)}</span><B c="ghost" sm onClick={load}>↻</B><B c="ghost" sm onClick={onClose}>✕</B></>}>
     <div style={{ ...dim, textTransform: "uppercase", letterSpacing: 2, fontSize: 10, margin: "4px 0 6px" }}>Customers (all time)</div>
     {d.customers.length ? <div style={{ overflowX: "auto" }}><table className="ap-t"><thead><tr><th>Player</th><th>Bought</th><th>Spent</th><th>Sold to them</th><th>Paid out</th><th>Refused</th><th>Last</th></tr></thead><tbody>
       {d.customers.map(c => <tr key={c.discord_id}>
@@ -66,12 +66,12 @@ export default function KeepersTab() {
   const refusals = ks.reduce((a, k) => a + k.refusals, 0);
   const dry = ks.filter(k => k.balance <= 0).length;
   const cut = ks.reduce((a, k) => a + k.cut_to_zombita, 0);
-  const seeded = ks.some(k => k.funded_total > 0 || k.balance > 0);
+  const seeded = ks.some(k => k.rate > 0);
   const st = data.settings || {};
 
   return (<>
     <Title t="SHOPKEEPERS" s="every persona keeps a till · buys fill it · sells empty it · Zombita sweeps and refills every 3 days" />
-    {!seeded && <div className="ap-alert low">⚠ Keepers haven't been seeded yet. The shop watcher moves {Math.round((st.seed_pct || 0.2) * 100)}% of the base fund from the treasury to them the next time it starts.</div>}
+    {!seeded && <div className="ap-alert low">⚠ Keepers haven't opened the season yet. The shop watcher restocks them to their floats the next time it starts.</div>}
     {data.burn_mode && <div className="ap-alert dep">🔥 Burn mode: Zombita's cut of every sale and any swept surplus is being destroyed.</div>}
     <div className="ap-sr">
       <SC label="In All Tills" value={fmt(data.total)} sub={`${ks.length} shopkeepers`} />
@@ -82,12 +82,15 @@ export default function KeepersTab() {
 
     <TW title="TILLS" right={<B c="ghost" sm onClick={load}>↻</B>}>
       <div style={{ overflowX: "auto" }}><table className="ap-t"><thead><tr>
-        <th>Shopkeeper</th><th>Till</th><th>Target</th><th>Sales (3d)</th><th>Kept</th><th>Bought back (3d)</th><th>Refused</th><th>Customers</th><th>Swept / Funded</th>
+        <th>Shopkeeper</th><th>Till</th><th>Float · rate</th><th>Sales (3d)</th><th>Kept</th><th>Bought back (3d)</th><th>Refused</th><th>Customers</th><th>Swept / Funded</th>
       </tr></thead><tbody>
         {ks.map(k => <tr key={k.persona} onClick={() => setOpen(open === k.persona ? null : k.persona)} style={{ cursor: "pointer", background: open === k.persona ? "rgba(200,168,75,0.06)" : undefined }}>
           <td><div style={{ ...mono, color: "var(--text)" }}>{k.name}</div><div style={dim}>{SHOP_LABEL[k.shop_type] || k.shop_type || "—"} · {k.kiosks} kiosk{k.kiosks === 1 ? "" : "s"}</div></td>
           <td><Till balance={k.balance} target={k.target} /></td>
-          <td style={dim}>{fmt(k.target)}{k.target > k.base_target ? " (busy)" : ""}</td>
+          <td style={dim} title={k.factors || "not decided yet"}>
+            <div style={{ ...mono, color: "var(--text)" }}>{fmt(k.float)}</div>
+            <div>{k.rate ? `${fmt(k.rate)}/player × ${k.players_basis}` : "not decided yet"}{k.rate ? <span style={{ color: k.mult > 1.001 ? "var(--green)" : k.mult < 0.999 ? "var(--orange)" : "var(--textdim)" }}> · ×{Number(k.mult).toFixed(2)}</span> : null}</div>
+          </td>
           <td style={mono}>{k.sales}</td>
           <td style={{ ...mono, color: "var(--accent)" }}>{fmt(k.sales_kept)}</td>
           <td style={mono}>{k.buybacks} · <span style={{ color: "var(--orange)" }}>{fmt(k.buybacks_paid)}</span></td>
@@ -96,7 +99,7 @@ export default function KeepersTab() {
           <td style={dim}>{fmt(k.swept_total)} / {fmt(k.funded_total)}</td>
         </tr>)}
       </tbody></table></div>
-      <div style={{ ...dim, padding: "10px 4px 2px" }}>Click a shopkeeper for their customers and ledger.</div>
+      <div style={{ ...dim, padding: "10px 4px 2px" }}>Click a shopkeeper for their customers and ledger. Hover a float to see why Zombita set that rate.</div>
     </TW>
 
     {open && ks.some(k => k.persona === open) && <KeeperDetail persona={open} onClose={() => setOpen(null)} />}
@@ -107,7 +110,9 @@ export default function KeepersTab() {
         <div className="ap-note" style={{ lineHeight: 1.8 }}>
           <strong style={{ color: "var(--text)" }}>Player buys:</strong> Zombita takes her tier cut (to the treasury, destroyed in burn mode); the keeper keeps the rest.<br />
           <strong style={{ color: "var(--text)" }}>Player sells:</strong> the keeper pays from their till, or refuses if they can't.<br />
-          <strong style={{ color: "var(--text)" }}>Every 3 days:</strong> target = {Math.round((st.float_pct || 0.2) * 100)}% of the healthy level shared by kiosk count, raised to last cycle's payouts (at most {st.busy_max || 3}×). Tills above {st.sweep_over || 1.5}× target are swept back to target; tills below are refilled, keepers who refused sells first, without taking the treasury under {Math.round((st.fund_floor || 0.6) * 100)}% of its cap.<br />
+          <strong style={{ color: "var(--text)" }}>Float:</strong> each keeper works with a rate × active whitelisted players (never fewer than {st.min_players || 4}). Neutral rate {fmt(st.rate_general || 750)} for general stores, {fmt(st.rate_specialist || 250)} for specialists.<br />
+          <strong style={{ color: "var(--text)" }}>Every 3 days:</strong> Zombita re-decides every rate (×{st.mult_min || 0.6}–×{st.mult_max || 1.6}) from demand at that keeper, their business, her mood and treasury health. Tills above {st.sweep_over || 1.5}× float are swept to the treasury; tills below are restocked with new coin, never past the money limit.<br />
+          <strong style={{ color: "var(--text)" }}>A player joins:</strong> every keeper gets that player's share at their current rate straight away.<br />
           <strong style={{ color: "var(--text)" }}>Every trade</strong> is recorded with the player, for keeper relationships later.
         </div>
       </FB>
