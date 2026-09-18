@@ -20,6 +20,12 @@ const COLS = [
   { key: "deaths", label: "Deaths" },
   { key: "pvp_kills", label: "PvP kills" },
   { key: "hunt", label: "Hunted" },
+  { key: "chat", label: "Chat" },
+  { key: "discord", label: "Discord" },
+  { key: "talk_zombita", label: "Talked to Zombita" },
+  { key: "spent", label: "Spent" },
+  { key: "nice", label: "Nice" },
+  { key: "mean", label: "Mean" },
   { key: "walk_km", label: "Walked", unit: "km" },
   { key: "drive_km", label: "Driven", unit: "km" },
   { key: "top_town", label: "Most time in", text: true },
@@ -94,6 +100,21 @@ const PlayerDetail = ({ name, season, onClose, toast }) => {
       <div className="ap-3c" style={{ alignItems: "start" }}>
         {d.sections.map(s => <SectionCard key={s.key} s={s} />)}
       </div>
+      <TW title="Mean or nice, day by day" right={<span style={dim}>Zombita's nightly read · admins only · last 14 days</span>}>
+        {!d.tone?.length ? <Empty text="Not read yet (runs every night at 00:20 UTC for players with 3+ messages)" /> :
+          <div style={{ overflowX: "auto" }}><table className="ap-t"><thead><tr>
+            <th>Day</th><th>Messages</th><th>Nice</th><th>Mean</th><th>To Zombita</th><th>Trolling</th><th>How they came across</th>
+          </tr></thead><tbody>
+            {d.tone.map(t => <tr key={t.day}>
+              <td style={dim}>{t.day}</td><td style={mono}>{t.msgs}</td>
+              <td style={{ ...mono, color: t.nice ? "var(--green)" : undefined }}>{t.nice}</td>
+              <td style={{ ...mono, color: t.mean ? "var(--red)" : undefined }}>{t.mean}</td>
+              <td style={mono}>{t.zombita_nice} nice / {t.zombita_mean} mean</td>
+              <td style={{ ...mono, color: t.troll ? "var(--orange)" : undefined }}>{t.troll ? "yes" : "—"}</td>
+              <td style={dim}>{t.note || "—"}</td>
+            </tr>)}
+          </tbody></table></div>}
+      </TW>
       <TW title="Recent events" right={<span style={dim}>newest first, last 100</span>}>
         {!d.events.length ? <Empty text="No events yet (deaths, PvP, long AFK, Dawn of the Dead)" /> :
           <div style={{ overflowX: "auto" }}><table className="ap-t"><thead><tr><th>When</th><th>What</th><th>Where</th><th>Details</th></tr></thead><tbody>
@@ -177,6 +198,12 @@ export default function PlayerStatsTab({ toast }) {
               <td style={mono}>{fmt(p.deaths)}</td>
               <td style={mono}>{fmt(p.pvp_kills)}</td>
               <td style={mono}>{fmt(p.hunt)}</td>
+              <td style={mono}>{fmt(p.chat)}</td>
+              <td style={mono}>{fmt(p.discord)}</td>
+              <td style={mono}>{fmt(p.talk_zombita)}</td>
+              <td style={mono}>{fmt(p.spent)}</td>
+              <td style={{ ...mono, color: p.nice ? "var(--green)" : undefined }}>{fmt(p.nice)}</td>
+              <td style={{ ...mono, color: p.mean ? "var(--red)" : undefined }}>{fmt(p.mean)}</td>
               <td style={mono}>{num(p.walk_km)}</td>
               <td style={mono}>{num(p.drive_km)}</td>
               <td style={mono}>{p.top_town || "—"}</td>
