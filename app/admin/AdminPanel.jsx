@@ -32,6 +32,7 @@ import TestServerTab      from "./tabs/TestServerTab";
 import SystemResourcesTab from "./tabs/SystemResourcesTab";
 import FilesTab           from "./tabs/FilesTab";
 import LeaderboardsTab    from "./tabs/LeaderboardsTab";
+import PlayerStatsTab     from "./tabs/PlayerStatsTab";
 
 const NAV_SECTIONS = [
   { label: "COMMAND", items: [
@@ -67,6 +68,7 @@ const NAV_SECTIONS = [
     { key: "games",          icon: "🎮", label: "Games" },
     { key: "reputation",     icon: "🎭", label: "Reputation" },
     { key: "leaderboards",   icon: "🏆", label: "Leaderboards" },
+    { key: "player_stats",   icon: "📈", label: "Player Stats" },
   ]},
   { label: "CONTENT", items: [
     { key: "content", icon: "📝", label: "Page Content" },
@@ -109,6 +111,7 @@ const PANELS = {
   games:       GamesTab,
   reputation:  ReputationTab,
   leaderboards: LeaderboardsTab,
+  player_stats: PlayerStatsTab,
   system:      SystemTab,
   content:     ContentTab,
   sc_mods:     (props) => <ServerConfigTab {...props} initialTab="mods" />,
