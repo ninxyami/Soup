@@ -44,8 +44,9 @@ const WipeModal = ({ type, onClose, toast }) => {
   const [phase, setPhase]   = useState("confirm"); // confirm | running | done | troll
   const [steps, setSteps]   = useState([]);
   const [progress, setProgress] = useState({ step: 0, total: 1 });
-  // pure wipe only: what happens to the stat recorder. "keep" = END SESSION (this season's
-  // stats archived and added into ALL TIME), "reset" = ALL TIME cleared too (a test reset).
+  // both wipes are a season reset too (economy, shops, leaderboard, newspapers); this picks what
+  // happens to the stat recorder. "keep" = END SESSION (this season's stats archived and added
+  // into ALL TIME), "reset" = ALL TIME cleared too (a test reset).
   const [stats, setStats]   = useState("keep");
   const [results, setResults] = useState([]);
 
@@ -54,7 +55,7 @@ const WipeModal = ({ type, onClose, toast }) => {
       icon:    "🌍",
       title:   "World Wipe",
       color:   "var(--orange)",
-      warning: "This will delete the map and reset the world.\nPlayer data, mods, and server settings will be kept.",
+      warning: "This will delete the map and reset the world.\nPlayer data, mods, and server settings will be kept.\n\nAlso the season reset: economy reset (stipends, treasury, tills, market), every shop rolled, leaderboard + stat recorder ended or reset, published newspapers taken down.\nKept: players & whitelist, reputation, Zombita's memory, area snapshots, newspaper drafts.",
       label:   "Confirm World Wipe",
       endpoint: "/api/admin/system/wipe-world",
     },
@@ -90,7 +91,7 @@ const WipeModal = ({ type, onClose, toast }) => {
       const resp = await fetch(`${API}${config.endpoint}`, {
         method: "POST",
         credentials: "include",
-        ...(type === "pure" ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify({ stats }) } : {}),
+        ...(type !== "nuclear" ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify({ stats }) } : {}),
       });
 
       if (!resp.ok) {
@@ -151,7 +152,7 @@ const WipeModal = ({ type, onClose, toast }) => {
             <div className="ap-note danger" style={{ whiteSpace: "pre-line", lineHeight: 1.8 }}>
               {config.warning}
             </div>
-            {type === "pure" && (
+            {type !== "nuclear" && (
               <div style={{ marginTop: 14, display: "grid", gap: 8 }}>
                 <div style={{ fontFamily: "var(--display)", fontSize: 13, letterSpacing: 2, color: "var(--textdim)" }}>PLAYER STATS</div>
                 {[
@@ -171,7 +172,7 @@ const WipeModal = ({ type, onClose, toast }) => {
               </div>
             )}
             <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-              <B c="red" onClick={runWipe}>{type === "pure" ? (stats === "keep" ? "YES — Wipe, keep stats" : "YES — Wipe, RESET stats") : config.label}</B>
+              <B c="red" onClick={runWipe}>{config.label}{stats === "keep" ? ", keep stats" : ", RESET stats"}</B>
               <B c="ghost" onClick={onClose}>Cancel</B>
             </div>
           </>
@@ -304,9 +305,10 @@ export default function SystemTab({ toast }) {
           <div style={{ background: "var(--bg)", border: "1px solid var(--border)", padding: 20, borderTop: "2px solid var(--orange)" }}>
             <div style={{ fontFamily: "var(--display)", fontSize: 16, letterSpacing: 2, color: "var(--orange)", marginBottom: 8 }}>🌍 WORLD WIPE</div>
             <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)", lineHeight: 1.8, marginBottom: 16 }}>
-              Resets the map only.<br />
+              Resets the map, economy, shops,<br />
+              leaderboard, newspapers.<br />
               Players, mods, settings kept.<br />
-              Fresh world, same community.
+              Asks whether to keep or reset stats.
             </div>
             <B c="orange" onClick={() => setWipeModal("world")}>World Wipe</B>
           </div>
