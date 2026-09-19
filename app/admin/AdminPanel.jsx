@@ -32,6 +32,7 @@ import TestServerTab      from "./tabs/TestServerTab";
 import SystemResourcesTab from "./tabs/SystemResourcesTab";
 import FilesTab           from "./tabs/FilesTab";
 import LeaderboardsTab    from "./tabs/LeaderboardsTab";
+import NewspaperTab       from "./tabs/NewspaperTab";
 import PlayerStatsTab     from "./tabs/PlayerStatsTab";
 
 const NAV_SECTIONS = [
@@ -69,6 +70,7 @@ const NAV_SECTIONS = [
     { key: "reputation",     icon: "🎭", label: "Reputation" },
     { key: "leaderboards",   icon: "🏆", label: "Leaderboards" },
     { key: "player_stats",   icon: "📈", label: "Player Stats" },
+    { key: "newspaper",      icon: "📰", label: "Newspaper" },
   ]},
   { label: "CONTENT", items: [
     { key: "content", icon: "📝", label: "Page Content" },
@@ -111,6 +113,7 @@ const PANELS = {
   games:       GamesTab,
   reputation:  ReputationTab,
   leaderboards: LeaderboardsTab,
+  newspaper:    NewspaperTab,
   player_stats: PlayerStatsTab,
   system:      SystemTab,
   content:     ContentTab,
@@ -304,6 +307,13 @@ table.ap-t{width:100%;border-collapse:collapse}
 
 export default function AdminPanel() {
   const [page, setPage] = useStickyState("overview", "panel.page");
+  // ?tab=newspaper&issue=12 (the "Edit on website" button in Discord) opens that tab
+  useEffect(() => {
+    try {
+      const q = new URLSearchParams(window.location.search).get("tab");
+      if (q && PANELS[q]) setPage(q);
+    } catch {}
+  }, []);
   const [toasts, setToasts] = useState([]);
   const [panelLocked, setPanelLocked] = useState(null);
   const [panelPw, setPanelPw] = useState("");
