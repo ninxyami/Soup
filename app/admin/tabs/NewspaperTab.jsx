@@ -160,6 +160,38 @@ function Settings({ settings, onSaved, toast }) {
   );
 }
 
+// ── the media pack (same button as Zombita Control's UPDATE MEDIA NOW and /mediapack) ──
+function MediaPack({ toast }) {
+  const [msg, setMsg] = useState("");
+  const [busy, setBusy] = useState(false);
+  const check = async () => {
+    setBusy(true); setMsg("Looking (fetches every avatar, up to ~30 s)...");
+    try { const r = await fetchApi("/api/admin/media/check"); setMsg(r.message); }
+    catch (e) { setMsg(""); toast(e.message, "error"); }
+    setBusy(false);
+  };
+  const update = async () => {
+    if (!confirm("Look for new pictures (Discord avatars, post pictures, newspaper photos)? If there are new ones, the server restarts with a 5-minute warning to everyone online and the pack is uploaded while it's down. If there's nothing new, nothing happens.")) return;
+    setBusy(true); setMsg("Checking...");
+    try { const r = await postApi("/api/admin/media/update"); setMsg(r.message); toast(r.message, "success"); }
+    catch (e) { setMsg(""); toast(e.message, "error"); }
+    setBusy(false);
+  };
+  return (
+    <div>
+      <div style={{ ...mono, color: "#777", marginBottom: 8 }}>
+        Pictures reach the game through the Zombita Media Workshop pack, which is rebuilt and uploaded during restarts while the server is stopped.
+        Newspaper photos ride the next restart by themselves; this only brings that restart forward.
+      </div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+        <B c="ghost" sm disabled={busy} onClick={check}>Check for new pictures</B>
+        <B c="gold" sm disabled={busy} onClick={update}>Update media now</B>
+        {msg && <span style={{ ...mono, color: "#aaa" }}>{msg}</span>}
+      </div>
+    </div>
+  );
+}
+
 // ── the tab ──────────────────────────────────────────────────────────────────
 export default function NewspaperTab({ toast }) {
   const [st, setSt] = useState(null);
@@ -257,6 +289,10 @@ export default function NewspaperTab({ toast }) {
             </tr>)}
           </tbody></table></div>
         )}
+      </TW>
+
+      <TW title="PICTURES IN GAME  (Zombita Media pack)">
+        <MediaPack toast={toast} />
       </TW>
 
       <TW title="SETTINGS"><Settings settings={st.settings} toast={toast} onSaved={(s) => setSt({ ...st, settings: s })} /></TW>
