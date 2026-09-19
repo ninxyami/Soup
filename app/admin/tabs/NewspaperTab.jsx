@@ -11,10 +11,11 @@ import Newspaper from "@/components/Newspaper";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const mono = { fontFamily: "var(--mono)", fontSize: 12 };
-const STATUS_COL = { draft: "#c8a84b", approved: "#4a7c59", edited: "#4a7c59", published: "#8fb", expired: "#888", skipped: "#888", rejected: "#a55", remade: "#888" };
+const STATUS_COL = { draft: "#c8a84b", approved: "#4a7c59", edited: "#4a7c59", published: "#8fb", expired: "#888", skipped: "#888", rejected: "#a55", remade: "#888", withdrawn: "#a55" };
 const STATUS_TEXT = {
   draft: "waiting for a decision", approved: "approved, goes out at publish time", edited: "edited here, goes out at publish time",
   published: "published", expired: "nobody decided in time", skipped: "skipped", rejected: "rejected", remade: "sent back and rewritten",
+  withdrawn: "taken down (Publish puts it back)",
 };
 
 const putApi = (path, body) => fetchApi(path, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -186,6 +187,8 @@ export default function NewspaperTab({ toast }) {
     catch (e) { toast(e.message, "error"); }
     setBusy(false);
   };
+  const takeDown = (issue) => act(issue, "withdraw",
+    `Take No. ${issue.issue_no} down?\n\nIt leaves the website and the hub now, and Zombita removes its post in the news channel within a minute. Nothing is deleted: it stays here as "withdrawn", and Publish puts it back out.`);
   const writeNow = async () => {
     if (!confirm("Ask Zombita to write a fresh draft now? It replaces this week's draft (if any) and goes to the admin channel for approval. Takes a minute or two.")) return;
     setBusy(true);
@@ -224,6 +227,8 @@ export default function NewspaperTab({ toast }) {
               {["draft", "approved", "edited", "expired"].includes(cur.status) && <B c="ghost" sm disabled={busy} onClick={() => act(cur, "reject", "Reject it for good? No paper this week.")}>❌ Reject</B>}
               {["approved", "edited", "draft", "expired"].includes(cur.status) && <B c="gold" sm disabled={busy} onClick={() => act(cur, "publish", "Publish right now (Discord, website, hub) instead of waiting for Sunday?")}>📰 Publish now</B>}
               {!["published", "skipped", "rejected", "remade"].includes(cur.status) && <B c="ghost" sm disabled={busy} onClick={() => act(cur, "skip", "Skip this week's paper?")}>Skip week</B>}
+              {cur.status === "published" && <B c="red" sm disabled={busy} onClick={() => takeDown(cur)}>⛔ Take down</B>}
+              {cur.status === "withdrawn" && <B c="gold" sm disabled={busy} onClick={() => act(cur, "publish", "Put it back out (website, hub, and a new post in the news channel)?")}>📰 Publish again</B>}
             </div>
           </div>
         )}
@@ -246,7 +251,9 @@ export default function NewspaperTab({ toast }) {
               <td style={mono}>{when(i.written_at)}</td>
               <td style={mono}>{i.decided_by || "—"}</td>
               <td style={mono}>{i.contributors?.length ? i.contributors.join(", ") : "—"}</td>
-              <td><B c="ghost" sm onClick={() => setSel(i)}>open</B></td>
+              <td style={{ whiteSpace: "nowrap" }}><B c="ghost" sm onClick={() => setSel(i)}>open</B>
+                {i.status === "published" && <> <B c="ghost" sm disabled={busy} onClick={() => takeDown(i)}>take down</B></>}
+                {i.status === "withdrawn" && <> <B c="ghost" sm disabled={busy} onClick={() => act(i, "publish", "Put it back out (website, hub, and a new post in the news channel)?")}>publish again</B></>}</td>
             </tr>)}
           </tbody></table></div>
         )}
