@@ -38,141 +38,114 @@ const ProgressBar = ({ step, total, label }) => {
   );
 };
 
-// ── Wipe modal ────────────────────────────────────────────────────────────────
+// ── The one wipe ──────────────────────────────────────────────────────────────
+// Same three questions as Zombita's card in Discord (wipe.wipe(characters, season, settings)):
+// nothing has a default, START only unlocks once every row is answered. The map is always
+// reset and the characters are always backed up first, whatever is picked.
 
-const WipeModal = ({ type, onClose, toast }) => {
-  const [phase, setPhase]   = useState("confirm"); // confirm | running | done | troll
+const QUESTIONS = [
+  {
+    key: "characters", title: "CHARACTERS", options: [
+      ["keep", "👤 Keep", "Everyone keeps their character, skills and inventory on the fresh map."],
+      ["delete", "🗑️ Delete", "Everyone starts a new character.", "var(--red)"],
+    ],
+  },
+  {
+    key: "season", title: "THIS SEASON", options: [
+      ["fix", "🔧 Fix only", "Just the map. Stats, money, shops, leaderboard and the paper carry on (for a broken map)."],
+      ["keep", "💾 New season, save stats", "Economy reset, shops rolled, leaderboard ended, published papers taken down. This season's stats go into ALL TIME first."],
+      ["reset", "🗑️ New season, delete stats", "Same, but the stats are thrown away and ALL TIME is cleared. Tests only.", "var(--red)"],
+    ],
+  },
+  {
+    key: "settings", title: "SERVER SETTINGS", options: [
+      ["keep", "⚙️ Keep", "servertest.ini and the mods config stay as they are."],
+      ["reset", "♻️ Reset INI + mods config", "The server comes back with default settings and NO mods until the INI is restored from a backup.", "var(--red)"],
+    ],
+  },
+];
+
+const describeWipe = (a) => [
+  "map reset",
+  a.characters === "keep" ? "characters KEPT" : "characters DELETED",
+  { fix: "fix only (stats, money, shops, leaderboard kept)", keep: "new season, stats saved to ALL TIME", reset: "new season, stats deleted (ALL TIME cleared)" }[a.season],
+  a.settings === "keep" ? "server settings KEPT" : "server settings + mods config RESET",
+].join(", ");
+
+const WipeModal = ({ answers, onClose, toast }) => {
+  const [phase, setPhase]   = useState("confirm"); // confirm | running | done | failed
   const [steps, setSteps]   = useState([]);
   const [progress, setProgress] = useState({ step: 0, total: 1 });
-  // both wipes are a season reset too (economy, shops, leaderboard, newspapers); this picks what
-  // happens to the stat recorder. "keep" = END SESSION (this season's stats archived and added
-  // into ALL TIME), "reset" = ALL TIME cleared too (a test reset).
-  const [stats, setStats]   = useState("keep");
   const [results, setResults] = useState([]);
-
-  const config = {
-    world: {
-      icon:    "🌍",
-      title:   "World Wipe",
-      color:   "var(--orange)",
-      warning: "This will delete the map and reset the world.\nPlayer data, mods, and server settings will be kept.\n\nAlso the season reset: economy reset (stipends, treasury, tills, market), every shop rolled, leaderboard + stat recorder ended or reset, published newspapers taken down.\nKept: players & whitelist, reputation, Zombita's memory, area snapshots, newspaper drafts.",
-      label:   "Confirm World Wipe",
-      endpoint: "/api/admin/system/wipe-world",
-    },
-    pure: {
-      icon:    "☠️",
-      title:   "Pure Wipe",
-      color:   "var(--red)",
-      warning: "FULL RESET — Everything will be wiped:\n• World & map data\n• All player saves\n• Mods config\n• Server INI (backed up first)\n• Economy reset (stipends, treasury, tills, market), every shop rolled\n• Leaderboard + stat recorder ended or reset, published newspapers taken down\n\nKept: players & whitelist, reputation, Zombita's memory, area snapshots, newspaper drafts.\nThis cannot be undone.",
-      label:   "YES — Wipe Everything",
-      endpoint: "/api/admin/system/wipe-pure",
-    },
-    nuclear: {
-      icon:    "☢️",
-      title:   "Nuclear Wipe",
-      color:   "var(--red)",
-      warning: "",
-      label:   "",
-      endpoint: "/api/admin/system/wipe-nuclear",
-    },
-  }[type];
-
-  useEffect(() => {
-    if (type === "nuclear") {
-      setPhase("troll");
-    }
-  }, [type]);
+  const [stopped, setStopped] = useState([]);
+  const [failMsg, setFailMsg] = useState("");
 
   const runWipe = async () => {
     setPhase("running");
     setSteps([]);
-
     try {
-      const resp = await fetch(`${API}${config.endpoint}`, {
+      const resp = await fetch(`${API}/api/admin/system/wipe`, {
         method: "POST",
         credentials: "include",
-        ...(type !== "nuclear" ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify({ stats }) } : {}),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(answers),
       });
-
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({ detail: resp.statusText }));
         throw new Error(err.detail || resp.statusText);
       }
-
       const reader = resp.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
-
+      let ended = false;
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
-
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split("\n");
         buffer = lines.pop();
-
         for (const line of lines) {
           if (!line.startsWith("data: ")) continue;
-          try {
-            const update = JSON.parse(line.slice(6));
-            if (update.error) throw new Error(update.error);
-            setProgress({ step: update.step, total: update.total });
-            setSteps(prev => [...prev, { msg: update.msg, done: !!update.done }]);
-            if (update.results) setResults(update.results);
-            if (update.done) setPhase("done");
-          } catch {}
+          let update;
+          try { update = JSON.parse(line.slice(6)); } catch { continue; }
+          if (update.error) {
+            // "wipe_running" (another wipe holds the guard) / "bad_choice": nothing was done
+            ended = true;
+            setFailMsg(update.msg || update.error);
+            setPhase("failed");
+            continue;
+          }
+          setProgress({ step: update.step, total: update.total });
+          setSteps(prev => [...prev, { msg: update.msg, done: !!update.done }]);
+          if (update.results) setResults(update.results);
+          if (update.restarts_stopped) setStopped(update.restarts_stopped);
+          if (update.done) { ended = true; setPhase("done"); }
         }
       }
+      if (!ended) throw new Error("The connection dropped before the wipe reported it was done. Check the server.");
     } catch (e) {
       toast(e.message, "error");
-      setPhase("confirm");
+      setFailMsg(e.message);
+      setPhase("failed");
     }
   };
 
+  const busy = phase === "running";
   return (
-    <div className="ap-mbd" onClick={e => { if (e.target === e.currentTarget && phase !== "running") onClose(); }}>
-      <div className="ap-mod" style={{ borderColor: config.color }}>
-        <button className="ap-mod-x" onClick={() => phase !== "running" && onClose()}>×</button>
-        <h3 style={{ color: config.color }}>{config.icon} {config.title}</h3>
-
-        {phase === "troll" && (
-          <>
-            <div className="ap-note danger" style={{ whiteSpace: "pre-line", lineHeight: 1.8 }}>
-              ☢️ Nice try.{"\n\n"}
-              Nuclear wipe requires direct SSH access to the server.{"\n"}
-              If you actually need this, you already know what to do.{"\n"}
-              We're not letting you accidentally nuke the server from a browser tab.
-            </div>
-            <B c="ghost" onClick={onClose}>Close</B>
-          </>
-        )}
+    <div className="ap-mbd" onClick={e => { if (e.target === e.currentTarget && !busy) onClose(); }}>
+      <div className="ap-mod" style={{ borderColor: "var(--red)" }}>
+        <button className="ap-mod-x" onClick={() => !busy && onClose()}>×</button>
+        <h3 style={{ color: "var(--red)" }}>☠️ Server Wipe</h3>
 
         {phase === "confirm" && (
           <>
             <div className="ap-note danger" style={{ whiteSpace: "pre-line", lineHeight: 1.8 }}>
-              {config.warning}
+              {describeWipe(answers)}{"\n\n"}
+              The server warns players, saves, kicks everyone, stops, backs the characters up to Zomboid/wipe_backups/, wipes, {answers.season !== "fix" ? "runs the season reset, " : ""}and starts again. Scheduled restarts are stopped while it runs.{"\n"}
+              This cannot be undone.
             </div>
-            {type !== "nuclear" && (
-              <div style={{ marginTop: 14, display: "grid", gap: 8 }}>
-                <div style={{ fontFamily: "var(--display)", fontSize: 13, letterSpacing: 2, color: "var(--textdim)" }}>PLAYER STATS</div>
-                {[
-                  ["keep", "Keep (END SESSION)", "This season's stats are archived on the website and added into every player's ALL TIME. Leaderboard ends the session too."],
-                  ["reset", "Reset", "A test reset: the season is archived privately and ALL TIME is cleared. Leaderboard resets."],
-                ].map(([v, label, sub]) => (
-                  <label key={v} style={{ display: "flex", gap: 10, alignItems: "flex-start", cursor: "pointer",
-                                          padding: "8px 10px", border: "1px solid var(--border)",
-                                          background: stats === v ? "rgba(200,168,75,0.08)" : "var(--bg)" }}>
-                    <input type="radio" name="wipe-stats" value={v} checked={stats === v} onChange={() => setStats(v)} style={{ marginTop: 3 }} />
-                    <span>
-                      <b style={{ color: v === "reset" ? "var(--red)" : "var(--text)" }}>{label}</b>
-                      <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)", lineHeight: 1.6 }}>{sub}</div>
-                    </span>
-                  </label>
-                ))}
-              </div>
-            )}
             <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-              <B c="red" onClick={runWipe}>{config.label}{stats === "keep" ? ", keep stats" : ", RESET stats"}</B>
+              <B c="red" onClick={runWipe}>START</B>
               <B c="ghost" onClick={onClose}>Cancel</B>
             </div>
           </>
@@ -198,7 +171,7 @@ const WipeModal = ({ type, onClose, toast }) => {
         {phase === "done" && (
           <>
             <ProgressBar step={1} total={1} label="Complete" />
-            <div className="ap-note success">✅ {config.title} complete. Server is back up.</div>
+            <div className="ap-note success">✅ Wipe complete ({describeWipe(answers)}). Server is back up.</div>
             {results.length > 0 && (
               <div style={{
                 background: "var(--bg)", border: "1px solid var(--border)", marginBottom: 12,
@@ -208,7 +181,21 @@ const WipeModal = ({ type, onClose, toast }) => {
                 {results.map((r, i) => <div key={i}>• {r}</div>)}
               </div>
             )}
+            {stopped.length > 0 && (
+              <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)", marginBottom: 12 }}>
+                Restarts stopped for the wipe: {stopped.join(", ")}.
+              </div>
+            )}
             <B c="green" onClick={onClose}>Close</B>
+          </>
+        )}
+
+        {phase === "failed" && (
+          <>
+            <div className="ap-note danger" style={{ whiteSpace: "pre-line" }}>⛔ {failMsg}</div>
+            <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+              <B c="ghost" onClick={onClose}>Close</B>
+            </div>
           </>
         )}
       </div>
@@ -216,13 +203,31 @@ const WipeModal = ({ type, onClose, toast }) => {
   );
 };
 
+const NuclearModal = ({ onClose }) => (
+  <div className="ap-mbd" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+    <div className="ap-mod" style={{ borderColor: "var(--red)" }}>
+      <button className="ap-mod-x" onClick={onClose}>×</button>
+      <h3 style={{ color: "var(--red)" }}>☢️ Nuclear Wipe</h3>
+      <div className="ap-note danger" style={{ whiteSpace: "pre-line", lineHeight: 1.8 }}>
+        ☢️ Nice try.{"\n\n"}
+        Nuclear wipe requires direct SSH access to the server.{"\n"}
+        If you actually need this, you already know what to do.{"\n"}
+        We're not letting you accidentally nuke the server from a browser tab.
+      </div>
+      <B c="ghost" onClick={onClose}>Close</B>
+    </div>
+  </div>
+);
+
 // ── Main tab ──────────────────────────────────────────────────────────────────
 
 export default function SystemTab({ toast }) {
   const [status, setStatus]     = useState(null);
   const [loading, setLoading]   = useState(true);
   const [restarting, setRestarting] = useState({});
-  const [wipeModal, setWipeModal]   = useState(null); // "world" | "pure" | "nuclear"
+  const [answers, setAnswers]       = useState({});   // characters / season / settings — no defaults
+  const [wipeModal, setWipeModal]   = useState(null); // "wipe" | "nuclear"
+  const answered = QUESTIONS.every(q => answers[q.key]);
 
   const loadStatus = useCallback(async () => {
     try {
@@ -294,56 +299,47 @@ export default function SystemTab({ toast }) {
         </FB>
       </div>
 
-      {/* Wipes */}
+      {/* The one wipe */}
       <div className="ap-fb" style={{ marginBottom: 0 }}>
-        <h4 style={{ fontFamily: "var(--display)", fontSize: 18, letterSpacing: 2, color: "var(--text)", margin: "0 0 16px 0" }}>SERVER WIPES</h4>
-        <div className="ap-note danger" style={{ marginBottom: 20 }}>
-          Wipe operations stop the server, delete files, and restart. Always confirm before proceeding.
+        <h4 style={{ fontFamily: "var(--display)", fontSize: 18, letterSpacing: 2, color: "var(--text)", margin: "0 0 16px 0" }}>SERVER WIPE</h4>
+        <div className="ap-note danger" style={{ marginBottom: 20, lineHeight: 1.8 }}>
+          One wipe, three questions — the same card Zombita shows in Discord. The map is always reset and the characters are
+          always backed up first (Zomboid/wipe_backups/). Answer every row, then START. Nothing has a default.
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
-
-          <div style={{ background: "var(--bg)", border: "1px solid var(--border)", padding: 20, borderTop: "2px solid var(--orange)" }}>
-            <div style={{ fontFamily: "var(--display)", fontSize: 16, letterSpacing: 2, color: "var(--orange)", marginBottom: 8 }}>🌍 WORLD WIPE</div>
-            <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)", lineHeight: 1.8, marginBottom: 16 }}>
-              Resets the map, economy, shops,<br />
-              leaderboard, newspapers.<br />
-              Players, mods, settings kept.<br />
-              Asks whether to keep or reset stats.
+          {QUESTIONS.map(q => (
+            <div key={q.key} style={{ background: "var(--bg)", border: "1px solid var(--border)", padding: 20,
+                                       borderTop: `2px solid ${answers[q.key] ? "var(--accent)" : "var(--border)"}` }}>
+              <div style={{ fontFamily: "var(--display)", fontSize: 16, letterSpacing: 2, color: "var(--accent)", marginBottom: 12 }}>{q.title}</div>
+              <div style={{ display: "grid", gap: 8 }}>
+                {q.options.map(([v, label, sub, color]) => (
+                  <label key={v} style={{ display: "flex", gap: 10, alignItems: "flex-start", cursor: "pointer",
+                                          padding: "8px 10px", border: "1px solid var(--border)",
+                                          background: answers[q.key] === v ? "rgba(200,168,75,0.08)" : "transparent" }}>
+                    <input type="radio" name={`wipe-${q.key}`} value={v} checked={answers[q.key] === v}
+                           onChange={() => setAnswers(a => ({ ...a, [q.key]: v }))} style={{ marginTop: 3 }} />
+                    <span>
+                      <b style={{ color: color || "var(--text)" }}>{label}</b>
+                      <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)", lineHeight: 1.6 }}>{sub}</div>
+                    </span>
+                  </label>
+                ))}
+              </div>
             </div>
-            <B c="orange" onClick={() => setWipeModal("world")}>World Wipe</B>
+          ))}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 20, flexWrap: "wrap" }}>
+          <B c="red" disabled={!answered} onClick={() => answered && setWipeModal("wipe")}>☠️ START</B>
+          <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)", flex: 1 }}>
+            {answered ? describeWipe(answers) : `Answer every row first (${QUESTIONS.filter(q => !answers[q.key]).map(q => q.title.toLowerCase()).join(", ")}).`}
           </div>
-
-          <div style={{ background: "var(--bg)", border: "1px solid var(--border)", padding: 20, borderTop: "2px solid var(--red)" }}>
-            <div style={{ fontFamily: "var(--display)", fontSize: 16, letterSpacing: 2, color: "var(--red)", marginBottom: 8 }}>☠️ PURE WIPE</div>
-            <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)", lineHeight: 1.8, marginBottom: 16 }}>
-              Wipes everything.<br />
-              World, players, mods, INI, economy,<br />
-              shops, leaderboard, newspapers.<br />
-              Asks whether to keep or reset stats.
-            </div>
-            <B c="red" onClick={() => setWipeModal("pure")}>Pure Wipe</B>
-          </div>
-
-          <div style={{ background: "var(--bg)", border: "1px solid var(--border)", padding: 20, borderTop: "2px solid var(--muted)", opacity: 0.7 }}>
-            <div style={{ fontFamily: "var(--display)", fontSize: 16, letterSpacing: 2, color: "var(--muted)", marginBottom: 8 }}>☢️ NUCLEAR WIPE</div>
-            <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)", lineHeight: 1.8, marginBottom: 16 }}>
-              SSH only.<br />
-              Not available here.<br />
-              You know why.
-            </div>
-            <B c="ghost" onClick={() => setWipeModal("nuclear")}>Try It</B>
-          </div>
-
+          <B c="ghost" onClick={() => setAnswers({})}>Clear answers</B>
+          <B c="ghost" onClick={() => setWipeModal("nuclear")} title="SSH only. You know why.">☢️ Nuclear</B>
         </div>
       </div>
 
-      {wipeModal && (
-        <WipeModal
-          type={wipeModal}
-          onClose={() => setWipeModal(null)}
-          toast={toast}
-        />
-      )}
+      {wipeModal === "wipe" && <WipeModal answers={answers} onClose={() => setWipeModal(null)} toast={toast} />}
+      {wipeModal === "nuclear" && <NuclearModal onClose={() => setWipeModal(null)} />}
     </>
   );
 }
