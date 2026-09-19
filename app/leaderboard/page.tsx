@@ -2,6 +2,8 @@
 import { useEffect, useState } from "react";
 import { API, CURRENT_SEASON } from "@/lib/constants";
 import { repTier, timeAgo } from "@/lib/utils";
+import Link from "next/link";
+import { FactionLogo } from "@/components/FactionBits";
 
 type BoardType = "ingame" | "wolf" | "quiz" | "rps" | "c4" | "cah" | "reputation";
 type IngameTab = "kills" | "overall" | "deaths" | "survived" | "bestlife" | "factions";
@@ -39,9 +41,13 @@ export default function LeaderboardPage() {
   const [c4, setC4] = useState<any>(null);
   const [reputation, setReputation] = useState<any[]>([]);
   const [cah, setCah] = useState<any>(null);
+  const [factionPages, setFactionPages] = useState<any>({});   // name -> {fid, pictures, tag}
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    fetch(`${API}/api/factions`).then((r) => (r.ok ? r.json() : null)).then((d) => {
+      const m: any = {}; for (const f of d?.factions || []) m[f.name] = f; setFactionPages(m);
+    }).catch(() => {});
     Promise.all([
       fetch(`${API}/api/rankings`).then(r=>r.ok?r.json():null).catch(()=>null),
       fetch(`${API}/api/leaderboard`).then(r=>r.ok?r.json():null).catch(()=>null),
@@ -161,7 +167,11 @@ export default function LeaderboardPage() {
           {ingameTab==="factions" && (factions.length
             ? <div className="overflow-x-auto -mx-2 px-2"><table className="lb-table min-w-full"><thead><tr><th className="w-8"/><th>Faction</th><th className="text-right">Kills</th><th className="text-right hidden sm:table-cell">Members</th></tr></thead>
                 <tbody>{[...factions].sort((a,b)=>b.kills-a.kills).slice(0,10).map((f:any,i:number)=>(
-                  <tr key={i} className={`lb-row ${rc(i)}`}><td className="text-center text-sm">{medal(i)}</td><td>{f.name}</td><td className="text-right font-mono">{(f.kills||0).toLocaleString()}</td><td className="text-right font-mono text-[#555] hidden sm:table-cell">{f.members||0}</td></tr>
+                  <tr key={i} className={`lb-row ${rc(i)}`}><td className="text-center text-sm">{medal(i)}</td>
+                    <td><span className="inline-flex items-center gap-2"><FactionLogo faction={factionPages[f.name] || { name: f.name }} size={22} />
+                      {factionPages[f.name] ? <Link href={`/faction?id=${factionPages[f.name].fid}`} className="hover:text-[#c8a84b]">{f.name}</Link> : f.name}
+                      {factionPages[f.name]?.tag && <span className="font-mono text-[0.6rem] text-[#c8a84b]">[{factionPages[f.name].tag}]</span>}</span></td>
+                    <td className="text-right font-mono">{(f.kills||0).toLocaleString()}</td><td className="text-right font-mono text-[#555] hidden sm:table-cell">{f.members||0}</td></tr>
                 ))}</tbody></table></div>
             : <p className="text-[#555] font-mono text-sm italic">No factions yet.</p>
           )}

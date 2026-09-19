@@ -65,6 +65,7 @@ const NOT_FOUND_LINES = [
 ];
 
 export default function PlayerPage() {
+  const [career, setCareer] = useState<any>(null);
   const [stats, setStats] = useState<PlayerStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [playerName, setPlayerName] = useState("");
@@ -85,6 +86,7 @@ export default function PlayerPage() {
       if (!res.ok) throw new Error("not found");
       const data = await res.json();
       if (data.ingame_name) {
+        fetch(`${API}/api/players/${encodeURIComponent(data.ingame_name)}/factions`).then((r) => (r.ok ? r.json() : null)).then(setCareer).catch(() => {});
         try {
           const rr = await fetch(`${API}/api/rankings`);
           if (rr.ok) {
@@ -170,14 +172,23 @@ export default function PlayerPage() {
           )}
           <div className="flex gap-3 mt-3 flex-wrap">
             {stats.ingame?.faction && (
-              <span className="font-mono text-[0.7rem] text-[#c8a84b] border border-[rgba(200,168,75,0.3)] px-2 py-0.5">
+              <Link href={`/faction?id=${career?.career?.find((c: any) => c.faction === stats.ingame?.faction && !c.left)?.fid || ""}`} className="font-mono text-[0.7rem] text-[#c8a84b] border border-[rgba(200,168,75,0.3)] px-2 py-0.5 no-underline">
                 [{stats.ingame.faction}]
-              </span>
+              </Link>
             )}
             {stats.ingame_name && (
               <span className="font-mono text-[0.7rem] text-[#555]">In-game: {stats.ingame_name}</span>
             )}
             <span className="font-mono text-[0.7rem] text-[#555]">Joined {joinDate}</span>
+            {career?.career?.length > 0 && (
+              <span className="font-mono text-[0.7rem] text-[#777] basis-full" title="Faction history">
+                🏴 {career.career.map((c: any, i: number) => (
+                  <span key={i}>{i ? " → " : ""}<Link href={`/faction?id=${c.fid}`} className="text-[#9a9a9a] hover:text-[#c8a84b]">{c.faction}</Link>
+                    <span className="text-[#555]">{c.role === "owner" ? " (owner" : c.by && c.by !== stats.ingame_name ? ` (recruited by ${c.by}` : " ("}{c.left ? (c.disbanded ? ", disbanded)" : `, ${Math.max(0, Math.floor((c.left - c.joined) / 86400))} days)`) : ", now)"}</span>
+                  </span>
+                ))}
+              </span>
+            )}
             <span className="font-mono text-[0.7rem] text-[#555]">Seen {timeAgo(stats.last_seen)}</span>
           </div>
         </div>

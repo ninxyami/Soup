@@ -33,6 +33,7 @@ import SystemResourcesTab from "./tabs/SystemResourcesTab";
 import FilesTab           from "./tabs/FilesTab";
 import LeaderboardsTab    from "./tabs/LeaderboardsTab";
 import NewspaperTab       from "./tabs/NewspaperTab";
+import FactionsTab        from "./tabs/FactionsTab";
 import PlayerStatsTab     from "./tabs/PlayerStatsTab";
 
 const NAV_SECTIONS = [
@@ -71,6 +72,7 @@ const NAV_SECTIONS = [
     { key: "leaderboards",   icon: "🏆", label: "Leaderboards" },
     { key: "player_stats",   icon: "📈", label: "Player Stats" },
     { key: "newspaper",      icon: "📰", label: "Newspaper" },
+    { key: "factions",       icon: "🏴", label: "Factions" },
   ]},
   { label: "CONTENT", items: [
     { key: "content", icon: "📝", label: "Page Content" },
@@ -114,6 +116,7 @@ const PANELS = {
   reputation:  ReputationTab,
   leaderboards: LeaderboardsTab,
   newspaper:    NewspaperTab,
+  factions:     FactionsTab,
   player_stats: PlayerStatsTab,
   system:      SystemTab,
   content:     ContentTab,
