@@ -44,6 +44,10 @@ const WipeModal = ({ type, onClose, toast }) => {
   const [phase, setPhase]   = useState("confirm"); // confirm | running | done | troll
   const [steps, setSteps]   = useState([]);
   const [progress, setProgress] = useState({ step: 0, total: 1 });
+  // pure wipe only: what happens to the stat recorder. "keep" = END SESSION (this season's
+  // stats archived and added into ALL TIME), "reset" = ALL TIME cleared too (a test reset).
+  const [stats, setStats]   = useState("keep");
+  const [results, setResults] = useState([]);
 
   const config = {
     world: {
@@ -58,7 +62,7 @@ const WipeModal = ({ type, onClose, toast }) => {
       icon:    "☠️",
       title:   "Pure Wipe",
       color:   "var(--red)",
-      warning: "FULL RESET — Everything will be wiped:\n• World & map data\n• All player saves\n• Mods config\n• Server INI (backed up first)\n\nThis cannot be undone.",
+      warning: "FULL RESET — Everything will be wiped:\n• World & map data\n• All player saves\n• Mods config\n• Server INI (backed up first)\n• Economy reset (stipends, treasury, tills, market), every shop rolled\n• Leaderboard + stat recorder ended or reset, published newspapers taken down\n\nKept: players & whitelist, reputation, Zombita's memory, area snapshots, newspaper drafts.\nThis cannot be undone.",
       label:   "YES — Wipe Everything",
       endpoint: "/api/admin/system/wipe-pure",
     },
@@ -86,6 +90,7 @@ const WipeModal = ({ type, onClose, toast }) => {
       const resp = await fetch(`${API}${config.endpoint}`, {
         method: "POST",
         credentials: "include",
+        ...(type === "pure" ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify({ stats }) } : {}),
       });
 
       if (!resp.ok) {
@@ -112,6 +117,7 @@ const WipeModal = ({ type, onClose, toast }) => {
             if (update.error) throw new Error(update.error);
             setProgress({ step: update.step, total: update.total });
             setSteps(prev => [...prev, { msg: update.msg, done: !!update.done }]);
+            if (update.results) setResults(update.results);
             if (update.done) setPhase("done");
           } catch {}
         }
@@ -145,8 +151,27 @@ const WipeModal = ({ type, onClose, toast }) => {
             <div className="ap-note danger" style={{ whiteSpace: "pre-line", lineHeight: 1.8 }}>
               {config.warning}
             </div>
+            {type === "pure" && (
+              <div style={{ marginTop: 14, display: "grid", gap: 8 }}>
+                <div style={{ fontFamily: "var(--display)", fontSize: 13, letterSpacing: 2, color: "var(--textdim)" }}>PLAYER STATS</div>
+                {[
+                  ["keep", "Keep (END SESSION)", "This season's stats are archived on the website and added into every player's ALL TIME. Leaderboard ends the session too."],
+                  ["reset", "Reset", "A test reset: the season is archived privately and ALL TIME is cleared. Leaderboard resets."],
+                ].map(([v, label, sub]) => (
+                  <label key={v} style={{ display: "flex", gap: 10, alignItems: "flex-start", cursor: "pointer",
+                                          padding: "8px 10px", border: "1px solid var(--border)",
+                                          background: stats === v ? "rgba(200,168,75,0.08)" : "var(--bg)" }}>
+                    <input type="radio" name="wipe-stats" value={v} checked={stats === v} onChange={() => setStats(v)} style={{ marginTop: 3 }} />
+                    <span>
+                      <b style={{ color: v === "reset" ? "var(--red)" : "var(--text)" }}>{label}</b>
+                      <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)", lineHeight: 1.6 }}>{sub}</div>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            )}
             <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-              <B c="red" onClick={runWipe}>{config.label}</B>
+              <B c="red" onClick={runWipe}>{type === "pure" ? (stats === "keep" ? "YES — Wipe, keep stats" : "YES — Wipe, RESET stats") : config.label}</B>
               <B c="ghost" onClick={onClose}>Cancel</B>
             </div>
           </>
@@ -173,6 +198,15 @@ const WipeModal = ({ type, onClose, toast }) => {
           <>
             <ProgressBar step={1} total={1} label="Complete" />
             <div className="ap-note success">✅ {config.title} complete. Server is back up.</div>
+            {results.length > 0 && (
+              <div style={{
+                background: "var(--bg)", border: "1px solid var(--border)", marginBottom: 12,
+                padding: "12px 16px", fontFamily: "var(--mono)", fontSize: 11, lineHeight: 1.8, color: "var(--textdim)",
+              }}>
+                <div style={{ color: "var(--accent)", marginBottom: 4 }}>SEASON RESET</div>
+                {results.map((r, i) => <div key={i}>• {r}</div>)}
+              </div>
+            )}
             <B c="green" onClick={onClose}>Close</B>
           </>
         )}
@@ -281,8 +315,9 @@ export default function SystemTab({ toast }) {
             <div style={{ fontFamily: "var(--display)", fontSize: 16, letterSpacing: 2, color: "var(--red)", marginBottom: 8 }}>☠️ PURE WIPE</div>
             <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)", lineHeight: 1.8, marginBottom: 16 }}>
               Wipes everything.<br />
-              World, players, mods, INI.<br />
-              True fresh start.
+              World, players, mods, INI, economy,<br />
+              shops, leaderboard, newspapers.<br />
+              Asks whether to keep or reset stats.
             </div>
             <B c="red" onClick={() => setWipeModal("pure")}>Pure Wipe</B>
           </div>

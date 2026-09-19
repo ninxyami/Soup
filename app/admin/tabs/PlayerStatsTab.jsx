@@ -86,7 +86,7 @@ const PlayerDetail = ({ name, season, onClose, toast }) => {
         <div style={{ fontFamily: "var(--display)", fontSize: 30, letterSpacing: 2, color: "var(--accent)" }}>{d.name}</div>
         <div style={dim}>
           {d.last ? <>last seen {relTime(d.last.ts)} in <b style={{ color: "var(--text)" }}>{d.last.town}</b> ({d.last.x}, {d.last.y})</> : "no position yet"}
-          {" · "}{d.season}
+          {" · "}{d.alltime ? `ALL TIME (${d.sessions} ended session${d.sessions === 1 ? "" : "s"} + this one)` : d.season}
         </div>
         <div style={{ flex: 1 }} />
         <B sm c="ghost" onClick={onClose}>Close</B>
@@ -176,11 +176,18 @@ export default function PlayerStatsTab({ toast }) {
       <TW title="Players" right={<>
         <input className="ap-search" placeholder="Search player..." value={q} onChange={e => setQ(e.target.value)} />
         <select className="ap-sel" style={{ width: "auto" }} value={season} onChange={e => { setSeason(e.target.value); setOpen(null); }}>
-          {o.seasons.map(s => <option key={s} value={s}>{s}</option>)}
+          {o.seasons.map(s => <option key={s} value={s}>{s === "alltime" ? "ALL TIME" : s}</option>)}
         </select>
         <B sm c="ghost" onClick={load}>Refresh</B>
       </>}>
-        {!rows.length ? <Empty text="The recorder has nobody for this season yet" /> :
+        {o.alltime && (
+          <div style={{ ...dim, marginBottom: 10, lineHeight: 1.7 }}>
+            ALL TIME = every ended session added up plus the current one, live
+            {o.alltime_state ? ` (${o.alltime_state.sessions} ended session${o.alltime_state.sessions === 1 ? "" : "s"} for ${o.alltime_state.players} players)` : ""}.
+            END SESSION and a full wipe with "keep stats" add to it; a RESET clears it. Towns, positions and events are per season only.
+          </div>
+        )}
+        {!rows.length ? <Empty text={o.alltime ? "Nothing in ALL TIME yet" : "The recorder has nobody for this season yet"} /> :
           <div style={{ overflowX: "auto" }}><table className="ap-t"><thead><tr>
             {COLS.map(c => <th key={c.key} style={{ cursor: "pointer", whiteSpace: "nowrap" }}
               onClick={() => setSort(s => ({ key: c.key, dir: s.key === c.key ? -s.dir : (c.text ? 1 : -1) }))}>
