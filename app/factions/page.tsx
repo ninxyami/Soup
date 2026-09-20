@@ -8,12 +8,10 @@ import { FactionLogo, fmtBronze } from "@/components/FactionBits";
 
 export default function FactionsPage() {
   const [data, setData] = useState<any>(null);
-  const [wars, setWars] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetch(`${API}/api/factions`).then((r) => (r.ok ? r.json() : null)).then((d) => setData(d)).catch(() => {}).finally(() => setLoading(false));
-    fetch(`${API}/api/wars`).then((r) => (r.ok ? r.json() : null)).then(setWars).catch(() => {});
   }, []);
   const whenT = (ts: number) => (ts ? new Date(ts * 1000).toLocaleString("en-GB", { weekday: "short", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "");
 
@@ -27,7 +25,7 @@ export default function FactionsPage() {
       <div className="flex items-baseline justify-between flex-wrap gap-2 mb-6">
         <h1 className="font-mono text-[0.75rem] tracking-[0.25em] uppercase text-[#c8a84b] m-0">Factions</h1>
         <span className="font-mono text-[0.65rem] text-[#555]">
-          Founded in game. Unlocking one ({fmtBronze(data?.settings?.unlock_fee || 1000)}) gets a Discord channel, this page, a wallet and wars.
+          Founded in game. Unlocking one ({fmtBronze(data?.settings?.unlock_fee || 1000)}) gets a Discord channel, this page and a wallet.
         </span>
       </div>
 
@@ -61,7 +59,6 @@ export default function FactionsPage() {
                 <span className="text-[#e6e6e6] font-semibold group-hover:text-[#c8a84b] transition-colors">{f.name}</span>
                 {f.tag && <span className="font-mono text-[0.65rem] text-[#c8a84b]">[{f.tag}]</span>}
                 {!f.unlocked && <span className="font-mono text-[0.6rem] text-[#777] border border-[#333] px-1">LOCKED</span>}
-                {f.champion && <span className="font-mono text-[0.6rem] text-[#c8a84b] border border-[#5a4a1b] px-1" title={`${data?.champion?.title || "Champion of the week"}: most war wins this week`}>👑 CHAMPION</span>}
                 {f.recruiting && f.unlocked && <span className="font-mono text-[0.6rem] text-[#4a7c59] border border-[#2a3a2e] px-1">RECRUITING</span>}
               </div>
               {f.motto && <div className="text-[0.8rem] text-[#9a9a9a] italic truncate">“{f.motto}”</div>}
@@ -76,22 +73,6 @@ export default function FactionsPage() {
         ))}
       </div>
 
-      {wars && (wars.open?.length > 0 || wars.recent?.length > 0) && (
-        <div className="mt-10">
-          <h2 className="font-mono text-[0.65rem] tracking-[0.25em] uppercase text-[#c8a84b] mb-2">Wars</h2>
-          {wars.open?.map((w: any) => (
-            <div key={w.id} className="font-mono text-[0.7rem] text-[#9a9a9a] py-1 border-b border-[#1a1a1a]">
-              <span className={`uppercase mr-2 ${w.state === "live" ? "text-[#e55]" : w.state === "accepted" ? "text-[#4a7c59]" : "text-[#c8a84b]"}`}>{w.state}</span>
-              <Link href={`/faction?id=${w.challenger}`} className="text-[#e6e6e6]">{w.challengerName}</Link> vs <Link href={`/faction?id=${w.defender}`} className="text-[#e6e6e6]">{w.defenderName}</Link> · {w.modeText} · {w.arenaName} · {whenT(w.scheduled_at)} · pot {fmtBronze(2 * w.wager)}
-            </div>
-          ))}
-          {wars.recent?.slice(0, 10).map((w: any) => (
-            <div key={w.id} className="font-mono text-[0.7rem] text-[#777] py-1 border-b border-[#1a1a1a]">
-              <span className="text-[#555] mr-2">#{w.id}</span>{w.challengerName} vs {w.defenderName} — {w.state === "finished" ? (w.result === "draw" ? "draw" : <><span className="text-[#4a7c59]">{w.winnerName}</span> won {fmtBronze(w.pot - w.fee)}</>) : w.state}{w.reason ? ` · ${w.reason}` : ""}
-            </div>
-          ))}
-        </div>
-      )}
 
       {gone.length > 0 && (
         <div className="mt-10">

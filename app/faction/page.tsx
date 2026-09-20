@@ -8,7 +8,6 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { API } from "@/lib/constants";
 import { FactionLogo, FactionBanner, fmtBronze } from "@/components/FactionBits";
-import FactionWars from "@/components/FactionWars";
 
 function fmtGameTime(hours: number) {
   if (!hours || hours <= 0) return "—";
@@ -97,8 +96,8 @@ export default function FactionPage() {
   const gone = !!f.disbandedAt;
   const rankNames: string[] = f.ranks || [];
   const rankIdx = (name: string) => Math.max(0, rankNames.indexOf(f.memberRanks?.[name] || "")) + 1;
-  const PERMS = ["INVITE", "KICK", "PROMOTE", "EDIT_RANKS", "EDIT_PICTURES", "SET_MOTTO", "RECRUIT", "WAR", "WALLET_PAY", "VIEW_LOG", "CLAIM", "STASH"];
-  const PERM_TEXT: any = { INVITE: "invite", KICK: "kick", PROMOTE: "promote/demote", EDIT_RANKS: "edit ranks", EDIT_PICTURES: "pictures", SET_MOTTO: "motto", RECRUIT: "recruitment", WAR: "wars", WALLET_PAY: "pay from wallet", VIEW_LOG: "log", CLAIM: "the claim", STASH: "the stash" };
+  const PERMS = ["INVITE", "KICK", "PROMOTE", "EDIT_RANKS", "EDIT_PICTURES", "SET_MOTTO", "RECRUIT", "WALLET_PAY", "VIEW_LOG", "CLAIM", "STASH"];
+  const PERM_TEXT: any = { INVITE: "invite", KICK: "kick", PROMOTE: "promote/demote", EDIT_RANKS: "edit ranks", EDIT_PICTURES: "pictures", SET_MOTTO: "motto", RECRUIT: "recruitment", WALLET_PAY: "pay from wallet", VIEW_LOG: "log", CLAIM: "the claim", STASH: "the stash" };
   const stash: any[] = f.stash || [];
   const TIERS = ["", "Outpost", "Compound", "Stronghold"];
   const claim = f.claim && f.claim.x !== undefined ? f.claim : null;
@@ -117,7 +116,6 @@ export default function FactionPage() {
               <h1 className="text-[1.6rem] text-[#e6e6e6] m-0 leading-none">{f.name}</h1>
               {f.tag && <span className="font-mono text-[0.8rem] text-[#c8a84b]">[{f.tag}]</span>}
               {!f.unlocked && !gone && <span className="font-mono text-[0.6rem] text-[#999] border border-[#444] px-1.5 py-0.5">LOCKED</span>}
-              {f.champion && <span className="font-mono text-[0.6rem] text-[#c8a84b] border border-[#5a4a1b] px-1.5 py-0.5" title="Most war wins this week">👑 CHAMPION OF THE WEEK</span>}
               {gone && <span className="font-mono text-[0.6rem] text-[#a55] border border-[#533] px-1.5 py-0.5">DISBANDED {day(f.disbandedAt)}</span>}
             </div>
             {f.motto && <div className="text-[0.9rem] text-[#bbb] italic mt-1">“{f.motto}”</div>}
@@ -139,7 +137,7 @@ export default function FactionPage() {
       {v.canUnlock && (
         <div className="mt-4 border border-[#c8a84b] bg-[rgba(200,168,75,0.06)] p-4">
           <div className="text-[#e6e6e6] text-[0.9rem]">Unlock {f.name}&rsquo;s space</div>
-          <div className="text-[0.8rem] text-[#9a9a9a] mt-1">A private Discord channel for your members, this page with your own logo and banner, a faction wallet, and faction wars. One payment of <b className="text-[#c8a84b]">{fmtBronze(f.unlockFee)}</b> from your wallet{f.viewerBalance != null ? <> (you have {fmtBronze(f.viewerBalance)})</> : null}. Nothing is charged until you press the button.</div>
+          <div className="text-[0.8rem] text-[#9a9a9a] mt-1">A private Discord channel for your members, this page with your own logo and banner, and a faction wallet. One payment of <b className="text-[#c8a84b]">{fmtBronze(f.unlockFee)}</b> from your wallet{f.viewerBalance != null ? <> (you have {fmtBronze(f.viewerBalance)})</> : null}. Nothing is charged until you press the button.</div>
           <div className="mt-3">
             <Btn gold disabled={busy || (f.viewerBalance != null && f.viewerBalance < f.unlockFee)} onClick={() => { if (confirm(`Pay ${fmtBronze(f.unlockFee)} to unlock ${f.name}?`)) act(() => post(`/api/factions/${fid}/unlock`)); }}>
               {f.viewerBalance != null && f.viewerBalance < f.unlockFee ? `You need ${fmtBronze(f.unlockFee)}` : `Unlock — ${fmtBronze(f.unlockFee)}`}
@@ -337,7 +335,7 @@ export default function FactionPage() {
 
       {/* the stash: what the faction is owed */}
       {(isMember || v.isAdmin) && (
-        <Sec title="Stash" right={<span className="font-mono text-[0.6rem] text-[#555]">the faction&rsquo;s shelf: the champion&rsquo;s reward lands here, one per fighter</span>}>
+        <Sec title="Stash" right={<span className="font-mono text-[0.6rem] text-[#555]">the faction&rsquo;s shelf</span>}>
           {stash.length === 0 ? <div className="font-mono text-[0.7rem] text-[#555] border border-[#222] p-3">Empty.</div> : (
             <div className="flex flex-col gap-1">
               {stash.map((e: any) => (
@@ -375,11 +373,6 @@ export default function FactionPage() {
           )}
         </Sec>
       )}
-
-      {/* wars */}
-      <Sec title="Wars">
-        {f.unlocked ? <FactionWars fid={fid} factionName={f.name} onChange={() => load(fid)} /> : <div className="font-mono text-[0.7rem] text-[#555] border border-[#222] p-3">Wars need an unlocked faction.</div>}
-      </Sec>
 
       {/* the audit log (rank permission) */}
       {f.log && (
