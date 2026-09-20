@@ -36,7 +36,10 @@ export default function FactionWars({ fid, factionName, onChange }: { fid: strin
   const [d, setD] = useState<any>(null);
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
-  const [form, setForm] = useState<any>({ defender: "", mode: "last_standing", arena_id: "", wager: "", when: "", roster: [] });
+  const [form, setForm] = useState<any>({ defender: "", mode: "last_standing", arena_id: "", wager: "", hours: "0", roster: [] });
+  const HOURS = ["0", "1", "1.5", "2", "3", "4", "6", "8", "12", "24"];
+  const whenAt = () => form.hours === "0" ? 0 : Math.floor((Date.now() + Number(form.hours) * 3600 * 1000) / 1000);
+  const whenLabel = (h: string) => h === "0" ? "NOW — they have 15 min to accept; the bell rings 6 min after they do" : `in ${h} hour${h === "1" ? "" : "s"} — ${when(Math.floor((Date.now() + Number(h) * 3600 * 1000) / 1000))}`;
   const [acceptRoster, setAcceptRoster] = useState<any>({});
 
   const load = async () => {
@@ -59,7 +62,6 @@ export default function FactionWars({ fid, factionName, onChange }: { fid: strin
   const rec = d.record || {};
   const open = (d.wars || []).filter((w: any) => ["proposed", "accepted", "live"].includes(w.state));
   const past = (d.wars || []).filter((w: any) => !["proposed", "accepted", "live"].includes(w.state));
-  const minWhen = new Date(Date.now() + (rules.minLead || 3600) * 1000).toISOString().slice(0, 16);
 
   return (
     <div>
@@ -81,7 +83,7 @@ export default function FactionWars({ fid, factionName, onChange }: { fid: strin
             <div className="flex items-baseline gap-2 flex-wrap">
               <span className="font-mono text-[0.6rem] uppercase px-1 border" style={{ color: STATE_COL[w.state], borderColor: STATE_COL[w.state] }}>{w.state}</span>
               <span className="text-[#e6e6e6]">War #{w.id} — {mine ? "you" : other} vs {mine ? other : "you"}</span>
-              <span className="font-mono text-[0.65rem] text-[#777]">{w.modeText} · {w.arenaName} · {when(w.scheduled_at)} · wager {fmtBronze(w.wager)} each → winner takes {fmtBronze(pot - fee)}</span>
+              <span className="font-mono text-[0.65rem] text-[#777]">{w.modeText} · {w.arenaName} · {w.whenText || when(w.scheduled_at)} · wager {fmtBronze(w.wager)} each → winner takes {fmtBronze(pot - fee)}</span>
             </div>
             {w.rosters?.[fid] && <div className="font-mono text-[0.65rem] text-[#9a9a9a] mt-1">Your fighters: {w.rosters[fid].join(", ")}</div>}
             {w.incoming && d.viewer?.canDeclare && (
@@ -114,16 +116,19 @@ export default function FactionWars({ fid, factionName, onChange }: { fid: strin
               <option value="battle_royale">Battle royale — last standing while the zone shrinks; toxic fog outside it</option>
             </select>
             <select value={form.arena_id} onChange={(e: any) => setForm({ ...form, arena_id: e.target.value })} className="bg-[#0b0b0b] border border-[#333] text-[#e6e6e6] font-mono text-[0.75rem] px-2 py-1">
-              <option value="">arena…</option>
+              <option value="">{(d.arenas || []).length ? "arena…" : "no arena yet — an admin adds one (Zombita Control → FACTIONS)"}</option>
               {(d.arenas || []).map((a: any) => <option key={a.id} value={a.id}>{a.name}{a.kind === "town" ? " (the whole town)" : ""}</option>)}
             </select>
             <input type="number" min={rules.minWager} step={100} value={form.wager} onChange={(e: any) => setForm({ ...form, wager: e.target.value })} placeholder={`wager in bronze (min ${rules.minWager})`} className="bg-[#0b0b0b] border border-[#333] text-[#e6e6e6] font-mono text-[0.75rem] px-2 py-1" />
-            <input type="datetime-local" min={minWhen} value={form.when} onChange={(e: any) => setForm({ ...form, when: e.target.value })} className="bg-[#0b0b0b] border border-[#333] text-[#e6e6e6] font-mono text-[0.75rem] px-2 py-1" />
+            <select value={form.hours} onChange={(e: any) => setForm({ ...form, hours: e.target.value })} className="bg-[#0b0b0b] border border-[#333] text-[#e6e6e6] font-mono text-[0.75rem] px-2 py-1">
+              {HOURS.map((h) => <option key={h} value={h}>{whenLabel(h)}</option>)}
+            </select>
           </div>
+          <div className="font-mono text-[0.6rem] text-[#555] mt-1">Click a name to pick your fighter{rules.rosterSize === 1 ? "" : "s"}.</div>
           <div className="mt-2"><Roster members={d.members || []} picked={form.roster} setPicked={(p: any) => setForm({ ...form, roster: p })} max={rules.rosterSize} /></div>
           <div className="mt-2 flex items-center gap-3 flex-wrap">
-            <Btn gold disabled={busy || !form.defender || !form.arena_id || !Number(form.wager) || !form.when || form.roster.length !== rules.rosterSize}
-              onClick={() => { const at = Math.floor(new Date(form.when).getTime() / 1000); if (confirm(`Declare war for ${fmtBronze(Number(form.wager))}? It leaves your faction wallet into escrow now.`)) act(() => post("/api/wars/challenge", { challenger: fid, defender: form.defender, mode: form.mode, arena_id: Number(form.arena_id), wager: Number(form.wager), scheduled_at: at, roster: form.roster }).then((r) => { setForm({ ...form, roster: [], wager: "", when: "" }); return r; })); }}>
+            <Btn gold disabled={busy || !form.defender || !form.arena_id || !Number(form.wager) || form.roster.length !== rules.rosterSize}
+              onClick={() => { const at = whenAt(); if (confirm(`Declare war for ${fmtBronze(Number(form.wager))}, ${at ? when(at) : "now"}? It leaves your faction wallet into escrow now.`)) act(() => post("/api/wars/challenge", { challenger: fid, defender: form.defender, mode: form.mode, arena_id: Number(form.arena_id), wager: Number(form.wager), scheduled_at: at, roster: form.roster }).then((r) => { setForm({ ...form, roster: [], wager: "" }); return r; })); }}>
               Declare war
             </Btn>
             <span className="font-mono text-[0.6rem] text-[#555]">Both sides put up the same wager. They have until 15 minutes before the time to accept; the fee only comes out of the pot.{rules.restarts && rules.restarts !== "none known" ? <> Server restarts at <b>{rules.restarts}</b> (server time) — a war can&rsquo;t be set within 30 min before or 15 min after one; any other restart just pauses it.</> : null}</span>
