@@ -5,7 +5,7 @@ import { repTier, timeAgo } from "@/lib/utils";
 import Link from "next/link";
 import { FactionLogo } from "@/components/FactionBits";
 
-type BoardType = "ingame" | "wolf" | "quiz" | "rps" | "c4" | "arcade" | "cah" | "reputation";
+type BoardType = "ingame" | "wolf" | "quiz" | "rps" | "c4" | "chess" | "arcade" | "cah" | "reputation";
 type ArcadeTab = "snake" | "tetris" | "g2048";
 type IngameTab = "kills" | "overall" | "deaths" | "survived" | "bestlife" | "factions";
 type GameTab = "pvp" | "zombita" | "coins";
@@ -35,6 +35,7 @@ export default function LeaderboardPage() {
   const [ingameTab, setIngameTab] = useState<IngameTab>("kills");
   const [rpsTab, setRpsTab] = useState<GameTab>("pvp");
   const [c4Tab, setC4Tab] = useState<GameTab>("pvp");
+  const [chessTab, setChessTab] = useState<GameTab>("pvp");
   const [arcadeTab, setArcadeTab] = useState<ArcadeTab>("snake");
   const [arcade, setArcade] = useState<any>(null);
   const [ingame, setIngame] = useState<any>(null);
@@ -42,6 +43,7 @@ export default function LeaderboardPage() {
   const [quiz, setQuiz] = useState<any[]>([]);
   const [rps, setRps] = useState<any>(null);
   const [c4, setC4] = useState<any>(null);
+  const [chess, setChess] = useState<any>(null);
   const [reputation, setReputation] = useState<any[]>([]);
   const [cah, setCah] = useState<any>(null);
   const [factionPages, setFactionPages] = useState<any>({});   // name -> {fid, pictures, tag}
@@ -60,7 +62,8 @@ export default function LeaderboardPage() {
       fetch(`${API}/api/reputation/leaderboard`).then(r=>r.ok?r.json():null).catch(()=>null),
       fetch(`${API}/api/cah/leaderboard`).then(r=>r.ok?r.json():null).catch(()=>null),
       fetch(`${API}/api/stats/arcade`).then(r=>r.ok?r.json():null).catch(()=>null),
-    ]).then(([ing,wlf,qz,rp,c,rep,ch,arc])=>{
+      fetch(`${API}/api/stats/chess`).then(r=>r.ok?r.json():null).catch(()=>null),
+    ]).then(([ing,wlf,qz,rp,c,rep,ch,arc,chs])=>{
       setIngame(ing);
       setWolf(Array.isArray(wlf)?wlf:(wlf?.data||wlf?.players||[]));
       setQuiz(Array.isArray(qz)?qz:(qz?.data||qz?.players||[]));
@@ -68,6 +71,7 @@ export default function LeaderboardPage() {
       setReputation(rep?.players || []);
       setCah(ch);
       setArcade(arc);
+      setChess(chs);
       setLoading(false);
     });
   }, []);
@@ -76,6 +80,7 @@ export default function LeaderboardPage() {
   const factions  = ingame?.factions || [];
   const rpsBoard  = rps?.leaderboard || [];
   const c4Board   = c4?.leaderboard || [];
+  const chessBoard = chess?.leaderboard || [];
   const cahBoard  = cah?.leaderboard || [];
 
   const tabBtn = (active: boolean, onClick: ()=>void, label: string) => (
@@ -140,7 +145,7 @@ export default function LeaderboardPage() {
       {/* Board selector — scrollable on mobile */}
       <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 pb-1">
         <div className="flex gap-2 mb-8 min-w-max sm:min-w-0 sm:flex-wrap">
-          {([["ingame","⚔️ In-Game"],["wolf","🐺 Werewolf"],["quiz","🧠 Quizarium"],["rps","🪨 RPS"],["c4","🔴 Connect4"],["arcade","🕹️ Arcade"],["cah","🃏 CAH"],["reputation","📋 Reputation"]] as [BoardType,string][]).map(([id,label])=>(
+          {([["ingame","⚔️ In-Game"],["wolf","🐺 Werewolf"],["quiz","🧠 Quizarium"],["rps","🪨 RPS"],["c4","🔴 Connect4"],["chess","♞ Chess"],["arcade","🕹️ Arcade"],["cah","🃏 CAH"],["reputation","📋 Reputation"]] as [BoardType,string][]).map(([id,label])=>(
             <button key={id} onClick={()=>setBoard(id)}
               className={`px-3 py-[0.4rem] text-[0.68rem] tracking-[0.08em] uppercase border font-[inherit] cursor-pointer transition-all whitespace-nowrap ${board===id?"border-[#4a7c59] text-[#4a7c59]":"border-[#222] text-[#555] hover:border-[#444] hover:text-[#e6e6e6]"}`}>
               {label}
@@ -218,6 +223,18 @@ export default function LeaderboardPage() {
           {c4Tab==="pvp"     && <GameTable rows={[...c4Board].sort((a:any,b:any)=>b.wins-a.wins)} c1={p=>`${p.wins}W/${p.losses}L/${p.draws}D`} c2={p=>`${p.win_rate}%`} h1="Record" h2="Win %"/>}
           {c4Tab==="zombita" && <GameTable rows={[...c4Board].sort((a:any,b:any)=>b.vs_zombita.wins-a.vs_zombita.wins)} c1={p=>`${p.vs_zombita.wins}W/${p.vs_zombita.losses}L`} c2={p=>{const t=p.vs_zombita.wins+p.vs_zombita.losses+p.vs_zombita.draws;return t>0?Math.round((p.vs_zombita.wins/t)*100)+'%':'—';}} h1="vs Zombita" h2="Win %"/>}
           {c4Tab==="coins"   && <GameTable rows={[...c4Board].sort((a:any,b:any)=>b.coins_net-a.coins_net)} c1={p=>`${p.coins_won.toLocaleString()} 🟤`} c2={p=>`${p.coins_net>=0?'+':''}${p.coins_net.toLocaleString()}`} h1="Won" h2="Net"/>}
+        </div>}
+
+
+        {board==="chess" && <div>
+          <div className="flex gap-0 border-b border-[#222] mb-6">
+            {tabBtn(chessTab==="pvp",()=>setChessTab("pvp"),"👥 Players")}
+            {tabBtn(chessTab==="zombita",()=>setChessTab("zombita"),"🧟 Zombita")}
+            {tabBtn(chessTab==="coins",()=>setChessTab("coins"),"💰 Coins")}
+          </div>
+          {chessTab==="pvp"     && <GameTable rows={[...chessBoard].sort((a:any,b:any)=>b.wins-a.wins)} c1={p=>`${p.wins}W/${p.losses}L/${p.draws}D`} c2={p=>`${p.win_rate}%`} h1="Record" h2="Win %"/>}
+          {chessTab==="zombita" && <GameTable rows={[...chessBoard].sort((a:any,b:any)=>b.vs_zombita.wins-a.vs_zombita.wins)} c1={p=>`${p.vs_zombita.wins}W/${p.vs_zombita.losses}L`} c2={p=>{const t=p.vs_zombita.wins+p.vs_zombita.losses+p.vs_zombita.draws;return t>0?Math.round((p.vs_zombita.wins/t)*100)+'%':'—';}} h1="vs Zombita" h2="Win %"/>}
+          {chessTab==="coins"   && <GameTable rows={[...chessBoard].sort((a:any,b:any)=>b.coins_net-a.coins_net)} c1={p=>`${p.coins_won.toLocaleString()} 🟤`} c2={p=>`${p.coins_net>=0?'+':''}${p.coins_net.toLocaleString()}`} h1="Won" h2="Net"/>}
         </div>}
 
 
