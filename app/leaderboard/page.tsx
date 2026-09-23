@@ -5,7 +5,8 @@ import { repTier, timeAgo } from "@/lib/utils";
 import Link from "next/link";
 import { FactionLogo } from "@/components/FactionBits";
 
-type BoardType = "ingame" | "wolf" | "quiz" | "rps" | "c4" | "cah" | "reputation";
+type BoardType = "ingame" | "wolf" | "quiz" | "rps" | "c4" | "arcade" | "cah" | "reputation";
+type ArcadeTab = "snake" | "tetris" | "g2048";
 type IngameTab = "kills" | "overall" | "deaths" | "survived" | "bestlife" | "factions";
 type GameTab = "pvp" | "zombita" | "coins";
 
@@ -34,6 +35,8 @@ export default function LeaderboardPage() {
   const [ingameTab, setIngameTab] = useState<IngameTab>("kills");
   const [rpsTab, setRpsTab] = useState<GameTab>("pvp");
   const [c4Tab, setC4Tab] = useState<GameTab>("pvp");
+  const [arcadeTab, setArcadeTab] = useState<ArcadeTab>("snake");
+  const [arcade, setArcade] = useState<any>(null);
   const [ingame, setIngame] = useState<any>(null);
   const [wolf, setWolf] = useState<any[]>([]);
   const [quiz, setQuiz] = useState<any[]>([]);
@@ -56,13 +59,15 @@ export default function LeaderboardPage() {
       fetch(`${API}/api/stats/connect4`).then(r=>r.ok?r.json():null).catch(()=>null),
       fetch(`${API}/api/reputation/leaderboard`).then(r=>r.ok?r.json():null).catch(()=>null),
       fetch(`${API}/api/cah/leaderboard`).then(r=>r.ok?r.json():null).catch(()=>null),
-    ]).then(([ing,wlf,qz,rp,c,rep,ch])=>{
+      fetch(`${API}/api/stats/arcade`).then(r=>r.ok?r.json():null).catch(()=>null),
+    ]).then(([ing,wlf,qz,rp,c,rep,ch,arc])=>{
       setIngame(ing);
       setWolf(Array.isArray(wlf)?wlf:(wlf?.data||wlf?.players||[]));
       setQuiz(Array.isArray(qz)?qz:(qz?.data||qz?.players||[]));
       setRps(rp); setC4(c);
       setReputation(rep?.players || []);
       setCah(ch);
+      setArcade(arc);
       setLoading(false);
     });
   }, []);
@@ -135,7 +140,7 @@ export default function LeaderboardPage() {
       {/* Board selector — scrollable on mobile */}
       <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 pb-1">
         <div className="flex gap-2 mb-8 min-w-max sm:min-w-0 sm:flex-wrap">
-          {([["ingame","⚔️ In-Game"],["wolf","🐺 Werewolf"],["quiz","🧠 Quizarium"],["rps","🪨 RPS"],["c4","🔴 Connect4"],["cah","🃏 CAH"],["reputation","📋 Reputation"]] as [BoardType,string][]).map(([id,label])=>(
+          {([["ingame","⚔️ In-Game"],["wolf","🐺 Werewolf"],["quiz","🧠 Quizarium"],["rps","🪨 RPS"],["c4","🔴 Connect4"],["arcade","🕹️ Arcade"],["cah","🃏 CAH"],["reputation","📋 Reputation"]] as [BoardType,string][]).map(([id,label])=>(
             <button key={id} onClick={()=>setBoard(id)}
               className={`px-3 py-[0.4rem] text-[0.68rem] tracking-[0.08em] uppercase border font-[inherit] cursor-pointer transition-all whitespace-nowrap ${board===id?"border-[#4a7c59] text-[#4a7c59]":"border-[#222] text-[#555] hover:border-[#444] hover:text-[#e6e6e6]"}`}>
               {label}
@@ -215,6 +220,18 @@ export default function LeaderboardPage() {
           {c4Tab==="coins"   && <GameTable rows={[...c4Board].sort((a:any,b:any)=>b.coins_net-a.coins_net)} c1={p=>`${p.coins_won.toLocaleString()} 🟤`} c2={p=>`${p.coins_net>=0?'+':''}${p.coins_net.toLocaleString()}`} h1="Won" h2="Net"/>}
         </div>}
 
+
+        {board==="arcade" && <div>
+          <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+            <div className="flex gap-0 border-b border-[#222] mb-4 min-w-max">
+              {tabBtn(arcadeTab==="snake",()=>setArcadeTab("snake"),"🐍 Snake")}
+              {tabBtn(arcadeTab==="tetris",()=>setArcadeTab("tetris"),"🧱 Tetris")}
+              {tabBtn(arcadeTab==="g2048",()=>setArcadeTab("g2048"),"🔢 2048")}
+            </div>
+          </div>
+          <p className="text-[0.72rem] text-[#555] mb-4">The phones&apos; own games. Every week the best scores of the week win 100 / 60 / 30 bronze.</p>
+          <GameTable rows={arcade?.[arcadeTab] || []} c1={(p:any)=>(p.best||0).toLocaleString()} c2={(p:any)=>p.week_best>0?(p.week_best||0).toLocaleString():"—"} h1="Best" h2="This week"/>
+        </div>}
 
         {board==="cah" && <div>
           <p className="text-[0.78rem] text-[#555] font-mono mb-6 italic">
