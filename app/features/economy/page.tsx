@@ -1,26 +1,206 @@
 "use client";
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { API } from "@/lib/constants";
 
-const TREASURY_STATES = [
-  { state: "BOOMING", range: "> 80,000", color: "#4caf7d", effect: "Lowest prices, lowest taxes, full rewards" },
-  { state: "HEALTHY", range: "40,000 – 80,000", color: "#4a8fc4", effect: "Normal prices and taxes" },
-  { state: "TIGHT", range: "15,000 – 40,000", color: "#c8a84b", effect: "Slightly elevated prices" },
-  { state: "LOW", range: "5,000 – 15,000", color: "#c47a4a", effect: "Higher prices and taxes" },
-  { state: "CRITICAL", range: "< 5,000", color: "#e05555", effect: "Max prices, max taxes, auto-recession, rewards paused" },
+// The economy page (rewritten 2026-09-23 to match the bot's rules after the treasury work):
+// how money works on S.O.U.P, and the live numbers from GET /api/economy/live (totals only - never a
+// player's wallet or a name). Every rule below is the one the bot runs today.
+
+type Live = {
+  season: string;
+  money: { treasury: number; keepers: number; wallets: number; cash: number; total: number; limit: number; cap: number };
+  health: string;
+  health_pct: number;
+  supply_pct: number;
+  burn_mode: boolean;
+  players: number;
+  seed: { min: number; neutral: number; max: number };
+  bands: Record<string, number>;
+  rules: { lean_months: number; rich_months: number; patience: number; mood: string; reward_budget: number; enabled: boolean };
+  flow: { days: number; in: [string, number][]; out: [string, number][]; in_total: number; out_total: number; net: number };
+  updated_at: number;
+};
+
+const HEALTH_COLOR: Record<string, string> = {
+  BOOMING: "#4caf7d", HEALTHY: "#4a8fc4", TIGHT: "#c8a84b", LOW: "#c47a4a", CRITICAL: "#e05555",
+};
+
+// The sell tax a keeper keeps, by treasury health (zombita_shop_watcher SELL_TAX_BY_STATE).
+const HEALTH_ROWS = [
+  { state: "BOOMING", at: "95%+ of the cap", tax: "10%", note: "Keepers flush, rewards paid in full" },
+  { state: "HEALTHY", at: "60% - 95%", tax: "15%", note: "Normal days" },
+  { state: "TIGHT", at: "35% - 60%", tax: "25%", note: "Keepers start counting coins" },
+  { state: "LOW", at: "15% - 35%", tax: "40%", note: "Tills run short, rewards shrink" },
+  { state: "CRITICAL", at: "under 15%", tax: "50%", note: "Rewards paused; a lean month is being noted" },
 ];
 
-const SHOPS = [
-  { name: "Cal's Food Corner", icon: "🍖", desc: "Food, drinks, farming supplies. Staple items for early survival." },
-  { name: "Dex's Armory", icon: "🔫", desc: "Weapons, ammo, tactical gear. High demand keeps prices volatile." },
-  { name: "Lena's Auto Parts", icon: "🔧", desc: "Car parts, repair tools, fuel. Essential for late-game mobility." },
-  { name: "Viktor's Gas Station", icon: "⛽", desc: "Fuel and quick supplies. Located near main travel routes." },
-  { name: "Nadia's Hub", icon: "🏘️", desc: "Community goods, miscellaneous items, social economy items." },
+const COINS = [
+  { name: "SOUP Coin", value: "1 silver", where: "About 1 zombie in 100. New players get extra luck in their first two hours.", color: "#9ec27a" },
+  { name: "Zombita Coin", value: "1 gold", where: "About 1 zombie in 1,000 - as rare as her own phone.", color: "#7ec04a" },
+  { name: "Dawnie's Coin", value: "10 gold", where: "1 zombie in 10,000. A keeper would buy it... Dawnie says don't. (Next update.)", color: "#e0a090" },
 ];
 
-const MONEY_FLOWS = [
-  { dir: "IN", items: ["A base fund when the season opens", "Each whitelisted player's first join of the season: 1,000–8,000 bronze, depending on how Zombita feels about them", "Zombita's cut of shop purchases (4% for common items up to 50% for specials) — shopkeepers keep the rest", "Marketplace listing fees, purchase tax and delivery fees", "Shopkeepers' surplus, swept back every 3 days", "100% PvP death taxes", "5% rake from RPS and Connect Four bets"] },
-  { dir: "OUT", items: ["Shopkeeper tills topped up every 3 days — keepers pay players for crops and jewelry", "Weekly leaderboard rewards: 1st (500), 2nd (250), 3rd (100)", "Weekly game rewards: Werewolf/Quizarium (300), CAH (200)", "Reputation gift items delivered via RCON", "Admin manual payouts"] },
+const GENERAL = ["Cal", "Dex", "Eli", "Lena", "Nadia", "Roxy"];
+const SPECIALISTS = [
+  { name: "Maya", what: "gardener - seeds, farming, food" },
+  { name: "Viktor", what: "weapons - guns, magazines, ammo" },
+  { name: "Sera", what: "mechanic - car parts, tools, fuel" },
+  { name: "Dr. Voss", what: "medical - first aid, pills, the vaccine" },
+  { name: "Bruno", what: "melee and tools" },
+  { name: "Colette", what: "tailor - clothes and bags" },
+  { name: "Miles", what: "librarian - skill books and magazines" },
 ];
+
+/** 288900 -> "28.9 gold"; 4500 -> "4.5 silver"; 250 -> "250 bronze". */
+function money(b: number): string {
+  if (b >= 10000) return `${(b / 10000).toFixed(b >= 100000 ? 0 : 1)} gold`;
+  if (b >= 1000) return `${(b / 1000).toFixed(1)} silver`;
+  return `${b} bronze`;
+}
+
+function ago(ts: number): string {
+  const s = Math.max(0, Math.floor(Date.now() / 1000) - ts);
+  if (s < 60) return "just now";
+  if (s < 3600) return `${Math.floor(s / 60)} min ago`;
+  return `${Math.floor(s / 3600)} h ago`;
+}
+
+function Section({ title, color = "#c8a84b", children }: { title: string; color?: string; children: React.ReactNode }) {
+  return (
+    <section className="mb-16">
+      <h2 className="!normal-case text-[0.9rem] tracking-[0.2em] mb-4" style={{ color }}>{title}</h2>
+      {children}
+    </section>
+  );
+}
+
+function Card({ title, color = "#e6e6e6", children }: { title: string; color?: string; children: React.ReactNode }) {
+  return (
+    <div className="border border-[#1a1a1a] bg-[#0a0d10] p-4">
+      <p className="font-mono text-[0.65rem] tracking-widest uppercase mb-2" style={{ color }}>{title}</p>
+      <div className="text-[0.78rem] text-[#777] leading-relaxed">{children}</div>
+    </div>
+  );
+}
+
+function LiveEconomy() {
+  const [live, setLive] = useState<Live | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      try {
+        const r = await fetch(`${API}/api/economy/live`, { cache: "no-store" });
+        if (!r.ok) throw new Error(String(r.status));
+        const j = await r.json();
+        if (alive) { setLive(j); setFailed(false); }
+      } catch {
+        if (alive) setFailed(true);
+      }
+    };
+    load();
+    const iv = setInterval(load, 60000);
+    return () => { alive = false; clearInterval(iv); };
+  }, []);
+
+  if (!live) {
+    return (
+      <div className="border border-[#1a1a1a] bg-[#0a0d10] p-5 font-mono text-[0.7rem] text-[#555]">
+        {failed ? "The live numbers can't be reached right now - the rules below still hold." : "Counting the town's money..."}
+      </div>
+    );
+  }
+
+  const m = live.money;
+  const parts = [
+    { name: "Treasury", value: m.treasury, color: "#c8a84b", note: "the town's fund" },
+    { name: "Keeper tills", value: m.keepers, color: "#4a8fc4", note: "what shops can pay you" },
+    { name: "Players' wallets", value: m.wallets, color: "#4caf7d", note: `${live.players} active players` },
+  ];
+  const total = Math.max(1, m.total);
+  const hc = HEALTH_COLOR[live.health] || "#888";
+  const flowMax = Math.max(1, ...live.flow.in.map(x => x[1]), ...live.flow.out.map(x => x[1]));
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {parts.map(p => (
+          <div key={p.name} className="border border-[#1a1a1a] bg-[#0a0d10] p-3">
+            <p className="font-mono text-[0.58rem] tracking-widest uppercase mb-1" style={{ color: p.color }}>{p.name}</p>
+            <p className="font-mono text-[1rem] text-[#e6e6e6]">{money(p.value)}</p>
+            <p className="font-mono text-[0.55rem] text-[#444]">{p.note}</p>
+          </div>
+        ))}
+        <div className="border border-[#1a1a1a] bg-[#0a0d10] p-3">
+          <p className="font-mono text-[0.58rem] tracking-widest uppercase mb-1 text-[#e6e6e6]">All money</p>
+          <p className="font-mono text-[1rem] text-[#e6e6e6]">{money(m.total)}</p>
+          <p className="font-mono text-[0.55rem] text-[#444]">limit {money(m.limit)}</p>
+        </div>
+      </div>
+
+      {/* where the money sits */}
+      <div className="border border-[#1a1a1a] bg-[#0a0d10] p-4">
+        <div className="flex h-3 w-full overflow-hidden bg-[#111]">
+          {parts.map(p => (
+            <div key={p.name} style={{ width: `${(100 * p.value) / total}%`, background: p.color }} title={`${p.name}: ${money(p.value)}`} />
+          ))}
+        </div>
+        <div className="flex flex-wrap gap-x-5 gap-y-1 mt-3 font-mono text-[0.6rem] text-[#666]">
+          <span>Treasury health: <span style={{ color: hc }}>{live.health}</span> ({live.health_pct}% of its cap)</span>
+          <span>Money supply: {live.supply_pct}% of the limit</span>
+          <span>Zombita&apos;s mood: <span className="text-[#c8a84b]">{live.rules.mood}</span></span>
+        </div>
+        {live.burn_mode && (
+          <p className="mt-2 text-[0.72rem] text-[#c47a4a]">
+            There&apos;s more money around than the town can hold right now, so Zombita&apos;s cut of every sale is
+            being destroyed instead of saved - until the supply drops back under the limit.
+          </p>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="border border-[#1a1a1a] bg-[#0a0d10] p-4">
+          <p className="font-mono text-[0.62rem] tracking-widest uppercase mb-3 text-[#4caf7d]">Into the treasury - last {live.flow.days} days</p>
+          {live.flow.in.length === 0 && <p className="text-[0.72rem] text-[#444]">Nothing this week.</p>}
+          {live.flow.in.map(([src, n]) => (
+            <div key={src} className="mb-1.5">
+              <div className="flex justify-between font-mono text-[0.62rem] text-[#777]"><span>{src}</span><span>{money(n)}</span></div>
+              <div className="h-1 bg-[#111]"><div className="h-1 bg-[#4caf7d]" style={{ width: `${(100 * n) / flowMax}%` }} /></div>
+            </div>
+          ))}
+        </div>
+        <div className="border border-[#1a1a1a] bg-[#0a0d10] p-4">
+          <p className="font-mono text-[0.62rem] tracking-widest uppercase mb-3 text-[#e05555]">Out of the treasury - last {live.flow.days} days</p>
+          {live.flow.out.length === 0 && <p className="text-[0.72rem] text-[#444]">Nothing this week.</p>}
+          {live.flow.out.map(([src, n]) => (
+            <div key={src} className="mb-1.5">
+              <div className="flex justify-between font-mono text-[0.62rem] text-[#777]"><span>{src}</span><span>{money(n)}</span></div>
+              <div className="h-1 bg-[#111]"><div className="h-1 bg-[#e05555]" style={{ width: `${(100 * n) / flowMax}%` }} /></div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <Card title="Lean months" color="#c47a4a">
+          <span className="font-mono text-[#e6e6e6]">{live.rules.lean_months} of {live.rules.patience}</span> in a row. At {live.rules.patience},
+          Zombita tops the treasury up.
+        </Card>
+        <Card title="Reward budget" color="#9775cc">
+          <span className="font-mono text-[#e6e6e6]">{money(live.rules.reward_budget)}</span> the treasury can spend on prizes after the
+          keepers&apos; next restock.
+        </Card>
+        <Card title="This season's seed" color="#4a8fc4">
+          Each player who joins adds <span className="font-mono text-[#e6e6e6]">{money(live.seed.min)} - {money(live.seed.max)}</span> to the town,
+          depending on how Zombita feels about them.
+        </Card>
+      </div>
+      <p className="font-mono text-[0.55rem] text-[#333]">{live.season} - updated {ago(live.updated_at)} - totals only, never anyone&apos;s wallet</p>
+    </div>
+  );
+}
 
 export default function EconomyPage() {
   return (
@@ -33,178 +213,141 @@ export default function EconomyPage() {
           </Link>
           <p className="font-mono text-[0.65rem] tracking-[0.3em] text-[#c8a84b] uppercase mb-3 mt-4">Economy System</p>
           <h1 className="text-[1.8rem] sm:text-[2.5rem] tracking-[0.2em] mb-4">THE ECONOMY</h1>
-          <p className="text-[#666] text-[0.88rem] max-w-[580px] leading-relaxed">
-            Not a coin system — a full economic simulation with dynamic pricing, a server-wide 
-            treasury, market cycles, recession events, player debt, taxes, and multiple money 
-            flows all running in real time without admin intervention.
+          <p className="text-[#666] text-[0.88rem] max-w-[620px] leading-relaxed">
+            Money on S.O.U.P is limited. It isn&apos;t printed when you sell a carrot - it moves between the
+            treasury, the shopkeepers&apos; tills and your wallet, and Zombita keeps the books. That&apos;s why a
+            gold is worth a gold here, all season long.
           </p>
         </div>
 
-        {/* Currency */}
-        <section className="mb-16">
-          <h2 className="!normal-case text-[0.9rem] tracking-[0.2em] text-[#c8a84b] mb-6">Currency</h2>
+        <Section title="Right now">
+          <LiveEconomy />
+        </Section>
+
+        <div className="h-px bg-[#1a1a1a] mb-16" />
+
+        <Section title="Currency">
           <div className="grid grid-cols-3 gap-3 mb-4">
             {[
-              { icon: "🟤", name: "Bronze", value: "1", note: "Base unit, all storage" },
-              { icon: "⚪", name: "Silver", value: "1,000", note: "Mid-tier, common transactions" },
-              { icon: "🟡", name: "Gold", value: "10,000", note: "High-value items and bets" },
+              { name: "Bronze", value: "1", note: "the base unit" },
+              { name: "Silver", value: "1,000", note: "everyday prices" },
+              { name: "Gold", value: "10,000", note: "big buys, big bets" },
             ].map(c => (
               <div key={c.name} className="border border-[#1a1a1a] bg-[#0a0d10] p-4 text-center">
-                <div className="text-2xl mb-2">{c.icon}</div>
-                <div className="font-mono text-[0.7rem] tracking-wider text-[#e6e6e6] mb-1">{c.name}</div>
-                <div className="font-mono text-[0.58rem] text-[#c8a84b] mb-1">= {c.value} bronze</div>
+                <div className="font-mono text-[0.72rem] tracking-wider text-[#e6e6e6] mb-1">{c.name}</div>
+                <div className="font-mono text-[0.6rem] text-[#c8a84b] mb-1">= {c.value} bronze</div>
                 <div className="font-mono text-[0.55rem] text-[#444]">{c.note}</div>
               </div>
             ))}
           </div>
-          <p className="text-[0.78rem] text-[#555] font-mono">Display always shows the highest applicable denominations. Example: 12,500 bronze displays as &quot;1 🟡 2 ⚪ 500 🟤&quot;</p>
-        </section>
-
-        <div className="h-px bg-[#1a1a1a] mb-16" />
-
-        {/* Treasury */}
-        <section className="mb-16">
-          <h2 className="!normal-case text-[0.9rem] tracking-[0.2em] text-[#c8a84b] mb-2">The Treasury</h2>
-          <p className="text-[#666] text-[0.85rem] leading-relaxed mb-6">
-            The treasury is the single most important economic concept. It is the server-wide shared fund 
-            that acts as the source of all outgoing rewards and the destination of all incoming taxes. 
-            It is what makes the economy a closed loop rather than infinite money printing.
-          </p>
-          <div className="space-y-2 mb-6">
-            {TREASURY_STATES.map(ts => (
-              <div key={ts.state} className="border border-[#1a1a1a] bg-[#0a0d10] p-3 flex items-center gap-4">
-                <span className="font-mono text-[0.65rem] tracking-widest uppercase min-w-[80px]" style={{ color: ts.color }}>{ts.state}</span>
-                <span className="font-mono text-[0.62rem] text-[#444] min-w-[120px]">{ts.range} bronze</span>
-                <span className="text-[0.75rem] text-[#555] flex-1">{ts.effect}</span>
-              </div>
-            ))}
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {MONEY_FLOWS.map(flow => (
-              <div key={flow.dir} className="border border-[#1a1a1a] bg-[#0a0d10] p-4">
-                <p className={`font-mono text-[0.65rem] tracking-widest uppercase mb-3 ${flow.dir === "IN" ? "text-[#4caf7d]" : "text-[#e05555]"}`}>
-                  Money {flow.dir === "IN" ? "→ Treasury" : "← Treasury"}
-                </p>
-                <ul className="space-y-1.5">
-                  {flow.items.map(item => (
-                    <li key={item} className="text-[0.75rem] text-[#555] flex items-start gap-2" style={{ paddingLeft: 0 }}>
-                      <span className={`text-[0.6rem] flex-shrink-0 mt-1 ${flow.dir === "IN" ? "text-[#4caf7d]" : "text-[#e05555]"}`}>
-                        {flow.dir === "IN" ? "+" : "−"}
-                      </span>
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <div className="h-px bg-[#1a1a1a] mb-16" />
-
-        {/* Dynamic Pricing */}
-        <section className="mb-16">
-          <h2 className="!normal-case text-[0.9rem] tracking-[0.2em] text-[#c8a84b] mb-2">Dynamic Pricing</h2>
-          <p className="text-[#666] text-[0.85rem] leading-relaxed mb-6">
-            Every item in every NPC shop has a dynamic price calculated in real time. 
-            Base prices are fixed, but the final price is the result of multiplying four factors together.
-          </p>
-          <div className="border border-[#1a1a1a] bg-[#070a0d] p-4 mb-6 font-mono text-[0.78rem] text-center">
-            <span className="text-[#e6e6e6]">Final Price</span>
-            <span className="text-[#444]"> = </span>
-            <span className="text-[#c8a84b]">Base Price</span>
-            <span className="text-[#444]"> × </span>
-            <span className="text-[#4a8fc4]">Treasury Factor</span>
-            <span className="text-[#444]"> × </span>
-            <span className="text-[#9775cc]">Demand Factor</span>
-            <span className="text-[#444]"> × </span>
-            <span className="text-[#4caf7d]">Wealth Factor</span>
-            <span className="text-[#444]"> × </span>
-            <span className="text-[#e05555]">Recession Factor</span>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-            {[
-              { name: "Treasury Factor", color: "#4a8fc4", desc: "Derived from treasury state. Full treasury = easier prices. Empty treasury = spikes." },
-              { name: "Demand Factor", color: "#9775cc", desc: "Based on units of this specific item purchased in the last 48 hours across all players." },
-              { name: "Wealth Factor", color: "#4caf7d", desc: "Based on average bronze balance across all player wallets. Richer server = higher prices." },
-              { name: "Recession Factor", color: "#e05555", desc: "Applied only during recessions. Multiplies combined price by 1.40× to 2.20×. Normally 1.00×." },
-            ].map(f => (
-              <div key={f.name} className="border border-[#1a1a1a] bg-[#0a0d10] p-3">
-                <p className="font-mono text-[0.65rem] tracking-wider uppercase mb-1.5" style={{ color: f.color }}>{f.name}</p>
-                <p className="text-[0.75rem] text-[#555]">{f.desc}</p>
-              </div>
-            ))}
-          </div>
-          <p className="text-[0.75rem] text-[#444] font-mono">Price clamping: final price is always between 50% and 300% of base price. Pricing pass runs every 48–72 hours.</p>
-        </section>
-
-        <div className="h-px bg-[#1a1a1a] mb-16" />
-
-        {/* Recession */}
-        <section className="mb-16">
-          <h2 className="!normal-case text-[0.9rem] tracking-[0.2em] text-[#e05555] mb-2">Recession System</h2>
-          <p className="text-[#666] text-[0.85rem] leading-relaxed mb-4">
-            A recession spikes all prices by 1.40×–2.20× for 12–48 hours. Two triggers:
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="border border-[#e0555522] bg-[#0a0d10] p-4">
-              <p className="font-mono text-[0.65rem] tracking-widest text-[#e05555] uppercase mb-2">Treasury Triggered</p>
-              <p className="text-[0.78rem] text-[#555] leading-relaxed">
-                Automatically fires when treasury falls below 5,000 bronze (CRITICAL state). 
-                Fixed 1.60× multiplier for 24 hours. The economy&apos;s immune response.
-              </p>
-            </div>
-            <div className="border border-[#c8a84b22] bg-[#0a0d10] p-4">
-              <p className="font-mono text-[0.65rem] tracking-widest text-[#c8a84b] uppercase mb-2">Zombita Chaos Event</p>
-              <p className="text-[0.78rem] text-[#555] leading-relaxed">
-                0.3% chance per pricing pass (~once every 2–3 months). Random multiplier 
-                and duration. Zombita posts a cryptic announcement. No explanation given.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        <div className="h-px bg-[#1a1a1a] mb-16" />
-
-        {/* NPC Shops */}
-        <section className="mb-16">
-          <h2 className="!normal-case text-[0.9rem] tracking-[0.2em] text-[#c8a84b] mb-6">The Five NPC Shops</h2>
+          <p className="text-[0.78rem] text-[#555] mb-3">Coins turn up on zombies and in tills and lockers - never in a shop. Any keeper buys them at face value, if the till can cover it.</p>
           <div className="space-y-2">
-            {SHOPS.map(shop => (
-              <Link key={shop.name} href="/shop" className="no-underline block group">
-                <div className="border border-[#1a1a1a] bg-[#0a0d10] p-4 hover:border-[#252525] transition-all flex items-center gap-4">
-                  <span className="text-xl">{shop.icon}</span>
-                  <div>
-                    <p className="font-mono text-[0.72rem] tracking-wider text-[#e6e6e6] mb-0.5 group-hover:text-[#c8a84b] transition-colors">{shop.name}</p>
-                    <p className="text-[0.75rem] text-[#555]">{shop.desc}</p>
-                  </div>
-                  <span className="ml-auto font-mono text-[0.6rem] text-[#333] group-hover:text-[#c8a84b] transition-colors">View Shop →</span>
-                </div>
-              </Link>
+            {COINS.map(c => (
+              <div key={c.name} className="border border-[#1a1a1a] bg-[#0a0d10] p-3 flex items-center gap-4">
+                <span className="font-mono text-[0.68rem] tracking-wider min-w-[120px]" style={{ color: c.color }}>{c.name}</span>
+                <span className="font-mono text-[0.62rem] text-[#e6e6e6] min-w-[70px]">{c.value}</span>
+                <span className="text-[0.74rem] text-[#555] flex-1">{c.where}</span>
+              </div>
             ))}
           </div>
-        </section>
+        </Section>
 
         <div className="h-px bg-[#1a1a1a] mb-16" />
 
-        {/* Other features */}
-        <section className="mb-16">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {[
-              { icon: "🏷️", name: "Marketplace", color: "#4a8fc4", desc: "Player-to-player listings at shop kiosks. 10 bronze to list plus 0.5% a day while unsold; buyers pay purchase tax and a delivery fee by distance.", href: "/marketplace" },
-              { icon: "🎰", name: "Lottery", color: "#9775cc", desc: "1 Silver ticket. Tiered prizes: Bandages at the low end, Assault Rifle and Katana at the top. Weekly draw.", href: "/shop" },
-              { icon: "🚗", name: "Teleport", color: "#4caf7d", desc: "Fast-travel to 7 named map locations for 5 Silver. Bot fires RCON teleport command for instant in-game travel.", href: "/shop" },
-            ].map(f => (
-              <Link key={f.name} href={f.href} className="no-underline group">
-                <div className="border border-[#1a1a1a] bg-[#0a0d10] p-5 h-full hover:border-[#252525] transition-all">
-                  <div className="text-xl mb-3">{f.icon}</div>
-                  <p className="font-mono text-[0.7rem] tracking-wider uppercase mb-2 group-hover:transition-colors" style={{ color: f.color }}>{f.name}</p>
-                  <p className="text-[0.75rem] text-[#555] leading-relaxed">{f.desc}</p>
-                </div>
-              </Link>
+        <Section title="Where money comes from, and where it goes">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Card title="New money - only two ways" color="#4caf7d">
+              <p className="mb-2">1. <b className="text-[#aaa]">The season seed.</b> Every player who joins a season adds their seed to the town
+                (5 silver to 4 gold, depending on how Zombita feels about them). That sets how much money the whole town can hold.</p>
+              <p>2. <b className="text-[#aaa]">A lean-month injection.</b> If the treasury can&apos;t pay what it owes for three in-game months in a row,
+                Zombita tops it up - how much depends on her mood. One good month resets the count.</p>
+            </Card>
+            <Card title="Money that leaves for good" color="#e05555">
+              <p className="mb-2">When the treasury sits above its cap for three month-ends in a row, Zombita burns part of the excess.</p>
+              <p>While there&apos;s more money around than the town can hold, her cut of every sale is destroyed instead of saved.</p>
+            </Card>
+            <Card title="Shopkeepers" color="#4a8fc4">
+              Every keeper has a till. When you sell, the keeper pays you out of it - no till, no sale. Tills are refilled from the
+              treasury every three days and anything above a keeper&apos;s float is swept back. When the treasury is short, every keeper
+              is short by the same share.
+            </Card>
+            <Card title="Buying" color="#c8a84b">
+              Every item has one price, the same in every shop that sells it. When you buy, the keeper keeps most of it and
+              Zombita&apos;s cut goes to the treasury.
+            </Card>
+            <Card title="Selling" color="#c8a84b">
+              The keeper keeps a sell tax that follows the treasury&apos;s health - 10% when the town is booming, up to 50% when it&apos;s critical.
+            </Card>
+            <Card title="Dying costs something" color="#c47a4a">
+              The funeral fee: 5% of what you earned in the last 7 days plus 1% of what you hold (10 bronze to 1 silver), to the treasury.
+              New players pay 10 bronze for their first three days, and a second death within the hour is free. What you can&apos;t pay
+              becomes a tab your next income clears.
+            </Card>
+            <Card title="Rewards" color="#9775cc">
+              Weekly leaderboard prizes and game wins (Werewolf, Quizarium...) are paid from the treasury, but only from what it holds
+              after the keepers&apos; next restock. When it&apos;s short, everyone gets the same share - and Zombita says why.
+            </Card>
+            <Card title="Games" color="#9775cc">
+              Rock Paper Scissors and Connect 4 bets: the winner takes the pot, the house keeps 5% for the treasury. Nothing is made out of thin air.
+            </Card>
+          </div>
+        </Section>
+
+        <div className="h-px bg-[#1a1a1a] mb-16" />
+
+        <Section title="Treasury health">
+          <p className="text-[#666] text-[0.82rem] leading-relaxed mb-4">
+            The treasury&apos;s health is how full it is against its cap - and the cap grows with the number of players.
+          </p>
+          <div className="space-y-2">
+            {HEALTH_ROWS.map(h => (
+              <div key={h.state} className="border border-[#1a1a1a] bg-[#0a0d10] p-3 flex flex-wrap items-center gap-x-4 gap-y-1">
+                <span className="font-mono text-[0.65rem] tracking-widest uppercase min-w-[80px]" style={{ color: HEALTH_COLOR[h.state] }}>{h.state}</span>
+                <span className="font-mono text-[0.6rem] text-[#444] min-w-[120px]">{h.at}</span>
+                <span className="font-mono text-[0.6rem] text-[#c8a84b] min-w-[80px]">sell tax {h.tax}</span>
+                <span className="text-[0.74rem] text-[#555] flex-1">{h.note}</span>
+              </div>
             ))}
           </div>
-        </section>
+        </Section>
+
+        <div className="h-px bg-[#1a1a1a] mb-16" />
+
+        <Section title="The shops">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Card title="General stores" color="#c8a84b">
+              {GENERAL.join(", ")} - six general stores, each showing a different slice of the rotating stock, so it pays to walk
+              to the next one. Bus tickets, phones and a few staples are always on the shelf.
+            </Card>
+            <Card title="Specialists" color="#4a8fc4">
+              <ul className="space-y-0.5">
+                {SPECIALISTS.map(s => <li key={s.name}><span className="text-[#aaa]">{s.name}</span> - {s.what}</li>)}
+              </ul>
+            </Card>
+          </div>
+          <div className="flex gap-4 mt-4 font-mono text-[0.62rem]">
+            <Link href="/shop" className="text-[#c8a84b] no-underline hover:text-[#e6e6e6]">What&apos;s on the shelves →</Link>
+            <Link href="/marketplace" className="text-[#c8a84b] no-underline hover:text-[#e6e6e6]">Player marketplace →</Link>
+          </div>
+        </Section>
+
+        <div className="h-px bg-[#1a1a1a] mb-16" />
+
+        <Section title="Also">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <Card title="Lottery" color="#9775cc">
+              100 numbered tickets a batch, 3 silver each - pick your number on the Lottery tab at any shop. 15 of them win:
+              gold, a pink slip, a vaccine, a pistol kit, ammo, a vehicle orb or pocket money. Cash prizes come out of the treasury.
+            </Card>
+            <Card title="Marketplace" color="#4a8fc4">
+              Sell to other players from any kiosk. A small listing fee and a daily fee while unsold; buyers pay a tax and a delivery
+              fee by distance.
+            </Card>
+            <Card title="Zombita Bus" color="#4caf7d">
+              Bus tickets from the general stores (and the odd zombie). Longer rides cost more tickets.
+            </Card>
+          </div>
+        </Section>
 
         <div className="h-px bg-[#1a1a1a] mb-8" />
         <div className="text-center">
