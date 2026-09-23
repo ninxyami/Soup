@@ -38,7 +38,7 @@ const HEALTH_ROWS = [
 const COINS = [
   { name: "SOUP Coin", value: "1 silver", where: "About 1 zombie in 100. New players get extra luck in their first two hours.", color: "#9ec27a" },
   { name: "Zombita Coin", value: "1 gold", where: "About 1 zombie in 1,000 - as rare as her own phone.", color: "#7ec04a" },
-  { name: "Dawnie's Coin", value: "10 gold", where: "1 zombie in 10,000. A keeper would buy it... Dawnie says don't.", color: "#e0a090" },
+  { name: "Dawnie's Coin", value: "10 gold", where: "1 zombie in 10,000. A keeper buys it - or the treasury, when the till is short. Dawnie says don't sell.", color: "#e0a090" },
 ];
 
 const GENERAL = ["Cal", "Dex", "Eli", "Lena", "Nadia", "Roxy"];
