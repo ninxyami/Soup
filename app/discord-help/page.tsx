@@ -35,6 +35,7 @@ export default function DiscordHelpPage() {
           Some players in the Philippines can&apos;t reach Discord right now. Our whitelist and website logins go
           through Discord, so here&apos;s how to get it back.
         </p>
+        <p className="text-[#8aa88a] text-[0.8rem] mt-2">Guide by <b>Four Eyes [ARC]</b>. Thank you!</p>
       </section>
 
       <div className="divider" />
@@ -124,7 +125,9 @@ export default function DiscordHelpPage() {
           same screen and pick <b>Obtain DNS server address automatically</b> (Android: Private DNS &rarr;{" "}
           <b>Automatic</b>).
         </p>
-        <p className="text-[#555] text-[0.75rem] mt-4">Guide by Four Eyes [ARC]. Thank you!</p>
+        <p className="text-[#8aa88a] text-[0.8rem] mt-4">
+          Guide by <b>Four Eyes [ARC]</b>, who found the fix and walked us through it. We&apos;re really thankful. 💚
+        </p>
       </section>
     </main>
   );
