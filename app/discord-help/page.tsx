@@ -35,7 +35,18 @@ export default function DiscordHelpPage() {
           Some players in the Philippines can&apos;t reach Discord right now. Our whitelist and website logins go
           through Discord, so here&apos;s how to get it back.
         </p>
-        <p className="text-[#8aa88a] text-[0.8rem] mt-2">Guide by <b>Four Eyes [ARC]</b>. Thank you!</p>
+        <div className="mt-6 border border-[#4a7c59] bg-[#0f1a12] rounded p-4 sm:p-5">
+          <p className="text-[0.7rem] tracking-[0.2em] uppercase text-[#7ED957] mb-2">💚 A big thank you</p>
+          <p className="text-[1.05rem] text-[#e8f5e0] mb-2">
+            This whole guide comes from <b className="text-white">Four Eyes [ARC]</b>.
+          </p>
+          <p className="text-[0.85rem] text-[#b8ccb0] leading-relaxed">
+            When Discord went dark for so many of us, Four Eyes found the fix, tested it, and took the time to walk us
+            through every step with screenshots - so nobody gets left outside the server. That&apos;s exactly the kind of
+            player that makes this community what it is. Thank you, Four Eyes. We owe you one. 🙏
+          </p>
+          <p className="text-[0.75rem] text-[#6f8f7c] mt-3">- Nin &amp; the SOUP team</p>
+        </div>
       </section>
 
       <div className="divider" />
@@ -125,8 +136,8 @@ export default function DiscordHelpPage() {
           same screen and pick <b>Obtain DNS server address automatically</b> (Android: Private DNS &rarr;{" "}
           <b>Automatic</b>).
         </p>
-        <p className="text-[#8aa88a] text-[0.8rem] mt-4">
-          Guide by <b>Four Eyes [ARC]</b>, who found the fix and walked us through it. We&apos;re really thankful. 💚
+        <p className="text-[#8aa88a] text-[0.85rem] mt-4">
+          Got back in? Say thanks to <b>Four Eyes [ARC]</b> next time you see them in game. 💚
         </p>
       </section>
     </main>
