@@ -12,8 +12,29 @@ const SHOPS = [
   { id: "tailor",    label: "Colette's Atelier", npc: "Colette Vance",  role: "Tailor & Apparel",   icon: "🧵", location: "March Ridge",                    portrait: "/shop/colette.png" },
   { id: "librarian", label: "Miles's Library",   npc: "Miles Ashford",  role: "Books & Skills",     icon: "📚", location: "Grapeseed",                      portrait: "/shop/miles.png"   },
   { id: "melee",     label: "Bruno's Workshop",  npc: "Bruno Kessler",  role: "Melee & Tools",      icon: "🔨", location: "Constown",                       portrait: "/shop/bruno.png"   },
-  { id: "global",    label: "General Stores",    npc: "Various keepers",role: "Everyday Goods",     icon: "⛽", location: "Gas stations & shops, map-wide", portrait: null                },
+  { id: "global",    label: "General Stores",    npc: "Six keepers",    role: "Everyday Goods",     icon: "⛽", location: "39 stores in 26 towns",          portrait: null                },
 ];
+
+// The general stores (ZS_NPCData.lua, shop_type "global"): six keepers, each running a counter in several towns.
+// Each store shows its own slice of the general rotation (zombita_assortments.py); the ★ items are in all of them.
+const GENERAL_KEEPERS = [
+  { npc: "Lena Vasquez", towns: ["West Point", "Muldraugh", "Echo Creek", "Valley Station", "Raccoon City", "Daisy County", "Havenfall"] },
+  { npc: "Dex Malone",   towns: ["West Point", "Muldraugh", "Ekron", "Grapeseed", "Raccoon City", "Daisy County", "Nettle Township"] },
+  { npc: "Roxy",         towns: ["Rosewood", "Fallas Lake", "Irvington", "Grapeseed", "Oakshire", "Safeharbor Garrison", "Nettle Township"] },
+  { npc: "Cal Briggs",   towns: ["Rosewood", "March Ridge", "Irvington", "Frogtown", "Oakshire", "Safeharbor Garrison"] },
+  { npc: "Nadia",        towns: ["Riverside", "Bradenburg", "Dixie", "Constown", "Blackstone", "Anruisi Town"] },
+  { npc: "Eli Marsh",    towns: ["Riverside", "Bradenburg", "Dixie", "Constown", "Daisy County", "Willowbrook"] },
+];
+
+// Pictures for the server's own items (the catalog has none for them): copied from the Zombita mod's textures.
+const OWN_ICONS: Record<string, string> = {
+  "Zombita.PhoneFlip": "/shop/items/PhoneFlip.png", "Zombita.PhoneBlackberry": "/shop/items/PhoneBlackberry.png",
+  "Zombita.PhoneTouch": "/shop/items/PhoneTouch.png", "Zombita.ZombitaPhone": "/shop/items/ZombitaPhone.png",
+  "Zombita.PhoneDawnie": "/shop/items/PhoneDawnie.png", "Zombita.VehicleClaimOrb": "/shop/items/VehicleClaimOrb.png",
+  "ZombitaBus.BusTicket": "/shop/items/BusTicket.png", "Zombita.LotteryTicket": "/shop/items/LotteryTicket.png",
+  "Zombita.ZombitaCoin": "/shop/items/ZombitaCoin.png", "Zombita.SoupCoin": "/shop/items/SoupCoin.png",
+  "Zombita.DawnieCoin": "/shop/items/DawnieCoin.png", "Zombita.PinkSlip": "/shop/items/PinkSlip.png",
+};
 
 const ALL = "__all__";
 
@@ -51,6 +72,7 @@ interface Item {
 
 interface Treasury {
   balance: number; cap: number; health_pct: number; depleted?: boolean;
+  health?: string;          // BOOMING / HEALTHY / TIGHT / LOW / CRITICAL, from /api/economy/live when it answers
 }
 
 // Permanent anchors first, then rarity, then price — so the always-available
@@ -100,12 +122,11 @@ function PriceBadge({ factor }: { factor?: number }) {
 function TreasuryBar({ t }: { t: Treasury | null }) {
   if (!t) return null;
   const pct = Math.max(0, Math.min(100, t.health_pct ?? 0));
-  const state =
-    pct >= 40 ? { label:"BOOMING",  color:"#4caf7d" } :
-    pct >= 25 ? { label:"HEALTHY",  color:"#4a8fc4" } :
-    pct >= 15 ? { label:"TIGHT",    color:"#c8a84b" } :
-    pct >=  8 ? { label:"LOW",      color:"#e0954e" } :
-                { label:"CRITICAL", color:"#e05555" };
+  // the same bands as the economy page and the keepers' sell tax (95 / 60 / 35 / 15 % of the cap)
+  const COLORS: Record<string,string> = { BOOMING:"#4caf7d", HEALTHY:"#4a8fc4", TIGHT:"#c8a84b", LOW:"#e0954e", CRITICAL:"#e05555" };
+  const label = (t.health && COLORS[t.health]) ? t.health :
+    pct >= 95 ? "BOOMING" : pct >= 60 ? "HEALTHY" : pct >= 35 ? "TIGHT" : pct >= 15 ? "LOW" : "CRITICAL";
+  const state = { label, color: COLORS[label] };
   return (
     <div className="border border-[#1e2530] bg-[#0c0f13] p-4 mb-6">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 mb-2">
@@ -126,7 +147,8 @@ function TreasuryBar({ t }: { t: Treasury | null }) {
       </div>
       <p className="font-mono text-[0.6rem] text-[#3a3a3a] mt-2 m-0">
         {pct.toFixed(1)}% full. Every purchase feeds it, every price reacts to it.{" "}
-        {t.depleted ? "It is running dry — expect her to tighten." : "Buy, sell and survive to keep it moving."}
+        {t.depleted ? "It is running dry — expect her to tighten." : "Buy, sell and survive to keep it moving."}{" "}
+        <a href="/features/economy" className="text-[#4a8fc4] no-underline hover:underline">How the economy works →</a>
       </p>
     </div>
   );
@@ -139,6 +161,7 @@ function ItemCard({ item, showShop }: { item: Item; showShop?: boolean }) {
   const stock      = item.stock ?? -1;
   const outOfStock = stock === 0;
   const home       = item.shop_type ? SHOP_BY_ID[item.shop_type] : undefined;
+  const icon       = item.icon_url || OWN_ICONS[item.item_id] || null;
   return (
     <div className={`bg-[#0f1318] border p-3 relative transition-all ${outOfStock ? "border-[#1a1a1a] opacity-50" : "border-[#1e2530] hover:border-[rgba(200,168,75,0.2)]"}`}>
       <div className="absolute top-0 left-0 right-0 h-[2px]" style={{background: outOfStock ? "#333" : color}} />
@@ -148,9 +171,9 @@ function ItemCard({ item, showShop }: { item: Item; showShop?: boolean }) {
       )}
 
       <div className="flex items-start gap-2">
-        {item.icon_url && (
+        {icon && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={item.icon_url} alt="" aria-hidden="true"
+          <img src={icon} alt="" aria-hidden="true"
                className="w-7 h-7 object-contain flex-shrink-0 mt-0.5"
                style={{imageRendering:"pixelated"}} />
         )}
@@ -229,7 +252,15 @@ export default function ShopPage() {
 
         try {
           const r = await fetch(`${API}/api/treasury/status`);
-          if (r.ok) setTreasury(await r.json());
+          if (r.ok) {
+            const t: Treasury = await r.json();
+            // the named state the keepers actually use (the economy page's source)
+            try {
+              const l = await fetch(`${API}/api/economy/live`);
+              if (l.ok) { const live = await l.json(); if (live?.health) t.health = String(live.health); }
+            } catch {}
+            setTreasury(t);
+          }
         } catch {}
 
         setRotations(results);
@@ -284,7 +315,7 @@ export default function ShopPage() {
       <div className="border-b border-[#1e2530]" style={{background:"rgba(200,168,75,0.04)"}}>
         <div className="max-w-[1000px] mx-auto px-4 sm:px-8 py-2">
           <p className="font-mono text-[0.63rem] text-center text-accent">
-            ⚠️ <strong>All transactions are in-game only.</strong> Right-click any shopkeeper NPC to buy or sell. Prices adjust dynamically with supply and demand.
+            ⚠️ <strong>All buying and selling happens in game.</strong> Walk up to a shop&apos;s kiosk and right-click it - you have to stay at the counter while you trade. Prices move with the treasury and with demand.
           </p>
         </div>
       </div>
@@ -296,9 +327,9 @@ export default function ShopPage() {
             SHOP NETWORK
           </h1>
           <p className="font-mono text-[0.72rem] text-[#555]">
-            Eight specialist shops across Kentucky. Stock rotates regularly.{" "}
+            Seven specialist keepers plus 39 general stores across Kentucky. Stock rotates every three days;{" "}
             <a href="/news" className="text-accent no-underline hover:underline">Zombita drops hints</a> before it happens.
-            Marketplace via <kbd className="font-mono text-[0.62rem] bg-[#1a1a1a] border border-[#333] px-1 py-0.5">F7</kbd> anywhere in-game.
+            Player listings live in the phone&apos;s <strong className="text-[#888]">Marketplace</strong> app and on every kiosk&apos;s Marketplace tab.
           </p>
         </div>
 
@@ -374,6 +405,21 @@ export default function ShopPage() {
             )}
           </div>
 
+          {/* General stores: who runs them and where */}
+          {active === "global" && (
+            <div className="px-4 sm:px-5 py-3 border-b border-[#1e2530] bg-[#0c0f13]">
+              <div className="font-mono text-[0.58rem] uppercase tracking-widest text-[#555] mb-2">Where to find them</div>
+              <div className="grid gap-x-4 gap-y-1.5 sm:grid-cols-2">
+                {GENERAL_KEEPERS.map(k => (
+                  <div key={k.npc} className="font-mono text-[0.62rem] leading-relaxed">
+                    <span className="text-[#c8cdd6]">{k.npc}</span>
+                    <span className="text-[#444]"> · {k.towns.join(", ")}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Items */}
           <div className="p-4 sm:p-5">
             {loading ? (
@@ -443,17 +489,22 @@ export default function ShopPage() {
             <p className="font-mono text-[0.6rem] text-[#333]">
               {isAll
                 ? "💡 Every item is sold by its own keeper — the card tells you whose shop to visit."
-                : <>💡 Right-click <strong style={{color:"#555"}}>{shop!.npc}</strong> in-game → open shop. Prices shown include dynamic adjustments.</>}
+                : active === "global"
+                  ? <>💡 Every general store shows its <strong style={{color:"#555"}}>own part</strong> of this list (it changes with each rotation) - the ★ items are in all of them. Stand at the kiosk and right-click it.</>
+                  : <>💡 Go to <strong style={{color:"#555"}}>{shop!.npc}</strong>&apos;s kiosk in {shop!.location} and right-click it. Prices shown include dynamic adjustments.</>}
             </p>
           </div>
         </div>
 
         {/* How it works */}
-        <div className="mt-8 grid sm:grid-cols-3 gap-3">
+        <div className="mt-8 grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {[
-            {icon:"🔄",title:"Rotating Stock",    body:"Each shop rotates its catalog regularly. Anchors marked ★ never rotate out — everything else comes and goes."},
-            {icon:"📈",title:"Dynamic Prices",    body:"Prices shift with the treasury and with what's being bought, sold, and traded. High demand or scarcity → prices rise."},
-            {icon:"🏪",title:"Player Marketplace",body:"Players list items for each other. Browse any shop's Marketplace tab in-game, or view all listings online."},
+            {icon:"🔄",title:"Rotating Stock",    body:"Every shop re-rolls its shelf every three days. Items marked ★ never rotate out - phones, bus tickets, the vehicle orb, the M9 and its ammo. Stock is finite and restocks on a timer."},
+            {icon:"📈",title:"Dynamic Prices",    body:"Prices shift with Zombita's treasury and with what's being bought and sold. High demand or scarcity → prices rise; a flush treasury → cheaper."},
+            {icon:"💰",title:"Selling",           body:"Keepers buy from you out of their own till - no till, no sale - minus a sell tax that follows the treasury. Sell Crops / Jewelry / All in one click. Coins from zombies sell at face value."},
+            {icon:"🎟️",title:"Lottery",           body:"Every kiosk has a Lottery tab: 100 numbered tickets a batch - pick your numbers, scratch them in your bag, hand winners in at any kiosk."},
+            {icon:"🏦",title:"Bank",              body:"Deposit the cash you carry or withdraw it again at any kiosk. Your wallet is shared with Discord and the website."},
+            {icon:"🏪",title:"Player Marketplace",body:"List items for other players from any kiosk; browse from your phone's Marketplace app or online. A small listing fee while it waits; buyers pay a small tax and a delivery fee."},
           ].map(c => (
             <div key={c.title} className="border border-[#1e2530] bg-[#0c0f13] p-4">
               <div className="text-2xl mb-2">{c.icon}</div>
