@@ -130,6 +130,41 @@ export default function DiscordHelpPage() {
       <div className="divider" />
 
       <section>
+        <h2>DNS didn&apos;t work? Use a VPN</h2>
+        <p>
+          If changing the DNS didn&apos;t help (or you can&apos;t change it), a VPN gets around the block too. Install one,
+          switch it on, then open Discord. These are free and safe:
+        </p>
+        <ul className="list-none pl-0 mt-3 flex flex-col gap-3 text-[0.85rem] text-[#aaa]">
+          <li className="border border-[#2a332a] bg-[#0f1318] rounded p-3">
+            <b className="text-[#e8f5e0]">Cloudflare 1.1.1.1 + WARP</b> - free, no account, PC and phone. Open the app
+            and switch <b>WARP</b> on. The simplest one.{" "}
+            <a href="https://one.one.one.one/" target="_blank" rel="noopener noreferrer" className="underline text-[#7ED957]">one.one.one.one</a>
+          </li>
+          <li className="border border-[#2a332a] bg-[#0f1318] rounded p-3">
+            <b className="text-[#e8f5e0]">Proton VPN (Free plan)</b> - free forever, no data limit, trusted. Needs a
+            free account.{" "}
+            <a href="https://protonvpn.com/free-vpn" target="_blank" rel="noopener noreferrer" className="underline text-[#7ED957]">protonvpn.com</a>
+          </li>
+          <li className="border border-[#2a332a] bg-[#0f1318] rounded p-3">
+            <b className="text-[#e8f5e0]">Psiphon</b> - free, made for getting around blocks. Shows some ads.{" "}
+            <a href="https://psiphon.ca/" target="_blank" rel="noopener noreferrer" className="underline text-[#7ED957]">psiphon.ca</a>
+          </li>
+          <li className="border border-[#2a332a] bg-[#0f1318] rounded p-3">
+            <b className="text-[#e8f5e0]">Paid, if you already have one</b> - Surfshark, NordVPN, ExpressVPN and the like all
+            work fine.
+          </li>
+        </ul>
+        <p className="text-[0.8rem] text-[#888] mt-3">
+          Tips: only download VPNs from their official site or your app store, and stay away from random &quot;free VPN&quot;
+          apps. A VPN can add lag in game, so you can switch it off while you play Project Zomboid - you only need it
+          for Discord.
+        </p>
+      </section>
+
+      <div className="divider" />
+
+      <section>
         <h2>Still stuck?</h2>
         <p>
           Ask in the in-game chat - an admin or another player can help. To undo the change later, go back to the
