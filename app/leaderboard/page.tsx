@@ -6,7 +6,7 @@ import Link from "next/link";
 import { FactionLogo } from "@/components/FactionBits";
 
 type BoardType = "ingame" | "wolf" | "quiz" | "rps" | "c4" | "chess" | "arcade" | "cah" | "reputation";
-type ArcadeTab = "snake" | "tetris" | "g2048";
+type ArcadeTab = "snake" | "tetris" | "g2048" | "spaceimpact" | "paws";
 type IngameTab = "kills" | "overall" | "deaths" | "survived" | "bestlife" | "factions";
 type GameTab = "pvp" | "zombita" | "coins";
 
@@ -232,7 +232,10 @@ export default function LeaderboardPage() {
             {tabBtn(chessTab==="zombita",()=>setChessTab("zombita"),"🧟 Zombita")}
             {tabBtn(chessTab==="coins",()=>setChessTab("coins"),"💰 Coins")}
           </div>
-          {chessTab==="pvp"     && <GameTable rows={[...chessBoard].sort((a:any,b:any)=>b.wins-a.wins)} c1={p=>`${p.wins}W/${p.losses}L/${p.draws}D`} c2={p=>`${p.win_rate}%`} h1="Record" h2="Win %"/>}
+          {chessTab==="pvp"     && <>
+            <p className="text-[0.72rem] text-[#555] mb-4">Ranked by rating: everyone starts at 1200, beating a stronger player earns more. &quot;new&quot; = under 5 rated games. Games against Zombita don&apos;t count.</p>
+            <GameTable rows={chessBoard.filter((p:any)=>p.wins+p.losses+p.draws>0)} c1={p=>`${p.rating ?? 1200}${p.provisional?' new':''}`} c2={p=>`${p.wins}W/${p.losses}L/${p.draws}D`} h1="Rating" h2="Record"/>
+          </>}
           {chessTab==="zombita" && <GameTable rows={[...chessBoard].sort((a:any,b:any)=>b.vs_zombita.wins-a.vs_zombita.wins)} c1={p=>`${p.vs_zombita.wins}W/${p.vs_zombita.losses}L`} c2={p=>{const t=p.vs_zombita.wins+p.vs_zombita.losses+p.vs_zombita.draws;return t>0?Math.round((p.vs_zombita.wins/t)*100)+'%':'—';}} h1="vs Zombita" h2="Win %"/>}
           {chessTab==="coins"   && <GameTable rows={[...chessBoard].sort((a:any,b:any)=>b.coins_net-a.coins_net)} c1={p=>`${p.coins_won.toLocaleString()} 🟤`} c2={p=>`${p.coins_net>=0?'+':''}${p.coins_net.toLocaleString()}`} h1="Won" h2="Net"/>}
         </div>}
@@ -244,10 +247,18 @@ export default function LeaderboardPage() {
               {tabBtn(arcadeTab==="snake",()=>setArcadeTab("snake"),"🐍 Snake")}
               {tabBtn(arcadeTab==="tetris",()=>setArcadeTab("tetris"),"🧱 Tetris")}
               {tabBtn(arcadeTab==="g2048",()=>setArcadeTab("g2048"),"🔢 2048")}
+              {tabBtn(arcadeTab==="spaceimpact",()=>setArcadeTab("spaceimpact"),"🚀 Space Impact")}
+              {tabBtn(arcadeTab==="paws",()=>setArcadeTab("paws"),"🐾 Paws Apart")}
             </div>
           </div>
-          <p className="text-[0.72rem] text-[#555] mb-4">The phones&apos; own games. Every week the best scores of the week win 100 / 60 / 30 bronze.</p>
-          <GameTable rows={arcade?.[arcadeTab] || []} c1={(p:any)=>(p.best||0).toLocaleString()} c2={(p:any)=>p.week_best>0?(p.week_best||0).toLocaleString():"—"} h1="Best" h2="This week"/>
+          {arcadeTab==="paws"
+            ? <p className="text-[0.72rem] text-[#555] mb-4">Paws Apart (beta) on the colour phones: the highest level cleared, out of 200. A tie goes to whoever got there first.</p>
+            : arcadeTab==="spaceimpact"
+              ? <p className="text-[0.72rem] text-[#555] mb-4">Space Impact on Dawnie&apos;s phone: the best score ever and this week&apos;s.</p>
+              : <p className="text-[0.72rem] text-[#555] mb-4">The phones&apos; own games. Every week the best scores of the week win 100 / 60 / 30 bronze.</p>}
+          {arcadeTab==="paws"
+            ? <GameTable rows={arcade?.paws || []} c1={(p:any)=>`Level ${p.level ?? p.best ?? 0}`} c2={(p:any)=>`${p.games||0} boards${p.best_streak>0?` · ${p.best_streak}🔥`:''}`} h1="Level" h2="Boards · streak"/>
+            : <GameTable rows={arcade?.[arcadeTab] || []} c1={(p:any)=>(p.best||0).toLocaleString()} c2={(p:any)=>p.week_best>0?(p.week_best||0).toLocaleString():"—"} h1="Best" h2="This week"/>}
         </div>}
 
         {board==="cah" && <div>
