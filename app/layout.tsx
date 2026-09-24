@@ -4,6 +4,7 @@ import "./globals.css";
 import Nav from "@/components/Nav";
 import ZombitaWidget from "@/components/ZombitaWidget";
 import EmergencyBanner from "@/components/EmergencyBanner";
+import DiscordPopup from "@/components/DiscordPopup";
 
 export const metadata: Metadata = {
   title: "State of Undead Purge",
@@ -21,6 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Nav />
         {children}
         <ZombitaWidget />
+        <DiscordPopup />
       </body>
     </html>
   );
