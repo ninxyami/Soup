@@ -50,6 +50,7 @@ const SPECIALISTS = [
   { name: "Bruno", what: "melee and tools" },
   { name: "Colette", what: "tailor - clothes and bags" },
   { name: "Miles", what: "librarian - skill books and magazines" },
+  { name: "Scarlett", what: "music - only the community tapes players share in #song-submissions" },
 ];
 
 /** 288900 -> "28.9 gold"; 4500 -> "4.5 silver"; 250 -> "250 bronze". */

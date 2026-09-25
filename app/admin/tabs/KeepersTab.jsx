@@ -6,7 +6,7 @@ import { fetchApi, postApi, fmt, relTime, Title, SC, TW, B, FB, Inp, Sel, Empty,
 
 const mono = { fontFamily: "var(--mono)", fontSize: 12 };
 const dim = { ...mono, fontSize: 11, color: "var(--textdim)" };
-const SHOP_LABEL = { global: "General store", weapons: "Guns & ammo", mechanic: "Mechanic", medical: "Medical", melee: "Melee & tools", gardener: "Gardener", tailor: "Tailor", librarian: "Librarian" };
+const SHOP_LABEL = { global: "General store", weapons: "Guns & ammo", mechanic: "Mechanic", medical: "Medical", melee: "Melee & tools", gardener: "Gardener", tailor: "Tailor", librarian: "Librarian", music: "Music (community tapes)" };
 
 const Till = ({ balance, target }) => {
   const pct = target > 0 ? Math.min(100, (balance / target) * 100) : balance > 0 ? 100 : 0;

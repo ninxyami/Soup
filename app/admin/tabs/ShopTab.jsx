@@ -15,6 +15,7 @@ const SHOPS = {
   gardener:  { icon: "🌱", npc: "Maya Chen",      label: "Maya's Greenhouse" },
   tailor:    { icon: "🧵", npc: "Colette Vance",  label: "Colette's Atelier" },
   librarian: { icon: "📚", npc: "Miles Ashford",  label: "Miles's Library" },
+  music:     { icon: "🎵", npc: "Scarlett Vance", label: "Scarlett's Records" },
   melee:     { icon: "🔨", npc: "Bruno Kessler",  label: "Bruno's Workshop" },
   global:    { icon: "⛽", npc: "General stores", label: "General Stores" },
 };
