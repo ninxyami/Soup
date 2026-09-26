@@ -57,6 +57,13 @@ const KICKER = { classic: "The weekly paper of the Purge", vintage: "Survivors' 
 const SECTION = { classic: ["BREAKING NEWS", ""], vintage: ["Breaking News!", "black"], bold: ["Breaking News!", "black"], special: ["BREAKING NEWS", ""] };
 const RULE = { classic: "", vintage: "thin", bold: "fat", special: "thin" };
 
+// Zombita's Jobs box - the same words as the printed page (zombita_newspaper.jobs_line / notable_text)
+const jobsLine = (j) => `${j.total} job${j.total === 1 ? "" : "s"} done: ${["S", "A", "B", "C"].map((t) => `${t} ${j[t] || 0}`).join(", ")}.`
+  + (j.traps ? ` ${j.traps} of Lady Dawnie's fake jobs survived.` : "");
+const notableText = (n) => n.trap
+  ? `${n.who} - one of Lady Dawnie's fakes; ${n.outcome === "kill" ? "fought their way out" : "ran for it and made it"}.`
+  : String(n.who || "");
+
 const Paras = ({ text }) => String(text || "").split(/\n+/).filter(Boolean).map((p, i) => <p key={i}>{p}</p>);
 
 export default function Newspaper({ paper }) {
@@ -105,6 +112,18 @@ export default function Newspaper({ paper }) {
               <div className="np-box">
                 <div className="np-box-t">Zombita&rsquo;s Picks</div>
                 {paper.picks.map((p, i) => <div key={i}><div className="np-pick-h">{p.title}</div><p className="np-pick-b">{p.body}</p></div>)}
+              </div>
+            )}
+            {(paper.jobs?.total || 0) > 0 && (
+              <div className="np-box">
+                <div className="np-box-t">Zombita&rsquo;s Jobs</div>
+                <p className="np-pick-b">{jobsLine(paper.jobs)}</p>
+                {(paper.jobs.notable || []).map((n, i) => (
+                  <div key={i}><div className="np-pick-h">[{n.tier}] {n.title}</div><p className="np-pick-b">{notableText(n)}</p></div>
+                ))}
+                {paper.jobs.workers?.length > 0 && (
+                  <div><div className="np-pick-h">Hardest workers</div><p className="np-pick-b">{paper.jobs.workers.map((w) => `${w.name} (${w.jobs})`).join(", ")}</p></div>
+                )}
               </div>
             )}
             {paper.editor_note && <div className="np-note">{paper.editor_note} &mdash; Zombita</div>}

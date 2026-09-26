@@ -5,7 +5,10 @@ import { repTier, timeAgo } from "@/lib/utils";
 import Link from "next/link";
 import { FactionLogo } from "@/components/FactionBits";
 
-type BoardType = "ingame" | "wolf" | "quiz" | "rps" | "c4" | "chess" | "arcade" | "cah" | "reputation";
+type BoardType = "ingame" | "jobs" | "wolf" | "quiz" | "rps" | "c4" | "chess" | "arcade" | "cah" | "reputation";
+type JobsView = "players" | "factions" | "duos";
+type JobsTier = "all" | "S" | "A" | "B" | "C";
+const TIER_COLOR: Record<string, string> = { S: "#d9534f", A: "#e8923a", B: "#4a90c2", C: "#5aa05a" };
 type ArcadeTab = "snake" | "tetris" | "g2048" | "spaceimpact" | "paws";
 type IngameTab = "kills" | "overall" | "deaths" | "survived" | "bestlife" | "factions";
 type GameTab = "pvp" | "zombita" | "coins";
@@ -37,6 +40,8 @@ export default function LeaderboardPage() {
   const [c4Tab, setC4Tab] = useState<GameTab>("pvp");
   const [chessTab, setChessTab] = useState<GameTab>("pvp");
   const [arcadeTab, setArcadeTab] = useState<ArcadeTab>("snake");
+  const [jobsView, setJobsView] = useState<JobsView>("players");
+  const [jobsTier, setJobsTier] = useState<JobsTier>("all");
   const [arcade, setArcade] = useState<any>(null);
   const [ingame, setIngame] = useState<any>(null);
   const [wolf, setWolf] = useState<any[]>([]);
@@ -82,6 +87,19 @@ export default function LeaderboardPage() {
   const c4Board   = c4?.leaderboard || [];
   const chessBoard = chess?.leaderboard || [];
   const cahBoard  = cah?.leaderboard || [];
+
+  // Zombita's Jobs (mod 1.7.92+): points (C 1, B 2, A 4, S 10 a job) or one tier's count
+  const jobKey = (x: any, pre: string, pts: string) => jobsTier === "all" ? (x[pts] || 0) : (x[pre + jobsTier] || 0);
+  const jobSplit = (x: any, pre: string) => (["S", "A", "B", "C"] as const).map((t) => (
+    <span key={t} className="ml-2" style={{ color: (x[pre + t] || 0) > 0 ? TIER_COLOR[t] : "#444" }}>{t} {x[pre + t] || 0}</span>
+  ));
+  const jobsRows: any[] = (() => {
+    const list: any[] = jobsView === "duos" ? (ingame?.jobDuos || [])
+      : (jobsView === "factions" ? factions : players).filter((x: any) => (x.jobsDone || 0) > 0);
+    const pre = jobsView === "duos" ? "" : "jobs", pts = jobsView === "duos" ? "jobs" : "jobPts";
+    return list.filter((x: any) => jobKey(x, pre, pts) > 0)
+      .sort((a: any, b: any) => (jobKey(b, pre, pts) - jobKey(a, pre, pts)) || ((b[pts] || 0) - (a[pts] || 0))).slice(0, 15);
+  })();
 
   const tabBtn = (active: boolean, onClick: ()=>void, label: string) => (
     <button onClick={onClick}
@@ -145,7 +163,7 @@ export default function LeaderboardPage() {
       {/* Board selector — scrollable on mobile */}
       <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 pb-1">
         <div className="flex gap-2 mb-8 min-w-max sm:min-w-0 sm:flex-wrap">
-          {([["ingame","⚔️ In-Game"],["wolf","🐺 Werewolf"],["quiz","🧠 Quizarium"],["rps","🪨 RPS"],["c4","🔴 Connect4"],["chess","♞ Chess"],["arcade","🕹️ Arcade"],["cah","🃏 CAH"],["reputation","📋 Reputation"]] as [BoardType,string][]).map(([id,label])=>(
+          {([["ingame","⚔️ In-Game"],["jobs","📋 Jobs"],["wolf","🐺 Werewolf"],["quiz","🧠 Quizarium"],["rps","🪨 RPS"],["c4","🔴 Connect4"],["chess","♞ Chess"],["arcade","🕹️ Arcade"],["cah","🃏 CAH"],["reputation","📋 Reputation"]] as [BoardType,string][]).map(([id,label])=>(
             <button key={id} onClick={()=>setBoard(id)}
               className={`px-3 py-[0.4rem] text-[0.68rem] tracking-[0.08em] uppercase border font-[inherit] cursor-pointer transition-all whitespace-nowrap ${board===id?"border-[#4a7c59] text-[#4a7c59]":"border-[#222] text-[#555] hover:border-[#444] hover:text-[#e6e6e6]"}`}>
               {label}
@@ -185,6 +203,51 @@ export default function LeaderboardPage() {
                 ))}</tbody></table></div>
             : <p className="text-[#555] font-mono text-sm italic">No factions yet.</p>
           )}
+        </div>}
+
+        {board==="jobs" && <div>
+          <p className="text-[0.72rem] text-[#555] mb-4">Zombita&apos;s Jobs from the phone&apos;s Jobs app. Points: C 1, B 2, A 4, S 10 a job. Tiers come with your Job Rank; friends can invite you up.</p>
+          <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+            <div className="flex gap-0 border-b border-[#222] mb-3 min-w-max sm:min-w-0 sm:flex-wrap">
+              {tabBtn(jobsView==="players",()=>setJobsView("players"),"👤 Players")}
+              {tabBtn(jobsView==="factions",()=>setJobsView("factions"),"🏴 Factions")}
+              {tabBtn(jobsView==="duos",()=>setJobsView("duos"),"🤝 Duos")}
+            </div>
+          </div>
+          <div className="flex gap-2 mb-5 flex-wrap">
+            {(["all","S","A","B","C"] as JobsTier[]).map((t)=>(
+              <button key={t} onClick={()=>setJobsTier(t)}
+                className={`px-3 py-1 text-[0.66rem] tracking-[0.08em] uppercase border font-[inherit] cursor-pointer transition-all ${jobsTier===t?"text-[#e6e6e6]":"border-[#222] text-[#555] hover:text-[#e6e6e6]"}`}
+                style={jobsTier===t?{borderColor: t==="all"?"#4a7c59":TIER_COLOR[t]}:undefined}>
+                {t==="all"?"All":`${t} tier`}
+              </button>
+            ))}
+          </div>
+          {jobsRows.length === 0
+            ? <p className="text-[#555] font-mono text-sm italic">{jobsView==="duos"?"No pairs yet - take a job with a friend.":"No jobs done yet."}</p>
+            : <div className="overflow-x-auto -mx-2 px-2"><table className="lb-table min-w-full">
+                <thead><tr><th className="w-8"/><th>{jobsView==="duos"?"Pair":jobsView==="factions"?"Faction":"Player"}</th>
+                  <th className="text-right hidden sm:table-cell">By tier</th>
+                  <th className="text-right">{jobsTier==="all"?(jobsView==="duos"?"Jobs":"Points"):`${jobsTier} jobs`}</th></tr></thead>
+                <tbody>{jobsRows.map((x:any,i:number)=>(
+                  <tr key={i} className={`lb-row ${rc(i)}`}>
+                    <td className="text-center text-sm">{medal(i)}</td>
+                    <td>
+                      {jobsView==="duos"
+                        ? <span><a href={`/player?id=${encodeURIComponent(x.a)}`} className="hover:text-[#4a7c59]">{x.a}</a> + <a href={`/player?id=${encodeURIComponent(x.b)}`} className="hover:text-[#4a7c59]">{x.b}</a></span>
+                        : jobsView==="factions"
+                          ? (factionPages[x.name] ? <Link href={`/faction?id=${factionPages[x.name].fid}`} className="hover:text-[#c8a84b]">{x.name}</Link> : x.name)
+                          : <a href={`/player?id=${encodeURIComponent(x.name)}`} className="hover:text-[#4a7c59] transition-colors">{x.name}</a>}
+                      <span className="text-[0.65rem] text-[#555] ml-2">
+                        {jobsView==="duos" ? `${x.jobs||0} together · ${x.pts||0} pts`
+                          : jobsView==="factions" ? `${x.jobsDone||0} jobs · ${x.members||0} members`
+                          : `${x.jobsDone||0} jobs${x.jobRank?` · ${x.jobRank}`:""}${(x.jobTraps||0)>0?` · ${x.jobTraps} traps`:""}`}
+                      </span>
+                    </td>
+                    <td className="text-right font-mono text-xs hidden sm:table-cell">{jobSplit(x, jobsView==="duos"?"":"jobs")}</td>
+                    <td className="text-right font-mono text-xs sm:text-sm">{jobKey(x, jobsView==="duos"?"":"jobs", jobsView==="duos"?"jobs":"jobPts")}</td>
+                  </tr>
+                ))}</tbody></table></div>}
         </div>}
 
         {board==="wolf" && (wolf.filter((p:any)=>p.games_played>0).length
