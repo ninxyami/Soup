@@ -17,7 +17,7 @@ export default function WhitelistPage() {
       <div className="divider" />
 
       <a
-        href="https://discord.gg/NCBPqP5Q"
+        href="https://discord.gg/zDwa2g37R"
         target="_blank"
         rel="noopener noreferrer"
         className="btn-submit no-underline"

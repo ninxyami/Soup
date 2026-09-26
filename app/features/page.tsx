@@ -138,7 +138,7 @@ export default function FeaturesPage() {
           <h2 className="!normal-case text-[1.2rem] tracking-[0.1em] mb-4">Ready to Experience It?</h2>
           <p className="text-[#555] text-[0.85rem] mb-8">Join Discord and complete the whitelist to unlock everything above.</p>
           <div className="flex gap-3 justify-center flex-wrap">
-            <a href="https://discord.gg/NCBPqP5Q" target="_blank" rel="noopener noreferrer"
+            <a href="https://discord.gg/zDwa2g37R" target="_blank" rel="noopener noreferrer"
               className="inline-block px-5 py-2.5 border border-[#5865F2] text-[#5865F2] no-underline text-[0.75rem] tracking-[0.12em] uppercase hover:bg-[#5865F2] hover:text-white transition-all">
               Join Discord
             </a>
