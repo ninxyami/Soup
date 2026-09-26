@@ -4,7 +4,7 @@ import Link from "next/link";
 const HUNT_PHASES = [
   { phase: "Buildup", icon: "🌅", desc: "Lady Dawnie's message is posted in Discord. The tone shifts. Something is coming." },
   { phase: "Warning", icon: "⚠️", desc: "A 10-minute in-game warning goes out. Characters hear it. Players get ready." },
-  { phase: "Wave 1", icon: "💀", desc: "Zombies spawn near every online player simultaneously via RCON. The horde is here." },
+  { phase: "Wave 1", icon: "💀", desc: "The game sends a horde at every online player at once, all from the same direction. The horde is here." },
   { phase: "Wave 2+", icon: "🧟", desc: "Additional waves fire at the configured interval. Each wave announced in Discord with a direction." },
   { phase: "End", icon: "🌑", desc: "\"The horde withdraws. Lady Dawnie is... mildly impressed.\" The server exhales." },
 ];
@@ -121,7 +121,7 @@ export default function DawnOfTheDeadPage() {
               { phase: "Warning", icon: "🟡", char: "Something feels off today… stay alert.", desc: "Yellow icon. Pre-event 10-minute warning." },
               { phase: "Incoming", icon: "🟡", char: "They're coming… from the [Direction]", desc: "Yellow icon. Event has started, direction revealed." },
               { phase: "Active Wave", icon: "🔴", char: "Here they come! / Wave N of M!", desc: "Red icon. Zombies are spawning right now." },
-              { phase: "Event Over", icon: "⬛", char: "It's over… for now.", desc: "Icon hidden after 3 seconds." },
+              { phase: "Event Over", icon: "⬛", char: "It's over… for now.", desc: "The sleeping cat shows for a few seconds, then the icon goes. It only ever shows while an event is on." },
               { phase: "Safe Mode", icon: "🚫", char: "…quiet. Too quiet.", desc: "Barred icon when admin has disabled the event." },
             ].map(h => (
               <div key={h.phase} className="border border-[#1a1a1a] bg-[#0a0d10] p-4">

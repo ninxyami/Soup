@@ -10,11 +10,11 @@ export default function EventsPage() {
           <Link href="/features" className="font-mono text-[0.65rem] tracking-widest text-[#444] hover:text-[#e05555] no-underline transition-colors uppercase">
             ← Features
           </Link>
-          <p className="font-mono text-[0.65rem] tracking-[0.3em] text-[#e05555] uppercase mb-3 mt-4">World Events & Factions</p>
+          <p className="font-mono text-[0.65rem] tracking-[0.3em] text-[#e05555] uppercase mb-3 mt-4">World Events</p>
           <h1 className="text-[1.8rem] sm:text-[2.5rem] tracking-[0.2em] mb-4">THE WORLD</h1>
           <p className="text-[#666] text-[0.88rem] max-w-[560px] leading-relaxed">
-            Events that affect every player simultaneously. Zombie hordes, treasure races, faction 
-            wars — these are the moments that create server lore and community memory.
+            Events that affect every player simultaneously. Zombie hordes, treasure races, and a job board run
+            by Zombita herself — these are the moments that create server lore and community memory.
           </p>
         </div>
 
@@ -27,12 +27,12 @@ export default function EventsPage() {
                 <span className="text-3xl">💀</span>
                 <div>
                   <h2 className="!mb-1 !normal-case text-[1.1rem] tracking-[0.1em] text-[#e05555]">Dawn of the Dead</h2>
-                  <p className="font-mono text-[0.65rem] tracking-[0.15em] text-[#555] uppercase">Scheduled zombie horde · RCON waves · Lady Dawnie lore</p>
+                  <p className="font-mono text-[0.65rem] tracking-[0.15em] text-[#555] uppercase">Scheduled zombie horde · spawned by the game · Lady Dawnie lore</p>
                 </div>
               </div>
               <p className="text-[#666] text-[0.85rem] leading-relaxed mb-6">
-                The flagship world event. A scheduled zombie horde that attacks the entire server on a 
-                configurable interval. Built around Lady Dawnie — the lore character named after Admin Dawn, 
+                The flagship world event. A scheduled zombie horde that attacks the entire server on a
+                configurable interval. Built around Lady Dawnie — the lore character named after Admin Dawn,
                 portrayed as the queen of the undead.
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -43,9 +43,10 @@ export default function EventsPage() {
                       "Automatic scheduler fires (default: every 13 hours)",
                       "Lady Dawnie buildup message posted in Discord",
                       "10-minute warning sent to all players in-game",
-                      "Event begins: zombies spawned near players via RCON",
-                      "Each wave fires at configured interval (default: 10 min)",
-                      "Wave announces in Discord with directional flavour text",
+                      "Event begins: the game sends hordes at every player from one direction",
+                      "Each wave fires at the configured gap (default: 10 min); the last wave gets its own time",
+                      "Every wave is announced in Discord with directional flavour text",
+                      "Kills during the event count on the DotD leaderboard; players who log in mid-event see what's happening",
                       "End: \"The horde withdraws. Lady Dawnie is... mildly impressed.\"",
                     ].map((step, i) => (
                       <li key={i} className="flex items-start gap-2.5 text-[0.75rem] text-[#555]" style={{ paddingLeft: 0 }}>
@@ -91,8 +92,8 @@ export default function EventsPage() {
                 </div>
               </div>
               <p className="text-[#666] text-[0.85rem] leading-relaxed mb-6">
-                A world event where Zombita announces a hidden cache of supplies guarded by zombies. 
-                Players race to the location in-game — the first to arrive claims the reward using a generated claim code. 
+                A world event where Zombita announces a hidden cache of supplies guarded by zombies.
+                Players race to the location in-game — the first to arrive claims the reward using a generated claim code.
                 30-minute window before the hunt expires.
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -138,33 +139,33 @@ export default function EventsPage() {
           </div>
         </section>
 
-        {/* Factions */}
+        {/* Zombita's Jobs */}
         <section className="mb-16">
           <div className="border border-[#1a1a1a] bg-[#0a0d10] overflow-hidden relative">
             <div className="absolute top-0 left-0 right-0 h-px" style={{ background: "linear-gradient(90deg, transparent, #4caf7d66, transparent)" }} />
             <div className="p-6 sm:p-8">
               <div className="flex items-start gap-4 mb-4">
-                <span className="text-3xl">🏴</span>
+                <span className="text-3xl">📋</span>
                 <div>
-                  <h2 className="!mb-1 !normal-case text-[1.1rem] tracking-[0.1em] text-[#4caf7d]">Factions & Wars</h2>
-                  <p className="font-mono text-[0.65rem] tracking-[0.15em] text-[#555] uppercase">Persistent groups · Private channels · Bronze wars</p>
+                  <h2 className="!mb-1 !normal-case text-[1.1rem] tracking-[0.1em] text-[#4caf7d]">Zombita&apos;s Jobs</h2>
+                  <p className="font-mono text-[0.65rem] tracking-[0.15em] text-[#555] uppercase">Timed batches · C to S tier · first come, first served</p>
                 </div>
               </div>
               <p className="text-[#666] text-[0.85rem] leading-relaxed mb-6">
-                Persistent player groups that survive across sessions and across the season. Full leadership 
-                structure, private Discord channels, kill tracking, and the ability to declare war — with 
-                real bronze on the line.
+                Every few hours Zombita posts a batch of jobs on everyone&apos;s phone and in Discord. Each job has a few spots:
+                the first taker owns it, the next ones join as a party and everyone gets the full reward.
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                 <div>
-                  <p className="font-mono text-[0.6rem] tracking-widest text-[#444] uppercase mb-3">Faction Features</p>
+                  <p className="font-mono text-[0.6rem] tracking-widest text-[#444] uppercase mb-3">The Jobs</p>
                   <ul className="space-y-2">
                     {[
-                      "Any player can create a faction with /faction create",
-                      "Invite, kick, promote to officer, demote, transfer leadership",
-                      "Private Discord channel created automatically under FACTIONS category",
-                      "Visible only to current faction members",
-                      "Disband removes all members and deletes the channel",
+                      "Go there - take a look at a place for her",
+                      "Bring me - hand in supplies at any kiosk",
+                      "Find the code - a bag with a note, read her the code",
+                      "Fetch the bag - bring back what she left",
+                      "Marked horde - 10 to 100 zombies in hazard suits",
+                      "Bandit camp - a crew of bandits to wipe out",
                     ].map((f, i) => (
                       <li key={i} className="flex items-start gap-2 text-[0.75rem] text-[#555]" style={{ paddingLeft: 0 }}>
                         <span className="w-1 h-1 rounded-full bg-[#4caf7d] flex-shrink-0" style={{ marginTop: 6 }} />
@@ -174,15 +175,14 @@ export default function EventsPage() {
                   </ul>
                 </div>
                 <div>
-                  <p className="font-mono text-[0.6rem] tracking-widest text-[#444] uppercase mb-3">War Flow</p>
+                  <p className="font-mono text-[0.6rem] tracking-widest text-[#444] uppercase mb-3">How It Pays</p>
                   <ol className="space-y-2">
                     {[
-                      "Leader declares war with /war declare <faction> <stake> [duration]",
-                      "Defending faction leader notified — accept or decline",
-                      "On acceptance: war begins, both stakes locked",
-                      "Kill tracking: every kill during war counted per faction",
-                      "At war end: winning faction splits combined stakes",
-                      "Surrender available anytime — forfeits stake immediately",
+                      "A finished job gives each of you a reward code",
+                      "Enter it on the phone: items arrive in a duffel, coins go to your wallet",
+                      "C, B, A and S tiers pay more and count more toward your Job Rank",
+                      "Sometimes a job was faked by Lady Dawnie - fight or run, you still get paid",
+                      "Get on Zombita's good side and she may send a special just for you",
                     ].map((step, i) => (
                       <li key={i} className="flex items-start gap-2.5 text-[0.75rem] text-[#555]" style={{ paddingLeft: 0 }}>
                         <span className="font-mono text-[0.6rem] text-[#4caf7d] flex-shrink-0 mt-0.5">{String(i + 1).padStart(2, "0")}</span>
@@ -191,6 +191,10 @@ export default function EventsPage() {
                     ))}
                   </ol>
                 </div>
+              </div>
+              <div className="flex gap-4 flex-wrap mt-6">
+                <Link href="/jobs" className="font-mono text-[0.7rem] tracking-[0.15em] text-[#4caf7d] border border-[#4caf7d44] px-4 py-2 no-underline hover:bg-[#4caf7d11] uppercase">The job board →</Link>
+                <Link href="/factions" className="font-mono text-[0.7rem] tracking-[0.15em] text-[#888] border border-[#333] px-4 py-2 no-underline hover:bg-[#ffffff08] uppercase">Factions →</Link>
               </div>
             </div>
           </div>

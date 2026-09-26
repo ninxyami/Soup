@@ -5,7 +5,7 @@ const MEMORY_LAYERS = [
   { label: "Instant Memory", desc: "Everything said in the current conversation. She tracks the thread, follows what you said three messages ago, and doesn't pretend she didn't hear you." },
   { label: "Session Memory", desc: "What happened this session — what mood she was in, what topics came up, what she decided about you today." },
   { label: "Player Memory", desc: "Her running opinions on specific people. If you've been a clown in the past, she remembers. If you helped someone, she noticed that too." },
-  { label: "Server Memory", desc: "The full shape of the community — events, season history, who's at war with who, what the economy looks like right now." },
+  { label: "Server Memory", desc: "The full shape of the community — events, season history, which factions run what, what the economy looks like right now." },
 ];
 
 const MOOD_EXAMPLES = [
@@ -24,6 +24,8 @@ const THINGS_SHE_DOES = [
   { icon: "🎮", title: "Hosts & Narrates Games", desc: "Werewolf narrator, CAH judge, quiz host, RPS opponent. Each game has her personality woven into it." },
   { icon: "📣", title: "Makes Announcements", desc: "Server events, season updates, Dawn of the Dead warnings — she writes them herself, in her own way." },
   { icon: "🎭", title: "Tracks Reputation", desc: "Every notable thing you do gets observed. Wins, losses, how you treat people, what you spend your money on. She forms opinions." },
+  { icon: "📋", title: "Hands Out Jobs", desc: "Every few hours she posts jobs on everyone's in-game phone - how many depends on her mood. The players she likes sometimes get one just for them." },
+  { icon: "📰", title: "Writes the Paper", desc: "Every Sunday she writes the community's newspaper from the week's events. It lands in every player's bag in game." },
 ];
 
 export default function ZombitaAboutPage() {

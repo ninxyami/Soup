@@ -157,36 +157,36 @@ const FEATURES = [
   },
   {
     icon: "💰", title: "Economy Engine", slug: "economy", href: "/features/economy",
-    desc: "Full closed-loop economy — dynamic pricing, treasury, recession events, 5 NPC shops, lottery.",
+    desc: "Full closed-loop economy — dynamic pricing, a treasury, 39 general-store kiosks plus 8 specialists, a scratch-card lottery.",
     tags: ["Bronze/Silver/Gold", "Dynamic", "Marketplace"],
   },
   {
     icon: "🐺", title: "Mini-Games", slug: "games", href: "/features/games",
-    desc: "Werewolf with 20+ roles, Quizarium trivia, Cards Against Humanity judged by Zombita, RPS, Connect Four.",
-    tags: ["Werewolf", "Quizarium", "CAH"],
+    desc: "Werewolf with 20+ roles, Quizarium, Cards Against Zombita, Chess, RPS, Connect Four — on Discord and on your in-game phone.",
+    tags: ["Werewolf", "Chess", "Arcade"],
   },
   {
     icon: "💀", title: "World Events", slug: "events", href: "/features/events",
-    desc: "Dawn of the Dead zombie hordes, Treasure Hunts, Faction Wars with bronze stakes.",
-    tags: ["DotD", "Factions", "RCON"],
+    desc: "Lady Dawnie's Dawn of the Dead hordes and Treasure Hunts — moments the whole server lives through together.",
+    tags: ["DotD", "Treasure Hunt", "Lady Dawnie"],
   },
   {
-    icon: "📜", title: "Cradle Trials", slug: "campaign", href: "/features/campaign",
-    desc: "Episodic narrative campaign with cipher puzzles, scheduled group sessions, and permanent progression.",
-    tags: ["Campaign", "Act I", "Ciphers"],
+    icon: "📱", title: "Zombita Phone", slug: null, href: "/features#phone",
+    desc: "A phone in your pocket in game: messages, the marketplace, the bus, the news, chess, Werewolf, cards and arcade games.",
+    tags: ["30+ Apps", "Messages", "Games"],
   },
   {
-    icon: "🌐", title: "Web Platform", slug: null, href: "/server",
-    desc: "Full website — shop, marketplace, leaderboards, community feed, admin panel with live console.",
-    tags: ["Shop", "Marketplace", "Leaderboards"],
+    icon: "📋", title: "Zombita's Jobs", slug: null, href: "/jobs",
+    desc: "Zombita posts jobs on your phone every few hours — hordes, bandit camps, errands. First come, first served. Take them here too.",
+    tags: ["C to S Tier", "Job Rank", "Parties"],
   },
 ];
 
 const STAT_ROWS = [
   { label: "Season", value: "1", sub: "New Dawn" },
   { label: "Currency Tiers", value: "3", sub: "Bronze · Silver · Gold" },
-  { label: "NPC Shops", value: "5", sub: "Named characters" },
-  { label: "Game Modes", value: "5", sub: "Werewolf to Connect Four" },
+  { label: "Shops", value: "47", sub: "39 kiosks · 8 specialists" },
+  { label: "Games", value: "12", sub: "Werewolf to Space Impact" },
   { label: "Reputation Tiers", value: "7", sub: "Outcast → Legend" },
   { label: "Werewolf Roles", value: "20+", sub: "Cupid · Detective · Mayor" },
 ];
@@ -204,8 +204,8 @@ export default function HomePage() {
             STATE OF UNDEAD PURGE
           </h1>
           <p className="text-[#666] text-[0.85rem] sm:text-[0.9rem] max-w-[500px] mx-auto mb-6 leading-relaxed">
-            A long-term PVE Project Zomboid community with a custom AI, full economy engine, 
-            mini-games, faction wars, and a live narrative campaign.
+            A long-term PVE Project Zomboid community with a custom AI, a full economy engine,
+            an in-game phone, jobs from Zombita herself, and games on Discord and in game.
           </p>
           <div className="flex gap-3 justify-center flex-wrap">
             <a href="https://discord.gg/zDwa2g37R" target="_blank" rel="noopener noreferrer"
@@ -238,16 +238,16 @@ export default function HomePage() {
               <p className="font-mono text-[0.65rem] tracking-[0.3em] text-[#4a7c59] uppercase mb-3">About the Server</p>
               <h2 className="text-[1.4rem] tracking-[0.12em] mb-4 !normal-case">Not Just a Game Server</h2>
               <p className="text-[#777] text-[0.88rem] leading-relaxed mb-3">
-                SoUP is a long-term, PVE-focused private server where progress is slow by design and seasons last. 
+                SoUP is a long-term, PVE-focused private server where progress is slow by design and seasons last.
                 But the server itself is just part of the picture.
               </p>
               <p className="text-[#666] text-[0.85rem] leading-relaxed mb-3">
-                Behind it runs <span className="text-[#e6e6e6]">Zombita</span> — a fully custom Discord bot with her 
-                own personality, memory, and opinions. She manages a live economy, hosts games, narrates events, 
+                Behind it runs <span className="text-[#e6e6e6]">Zombita</span> — a fully custom Discord bot with her
+                own personality, memory, and opinions. She manages a live economy, hosts games, narrates events,
                 and keeps track of every player&apos;s reputation over the entire season.
               </p>
               <p className="text-[#555] text-[0.82rem] leading-relaxed">
-                This website is her front-end — shop, marketplace, leaderboards, community feed, and a full admin 
+                This website is her front-end — shop, marketplace, leaderboards, community feed, and a full admin
                 panel with live server console.
               </p>
             </div>
@@ -310,11 +310,11 @@ export default function HomePage() {
                 <p className="font-mono text-[0.65rem] tracking-[0.3em] text-[#9775cc] uppercase mb-3">Meet Zombita</p>
                 <h2 className="!mb-4 !normal-case text-[1.3rem] tracking-[0.1em]">Your Server&apos;s AI Personality</h2>
                 <p className="text-[#666] text-[0.85rem] leading-relaxed mb-3">
-                  Zombita is not a generic bot. She holds real conversations and passively watches 
+                  Zombita is not a generic bot. She holds real conversations and passively watches
                   every channel — chiming in without being asked, on her own terms.
                 </p>
                 <p className="text-[#555] text-[0.82rem] leading-relaxed mb-4">
-                  She has a 4-layer memory system, tracks every player&apos;s reputation across the whole season, 
+                  She has a 4-layer memory system, tracks every player&apos;s reputation across the whole season,
                   and writes her own announcements. She forms opinions. She remembers things. She has favourites.
                 </p>
                 <div className="flex flex-wrap gap-2 mb-5">
@@ -348,17 +348,17 @@ export default function HomePage() {
               <p className="font-mono text-[0.65rem] tracking-[0.3em] text-[#c8a84b] uppercase mb-3">Economy System</p>
               <h2 className="!mb-4 !normal-case text-[1.2rem] tracking-[0.1em]">A Living Economy</h2>
               <p className="text-[#666] text-[0.85rem] leading-relaxed mb-3">
-                Not a coin system — a full economic simulation. Prices shift with treasury health, 
-                player wealth, and item demand. Recessions spike everything 1.4×–2.2×. 
+                Not a coin system — a full economic simulation. Prices shift with treasury health,
+                player wealth, and item demand, always within 0.7×–1.8× of the base price, and every item costs the same in every shop.
                 The whole thing runs without admin intervention.
               </p>
               <div className="space-y-2 mb-5">
                 {[
                   { icon: "🟤", label: "Bronze · Silver · Gold", desc: "Three-tier currency" },
-                  { icon: "🏪", label: "5 NPC Shops", desc: "Named characters, rotating stock" },
+                  { icon: "🏪", label: "47 Shops", desc: "39 general-store kiosks, 8 specialists" },
                   { icon: "📈", label: "Dynamic Pricing", desc: "Treasury × Demand × Wealth × Recession" },
                   { icon: "🏦", label: "Treasury System", desc: "5 health states, closed-loop economy" },
-                  { icon: "🎰", label: "Lottery", desc: "1 Silver ticket, Katana top prize" },
+                  { icon: "🎰", label: "Lottery", desc: "100 numbered scratch tickets, 3 silver each" },
                 ].map(item => (
                   <div key={item.label} className="flex items-center gap-3 border border-[#1a1a1a] px-3 py-2.5 bg-[#0a0d10]">
                     <span className="text-base">{item.icon}</span>
@@ -378,15 +378,15 @@ export default function HomePage() {
               <p className="font-mono text-[0.65rem] tracking-[0.3em] text-[#e05555] uppercase mb-3">World Events</p>
               <h2 className="!mb-4 !normal-case text-[1.2rem] tracking-[0.1em]">The World Reacts</h2>
               <p className="text-[#666] text-[0.85rem] leading-relaxed mb-3">
-                Zombie hordes, treasure hunts, faction wars. Events that affect every player 
-                simultaneously and create server lore — moments people talk about weeks later.
+                Zombie hordes, treasure hunts and a job board run by Zombita herself. Events that affect every player
+                and create server lore — moments people talk about weeks later.
               </p>
               <div className="space-y-2 mb-5">
                 {[
-                  { icon: "💀", label: "Dawn of the Dead", desc: "Multi-wave zombie hordes via RCON" },
+                  { icon: "💀", label: "Dawn of the Dead", desc: "Lady Dawnie's multi-wave hordes, spawned by the game" },
                   { icon: "🗺️", label: "Treasure Hunt", desc: "Race to claim hidden caches" },
-                  { icon: "⚔️", label: "Faction Wars", desc: "Declare war, stake bronze, kill to win" },
-                  { icon: "📜", label: "Cradle Trials", desc: "Episodic campaign with ciphers" },
+                  { icon: "📋", label: "Zombita's Jobs", desc: "New jobs every few hours, C to S tier" },
+                  { icon: "📰", label: "The Weekly Paper", desc: "Written by Zombita, delivered in game" },
                 ].map(item => (
                   <div key={item.label} className="flex items-center gap-3 border border-[#1a1a1a] px-3 py-2.5 bg-[#0a0d10]">
                     <span className="text-base">{item.icon}</span>
@@ -411,19 +411,20 @@ export default function HomePage() {
           <div className="flex items-end justify-between mb-8">
             <div>
               <p className="font-mono text-[0.65rem] tracking-[0.3em] text-[#4a8fc4] uppercase mb-2">Mini-Games</p>
-              <h2 className="!mb-0 !normal-case text-[1.2rem] tracking-[0.1em]">Five Games, One Bot</h2>
+              <h2 className="!mb-0 !normal-case text-[1.2rem] tracking-[0.1em]">Games on Discord and on Your Phone</h2>
             </div>
             <Link href="/features/games" className="font-mono text-[0.65rem] tracking-widest text-[#444] hover:text-[#4a8fc4] no-underline transition-colors uppercase hidden sm:block">
               All Games →
             </Link>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {[
-              { icon: "🐺", name: "Werewolf", desc: "20+ roles, AI narrator, DM night actions", color: "#e05555" },
+              { icon: "🐺", name: "Werewolf", desc: "20+ roles, AI narrator - on Discord and on your in-game phone", color: "#e05555" },
               { icon: "🧠", name: "Quizarium", desc: "Speed trivia, 5 categories, global leaderboard", color: "#4a8fc4" },
-              { icon: "🃏", name: "Cards Against Humanity", desc: "Judged by Zombita, in character — merciless picks, brutal commentary", color: "#9775cc" },
-              { icon: "✊", name: "Rock Paper Scissors", desc: "vs players or Zombita, coin bets, 5% rake", color: "#4caf7d" },
-              { icon: "🔵", name: "Connect Four", desc: "6×7 board, Discord buttons, coin bets", color: "#c8a84b" },
+              { icon: "🃏", name: "Cards Against Zombita", desc: "Zombita judges on Discord; on the phone the players vote", color: "#9775cc" },
+              { icon: "♞", name: "Chess", desc: "On every phone, rated games, optional bets", color: "#e6e6e6" },
+              { icon: "✊", name: "RPS & Connect Four", desc: "vs players or Zombita, coin bets, weekly prizes", color: "#4caf7d" },
+              { icon: "🕹️", name: "Phone Arcade", desc: "Snake, Tetris, 2048, Space Impact, Paws Apart - weekly prizes", color: "#c8a84b" },
             ].map(g => (
               <Link key={g.name} href="/features/games" className="no-underline group">
                 <div className="border border-[#1a1a1a] bg-[#0a0d10] p-4 h-full hover:border-[#2a2a2a] transition-all relative overflow-hidden">
@@ -460,7 +461,7 @@ export default function HomePage() {
           <p className="font-mono text-[0.65rem] tracking-[0.3em] text-[#555] uppercase mb-4">Ready to Survive?</p>
           <h2 className="!mb-4 !normal-case text-[1.4rem] tracking-[0.12em]">Join the Community</h2>
           <p className="text-[#555] text-[0.85rem] max-w-[400px] mx-auto mb-8">
-            Whitelist is required to access the full economy, games, and community features. 
+            Whitelist is required to access the full economy, games, and community features.
             Start on Discord.
           </p>
           <div className="flex gap-3 justify-center flex-wrap">

@@ -44,6 +44,9 @@ interface PlayerStats {
     longestLife: number;
     overallKills: number;
     faction?: string;
+    jobsDone?: number; jobPts?: number; jobRank?: string; jobTraps?: number;
+    jobsS?: number; jobsA?: number; jobsB?: number; jobsC?: number;
+    dotdKills?: number; dotdEvents?: number; dotdSurvived?: number;
   };
   identity?: string;
   reputation?: {
@@ -92,7 +95,10 @@ export default function PlayerPage() {
           if (rr.ok) {
             const rankings = await rr.json();
             const ig = (rankings.players || []).find((p: any) => p.name?.toLowerCase() === data.ingame_name?.toLowerCase());
-            if (ig) data.ingame = { kills: ig.kills||0, deaths: ig.deaths||0, longestLife: ig.longestLife||0, currentLife: ig.currentLife||0, overallKills: ig.overallKills||0, faction: ig.faction||null };
+            // bestLife = F8's BEST LIFE (in-game hours); longestLife (real seconds) only for an older API
+            if (ig) data.ingame = { kills: ig.kills||0, deaths: ig.deaths||0, longestLife: ig.bestLife != null ? ig.bestLife * 3600 : (ig.longestLife||0), currentLife: ig.currentLife||0, overallKills: ig.overallKills||0, faction: ig.faction||null,
+              jobsDone: ig.jobsDone||0, jobPts: ig.jobPts||0, jobRank: ig.jobRank||"", jobsS: ig.jobsS||0, jobsA: ig.jobsA||0, jobsB: ig.jobsB||0, jobsC: ig.jobsC||0, jobTraps: ig.jobTraps||0,
+              dotdKills: ig.dotdKills||0, dotdEvents: ig.dotdEvents||0, dotdSurvived: ig.dotdSurvived||0 };
           }
         } catch {}
       }
@@ -206,6 +212,33 @@ export default function PlayerPage() {
               { label: "ALL-TIME", value: stats.ingame.overallKills?.toLocaleString() ?? "0" },
               { label: "DEATHS", value: stats.ingame.deaths?.toLocaleString() ?? "0" },
               { label: "BEST LIFE", value: formatDuration(stats.ingame.longestLife) },
+            ].map((s) => (
+              <div key={s.label} className="bg-[#0f1318] border border-[#1e2530] p-3 sm:p-4">
+                <div className="text-[1.2rem] sm:text-[1.4rem] font-semibold text-[#e6e6e6]">{s.value}</div>
+                <div className="font-mono text-[0.6rem] sm:text-[0.65rem] text-[#555] tracking-widest mt-1">{s.label}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Zombita's Jobs + Dawn of the Dead (from the game's rankings) */}
+      {stats.ingame && ((stats.ingame.jobsDone || 0) > 0 || (stats.ingame.dotdEvents || 0) > 0) && (
+        <section className="mb-6 sm:mb-8">
+          <h2 className="font-mono text-[0.72rem] uppercase tracking-[0.15em] text-[#555] mb-3">📋 Jobs &amp; 💀 Dawn of the Dead</h2>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+            {[
+              ...((stats.ingame.jobsDone || 0) > 0 ? [
+                { label: "JOB RANK", value: stats.ingame.jobRank || "Rookie" },
+                { label: "JOBS DONE", value: stats.ingame.jobsDone },
+                { label: "JOB POINTS", value: stats.ingame.jobPts },
+                { label: "S / A / B / C", value: `${stats.ingame.jobsS} / ${stats.ingame.jobsA} / ${stats.ingame.jobsB} / ${stats.ingame.jobsC}` },
+              ] : []),
+              ...((stats.ingame.dotdEvents || 0) > 0 ? [
+                { label: "DOTD KILLS", value: (stats.ingame.dotdKills || 0).toLocaleString() },
+                { label: "DOTD NIGHTS SURVIVED", value: `${stats.ingame.dotdSurvived} / ${stats.ingame.dotdEvents}` },
+              ] : []),
+              ...((stats.ingame.jobTraps || 0) > 0 ? [{ label: "DAWNIE'S FAKES SURVIVED", value: stats.ingame.jobTraps }] : []),
             ].map((s) => (
               <div key={s.label} className="bg-[#0f1318] border border-[#1e2530] p-3 sm:p-4">
                 <div className="text-[1.2rem] sm:text-[1.4rem] font-semibold text-[#e6e6e6]">{s.value}</div>

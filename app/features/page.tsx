@@ -11,6 +11,7 @@ const FEATURE_SECTIONS = [
       { href: "/zombita", icon: "🧠", title: "4-Layer Memory", desc: "Channel history, per-user context, conversation tracking, and long-term persistent storage. She knows who you are, what you said, and what you've done.", tags: ["Long-Term Memory", "Per-User Context"] },
       { href: "/zombita", icon: "⭐", title: "Reputation System", desc: "Daily automated analysis of each player's behaviour across the entire server. Seven reputation tiers from Outcast to Legend. She forms real opinions — and they change.", tags: ["Daily Analysis", "7 Tiers", "Season-Long"] },
       { href: "/zombita", icon: "👁️", title: "Passive Perception", desc: "A scoring engine that decides when Zombita should speak without being @mentioned. Cooldowns, late-night mode, and per-channel caps keep her presence deliberate.", tags: ["Perception Engine", "Cooldowns", "Context-Aware"] },
+      { href: "/jobs", icon: "🎮", title: "In the Game Too", desc: "Zombita isn't only on Discord. She runs the Jobs board on your in-game phone, writes the weekly paper that lands in your bag, and leaves you notes in game.", tags: ["Jobs Board", "Weekly Paper", "In-Game Notes"] },
     ],
   },
   {
@@ -21,10 +22,11 @@ const FEATURE_SECTIONS = [
       { href: "/features/economy", icon: "🏦", title: "Treasury System", desc: "Server-wide fund with five health states. Every reward draws from it. Every tax feeds it. The economy's regulator — and the trigger for recessions.", tags: ["Closed Loop", "5 Health States"] },
       { href: "/features/economy", icon: "📈", title: "Dynamic Pricing", desc: "Prices respond in real-time to treasury health, demand, wealth distribution, and economic events. Nothing is fixed. The market breathes.", tags: ["4 Price Factors", "Real-Time"] },
       { href: "/features/economy", icon: "📉", title: "Recession Events", desc: "Treasury-triggered or random chaos. Prices spike across the board for hours. Zombita announces it in character — and the server feels it.", tags: ["Price Spike", "12–48 Hours"] },
-      { href: "/shop", icon: "🏪", title: "NPC Shopkeepers", desc: "Named characters with personalities, rotating stock, and dynamic prices. Shop through Discord or walk up to them in-game. Same economy, two interfaces.", tags: ["Named Characters", "In-Game + Web"] },
+      { href: "/shop", icon: "🏪", title: "Shops & Kiosks", desc: "39 general-store kiosks in 26 towns, run by named keepers - each kiosk with its own shelf - plus 8 specialists: weapons, medical, mechanic, tailor, garden, books, melee and Scarlett's records. One price per item everywhere; nobody buys rotten food.", tags: ["47 Shops", "In-Game + Web", "One Price"] },
       { href: "/marketplace", icon: "🏷️", title: "Player Marketplace", desc: "Player-to-player listings with listing and purchase taxes flowing to the treasury. List anything. Buy anything. The economy never leaves the loop.", tags: ["P2P Trading", "Tax to Treasury"] },
-      { href: "/features/economy", icon: "🎰", title: "Lottery", desc: "One Silver per ticket. Weekly draw with tiered prizes — from basic supplies all the way up to rare and legendary weapons.", tags: ["Weekly Draw", "Tiered Prizes"] },
+      { href: "/features/economy", icon: "🎰", title: "Lottery", desc: "100 numbered scratch tickets per batch, 3 silver each. Pick your numbers on any kiosk's Lottery tab, scratch it in your bag, hand in a winner.", tags: ["100 Tickets", "Scratch Cards"] },
       { href: "/features/economy", icon: "🚗", title: "Teleport System", desc: "Fast-travel to named map locations for 5 Silver. One command, instant teleport. Seven destinations across the map.", tags: ["7 Locations", "5 Silver"] },
+      { href: "/features/economy", icon: "🚌", title: "Zombita Bus", desc: "Ride between bus stations across the map. Buy a ticket in the phone's Bus app; the stations are on your map.", tags: ["Tickets", "Map Stations"] },
     ],
   },
   {
@@ -33,35 +35,41 @@ const FEATURE_SECTIONS = [
     items: [
       { href: "/features/werewolf", icon: "🐺", title: "Werewolf", desc: "Full social deduction with over 20 roles — Cupid, Gunner, Detective, Blacksmith, Mayor, Serial Killer, and more. Night actions in DMs. Zombita narrates.", tags: ["20+ Roles", "DM Night Actions", "AI Narrated"] },
       { href: "/features/games", icon: "🧠", title: "Quizarium", desc: "Speed-scored trivia across five categories. Fastest correct answer earns the most points. Global leaderboard tracks performance across the season.", tags: ["5 Categories", "Speed Scoring", "Leaderboard"] },
-      { href: "/features/games", icon: "🃏", title: "Cards Against Humanity", desc: "Zombita is the judge. She reads every submission and picks her favourite — in character, with full personality. No two rounds feel the same.", tags: ["Zombita Judges", "In Character", "Community Favourite"] },
+      { href: "/features/games", icon: "🃏", title: "Cards Against Zombita", desc: "On Discord, Zombita judges every submission in character. On your in-game phone the players vote and she reacts. Also a public Workshop mod.", tags: ["Zombita Judges", "Phone Version", "Workshop Mod"] },
       { href: "/features/games", icon: "✊", title: "Rock Paper Scissors", desc: "Play vs another player or directly against Zombita. Optional coin bets with a 5% rake to the treasury. Full stats tracked all season.", tags: ["vs Zombita", "Coin Bets", "Stats"] },
       { href: "/features/games", icon: "🔵", title: "Connect Four", desc: "A full 6×7 Connect Four board running inside Discord. Each column is a live button. The board updates in place. 60-second turn timer. Optional bets.", tags: ["Discord Buttons", "6×7 Board", "Live Board"] },
+      { href: "/leaderboard", icon: "♞", title: "Chess", desc: "Correspondence chess on every phone - no clock, take your time. Rated games, optional bets, and a leaderboard. Also a public Workshop mod.", tags: ["Rated", "On the Phone", "Workshop Mod"] },
+      { href: "/leaderboard", icon: "🕹️", title: "Phone Arcade", desc: "Snake, Tetris, 2048, Puzzle, Space Impact and Paws Apart on your in-game phone. The week's best scores win 100 / 60 / 30 bronze.", tags: ["6 Games", "Weekly Prizes"] },
     ],
   },
   {
     category: "World Events",
     color: "#e05555",
     items: [
-      { href: "/features/dawn-of-the-dead", icon: "💀", title: "Dawn of the Dead", desc: "The flagship server event. Lady Dawnie sends her horde — multiple configurable waves of zombies spawned across the map, announced in Discord with lore narration.", tags: ["Multi-Wave Hordes", "Lady Dawnie Lore", "Configurable"] },
+      { href: "/features/dawn-of-the-dead", icon: "💀", title: "Dawn of the Dead", desc: "The flagship server event. Lady Dawnie sends her horde - waves of zombies spawned by the game across the map, announced in Discord, with its own leaderboard.", tags: ["Multi-Wave Hordes", "Lady Dawnie Lore", "DotD Leaderboard"] },
       { href: "/features/treasure-hunt", icon: "🗺️", title: "Treasure Hunt", desc: "A hidden cache guarded by zombies. Zombita drops cryptic hints. Players race in-game — first to arrive and enter the claim code wins the loot.", tags: ["Claim Code Race", "Zombie Guards", "6 Hunt Types"] },
-      { href: "/features/faction-wars", icon: "⚔️", title: "Faction Wars", desc: "Factions declare war with real bronze on the line. Kill counts settle the outcome. Winning faction takes both stakes. Surrender forfeits immediately.", tags: ["Bronze Stakes", "Kill Tracking", "Faction vs Faction"] },
+      { href: "/jobs", icon: "📋", title: "Zombita's Jobs", desc: "New jobs on your phone every few hours: marked hordes, bandit camps, errands, hidden codes. C to S tier, Job Rank, parties - and sometimes one of Lady Dawnie's fakes. Take them on the website too.", tags: ["Timed Batches", "C to S Tier", "Parties"] },
     ],
   },
   {
     category: "Factions",
     color: "#4caf7d",
     items: [
-      { href: "/features/faction-wars", icon: "🏴", title: "Create & Manage Factions", desc: "Any player can create a faction. Invite members, promote officers, transfer leadership. Each faction gets its own private Discord channel — automatically.", tags: ["Private Channel", "Full Leadership", "Persistent"] },
-      { href: "/features/faction-wars", icon: "🗡️", title: "Faction Wars", desc: "Stake bronze, set a duration, declare war. In-game kill counts determine the winner at the end. Loser forfeits their stake.", tags: ["Staked Bronze", "Duration Wars", "Kill Count"] },
+      { href: "/factions", icon: "🏴", title: "In-Game Factions", desc: "Found a faction in game (Esc → Factions, or the phone). Up to 8 ranks with their own permissions, recruitment and applications, a shared stash and a faction wallet.", tags: ["8 Ranks", "Recruitment", "Faction Wallet"] },
+      { href: "/factions", icon: "💬", title: "Faction Spaces", desc: "Unlock a private Discord channel and a faction page on this website. Faction kills and jobs have their own leaderboards.", tags: ["Private Channel", "Faction Page", "Leaderboards"] },
     ],
   },
   {
-    category: "Campaign",
-    color: "#c47a4a",
+    id: "phone",
+    category: "Zombita Phone",
+    color: "#4ab0c4",
     items: [
-      { href: "/features/campaign", icon: "📜", title: "The Cradle Trials", desc: "An episodic narrative campaign for groups. Each act has quests, in-game NPC encounters, cipher puzzles, zombie hordes, and choices with permanent consequences.", tags: ["Episodic", "Group Play", "Permanent Choices"] },
-      { href: "/features/campaign", icon: "🔐", title: "Cipher Puzzles", desc: "Clues delivered as physical in-game items. Players decode and submit answers through Discord. The puzzles are real — and the stakes are narrative.", tags: ["In-Game Items", "Real Puzzles"] },
-      { href: "/features/campaign", icon: "🧍", title: "Named NPC Characters", desc: "Campaign NPCs appear in-game at real map locations with custom outfits, full dialogue scripts, and choice buttons. Some live. Some don't — your call.", tags: ["In-Game NPCs", "Choice System", "Elias"] },
+      { href: "/features#phone", icon: "💬", title: "Messages & Contacts", desc: "Text anyone on the server, group chats, a contact list and an inbox for Zombita's notes. Five phone models, from a flip phone to Zombita's own.", tags: ["Group Chats", "5 Models"] },
+      { href: "/marketplace", icon: "🏷️", title: "Marketplace App", desc: "Browse every player listing from your phone; list and buy at any kiosk.", tags: ["Player Trading"] },
+      { href: "/jobs", icon: "📋", title: "Jobs App", desc: "Zombita's job board: take a job, invite friends, follow the arrow, enter your reward code.", tags: ["Zombita's Jobs"] },
+      { href: "/leaderboard", icon: "🎲", title: "Games", desc: "Chess, Werewolf, Cards Against Zombita, RPS, Connect Four and six arcade games - all on the phone.", tags: ["Multiplayer", "Arcade"] },
+      { href: "/features#phone", icon: "🎵", title: "Music & Gallery", desc: "Mixtapes and community songs on cassette, and the community's pictures from Discord's #gallery.", tags: ["Community Songs", "Gallery"] },
+      { href: "/newspaper", icon: "📰", title: "News & Guides", desc: "The weekly paper, the selling guide with every item's price, the map, the bus and more.", tags: ["Weekly Paper", "Selling Guide"] },
     ],
   },
   {
@@ -70,7 +78,8 @@ const FEATURE_SECTIONS = [
     items: [
       { href: "/server", icon: "🔄", title: "Safe Restart System", desc: "Graceful shutdown with countdown warnings. Announces in-game and in Discord. Server saves, players are warned, then it restarts cleanly.", tags: ["Scheduled Restarts", "Countdown Warnings"] },
       { href: "/server", icon: "💬", title: "Chat Bridge", desc: "Real-time relay between in-game general chat and Discord. What you say in Discord appears in-game, and vice versa. Always connected.", tags: ["Real-Time", "Bidirectional"] },
-      { href: "/mods", icon: "📦", title: "Custom Mod Suite", desc: "Custom mods built exclusively for SoUP — in-game NPC shops, live leaderboard panel (F8), treasure hunt spawning, campaign NPCs, single-use magazines, and more.", tags: ["SoUP Exclusive", "In-Game Integration"] },
+      { href: "/mods", icon: "📦", title: "Custom Mod Suite", desc: "Custom mods built for SoUP - kiosk shops, the F8 leaderboard, the Zombita Phone, Zombita's Jobs, treasure hunt spawning, magazines that wear out, and more. Some are public on the Workshop: Werewolf, Cards Against Zombita, Zombita Arcade, Zombita Chess, Zombita Raft.", tags: ["SoUP Exclusive", "In-Game Integration"] },
+      { href: "/mods", icon: "🚗", title: "Zombita Vehicles", desc: "Claim a vehicle with a Zombita Vehicle Orb. Faction and safehouse members can share it; manage every claimed vehicle and who may drive it.", tags: ["Vehicle Orb", "Shared Access"] },
       { href: "/server", icon: "🔒", title: "Whitelist Enforcement", desc: "Automatic whitelist checks every few minutes. Grace period for new players. Countdown warnings before auto-kick. The whitelist is the economy gateway.", tags: ["Auto-Enforced", "Grace Period"] },
     ],
   },
@@ -94,7 +103,7 @@ export default function FeaturesPage() {
 
         <div className="space-y-16">
           {FEATURE_SECTIONS.map(section => (
-            <section key={section.category}>
+            <section key={section.category} id={(section as any).id} className="scroll-mt-20">
               <div className="flex items-center gap-4 mb-6">
                 <div className="h-px flex-1 bg-[#1a1a1a]" />
                 <p className="font-mono text-[0.65rem] tracking-[0.3em] uppercase" style={{ color: section.color }}>

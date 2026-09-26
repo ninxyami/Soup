@@ -54,6 +54,27 @@ export default function ModsPage() {
         </p>
       </div>
 
+      {/* our own mods, public on the Workshop */}
+      <div className="mb-8">
+        <p className="font-mono text-[0.58rem] tracking-[0.25em] text-[#c8a84b] uppercase mb-3">Made for SoUP · public on the Workshop</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {[
+            { id: "3806848081", name: "Werewolf", desc: "Zombita's social-deduction game, in game" },
+            { id: "3806873813", name: "Cards Against Zombita", desc: "The party card game, players vote" },
+            { id: "3806944505", name: "Zombita Arcade", desc: "Snake, Tetris, 2048 and more on a phone" },
+            { id: "3806944122", name: "Zombita Chess", desc: "Correspondence chess, no clock" },
+            { id: "3808228367", name: "Zombita Raft", desc: "Canoes, rowboats and skiffs on the water" },
+          ].map((m) => (
+            <a key={m.id} href={`https://steamcommunity.com/sharedfiles/filedetails/?id=${m.id}`} target="_blank" rel="noopener noreferrer"
+              className="border border-[#1a1a1a] bg-[#0a0d10] px-3 py-2.5 no-underline hover:border-[#c8a84b55] transition-colors">
+              <div className="font-mono text-[0.72rem] text-[#e6e6e6]">{m.name}</div>
+              <div className="font-mono text-[0.6rem] text-[#555]">{m.desc}</div>
+            </a>
+          ))}
+        </div>
+        <p className="font-mono text-[0.6rem] text-[#444] mt-2">The Zombita mod itself (shops, the phone, jobs, vehicles, the F8 leaderboard) is the server&apos;s own and comes with the collection.</p>
+      </div>
+
       {/* Links */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-10">
         {[

@@ -8,9 +8,9 @@ import { FactionLogo } from "@/components/FactionBits";
 type BoardType = "ingame" | "jobs" | "wolf" | "quiz" | "rps" | "c4" | "chess" | "arcade" | "cah" | "reputation";
 type JobsView = "players" | "factions" | "duos";
 type JobsTier = "all" | "S" | "A" | "B" | "C";
-const TIER_COLOR: Record<string, string> = { S: "#d9534f", A: "#e8923a", B: "#4a90c2", C: "#5aa05a" };
+const TIER_COLOR: Record<string, string> = { S: "#f25a47", A: "#599ef2", B: "#9ea39a", C: "#73b873" };   // the game's tier colours
 type ArcadeTab = "snake" | "tetris" | "g2048" | "spaceimpact" | "paws";
-type IngameTab = "kills" | "overall" | "deaths" | "survived" | "bestlife" | "factions";
+type IngameTab = "kills" | "overall" | "deaths" | "survived" | "bestlife" | "dotd" | "factions";
 type GameTab = "pvp" | "zombita" | "coins";
 
 function medal(i: number) {
@@ -26,6 +26,8 @@ function fmtTime(s: number) {
   if (h > 0) return `${h}h ${m}m`;
   return `${m}m`;
 }
+// best life in seconds of IN-GAME time (F8's BEST LIFE); falls back to the old real-time field
+function bestSecs(p: any) { return p.bestLife != null ? (p.bestLife || 0) * 3600 : (p.longestLife || 0); }
 function rc(i: number) {
   if (i===0) return "text-[#e6e6e6]";
   if (i===1) return "text-[#b0b0b0]";
@@ -184,6 +186,7 @@ export default function LeaderboardPage() {
               {tabBtn(ingameTab==="deaths",()=>setIngameTab("deaths"),"🪦 Deaths")}
               {tabBtn(ingameTab==="survived",()=>setIngameTab("survived"),"⏳ Survived")}
               {tabBtn(ingameTab==="bestlife",()=>setIngameTab("bestlife"),"🏆 Best Life")}
+              {tabBtn(ingameTab==="dotd",()=>setIngameTab("dotd"),"💀 DotD")}
               {tabBtn(ingameTab==="factions",()=>setIngameTab("factions"),"🏴 Factions")}
             </div>
           </div>
@@ -191,7 +194,15 @@ export default function LeaderboardPage() {
           {ingameTab==="overall"  && <PlayerTable rows={[...players].sort((a,b)=>(b.overallKills||0)-(a.overallKills||0)).slice(0,10)} valueFn={p=>`${(p.overallKills||0).toLocaleString()} kills`} colHeader="All-Time"/>}
           {ingameTab==="deaths"   && <PlayerTable rows={[...players].sort((a,b)=>(b.deaths||0)-(a.deaths||0)).slice(0,10)} valueFn={p=>`${p.deaths||0}×`} colHeader="Deaths"/>}
           {ingameTab==="survived" && <PlayerTable rows={[...players].sort((a,b)=>(b.currentLife||0)-(a.currentLife||0)).slice(0,10)} valueFn={p=>fmtTime(p.currentLife||0)} colHeader="Life"/>}
-          {ingameTab==="bestlife" && <PlayerTable rows={[...players].sort((a,b)=>(b.longestLife||0)-(a.longestLife||0)).slice(0,10)} valueFn={p=>fmtTime(p.longestLife||0)} colHeader="Best"/>}
+          {/* in-game hours, like F8 (bestLife); longestLife (real seconds) only when an older API has no bestLife */}
+          {ingameTab==="bestlife" && <PlayerTable rows={[...players].sort((a,b)=>bestSecs(b)-bestSecs(a)).slice(0,10)} valueFn={p=>fmtTime(bestSecs(p))} colHeader="Best"/>}
+          {ingameTab==="dotd" && <>
+            <p className="text-[0.72rem] text-[#555] mb-4">Dawn of the Dead: zombies killed while Lady Dawnie&apos;s horde was out, and how many of her nights you lived through.</p>
+            {players.some((p:any)=>(p.dotdKills||0)>0||(p.dotdEvents||0)>0)
+              ? <GameTable rows={[...players].filter((p:any)=>(p.dotdKills||0)>0||(p.dotdEvents||0)>0).sort((a:any,b:any)=>((b.dotdKills||0)-(a.dotdKills||0))||((b.dotdSurvived||0)-(a.dotdSurvived||0))).slice(0,10)}
+                  c1={(p:any)=>`${(p.dotdKills||0).toLocaleString()} kills`} c2={(p:any)=>`survived ${p.dotdSurvived||0} of ${p.dotdEvents||0}`} h1="DotD kills" h2="Nights"/>
+              : <p className="text-[#555] font-mono text-sm italic">No Dawn of the Dead nights recorded yet.</p>}
+          </>}
           {ingameTab==="factions" && (factions.length
             ? <div className="overflow-x-auto -mx-2 px-2"><table className="lb-table min-w-full"><thead><tr><th className="w-8"/><th>Faction</th><th className="text-right">Kills</th><th className="text-right hidden sm:table-cell">Members</th></tr></thead>
                 <tbody>{[...factions].sort((a,b)=>b.kills-a.kills).slice(0,10).map((f:any,i:number)=>(
@@ -267,6 +278,7 @@ export default function LeaderboardPage() {
         )}
 
         {board==="rps" && <div>
+          <p className="text-[0.72rem] text-[#555] mb-4">Every week the three players with the most wins against other players get 100 / 60 / 30 bronze (games against Zombita don&apos;t count).</p>
           <div className="flex gap-0 border-b border-[#222] mb-6">
             {tabBtn(rpsTab==="pvp",()=>setRpsTab("pvp"),"👥 Players")}
             {tabBtn(rpsTab==="zombita",()=>setRpsTab("zombita"),"🧟 Zombita")}
@@ -278,6 +290,7 @@ export default function LeaderboardPage() {
         </div>}
 
         {board==="c4" && <div>
+          <p className="text-[0.72rem] text-[#555] mb-4">Every week the three players with the most wins against other players get 100 / 60 / 30 bronze (games against Zombita don&apos;t count).</p>
           <div className="flex gap-0 border-b border-[#222] mb-6">
             {tabBtn(c4Tab==="pvp",()=>setC4Tab("pvp"),"👥 Players")}
             {tabBtn(c4Tab==="zombita",()=>setC4Tab("zombita"),"🧟 Zombita")}
@@ -326,7 +339,7 @@ export default function LeaderboardPage() {
 
         {board==="cah" && <div>
           <p className="text-[0.78rem] text-[#555] font-mono mb-6 italic">
-            Judged by Zombita. Most game wins ranks first.
+            Discord games are judged by Zombita; on the phone the players vote and she just reacts. Most game wins ranks first.
           </p>
           {cahBoard.length === 0
             ? <p className="text-[#555] font-mono text-sm italic">No CAH games played yet.</p>

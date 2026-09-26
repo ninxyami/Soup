@@ -13,6 +13,7 @@ export const NAV_LINKS = [
   { href: "/mods", label: "Mods" },
   { href: "/seasons", label: "Season" },
   { href: "/leaderboard", label: "Leaderboard" },
+  { href: "/jobs", label: "Jobs" },
   { href: "/factions", label: "Factions" },
   { href: "/players", label: "Players" },
   { href: "/archive", label: "Archive" },

@@ -285,11 +285,13 @@ export default function EconomyPage() {
               becomes a tab your next income clears.
             </Card>
             <Card title="Rewards" color="#9775cc">
-              Weekly leaderboard prizes and game wins (Werewolf, Quizarium...) are paid from the treasury, but only from what it holds
-              after the keepers&apos; next restock. When it&apos;s short, everyone gets the same share - and Zombita says why.
+              Weekly leaderboard prizes, game wins (Werewolf, Quizarium...) and Zombita&apos;s Jobs are paid from the treasury, but only
+              from what it holds after the keepers&apos; next restock. When it&apos;s short, everyone gets the same share - and Zombita says why.
+              A job she can&apos;t pay in full becomes an IOU for players she likes, paid when the treasury refills.
             </Card>
             <Card title="Games" color="#9775cc">
-              Rock Paper Scissors and Connect 4 bets: the winner takes the pot, the house keeps 5% for the treasury. Nothing is made out of thin air.
+              Rock Paper Scissors, Connect 4 and Chess bets: the winner takes the pot, the house keeps 5% for the treasury. Nothing is made out of thin air.
+              The week&apos;s best at Snake, Tetris, 2048, RPS and Connect 4 win 100 / 60 / 30 bronze.
             </Card>
           </div>
         </Section>
@@ -317,8 +319,8 @@ export default function EconomyPage() {
         <Section title="The shops">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Card title="General stores" color="#c8a84b">
-              {GENERAL.join(", ")} - six general stores, each showing a different slice of the rotating stock, so it pays to walk
-              to the next one. Bus tickets, phones and a few staples are always on the shelf.
+              {GENERAL.join(", ")} keep 39 general-store kiosks in 26 towns. Every kiosk has its own shelf, dealt per town, so it
+              pays to walk to the next one. Bus tickets, phones and a few staples are always on the shelf.
             </Card>
             <Card title="Specialists" color="#4a8fc4">
               <ul className="space-y-0.5">

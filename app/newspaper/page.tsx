@@ -44,7 +44,7 @@ export default function NewspaperPage() {
     <main className="max-w-[1100px] mx-auto px-4 py-8">
       <div className="flex items-baseline justify-between flex-wrap gap-2 mb-6">
         <h1 className="font-mono text-[0.75rem] tracking-[0.25em] uppercase text-[#c8a84b] m-0">Zombita&rsquo;s Newspaper</h1>
-        <span className="font-mono text-[0.65rem] text-[#555]">Every Sunday. Written by Zombita, checked by the admins.</span>
+        <span className="font-mono text-[0.65rem] text-[#555]">Every Sunday. Written by Zombita, checked by the admins. A copy lands in every player&rsquo;s bag in game after the next restart.</span>
       </div>
       {loading && <div className="font-mono text-[0.7rem] text-[#555]">LOADING...</div>}
       {!loading && !issue && (
