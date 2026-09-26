@@ -7,8 +7,8 @@ import { FactionLogo } from "@/components/FactionBits";
 
 type BoardType = "ingame" | "jobs" | "wolf" | "quiz" | "rps" | "c4" | "chess" | "arcade" | "cah" | "reputation";
 type JobsView = "players" | "factions" | "duos";
-type JobsTier = "all" | "S" | "A" | "B" | "C";
-const TIER_COLOR: Record<string, string> = { S: "#f25a47", A: "#599ef2", B: "#9ea39a", C: "#73b873" };   // the game's tier colours
+type JobsTier = "all" | "S" | "A" | "B" | "C" | "D";
+const TIER_COLOR: Record<string, string> = { S: "#ffcc2e", A: "#599ef2", B: "#599ef2", C: "#edc740", D: "#edc740" };   // the game's colours (jobs v2)
 type ArcadeTab = "snake" | "tetris" | "g2048" | "spaceimpact" | "paws";
 type IngameTab = "kills" | "overall" | "deaths" | "survived" | "bestlife" | "dotd" | "factions";
 type GameTab = "pvp" | "zombita" | "coins";
@@ -90,9 +90,9 @@ export default function LeaderboardPage() {
   const chessBoard = chess?.leaderboard || [];
   const cahBoard  = cah?.leaderboard || [];
 
-  // Zombita's Jobs (mod 1.7.92+): points (C 1, B 2, A 4, S 10 a job) or one tier's count
+  // Zombita's Jobs (mod 1.7.92+; v2 1.7.94 adds D): quest points or one tier's count
   const jobKey = (x: any, pre: string, pts: string) => jobsTier === "all" ? (x[pts] || 0) : (x[pre + jobsTier] || 0);
-  const jobSplit = (x: any, pre: string) => (["S", "A", "B", "C"] as const).map((t) => (
+  const jobSplit = (x: any, pre: string) => (["S", "A", "B", "C", "D"] as const).map((t) => (
     <span key={t} className="ml-2" style={{ color: (x[pre + t] || 0) > 0 ? TIER_COLOR[t] : "#444" }}>{t} {x[pre + t] || 0}</span>
   ));
   const jobsRows: any[] = (() => {
@@ -226,7 +226,7 @@ export default function LeaderboardPage() {
             </div>
           </div>
           <div className="flex gap-2 mb-5 flex-wrap">
-            {(["all","S","A","B","C"] as JobsTier[]).map((t)=>(
+            {(["all","S","A","B","C","D"] as JobsTier[]).map((t)=>(
               <button key={t} onClick={()=>setJobsTier(t)}
                 className={`px-3 py-1 text-[0.66rem] tracking-[0.08em] uppercase border font-[inherit] cursor-pointer transition-all ${jobsTier===t?"text-[#e6e6e6]":"border-[#222] text-[#555] hover:text-[#e6e6e6]"}`}
                 style={jobsTier===t?{borderColor: t==="all"?"#4a7c59":TIER_COLOR[t]}:undefined}>

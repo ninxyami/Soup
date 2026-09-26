@@ -58,7 +58,7 @@ const SECTION = { classic: ["BREAKING NEWS", ""], vintage: ["Breaking News!", "b
 const RULE = { classic: "", vintage: "thin", bold: "fat", special: "thin" };
 
 // Zombita's Jobs box - the same words as the printed page (zombita_newspaper.jobs_line / notable_text)
-const jobsLine = (j) => `${j.total} job${j.total === 1 ? "" : "s"} done: ${["S", "A", "B", "C"].map((t) => `${t} ${j[t] || 0}`).join(", ")}.`
+const jobsLine = (j) => `${j.total} job${j.total === 1 ? "" : "s"} done: ${("D" in j ? ["S", "A", "B", "C", "D"] : ["S", "A", "B", "C"]).map((t) => `${t} ${j[t] || 0}`).join(", ")}.`
   + (j.traps ? ` ${j.traps} of Lady Dawnie's fake jobs survived.` : "");
 const notableText = (n) => n.trap
   ? `${n.who} - one of Lady Dawnie's fakes; ${n.outcome === "kill" ? "fought their way out" : "ran for it and made it"}.`
@@ -124,6 +124,20 @@ export default function Newspaper({ paper }) {
                 {paper.jobs.workers?.length > 0 && (
                   <div><div className="np-pick-h">Hardest workers</div><p className="np-pick-b">{paper.jobs.workers.map((w) => `${w.name} (${w.jobs})`).join(", ")}</p></div>
                 )}
+                {(paper.jobs.swipes || []).map((w, i) => (
+                  <div key={"s" + i}><div className="np-pick-h">Swiped!</div><p className="np-pick-b">{w.who} grabbed &ldquo;{w.title}&rdquo; [{w.tier}] while {w.from} did the killing.</p></div>
+                ))}
+                {paper.jobs.helpers?.length > 0 && (
+                  <div><div className="np-pick-h">Helping hands</div><p className="np-pick-b">{paper.jobs.helpers.map((h) => `${h.name} ${h.what} on "${h.title}".`).join(" ")}</p></div>
+                )}
+              </div>
+            )}
+            {paper.jobs?.quitters?.length > 0 && (
+              <div className="np-box">
+                <div className="np-box-t">Quitters&rsquo; Corner</div>
+                {paper.jobs.quitters.map((q, i) => (
+                  <p key={i} className="np-pick-b">{q.who} {q.crew ? "walked away from" : "gave up on"} &ldquo;{q.title}&rdquo; [{q.tier}]. Zombita remembers.</p>
+                ))}
               </div>
             )}
             {paper.editor_note && <div className="np-note">{paper.editor_note} &mdash; Zombita</div>}

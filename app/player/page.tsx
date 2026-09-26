@@ -45,7 +45,7 @@ interface PlayerStats {
     overallKills: number;
     faction?: string;
     jobsDone?: number; jobPts?: number; jobRank?: string; jobTraps?: number;
-    jobsS?: number; jobsA?: number; jobsB?: number; jobsC?: number;
+    jobsS?: number; jobsA?: number; jobsB?: number; jobsC?: number; jobsD?: number;
     dotdKills?: number; dotdEvents?: number; dotdSurvived?: number;
   };
   identity?: string;
@@ -97,7 +97,7 @@ export default function PlayerPage() {
             const ig = (rankings.players || []).find((p: any) => p.name?.toLowerCase() === data.ingame_name?.toLowerCase());
             // bestLife = F8's BEST LIFE (in-game hours); longestLife (real seconds) only for an older API
             if (ig) data.ingame = { kills: ig.kills||0, deaths: ig.deaths||0, longestLife: ig.bestLife != null ? ig.bestLife * 3600 : (ig.longestLife||0), currentLife: ig.currentLife||0, overallKills: ig.overallKills||0, faction: ig.faction||null,
-              jobsDone: ig.jobsDone||0, jobPts: ig.jobPts||0, jobRank: ig.jobRank||"", jobsS: ig.jobsS||0, jobsA: ig.jobsA||0, jobsB: ig.jobsB||0, jobsC: ig.jobsC||0, jobTraps: ig.jobTraps||0,
+              jobsDone: ig.jobsDone||0, jobPts: ig.jobPts||0, jobRank: ig.jobRank||"", jobsS: ig.jobsS||0, jobsA: ig.jobsA||0, jobsB: ig.jobsB||0, jobsC: ig.jobsC||0, jobsD: ig.jobsD||0, jobTraps: ig.jobTraps||0,
               dotdKills: ig.dotdKills||0, dotdEvents: ig.dotdEvents||0, dotdSurvived: ig.dotdSurvived||0 };
           }
         } catch {}
@@ -232,7 +232,7 @@ export default function PlayerPage() {
                 { label: "JOB RANK", value: stats.ingame.jobRank || "Rookie" },
                 { label: "JOBS DONE", value: stats.ingame.jobsDone },
                 { label: "JOB POINTS", value: stats.ingame.jobPts },
-                { label: "S / A / B / C", value: `${stats.ingame.jobsS} / ${stats.ingame.jobsA} / ${stats.ingame.jobsB} / ${stats.ingame.jobsC}` },
+                { label: "S / A / B / C / D", value: `${stats.ingame.jobsS} / ${stats.ingame.jobsA} / ${stats.ingame.jobsB} / ${stats.ingame.jobsC} / ${stats.ingame.jobsD || 0}` },
               ] : []),
               ...((stats.ingame.dotdEvents || 0) > 0 ? [
                 { label: "DOTD KILLS", value: (stats.ingame.dotdKills || 0).toLocaleString() },
