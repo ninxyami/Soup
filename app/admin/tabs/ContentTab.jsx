@@ -120,7 +120,7 @@ function ServerInfoPanel({ toast }) {
         </div>
       </div>
       {SC("Game Version")}
-      <Field name="Version String (e.g. B42.13.1)" value={data.game_version} onChange={set("game_version")} />
+      <Field name="Version String (e.g. B42 stable)" value={data.game_version} onChange={set("game_version")} />
       <Field name="Version Note (shown below version)" value={data.version_note} onChange={set("version_note")} multiline rows={2} />
       {SC("External Links")}
       <Field name="Discord URL" value={data.discord_url} onChange={set("discord_url")} />
