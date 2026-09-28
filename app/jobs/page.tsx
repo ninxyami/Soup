@@ -56,7 +56,7 @@ function QuestCard({ q, me, busy, note, onTake, onLeave, confirm, setConfirm }: 
   const mine = isMine(q, me);
   const col = mine ? COLOR.active : tierColor(q.tier);
   const racers = q.racers || [];
-  const closing = q.left < 15 * 60;
+  const closing = q.left < 15 * 60 && !(q.kind === "S" && racers.length === 0);   // an untaken S has a short window on purpose
   const canTake = !mine && !closing;
   return (
     <div className={`border bg-[#0f1318] p-4 flex flex-col gap-2 ${q.kind === "S" ? "shadow-[0_0_24px_#ffcc2e22]" : ""}`}
@@ -205,7 +205,7 @@ export default function JobsPage() {
       <div className="divider" />
 
       <section>
-        {sq.length > 0 && <Section title="S tier - pinned" color={COLOR.S} note="Rare. Paid in fresh gold, not from the treasury. Don't go alone.">
+        {sq.length > 0 && <Section title="S tier - pinned" color={COLOR.S} note="Rare. Take it within 20 minutes of it going up - then there are 24 hours to finish. Paid in fresh gold, not from the treasury. Don't go alone.">
           <div className="grid gap-3">{sq.map(card)}</div>
         </Section>}
         <Section title="Big jobs (B / A)" color={COLOR.big} note="Two slots, each a B or an A by chance. A tier is nasty - bring friends.">
@@ -301,7 +301,7 @@ export default function JobsPage() {
                     <td><TierChip t={t.id} /></td>
                     <td className="text-right font-mono">{money(t.pot)}</td>
                     <td className="text-right font-mono">{t.horde}{t.id === "S" ? "+" : ""}</td>
-                    <td className="text-right font-mono hidden sm:table-cell">{t.life}h</td>
+                    <td className="text-right font-mono hidden sm:table-cell">{t.id === "S" ? "20m to take" : `${t.life}h`}</td>
                     <td className="text-right font-mono hidden sm:table-cell">{t.rest}m</td>
                     <td className="text-right font-mono">{t.points}</td>
                   </tr>
