@@ -13,7 +13,7 @@ interface ServerContent {
 
 const FALLBACK: ServerContent = {
   ip: "51.79.162.51", port: "16261", password: "",
-  max_players: "32", ram: "31 GB", region: "Singapore",
+  max_players: "32", ram: "64 GB", region: "Singapore",
   game_version: "B42.13.1",
   version_note: "Steam → Project Zomboid → Properties → Betas → select the version above",
   discord_url: "https://discord.gg/zDwa2g37R",
