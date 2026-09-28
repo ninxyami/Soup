@@ -12,12 +12,12 @@ interface ServerContent {
 }
 
 const FALLBACK: ServerContent = {
-  ip: "15.235.166.58", port: "9000", password: "newdawn",
+  ip: "51.79.162.51", port: "16261", password: "",
   max_players: "32", ram: "31 GB", region: "Singapore",
   game_version: "B42.13.1",
   version_note: "Steam → Project Zomboid → Properties → Betas → select the version above",
   discord_url: "https://discord.gg/zDwa2g37R",
-  steam_collection_url: "https://steamcommunity.com/sharedfiles/filedetails/?id=3653988013",
+  steam_collection_url: "https://steamcommunity.com/sharedfiles/filedetails/?id=3805641357",
   spreadsheet_url: "https://docs.google.com/spreadsheets/d/1kSo22-q_So3mZJ5hjYIH2oqQyOF-sIOacoV28HlQgFc/edit",
   announcement: "",
 };
