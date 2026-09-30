@@ -276,7 +276,7 @@ export default function JobsTab({ toast }) {
       {v2 && <TW title="TIERS" right={<span style={dim}>pot = a solo win, split evenly by a crew · rest = cooldown after one</span>}>
         <div style={{ overflowX: "auto" }}><table className="ap-t"><thead><tr><th>Tier</th><th>Pot (bronze)</th><th>Rest</th><th>On board</th><th>Horde</th><th>Rank pts</th><th>Give-up cost</th></tr></thead>
           <tbody>{(s.tiers || []).slice().reverse().map((t) => <TierRow key={t.id} t={t} send={send} busy={busy} />)}</tbody></table></div>
-        <div className="ap-note" style={{ margin: "8px 16px 14px" }}>S splits by Nin&apos;s table (1 gold / 5s / 3s / 2.5s each), scaled by S&apos;s pot. Personal quests pay 1.5x, exclusive 1.25x.</div>
+        <div className="ap-note" style={{ margin: "8px 16px 14px" }}>S splits by Nin&apos;s table (1 gold / 5s / 3s / 2.5s each), scaled by S&apos;s pot, and beast hunts multiply it by class (SS 1.5x, SSS 2.5x, SSS+ 5x). S pays out of the treasury. Personal quests pay 1.5x, exclusive 1.25x.</div>
       </TW>}
 
       {v2 && <FB title="JOB RANK">
@@ -286,6 +286,7 @@ export default function JobsTab({ toast }) {
       {v2 && <TW title="WHAT A WIN GIVES" right={<span style={dim}>per quest type · the winner&apos;s duffel · +rep (split with the crew)</span>}>
         <div style={{ overflowX: "auto" }}><table className="ap-t"><thead><tr><th>Quest / ending</th><th>Extra rep</th><th>Items (duffel)</th><th></th></tr></thead>
           <tbody>{(s.rows || []).map((r) => <RewardRow key={r.id} row={r} send={send} busy={busy} />)}</tbody></table></div>
+        <div className="ap-note" style={{ margin: "8px 16px 14px" }}>Each beast class has its own row (A+, S, SS, SSS, SSS+), so a harder boss can give better loot. Pick items with the picker, set how many, then SAVE. On an S or beast row, leaving the items empty gives the default goods (bandages, batteries, duct tape, beans), scaled up for the harder classes. The coins come from the treasury; when it runs short the winner still gets these items.</div>
       </TW>}
 
       {v2 && <TW title={`OPEN QUESTS (${quests.length})`}>
