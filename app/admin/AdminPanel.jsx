@@ -394,6 +394,12 @@ export default function AdminPanel() {
         flexShrink: 0, position: "relative",
       }}>
         {info.initials}
+        {/* their Discord profile picture on top; if it fails to load the initials underneath show instead */}
+        {admin.avatar_url && (
+          <img src={admin.avatar_url} alt="" width={size} height={size}
+            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }}
+            onError={(e) => { e.currentTarget.style.display = "none"; }} />
+        )}
         <div style={{
           position: "absolute", bottom: -1, right: -1, width: 7, height: 7,
           borderRadius: 4, background: "var(--green)",
@@ -527,7 +533,11 @@ export default function AdminPanel() {
                         <div style={{ marginLeft: "auto", display: "flex", gap: 2 }}>
                           {adminsOnTab(item.key).map(a => {
                             const info = ADMINS[a.discord_id] || { color: "#4a5568" };
-                            return <div key={a.discord_id} title={a.name} style={{
+                            return a.avatar_url ? (
+                              <img key={a.discord_id} src={a.avatar_url} alt="" title={(ADMINS[a.discord_id]?.name || a.name || "") + " is here"} width={16} height={16}
+                                style={{ borderRadius: "50%", border: `1.5px solid ${info.color}`, boxShadow: `0 0 4px ${info.color}`, objectFit: "cover" }}
+                                onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                            ) : <div key={a.discord_id} title={a.name} style={{
                               width: 8, height: 8, borderRadius: 4,
                               background: info.color, boxShadow: `0 0 4px ${info.color}`,
                             }} />;
