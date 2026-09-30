@@ -251,7 +251,7 @@ export default function JobsTab({ toast }) {
       {v2 && <div className="ap-sr">
         <SC label="Jobs" value={s.on ? "ON" : "OFF"} color={s.on ? "green" : "red"} sub="MODS switch in game" />
         <SC label="Open quests" value={fmt(quests.length)} sub={`${quests.filter((q) => (q.racers || []).length).length} being raced`} />
-        <SC label="S minted this week" value={money(s.mintWeek)} sub={`of ${money(s.mintCap)} · last S ${s.sAt ? relTime(s.sAt) : "never"}`} />
+        <SC label="S pays from" value="Treasury" sub={`last S ${s.sAt ? relTime(s.sAt) : "never"} · short treasury = IOU + goods`} />
         <SC label="Codes waiting" value={fmt(s.codes)} sub={`${fmt(s.pending)} payouts at the bot`} />
       </div>}
 
