@@ -168,7 +168,7 @@ function ModsPanel({ toast }) {
       <p style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)", marginBottom: 20 }}>
         The mod list is pulled automatically from the <strong style={{ color: "var(--text)" }}>Mods &amp; Maps</strong> tab
         (Server Config → Mods &amp; Maps). Any mod marked <strong style={{ color: "var(--green)" }}>active</strong> there
-        will appear on the public mods page automatically — no extra work needed here.
+        will appear on the public mods page automatically - no extra work needed here.
       </p>
       {SC("External Links & Philosophy")}
       {links ? (
@@ -339,7 +339,7 @@ function ArchivePanel({ toast }) {
       <div style={{ border: "1px solid var(--border)", background: "var(--surface)", padding: 16, marginBottom: 20 }}>
         {SC("Season Story Export")}
         <p style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)", marginBottom: 12 }}>
-          Export all of Zombita&apos;s season observations as a structured text dump — ready to feed to an AI to generate a season chronicle.
+          Export all of Zombita&apos;s season observations as a structured text dump - ready to feed to an AI to generate a season chronicle.
         </p>
         <B c="ghost" onClick={exportStory} disabled={loadingExport}>
           {loadingExport ? "Loading…" : "Export Season Events →"}

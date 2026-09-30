@@ -1,6 +1,6 @@
 "use client";
 // @ts-nocheck
-// Project MIRA — self-serve acts run by the ZombitaMiraBridge mod, tracked and
+// Project MIRA - self-serve acts run by the ZombitaMiraBridge mod, tracked and
 // paid out by Zombita (mira_run_watcher.py). Backend: routers/admin_mira.py.
 import { useState, useEffect, useCallback } from "react";
 import { fetchApi, postApi, relTime, fmtFull, Title, SC, TW, B, Inp, Sel, FB, Load, Empty, Toggle } from "./shared";
@@ -18,7 +18,7 @@ const STATUS_COLOR = {
 };
 const VIEWS = [["overview", "Overview"], ["parties", "Parties"], ["players", "Players"], ["rewards", "Rewards"], ["deliveries", "Deliveries"], ["settings", "Settings"]];
 
-const dur = (s) => (s == null ? "—" : s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, "0")}s`);
+const dur = (s) => (s == null ? "-" : s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, "0")}s`);
 
 function StatusCell({ status, reason }) {
   return (
@@ -115,7 +115,7 @@ function Overview() {
       </table>
       <div className="ap-note">
         Locations are placed in-game: stand on the spot, right-click → Project MIRA → MIRA admin → Act N → Set … here.
-        Area corners are optional — they're only needed for the horde and zombie cleanup. Hover a row to see coordinates.
+        Area corners are optional - they're only needed for the horde and zombie cleanup. Hover a row to see coordinates.
       </div>
     </TW>
   </>);
@@ -149,7 +149,7 @@ function Parties() {
               <td title={fmtFull(p.formed_at)}>{relTime(p.formed_at)}</td>
               <td>Act {p.act}</td>
               <td><StatusCell status={p.status} reason={p.fail_reason} /></td>
-              <td>{p.members}</td><td>{p.solver || "—"}</td><td>{dur(p.duration_seconds)}</td>
+              <td>{p.members}</td><td>{p.solver || "-"}</td><td>{dur(p.duration_seconds)}</td>
             </tr>
           ))}</tbody>
         </table>
@@ -172,8 +172,8 @@ function PartyDetail({ id, onClose }) {
           <thead><tr><th>Member</th><th>Reward tier</th><th>Went offline</th><th>Deaths</th><th>Outcome</th></tr></thead>
           <tbody>{d.members.map((m) => (
             <tr key={m.username}>
-              <td>{m.username}</td><td>{m.reward_tier || "—"}</td><td>{m.went_offline ? "yes" : "no"}</td>
-              <td>{m.deaths}</td><td>{m.outcome || "—"}</td>
+              <td>{m.username}</td><td>{m.reward_tier || "-"}</td><td>{m.went_offline ? "yes" : "no"}</td>
+              <td>{m.deaths}</td><td>{m.outcome || "-"}</td>
             </tr>
           ))}</tbody>
         </table>
@@ -194,7 +194,7 @@ function PartyDetail({ id, onClose }) {
             <tr key={i}>
               <td title={fmtFull(e.ts)}>{relTime(e.ts)}</td>
               <td>{e.kind.replace(/_/g, " ")}{e.payload?.reason ? ` · ${FAIL[e.payload.reason] || e.payload.reason}` : ""}</td>
-              <td>{e.player || "—"}</td>
+              <td>{e.player || "-"}</td>
             </tr>
           ))}</tbody>
         </table>
@@ -280,7 +280,7 @@ function Rewards({ toast }) {
 }
 
 function PoolTable({ rows, toast, reload }) {
-  if (rows.length === 0) return <Empty text="Empty pool — this tier pays nothing for this act." />;
+  if (rows.length === 0) return <Empty text="Empty pool - this tier pays nothing for this act." />;
   const total = rows.filter((r) => r.enabled).reduce((n, r) => n + r.weight, 0) || 1;
   return (
     <table className="ap-t">
@@ -312,7 +312,7 @@ function PoolRow({ row, total, toast, reload }) {
   return (
     <tr style={{ opacity: row.enabled ? 1 : 0.5 }}>
       <td>{row.item}</td><td>{num("min_qty")}</td><td>{num("max_qty")}</td><td>{num("weight")}</td>
-      <td>{row.enabled ? `${Math.round((row.weight / total) * 100)}%` : "—"}</td>
+      <td>{row.enabled ? `${Math.round((row.weight / total) * 100)}%` : "-"}</td>
       <td><Toggle on={row.enabled} onClick={() => save({ enabled: !row.enabled })} /></td>
       <td style={{ whiteSpace: "nowrap" }}>
         {dirty && <B sm c="gold" onClick={() => save({ min_qty: v.min_qty, max_qty: v.max_qty, weight: v.weight })}>Save</B>}{" "}
@@ -385,7 +385,7 @@ function Settings({ toast }) {
     setSaving(true);
     try {
       await postApi("/api/admin/mira/config", { config: Object.fromEntries(changed.map((k) => [k, v[k]])) });
-      toast("Saved — Zombita pushes game settings within ~15s", "success");
+      toast("Saved - Zombita pushes game settings within ~15s", "success");
       reload();
     } catch (e) { toast(e.message, "error"); }
     setSaving(false);

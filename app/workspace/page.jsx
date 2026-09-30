@@ -1,9 +1,9 @@
 "use client";
 // @ts-nocheck
-// app/workspace/page.jsx — Standalone full-screen workspace.
+// app/workspace/page.jsx - Standalone full-screen workspace.
 //
 // Chrome-free route around the ONE shared <Workspace/> component
-// (components/Workspace.jsx) — identical to the admin panel's Workspace tab.
+// (components/Workspace.jsx) - identical to the admin panel's Workspace tab.
 //
 // Usage:
 //   /workspace                 → full workspace (projects, docs, config, create)

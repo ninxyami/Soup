@@ -225,7 +225,7 @@ export default function SystemTab({ toast }) {
   const [status, setStatus]     = useState(null);
   const [loading, setLoading]   = useState(true);
   const [restarting, setRestarting] = useState({});
-  const [answers, setAnswers]       = useState({});   // characters / season / settings — no defaults
+  const [answers, setAnswers]       = useState({});   // characters / season / settings - no defaults
   const [wipeModal, setWipeModal]   = useState(null); // "wipe" | "nuclear"
   const answered = QUESTIONS.every(q => answers[q.key]);
 
@@ -303,7 +303,7 @@ export default function SystemTab({ toast }) {
       <div className="ap-fb" style={{ marginBottom: 0 }}>
         <h4 style={{ fontFamily: "var(--display)", fontSize: 18, letterSpacing: 2, color: "var(--text)", margin: "0 0 16px 0" }}>SERVER WIPE</h4>
         <div className="ap-note danger" style={{ marginBottom: 20, lineHeight: 1.8 }}>
-          One wipe, three questions — the same card Zombita shows in Discord. The map is always reset and the characters are
+          One wipe, three questions - the same card Zombita shows in Discord. The map is always reset and the characters are
           always backed up first (Zomboid/wipe_backups/). Answer every row, then START. Nothing has a default.
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>

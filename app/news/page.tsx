@@ -107,7 +107,7 @@ export default function NewsPage() {
           const d = await r.json();
           setPosts(d.posts || []);
         } else {
-          // Fallback — fetch the regular feed and filter for Zombita
+          // Fallback - fetch the regular feed and filter for Zombita
           const r2 = await fetch(`${API}/api/feed`, { credentials: "include" });
           if (r2.ok) {
             const d2 = await r2.json();
@@ -223,7 +223,7 @@ export default function NewsPage() {
               <NewsCard key={post.id} post={post} />
             ))}
             <p className="py-6 text-center font-mono text-[0.62rem] text-[#2a2a2a]">
-              — end of transmission —
+              - end of transmission -
             </p>
           </div>
         )}

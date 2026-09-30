@@ -140,11 +140,11 @@ export default function ZombitaPage() {
             </div>
           </div>
 
-          {/* Chat panel — desktop */}
+          {/* Chat panel - desktop */}
           <ChatPanel scrollRef={scrollRef} inputRef={inputRef} msgs={msgs} loading={loading} locked={locked} isAuthed={isAuthed} remaining={remaining} input={input} setInput={setInput} send={send} />
         </div>
 
-        {/* Chat panel — mobile (full width) */}
+        {/* Chat panel - mobile (full width) */}
         <div className="sm:hidden">
           <ChatPanel scrollRef={scrollRef} inputRef={inputRef} msgs={msgs} loading={loading} locked={locked} isAuthed={isAuthed} remaining={remaining} input={input} setInput={setInput} send={send} />
         </div>
@@ -188,7 +188,7 @@ function ChatPanel({ scrollRef, inputRef, msgs, loading, locked, isAuthed, remai
           <div className="h-px bg-[#1a1a1a] w-full relative mb-1">
             <div className="h-full bg-[#4a7c59] absolute top-0 left-0 transition-all" style={{ width: `${(remaining / GUEST_LIMIT) * 100}%` }} />
           </div>
-          <span className="text-[0.7rem] text-[#555] font-mono">{remaining} message{remaining !== 1 ? "s" : ""} remaining — <a href={`${API}/auth/discord/login`} className="text-[#4a7c59] no-underline hover:underline">login</a> for full access</span>
+          <span className="text-[0.7rem] text-[#555] font-mono">{remaining} message{remaining !== 1 ? "s" : ""} remaining - <a href={`${API}/auth/discord/login`} className="text-[#4a7c59] no-underline hover:underline">login</a> for full access</span>
         </div>
       )}
 

@@ -8,7 +8,7 @@
 // Identity: the relay already authenticates the admin via the soup_session
 // cookie and knows their discord_id. We pass the *resolved* admin identity
 // (name/color/initials from the ADMINS roster) down as `me` so live cursors
-// read "Dawnie", "Sheo", "Nin Nin" — never "Admin-487".
+// read "Dawnie", "Sheo", "Nin Nin" - never "Admin-487".
 //
 // Design: SOUP tokens only (var(--accent) gold, var(--mono), etc). The CSS
 // here covers ONLY the ProseMirror surface + collab cursor chrome; everything
@@ -21,7 +21,7 @@ import { Editor } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import { Extension, Mark } from "@tiptap/core";
 
-// Inline TextStyle + Color — avoids adding @tiptap/extension-color to package.json.
+// Inline TextStyle + Color - avoids adding @tiptap/extension-color to package.json.
 // TextStyle is a mark that carries arbitrary inline styles; Color piggybacks on it.
 const TextStyle = Mark.create({
   name: "textStyle",
@@ -52,10 +52,10 @@ import TableHeader from "@tiptap/extension-table-header";
 import TableCell from "@tiptap/extension-table-cell";
 import { CellSelection } from "@tiptap/pm/tables";
 
-// P4 — cell background colors (the red/yellow/green status coding admins use
+// P4 - cell background colors (the red/yellow/green status coding admins use
 // in their Sheets). We extend the official cell/header nodes with a
 // `backgroundColor` attribute that round-trips through the DOM (so it persists
-// via Yjs and survives reload) and renders as a translucent tint — translucent
+// via Yjs and survives reload) and renders as a translucent tint - translucent
 // so the same swatch reads correctly on BOTH dark and (future) light themes.
 const cellBg = {
   backgroundColor: {
@@ -76,7 +76,7 @@ const ColorTableHeader = TableHeader.extend({
   },
 });
 
-// Status palette — tuned to how admins actually color sheets (added / pending /
+// Status palette - tuned to how admins actually color sheets (added / pending /
 // broken / info / note), plus neutrals. Values are translucent so they tint
 // rather than paint, working on any theme. Keyed names map to CSS in EDITOR_CSS.
 const CELL_COLORS = [
@@ -117,11 +117,11 @@ const EDITOR_CSS = `
 .ws-surface .ProseMirror p{margin:0}
 .ws-surface .ProseMirror ul,.ws-surface .ProseMirror ol{padding-left:1.6em}
 .ws-surface .ProseMirror li{padding-left:0.2em;margin-bottom:0.25em}
-/* bullet list — custom dash marker */
+/* bullet list - custom dash marker */
 .ws-surface .ProseMirror ul li{list-style:none;position:relative}
 .ws-surface .ProseMirror ul li::marker{content:none}
-.ws-surface .ProseMirror ul li::before{content:"—";position:absolute;left:-1.3em;color:var(--muted)}
-/* ordered list — native counter, styled to match the theme */
+.ws-surface .ProseMirror ul li::before{content:"-";position:absolute;left:-1.3em;color:var(--muted)}
+/* ordered list - native counter, styled to match the theme */
 .ws-surface .ProseMirror ol{list-style:none;counter-reset:ol-counter}
 .ws-surface .ProseMirror ol li{counter-increment:ol-counter;position:relative}
 .ws-surface .ProseMirror ol li::before{content:counter(ol-counter)".";position:absolute;left:-1.6em;color:var(--textdim);font-family:var(--mono);font-size:0.85em;font-weight:600;min-width:1.4em;text-align:right}
@@ -131,7 +131,7 @@ const EDITOR_CSS = `
 .ws-surface .ProseMirror pre code{background:none;border:none;padding:0;color:var(--text)}
 .ws-surface .ProseMirror hr{border:none;border-top:1px solid var(--border);margin:1.6em 0}
 .ws-surface .ProseMirror strong{color:#e3e7ee}
-/* P4.1 collaborative tables — SOUP tokens */
+/* P4.1 collaborative tables - SOUP tokens */
 .ws-surface .ProseMirror .tableWrapper{overflow-x:auto;margin:1.1em 0;padding:2px}
 .ws-surface .ProseMirror table.ws-table{
   border-collapse:collapse; table-layout:fixed; width:100%;
@@ -153,13 +153,13 @@ const EDITOR_CSS = `
 .ws-surface .ProseMirror table.ws-table p{line-height:1.5}
 /* row striping for readability */
 .ws-surface .ProseMirror table.ws-table tr:nth-child(even) td{background:rgba(255,255,255,0.015)}
-/* selected cell(s) — the gold selection overlay */
+/* selected cell(s) - the gold selection overlay */
 .ws-surface .ProseMirror table.ws-table .selectedCell:after{
   content:""; position:absolute; inset:0; pointer-events:none; z-index:2;
   background:rgba(200,168,75,0.16);
 }
 .ws-surface .ProseMirror table.ws-table .selectedCell{border-color:var(--accent)}
-/* P4 — status cell colors (translucent tints; theme-safe). The data-bg
+/* P4 - status cell colors (translucent tints; theme-safe). The data-bg
    attribute is set by the color picker and persists through Yjs. */
 .ws-surface .ProseMirror table.ws-table td[data-bg="green"],
 .ws-surface .ProseMirror table.ws-table th[data-bg="green"]{background:rgba(76,175,125,0.22)}
@@ -309,7 +309,7 @@ export default function CollabEditor({ docId, docTitle, me, seed }) {
               CellSelection.create(state.doc, cells[0], cells[cells.length - 1])
             );
             editor.view.dispatch(tr);
-            return true; // handled — stop the default select-all
+            return true; // handled - stop the default select-all
           },
         };
       },
@@ -322,14 +322,14 @@ export default function CollabEditor({ docId, docTitle, me, seed }) {
         TextStyle,
         Color,
         Placeholder.configure({
-          placeholder: "Start writing the plan… headings, lists, notes — it all syncs live.",
+          placeholder: "Start writing the plan… headings, lists, notes - it all syncs live.",
         }),
         Collaboration.configure({ document: ydoc }),
         CollaborationCursor.configure({
           provider,
           user: { name: me.name, color: me.color },
         }),
-        // P4.1 — collaborative tables. These are plain ProseMirror nodes, so
+        // P4.1 - collaborative tables. These are plain ProseMirror nodes, so
         // Yjs merges them through the SAME relay with no backend change. A
         // table is just doc content the relay already persists.
         Table.configure({
@@ -348,8 +348,8 @@ export default function CollabEditor({ docId, docTitle, me, seed }) {
     });
     editorRef.current = editor;
 
-    // P4 — sheet seeding. When a doc was created as a "sheet", drop in a
-    // starter table — but ONLY after we've synced with the relay AND only if
+    // P4 - sheet seeding. When a doc was created as a "sheet", drop in a
+    // starter table - but ONLY after we've synced with the relay AND only if
     // the doc is still empty. This makes "new sheet" work with zero backend
     // change, while never double-seeding when two admins open at once (the
     // first to sync seeds; the rest see it already there).
@@ -367,7 +367,7 @@ export default function CollabEditor({ docId, docTitle, me, seed }) {
     const seedTimer = setTimeout(() => { if (provider.synced) maybeSeedSheet(); }, 600);
 
     // The relay persists server-side (debounced). This flag is purely a
-    // local "your edits reached the socket" reassurance — flips back to
+    // local "your edits reached the socket" reassurance - flips back to
     // saved shortly after you stop typing.
     let savedTimer = null;
     function scheduleSavedFlag() {
@@ -399,7 +399,7 @@ export default function CollabEditor({ docId, docTitle, me, seed }) {
   const runCell = useCallback((fn) => { if (ed) fn(ed.chain()); }, [ed]);
   // Select every cell in the current table (so one color click hits all rows
   // and columns). Walks up to the table node, collects the absolute positions
-  // of the first and last cells, and builds a CellSelection spanning them —
+  // of the first and last cells, and builds a CellSelection spanning them -
   // which is exactly the selection a corner-to-corner drag would produce.
   const selectWholeTable = useCallback(() => {
     if (!ed) return;
@@ -510,7 +510,7 @@ export default function CollabEditor({ docId, docTitle, me, seed }) {
         <TBtn title="Ordered list" active={can(() => ed.isActive("orderedList"))} onClick={() => run((c) => c.toggleOrderedList().run())}>1.</TBtn>
         <TBtn title="Quote"        active={can(() => ed.isActive("blockquote"))}  onClick={() => run((c) => c.toggleBlockquote().run())}>"</TBtn>
         <TBtn title="Code block"   active={can(() => ed.isActive("codeBlock"))}   onClick={() => run((c) => c.toggleCodeBlock().run())}>{ }</TBtn>
-        <TBtn title="Divider"      onClick={() => run((c) => c.setHorizontalRule().run())}>—</TBtn>
+        <TBtn title="Divider"      onClick={() => run((c) => c.setHorizontalRule().run())}>-</TBtn>
 
         {/* text color picker */}
         <div style={{ position: "relative" }}>
@@ -566,7 +566,7 @@ export default function CollabEditor({ docId, docTitle, me, seed }) {
           )}
         </div>
         <Div />
-        {/* P4.1 — table operations. Insert is always available; the rest only
+        {/* P4.1 - table operations. Insert is always available; the rest only
             light up when the cursor is inside a table. */}
         <TBtn
           title="Insert table"
@@ -581,7 +581,7 @@ export default function CollabEditor({ docId, docTitle, me, seed }) {
             <TBtn title="Delete row"      onClick={() => run((c) => c.deleteRow().run())}>−row</TBtn>
             <TBtn title="Toggle header row" onClick={() => run((c) => c.toggleHeaderRow().run())}>H↔</TBtn>
             <TBtn title="Merge / split cells" onClick={() => run((c) => c.mergeOrSplit().run())}>⊟</TBtn>
-            {/* P4 — cell color picker (status coding). Colors the selected cell(s). */}
+            {/* P4 - cell color picker (status coding). Colors the selected cell(s). */}
             <div style={{ position: "relative" }}>
               <TBtn title="Cell color" active={colorOpen} onClick={() => setColorOpen((o) => !o)}>🎨</TBtn>
               {colorOpen && (

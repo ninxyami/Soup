@@ -78,10 +78,10 @@ export default function HuntTab({ toast }) {
       {history.length ? <table className="ap-t"><thead><tr><th>Type</th><th>Region</th><th>Outcome</th><th>Winner</th><th>Zombies</th><th>Triggered By</th><th>Started</th></tr></thead>
         <tbody>{history.map((h, i) => <tr key={i}>
           <td><span className="ap-pill ap-tier-rare">{(h.hunt_type || "").charAt(0).toUpperCase() + (h.hunt_type || "").slice(1)}</span></td>
-          <td style={{ fontFamily: "var(--mono)" }}>{h.region || "—"}</td>
+          <td style={{ fontFamily: "var(--mono)" }}>{h.region || "-"}</td>
           <td><span className={`ap-pill ${h.outcome === "claimed" ? "ap-tier-uncommon" : "ap-tier-common"}`}>{h.outcome || "running"}</span></td>
-          <td style={{ fontFamily: "var(--mono)", color: "var(--accent)" }}>{h.winner || "—"}</td>
-          <td style={{ fontFamily: "var(--mono)" }}>{h.zombie_count || "—"}</td>
+          <td style={{ fontFamily: "var(--mono)", color: "var(--accent)" }}>{h.winner || "-"}</td>
+          <td style={{ fontFamily: "var(--mono)" }}>{h.zombie_count || "-"}</td>
           <td style={{ fontFamily: "var(--mono)", color: "var(--textdim)" }}>{h.triggered_by || "auto"}</td>
           <td style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)" }}>{fmtFull(h.started_at)}</td>
         </tr>)}</tbody></table> : <Empty text="no hunt history yet" />}

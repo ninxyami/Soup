@@ -13,8 +13,8 @@ export default function EventsPage() {
           <p className="font-mono text-[0.65rem] tracking-[0.3em] text-[#e05555] uppercase mb-3 mt-4">World Events</p>
           <h1 className="text-[1.8rem] sm:text-[2.5rem] tracking-[0.2em] mb-4">THE WORLD</h1>
           <p className="text-[#666] text-[0.88rem] max-w-[560px] leading-relaxed">
-            Events that affect every player simultaneously. Zombie hordes, treasure races, and a job board run
-            by Zombita herself — these are the moments that create server lore and community memory.
+            Things that happen to the whole server: zombie hordes, treasure races, and a quest board run
+            by Zombita herself.
           </p>
         </div>
 
@@ -31,8 +31,8 @@ export default function EventsPage() {
                 </div>
               </div>
               <p className="text-[#666] text-[0.85rem] leading-relaxed mb-6">
-                The flagship world event. A scheduled zombie horde that attacks the entire server on a
-                configurable interval. Built around Lady Dawnie — the lore character named after Admin Dawn,
+                Our main world event. A scheduled zombie horde that attacks the entire server on a
+                configurable interval. Built around Lady Dawnie - the lore character named after Admin Dawn,
                 portrayed as the queen of the undead.
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -65,7 +65,7 @@ export default function EventsPage() {
                       { key: "Wave interval", val: "Configurable (default 10 min)" },
                       { key: "Zombie spawn", val: "Configurable count and radius" },
                       { key: "Narration", val: "Lady Dawnie flavour texts with Zombita voice" },
-                      { key: "Admin trigger", val: "/dotd trigger — fires immediately" },
+                      { key: "Admin trigger", val: "/dotd trigger - fires immediately" },
                     ].map(c => (
                       <div key={c.key} className="flex gap-3 text-[0.72rem]">
                         <span className="font-mono text-[#444] min-w-[90px]">{c.key}</span>
@@ -93,7 +93,7 @@ export default function EventsPage() {
               </div>
               <p className="text-[#666] text-[0.85rem] leading-relaxed mb-6">
                 A world event where Zombita announces a hidden cache of supplies guarded by zombies.
-                Players race to the location in-game — the first to arrive claims the reward using a generated claim code.
+                Players race to the location in-game - the first to arrive claims the reward using a generated claim code.
                 30-minute window before the hunt expires.
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -148,23 +148,23 @@ export default function EventsPage() {
                 <span className="text-3xl">📋</span>
                 <div>
                   <h2 className="!mb-1 !normal-case text-[1.1rem] tracking-[0.1em] text-[#4caf7d]">Zombita&apos;s Jobs</h2>
-                  <p className="font-mono text-[0.65rem] tracking-[0.15em] text-[#555] uppercase">Timed batches · C to S tier · first come, first served</p>
+                  <p className="font-mono text-[0.65rem] tracking-[0.15em] text-[#555] uppercase">Races · D to S tier · crews split the pay</p>
                 </div>
               </div>
               <p className="text-[#666] text-[0.85rem] leading-relaxed mb-6">
-                Every few hours Zombita posts a batch of jobs on everyone&apos;s phone and in Discord. Each job has a few spots:
-                the first taker owns it, the next ones join as a party and everyone gets the full reward.
+                Zombita keeps a board of quests on everyone&apos;s phone, and anyone can race anyone for them. Whoever brings her the code
+                first (or hands in first) wins, and their crew splits the pay.
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                 <div>
                   <p className="font-mono text-[0.6rem] tracking-widest text-[#444] uppercase mb-3">The Jobs</p>
                   <ul className="space-y-2">
                     {[
-                      "Go there - take a look at a place for her",
+                      "Scout - get there, find her note, read her the code",
                       "Bring me - hand in supplies at any kiosk",
-                      "Find the code - a bag with a note, read her the code",
+                      "Treasure - a bag with her note, in the middle of a horde",
                       "Fetch the bag - bring back what she left",
-                      "Marked horde - 10 to 100 zombies in hazard suits",
+                      "Horde hunt - 10 to 200 zombies in hazard suits; the code bag drops when most are down",
                       "Bandit camp - a crew of bandits to wipe out",
                     ].map((f, i) => (
                       <li key={i} className="flex items-start gap-2 text-[0.75rem] text-[#555]" style={{ paddingLeft: 0 }}>
@@ -178,11 +178,11 @@ export default function EventsPage() {
                   <p className="font-mono text-[0.6rem] tracking-widest text-[#444] uppercase mb-3">How It Pays</p>
                   <ol className="space-y-2">
                     {[
-                      "A finished job gives each of you a reward code",
+                      "The winning side gets reward codes, split between the crew who were there",
                       "Enter it on the phone: items arrive in a duffel, coins go to your wallet",
-                      "C, B, A and S tiers pay more and count more toward your Job Rank",
+                      "D to S: bigger tiers pay more and count more toward your Job Rank; A and S are fights only",
                       "Sometimes a job was faked by Lady Dawnie - fight or run, you still get paid",
-                      "Get on Zombita's good side and she may send a special just for you",
+                      "Get on Zombita's good side and she may send you a personal quest",
                     ].map((step, i) => (
                       <li key={i} className="flex items-start gap-2.5 text-[0.75rem] text-[#555]" style={{ paddingLeft: 0 }}>
                         <span className="font-mono text-[0.6rem] text-[#4caf7d] flex-shrink-0 mt-0.5">{String(i + 1).padStart(2, "0")}</span>

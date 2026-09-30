@@ -24,13 +24,13 @@ function langFor(name = "") {
 }
 
 const fmtBytes = (n) => {
-  if (n == null) return "—";
+  if (n == null) return "-";
   if (n < 1024) return `${n} B`;
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
   return `${(n / 1024 / 1024).toFixed(1)} MB`;
 };
 const fmtTime = (t) =>
-  t ? new Date(t * 1000).toLocaleString([], { dateStyle: "short", timeStyle: "short" }) : "—";
+  t ? new Date(t * 1000).toLocaleString([], { dateStyle: "short", timeStyle: "short" }) : "-";
 
 const fileIcon = (e) => {
   if (e.is_dir) return "📁";
@@ -98,7 +98,7 @@ export default function FilesTab({ toast }) {
   const crumbs = (() => {
     const cur = data?.path || path;
     // Show the jail root as a single "zomboid" crumb, then only the segments
-    // BELOW it — the breadcrumb can never navigate above /home/zomboid.
+    // BELOW it - the breadcrumb can never navigate above /home/zomboid.
     const rel = cur.startsWith(JAIL_ROOT) ? cur.slice(JAIL_ROOT.length) : "";
     const parts = rel.split("/").filter(Boolean);
     const out = [{ label: "zomboid", path: JAIL_ROOT }];
@@ -110,7 +110,7 @@ export default function FilesTab({ toast }) {
   // ── Open a file in the editor ───────────────────────────────────────────────
   const openFile = async (e) => {
     if (!e.editable) {
-      notify(`${e.name} isn't an editable text file — use Download.`, "info");
+      notify(`${e.name} isn't an editable text file - use Download.`, "info");
       return;
     }
     setBusy(true);
@@ -265,7 +265,7 @@ export default function FilesTab({ toast }) {
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <div className="ap-files">
-      <Title t="File Browser" s="Browse, edit, upload, and manage server files — every change is tracked." />
+      <Title t="File Browser" s="Browse, edit, upload, and manage server files - every change is tracked." />
 
       {/* Toolbar */}
       <div className="fb-toolbar">
@@ -305,7 +305,7 @@ export default function FilesTab({ toast }) {
       {loading ? (
         <div className="fb-empty">Loading…</div>
       ) : !data ? (
-        <div className="fb-empty">—</div>
+        <div className="fb-empty">-</div>
       ) : data.entries.length === 0 ? (
         <div className="fb-empty">Empty folder.</div>
       ) : (

@@ -9,7 +9,7 @@ const WS_URL = API.replace(/^https/, "wss").replace(/^http/, "ws");
 
 const MAX_LINES = 1000;
 
-// Smart filter presets — each has a list of keywords to match against log lines
+// Smart filter presets - each has a list of keywords to match against log lines
 const FILTER_PRESETS = [
   { key: "all",     label: "📋 All",          keywords: [] },
   { key: "errors",  label: "🔴 Errors",        keywords: ["error", "exception", "failed", "fatal", "crash", "traceback", "s_api fail"] },
@@ -237,7 +237,7 @@ export default function PZConsoleTab() {
         padding: 16,
       } : {}}>
 
-        {/* Fullscreen header — only shown in fullscreen mode */}
+        {/* Fullscreen header - only shown in fullscreen mode */}
         {fullscreen && (
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10, flexShrink: 0 }}>
             <span style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--accent)", letterSpacing: 2 }}>🧟 PZ SERVER CONSOLE</span>
@@ -274,7 +274,7 @@ export default function PZConsoleTab() {
 
         <div className={fullscreen ? "" : "ap-fb"} style={{ padding: 0, overflow: "hidden", flex: fullscreen ? 1 : undefined, display: "flex", flexDirection: "column" }}>
 
-        {/* Custom text filter bar — hidden in fullscreen (header has its own) */}
+        {/* Custom text filter bar - hidden in fullscreen (header has its own) */}
         {!fullscreen && <div style={{
           display: "flex", alignItems: "center", gap: 8,
           padding: "7px 12px", borderBottom: "1px solid var(--border)", background: "var(--surface)",
@@ -346,7 +346,7 @@ export default function PZConsoleTab() {
               fontFamily: "var(--mono)", fontSize: 10, color: "var(--accent)", letterSpacing: 1,
             }}
           >
-            ↓ NEW OUTPUT — click to resume auto-scroll
+            ↓ NEW OUTPUT - click to resume auto-scroll
           </div>
         )}
         </div>{/* end ap-fb / inner */}

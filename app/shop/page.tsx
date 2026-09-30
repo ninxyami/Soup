@@ -76,7 +76,7 @@ interface Treasury {
   health?: string;          // BOOMING / HEALTHY / TIGHT / LOW / CRITICAL, from /api/economy/live when it answers
 }
 
-// Permanent anchors first, then rarity, then price — so the always-available
+// Permanent anchors first, then rarity, then price - so the always-available
 // goods and the rare finds are what you see before any scrolling.
 function sortItems(a: Item, b: Item): number {
   return (Number(b.permanent||false) - Number(a.permanent||false))
@@ -148,7 +148,7 @@ function TreasuryBar({ t }: { t: Treasury | null }) {
       </div>
       <p className="font-mono text-[0.6rem] text-[#3a3a3a] mt-2 m-0">
         {pct.toFixed(1)}% full. Every purchase feeds it, every price reacts to it.{" "}
-        {t.depleted ? "It is running dry — expect her to tighten." : "Buy, sell and survive to keep it moving."}{" "}
+        {t.depleted ? "It is running dry - expect her to tighten." : "Buy, sell and survive to keep it moving."}{" "}
         <a href="/features/economy" className="text-[#4a8fc4] no-underline hover:underline">How the economy works →</a>
       </p>
     </div>
@@ -239,7 +239,7 @@ export default function ShopPage() {
             if (r.ok) {
               const d = await r.json();
               // Tag each item with its home shop so the all-shops view can say
-              // WHERE to go — the same routing the in-game search tab does.
+              // WHERE to go - the same routing the in-game search tab does.
               const list: Item[] = (d.items || []).map((i: Item) => ({ ...i, shop_type: t }));
               results[t] = list.sort(sortItems);
             }
@@ -354,7 +354,7 @@ export default function ShopPage() {
             </button>
           ))}
 
-          {/* Search every shop at once — mirrors the in-game SEARCH tab, which
+          {/* Search every shop at once - mirrors the in-game SEARCH tab, which
               routes any item to its own keeper no matter where you found it. */}
           <button onClick={()=>setActive(ALL)}
             className={`p-3 border text-left transition-all cursor-pointer bg-transparent ${
@@ -364,7 +364,7 @@ export default function ShopPage() {
             <div className="font-mono text-[0.65rem] text-[#4a8fc4] leading-tight">Search all shops</div>
             <div className="font-mono text-[0.55rem] text-[#444] mt-0.5">Every item in rotation</div>
             <div className="font-mono text-[0.55rem] mt-1.5" style={{color:isAll?"#4a8fc4":"#333"}}>
-              {totalAll || "—"} items
+              {totalAll || "-"} items
             </div>
           </button>
         </div>
@@ -390,7 +390,7 @@ export default function ShopPage() {
                 {isAll ? "EVERY SHOP" : shop!.label.toUpperCase()}
               </div>
               <div className="font-mono text-[0.68rem] text-[#555]">
-                {isAll ? "Search the whole network — each result shows its keeper" : `${shop!.npc} · ${shop!.role}`}
+                {isAll ? "Search the whole network - each result shows its keeper" : `${shop!.npc} · ${shop!.role}`}
               </div>
               <div className="font-mono text-[0.6rem] text-[#3a3a3a]">
                 {isAll ? "🗺️ Items are only sold by their own keeper" : `📍 ${shop!.location}`}
@@ -400,7 +400,7 @@ export default function ShopPage() {
               <div className="text-right hidden sm:block flex-shrink-0">
                 <div className="font-mono text-[0.58rem] text-[#3a3a3a] uppercase tracking-widest mb-0.5">Next restock</div>
                 <div className="font-mono text-[0.72rem] text-accent">
-                  {nextTimes[active] ? timeUntil(nextTimes[active]) : "—"}
+                  {nextTimes[active] ? timeUntil(nextTimes[active]) : "-"}
                 </div>
               </div>
             )}
@@ -489,7 +489,7 @@ export default function ShopPage() {
           <div className="px-4 sm:px-5 py-2.5 border-t border-[#1e2530]" style={{background:"rgba(255,255,255,0.01)"}}>
             <p className="font-mono text-[0.6rem] text-[#333]">
               {isAll
-                ? "💡 Every item is sold by its own keeper — the card tells you whose shop to visit."
+                ? "💡 Every item is sold by its own keeper - the card tells you whose shop to visit."
                 : active === "global"
                   ? <>💡 Every general store shows its <strong style={{color:"#555"}}>own part</strong> of this list (it changes with each rotation) - the ★ items are in all of them. Stand at the kiosk and right-click it.</>
                   : <>💡 Go to <strong style={{color:"#555"}}>{shop!.npc}</strong>&apos;s kiosk in {shop!.location} and right-click it. Prices shown include dynamic adjustments.</>}

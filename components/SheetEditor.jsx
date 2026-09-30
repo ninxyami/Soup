@@ -2,14 +2,14 @@
 // @ts-nocheck
 // components/SheetEditor.jsx
 //
-// The collaborative SPREADSHEET surface — now built on react-data-grid (MIT,
+// The collaborative SPREADSHEET surface - now built on react-data-grid (MIT,
 // React-19 compatible) instead of jspreadsheet-ce. The switch fixes the entire
 // class of scroll bugs that plagued the jspreadsheet version: react-data-grid
 // owns its own virtualized scroll viewport, so horizontal/vertical overflow can
 // never escape to the page and drag the sidebar away. Keyboard nav auto-scroll,
 // column resize, and large row counts are all handled natively.
 //
-// COLLABORATION MODEL — UNCHANGED from the jspreadsheet version (the whole point):
+// COLLABORATION MODEL - UNCHANGED from the jspreadsheet version (the whole point):
 //   The sheet is NOT serialized whole-doc. Each cell lives as its own key in a
 //   Yjs Y.Map ("cells"), keyed "r:c" -> string value. Styles + text colors live
 //   in parallel maps. Yjs is the source of truth; the grid is a view.
@@ -19,13 +19,13 @@
 //   resolves last-write-wins. Persists through the SAME pycrdt relay (no backend
 //   change). Structured cells mean Zombita can still read {B5: 750}, not a blob.
 //
-//   IMPORTANT — data preserved: the Yjs maps ("cells"/"styles"/"textColors") and
+//   IMPORTANT - data preserved: the Yjs maps ("cells"/"styles"/"textColors") and
 //   the room name (bare docId) are byte-for-byte the same as the jspreadsheet
 //   version, so every existing sheet loads unchanged. This is a VIEW swap, not a
 //   data migration. The new "colWidths" map is additive (persisted column widths).
 //
 // SSR: react-data-grid touches the DOM, so this loads client-only via
-// next/dynamic({ ssr:false }) from Workspace — same pattern as before.
+// next/dynamic({ ssr:false }) from Workspace - same pattern as before.
 
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import * as Y from "yjs";
@@ -48,7 +48,7 @@ const WS_BASE = "wss://api.stateofundeadpurge.site:8443/ws/workspace";
 
 // Grid geometry. MIN_ROWS is the *minimum* a fresh sheet shows; the grid
 // auto-grows beyond it (computeRowCount). This is what fixes the old
-// "only keeps 30 rows" data-loss bug — we never cap reads at 30.
+// "only keeps 30 rows" data-loss bug - we never cap reads at 30.
 const MIN_ROWS = 30;
 const DEFAULT_COLS = 30;
 const COL_WIDTH = 130;
@@ -82,7 +82,7 @@ const SHEET_CSS = `
 .ss-btn:hover{border-color:var(--accent)}
 .ss-btn.active{border-color:var(--accent);color:var(--accent);background:rgba(200,168,75,0.06)}
 
-/* ── react-data-grid theming — the grid owns its own scroll; we just style it ── */
+/* ── react-data-grid theming - the grid owns its own scroll; we just style it ── */
 .ss-grid-wrap{flex:1;min-height:0;min-width:0;position:relative;display:flex}
 .ss-surface .rdg{
   flex:1; min-height:0; block-size:100%;
@@ -178,7 +178,7 @@ export default function SheetEditor({ docId, me, docTitle }) {
 
     const ydoc = new Y.Doc();
     ydocRef.current = ydoc;
-    const room = docId; // bare docId — backend keys relay room + Postgres row off this
+    const room = docId; // bare docId - backend keys relay room + Postgres row off this
     const provider = new WebsocketProvider(WS_BASE, room, ydoc, { connect: true });
     providerRef.current = provider;
 
@@ -286,7 +286,7 @@ export default function SheetEditor({ docId, me, docTitle }) {
   const onRowsChange = useCallback((newRows, { indexes, column }) => {
     const yCells = cellsRef.current;
     if (!yCells) return;
-    applyingRemote.current = true; // our own write — don't echo a rebuild
+    applyingRemote.current = true; // our own write - don't echo a rebuild
     try {
       for (const i of indexes) {
         const row = newRows[i];
@@ -345,7 +345,7 @@ export default function SheetEditor({ docId, me, docTitle }) {
     const baseR = Number.isFinite(sel.rowIdx) ? sel.rowIdx : 0;
     const baseC = parseInt(String(sel.colKey || "c0").slice(1), 10) || 0;
     let cellCount = 0;
-    applyingRemote.current = true; // our own bulk write — suppress echo rebuilds
+    applyingRemote.current = true; // our own bulk write - suppress echo rebuilds
     try {
       ydoc.transact(() => {                // one transaction = one relay broadcast
         for (let ri = 0; ri < grid.length; ri++) {
@@ -376,8 +376,8 @@ export default function SheetEditor({ docId, me, docTitle }) {
   }, [importCsvText]);
 
   // ── XLSX import (with colours) ──────────────────────────────────────────
-  // CSV can only carry text. To import a STYLED .xlsx — fill colours + font
-  // colours — we hand the file to the backend (routers/workspace_import.py),
+  // CSV can only carry text. To import a STYLED .xlsx - fill colours + font
+  // colours - we hand the file to the backend (routers/workspace_import.py),
   // which reads it with openpyxl and returns three already-mapped maps:
   //   { cells:{ "r:c":text }, styles:{ "r:c":paletteKey }, textColors:{ "r:c":hex } }
   // We then write all three into the SAME Yjs maps the 🎨 button uses, inside a
@@ -426,7 +426,7 @@ export default function SheetEditor({ docId, me, docTitle }) {
       ops.push(["text", shift(k), v]);
     }
 
-    applyingRemote.current = true; // bulk write — suppress echo rebuilds
+    applyingRemote.current = true; // bulk write - suppress echo rebuilds
     try {
       for (let i = 0; i < ops.length; i += BATCH) {
         const slice = ops.slice(i, i + BATCH);
@@ -736,7 +736,7 @@ export default function SheetEditor({ docId, me, docTitle }) {
         </div>
         <button
           className="ss-btn"
-          title="Import a CSV file — fills cells starting at the selected cell (A1 if none)"
+          title="Import a CSV file - fills cells starting at the selected cell (A1 if none)"
           onClick={() => fileInputRef.current?.click()}
         >⬆ Import CSV</button>
         <input
@@ -748,7 +748,7 @@ export default function SheetEditor({ docId, me, docTitle }) {
         />
         <button
           className="ss-btn"
-          title="Import a styled .xlsx — keeps fill colours and font colours, mapped to the sheet palette. Fills from the selected cell."
+          title="Import a styled .xlsx - keeps fill colours and font colours, mapped to the sheet palette. Fills from the selected cell."
           onClick={() => xlsxInputRef.current?.click()}
           disabled={importing}
           style={importing ? { opacity: 0.6, cursor: "wait" } : undefined}
@@ -762,7 +762,7 @@ export default function SheetEditor({ docId, me, docTitle }) {
         />
         <button
           className="ss-btn"
-          title="Download this sheet as a styled .xlsx — keeps fill colours and font colours."
+          title="Download this sheet as a styled .xlsx - keeps fill colours and font colours."
           onClick={onExportXlsx}
           disabled={exporting}
           style={exporting ? { opacity: 0.6, cursor: "wait" } : undefined}
@@ -772,7 +772,7 @@ export default function SheetEditor({ docId, me, docTitle }) {
         </span>
       </div>
 
-      {/* grid — react-data-grid owns its own scroll viewport */}
+      {/* grid - react-data-grid owns its own scroll viewport */}
       <div className="ss-grid-wrap">
         <DataGrid
           columns={columns}

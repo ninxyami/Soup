@@ -85,7 +85,7 @@ const PlayerDetail = ({ p, onBack, toast }) => {
             {txns.length ? <div>{txns.map((e, i) => <div key={i} className="ap-lr">
               <span className="ap-lr-t">{relTime(e.timestamp)}</span>
               <EvBadge type={e.type || "adjust"} />
-              <span className="ap-lr-d">{e.description || "—"}</span>
+              <span className="ap-lr-d">{e.description || "-"}</span>
               <span className={`ap-lr-v ${e.amount > 0 ? "pos" : "neg"}`}>{e.amount > 0 ? "+" : ""}{fmt(e.amount)} 🟤</span>
               <span style={{ color: "var(--textdim)", fontFamily: "var(--mono)", fontSize: 11, minWidth: 80, textAlign: "right" }}>→ {fmt(e.balance_after)}</span>
             </div>)}</div> : <Empty text="no transactions" />}
@@ -148,7 +148,7 @@ export default function PlayersTab({ toast }) {
     <div className="ap-sr" style={{ gridTemplateColumns: "repeat(4,1fr)" }}>
       <SC label="Total Players" value={players.length} />
       <SC label="Active (30d)" value={active30d} color="green" />
-      <SC label="In-Game Now" value={online?.count ?? "—"} color="orange"
+      <SC label="In-Game Now" value={online?.count ?? "-"} color="orange"
         sub={online?.players?.length ? online.players.slice(0, 3).join(", ") + (online.players.length > 3 ? "…" : "") : "nobody online"} />
       <SC label="Shown" value={filtered.length} color="blue" />
     </div>
@@ -164,7 +164,7 @@ export default function PlayersTab({ toast }) {
                 const wr = p.games_played > 0 ? Math.round(p.games_won / p.games_played * 100) : 0;
                 return <tr key={p.discord_id}>
                   <td><div style={{ fontWeight: 500 }}>{p.display_name}</div><div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--textdim)" }}>{p.discord_id}</div></td>
-                  <td style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)" }}>{p.username ? `@${p.username}` : "—"}</td>
+                  <td style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)" }}>{p.username ? `@${p.username}` : "-"}</td>
                   <td style={{ fontFamily: "var(--mono)" }}>{fmt(p.message_count)}</td>
                   <td style={{ fontFamily: "var(--mono)" }}>{p.games_played || 0}</td>
                   <td style={{ fontFamily: "var(--mono)", color: wr > 50 ? "var(--green)" : "var(--textdim)" }}>{wr}%</td>

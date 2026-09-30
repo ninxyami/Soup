@@ -54,7 +54,7 @@ const ActionIcon = ({ action }) => {
 const DiffBadge = ({ old_val, new_val }) => {
   if (old_val === undefined && new_val === undefined) return null;
   const fmt = (v) => {
-    if (v === null || v === undefined) return "—";
+    if (v === null || v === undefined) return "-";
     if (typeof v === "boolean") return v ? "ON" : "OFF";
     return String(v);
   };
@@ -290,8 +290,8 @@ export default function ActivityLogTab({ toast }) {
         {[
           { label: "Total Changes", value: logs.length, color: "var(--accent)" },
           { label: "Today", value: todayCount, color: "var(--green)" },
-          { label: "Last Editor", value: lastEditor ? (ADMINS[lastEditor]?.name || "Unknown") : "—", color: lastEditor ? (ADMINS[lastEditor]?.color || "var(--textdim)") : "var(--textdim)" },
-          { label: "Most Changed", value: topSection ? `${topSection[0]} (${topSection[1]})` : "—", color: "var(--blue)" },
+          { label: "Last Editor", value: lastEditor ? (ADMINS[lastEditor]?.name || "Unknown") : "-", color: lastEditor ? (ADMINS[lastEditor]?.color || "var(--textdim)") : "var(--textdim)" },
+          { label: "Most Changed", value: topSection ? `${topSection[0]} (${topSection[1]})` : "-", color: "var(--blue)" },
         ].map(s => (
           <div key={s.label} style={{ background: "var(--surface)", border: "1px solid var(--border)", padding: "12px 16px", position: "relative", overflow: "hidden" }}>
             <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: s.color }} />

@@ -1,7 +1,7 @@
 "use client";
 // @ts-nocheck
 // app/admin/tabs/TestServerTab.jsx
-// Manage the Project Zomboid TEST server — isolated from the main server.
+// Manage the Project Zomboid TEST server - isolated from the main server.
 // Create / Delete / Start / Stop / Restart + live config editing (RAM, slots, etc.)
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -59,7 +59,7 @@ function StatCard({ label, value, color }) {
       <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--textdim)",
         letterSpacing: 1, marginBottom: 6 }}>{label}</div>
       <div style={{ fontFamily: "var(--mono)", fontSize: 22, fontWeight: 700,
-        color: color || "var(--accent)" }}>{value ?? "—"}</div>
+        color: color || "var(--accent)" }}>{value ?? "-"}</div>
     </div>
   );
 }
@@ -84,7 +84,7 @@ function CreatePanel({ toast, onCreated }) {
         if (res.ports?.suggested_game_port) setGamePort(String(res.ports.suggested_game_port));
         if (res.ports?.suggested_rcon_port) setRconPort(String(res.ports.suggested_rcon_port));
       })
-      .catch(() => {}); // non-fatal — form still works without it
+      .catch(() => {}); // non-fatal - form still works without it
   }, []);
 
   const headroomMb = resources?.memory?.headroom_mb ?? null;
@@ -93,7 +93,7 @@ function CreatePanel({ toast, onCreated }) {
   const create = async () => {
     if (!ramMb || !slots) { toast("RAM and slots are required", "error"); return; }
     if (overBudget) {
-      toast(`That's more than the ${headroomMb} MB free right now — pick a smaller allocation or free up RAM first`, "error");
+      toast(`That's more than the ${headroomMb} MB free right now - pick a smaller allocation or free up RAM first`, "error");
       return;
     }
     setBusy(true);
@@ -130,7 +130,7 @@ function CreatePanel({ toast, onCreated }) {
             color: overBudget ? "var(--red)" : "var(--green)",
           }}>
             {overBudget ? "⚠️" : "✅"} {headroomMb >= 1024 ? `${(headroomMb / 1024).toFixed(1)} GB` : `${headroomMb} MB`} free on this box right now
-            {overBudget ? " — your selected RAM exceeds this" : ""}.
+            {overBudget ? " - your selected RAM exceeds this" : ""}.
             {" "}<a onClick={() => {}} style={{ color: "var(--accent)", cursor: "pointer", textDecoration: "underline" }}>
               See full breakdown in System Resources tab
             </a>
@@ -173,9 +173,9 @@ function CreatePanel({ toast, onCreated }) {
           border: "1px solid rgba(200,168,75,0.2)", borderRadius: 3,
           fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)", lineHeight: 1.7 }}>
           The RAM you pick above becomes the max heap (Xmx). The JVM starts smaller
-          (Xms ≈ ¼ of that, min 512 MB) and grows into it — so it won't grab the
+          (Xms ≈ ¼ of that, min 512 MB) and grows into it - so it won't grab the
           full amount immediately on boot.<br />
-          Ports above are auto-suggested as free — double-check in the
+          Ports above are auto-suggested as free - double-check in the
           {" "}<strong>System Resources</strong> tab if you're not sure.<br />
           Service: <span style={{ color: "var(--accent)" }}>pz-testserver</span><br />
           Saves dir: <span style={{ color: "var(--accent)" }}>/home/zomboid/testserver/</span>
@@ -194,7 +194,7 @@ function CreatePanel({ toast, onCreated }) {
           <div>✅ Separate saves, config and ports</div>
           <div>✅ Full start / stop / restart control</div>
           <div>✅ Adjust RAM without touching main server</div>
-          <div>✅ Wipe / delete anytime — main server unaffected</div>
+          <div>✅ Wipe / delete anytime - main server unaffected</div>
           <div>✅ No Steam VAC (for easy testing)</div>
           <div>✅ Pauses when empty (saves resources)</div>
           <div style={{ marginTop: 14, color: "var(--red)" }}>
@@ -226,14 +226,14 @@ function StatusPanel({ status, toast, onRefresh, setBusy, busy }) {
       {/* Stat row */}
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 24 }}>
         <StatCard label="STATUS"    value={status.running ? "ONLINE" : "OFFLINE"} color={status.running ? "var(--green)" : "var(--red)"} />
-        <StatCard label="UPTIME"    value={status.uptime || (status.running ? "—" : "—")} />
+        <StatCard label="UPTIME"    value={status.uptime || (status.running ? "-" : "-")} />
         <StatCard
           label="HEAP (Xms / Xmx)"
           value={status.ram_mb
             ? `${status.xms_mb ? (status.xms_mb >= 1024 ? (status.xms_mb/1024).toFixed(1)+"G" : status.xms_mb+"M") : "?"} / ${status.ram_mb >= 1024 ? (status.ram_mb/1024).toFixed(1)+"G" : status.ram_mb+"M"}`
-            : "—"}
+            : "-"}
         />
-        <StatCard label="SLOTS"     value={status.slots ?? "—"} />
+        <StatCard label="SLOTS"     value={status.slots ?? "-"} />
         <StatCard label="GAME PORT" value={status.game_port ?? "16262"} color="var(--blue)" />
         <StatCard label="RCON PORT" value={status.rcon_port ?? "27016"} color="var(--blue)" />
       </div>
@@ -337,7 +337,7 @@ function WipeProgressBar({ step, total, label }) {
   );
 }
 
-// Streamed wipe modal — consumes the SSE progress from the backend, same as the
+// Streamed wipe modal - consumes the SSE progress from the backend, same as the
 // main server's wipe. mode = "world" | "pure".
 function WipeModal({ mode, status, onClose, toast, onWiped }) {
   const [phase,    setPhase]    = useState("confirm"); // confirm | running | done
@@ -354,7 +354,7 @@ function WipeModal({ mode, status, onClose, toast, onWiped }) {
     pure: {
       icon:  "☠️", title: "Pure Wipe", color: "var(--red)",
       warning: "FULL RESET of the test server:\n• World & map data\n• Player database (accounts)\n• Config .ini reset to defaults (mods cleared)\n\nThe old .ini is backed up first. This cannot be undone.",
-      label: "YES — Wipe Everything",
+      label: "YES - Wipe Everything",
       endpoint: "/api/admin/testserver/wipe-pure",
     },
   }[mode];
@@ -407,7 +407,7 @@ function WipeModal({ mode, status, onClose, toast, onWiped }) {
             </div>
             {status?.running && (
               <div className="ap-note" style={{ marginTop: 10, fontSize: 11 }}>
-                The test server is running — it will be stopped and restarted automatically. The main server is never touched.
+                The test server is running - it will be stopped and restarted automatically. The main server is never touched.
               </div>
             )}
             <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
@@ -436,7 +436,7 @@ function WipeModal({ mode, status, onClose, toast, onWiped }) {
           <>
             <WipeProgressBar step={1} total={1} label="Complete" />
             <div className="ap-note" style={{ color: "var(--green)", borderColor: "var(--green)" }}>
-              ✅ {cfg.title} complete. Test server is restarting — a fresh world is generating now.
+              ✅ {cfg.title} complete. Test server is restarting - a fresh world is generating now.
             </div>
             <B c="gold" onClick={() => { onWiped?.(); onClose(); }}>Close</B>
           </>
@@ -452,7 +452,7 @@ function WipePanel({ status, toast, onWiped }) {
   return (
     <div>
       <div className="ap-note" style={{ marginBottom: 16 }}>
-        Wipe operations stop the test server, delete files, and restart it — streamed
+        Wipe operations stop the test server, delete files, and restart it - streamed
         live below. The <strong>main server is never affected</strong>. Always confirm before proceeding.
       </div>
 
@@ -467,7 +467,7 @@ function WipePanel({ status, toast, onWiped }) {
 
         <FB title="☠️ PURE WIPE">
           <div className="ap-note danger" style={{ marginBottom: 12 }}>
-            Full reset — world + player database + config <strong>.ini reset to defaults
+            Full reset - world + player database + config <strong>.ini reset to defaults
             (mods cleared)</strong>. The old .ini is backed up first. Also the way to
             fix a test server whose config got messed up.
           </div>
@@ -694,7 +694,7 @@ function ConsolePanel({ status, toast }) {
         <div style={{ marginBottom: 16, padding: "10px 14px", borderRadius: 3,
           background: "rgba(224,85,85,0.1)", border: "1px solid var(--red)",
           fontFamily: "var(--mono)", fontSize: 12, color: "var(--red)" }}>
-          ⚠️ Test server is not running — RCON commands will fail until you start it (Status &amp; Control tab).
+          ⚠️ Test server is not running - RCON commands will fail until you start it (Status &amp; Control tab).
           The log tail below still works and will show output once it boots.
         </div>
       )}
@@ -802,7 +802,7 @@ function ConfigFilesPanel({ status, toast }) {
       setOriginal(content);
       toast(res.message || "Saved", "success");
       if (res.restart_hint) {
-        toast("Server is running — restart it to apply config changes.", "info");
+        toast("Server is running - restart it to apply config changes.", "info");
       }
     } catch (e) {
       toast(`Save failed: ${e.message}`, "error");
@@ -836,7 +836,7 @@ function ConfigFilesPanel({ status, toast }) {
     <div>
       <div className="ap-note" style={{ marginBottom: 16 }}>
         Edit the test server's config files directly. These live in the isolated test
-        cachedir — the <strong>main server is never touched</strong>. Every save backs up
+        cachedir - the <strong>main server is never touched</strong>. Every save backs up
         the previous version first. Restart the server to apply changes.
       </div>
 
@@ -971,7 +971,7 @@ export default function TestServerTab({ toast }) {
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 24, flexWrap: "wrap" }}>
         <div>
-          <Title t="🧪 TEST SERVER" s="Isolated Project Zomboid test instance — separate from main server" />
+          <Title t="🧪 TEST SERVER" s="Isolated Project Zomboid test instance - separate from main server" />
         </div>
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
           {status && <StatusBadge running={status.running} exists={status.exists} />}

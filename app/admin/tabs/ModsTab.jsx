@@ -52,7 +52,7 @@ export default function ModsTab({ toast }) {
       </FB>
       <FB title="QUICK MESSAGES">
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {["Server restarting in 5 minutes", "Server restarting in 1 minute", "Maintenance starting soon", "Event starting! Check Discord!", "Server updated — please reconnect"].map((msg, i) => (
+          {["Server restarting in 5 minutes", "Server restarting in 1 minute", "Maintenance starting soon", "Event starting! Check Discord!", "Server updated - please reconnect"].map((msg, i) => (
             <button key={i} className="ap-pre" style={{ textAlign: "left", padding: 10 }} onClick={() => setBcastMsg(msg)}>{msg}</button>
           ))}
         </div>
@@ -71,7 +71,7 @@ export default function ModsTab({ toast }) {
             <td style={{ fontWeight: 500 }}>{m.name || "Unknown Mod"}</td>
             <td style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)" }}>{m.workshop_id}</td>
             <td><B c="red" sm onClick={() => removeMod(m.workshop_id)}>Remove</B></td>
-          </tr>)}</tbody></table> : <Empty text="No mods loaded — endpoint may not exist yet" />}
+          </tr>)}</tbody></table> : <Empty text="No mods loaded - endpoint may not exist yet" />}
       </TW>
     </>}
   </>);

@@ -122,7 +122,7 @@ const RepDetail = ({ player, onBack, toast }) => {
       {loading ? <Load /> : (<>
         <div className="ap-sr" style={{ gridTemplateColumns: "repeat(3,1fr)" }}>
           <SC label="Rep Points" value={fmt(pts)} color={pts < 0 ? "red" : pts >= 50 ? "green" : ""} sub={tier.label} />
-          <SC label="Archetype" value={rep?.archetype?.replace(/_/g, " ") || "—"} color="purple" />
+          <SC label="Archetype" value={rep?.archetype?.replace(/_/g, " ") || "-"} color="purple" />
           <SC label="Last Analyzed" value={rep?.last_analyzed ? relTime(rep.last_analyzed) : "Never"} color="blue" />
         </div>
 
@@ -202,7 +202,7 @@ const RepDetail = ({ player, onBack, toast }) => {
                   <span className="ap-lr-d" style={{ color: "var(--textdim)", fontSize: 11 }}>
                     {e.context && typeof e.context === "object" && Object.keys(e.context).length > 0
                       ? Object.entries(e.context).map(([k, v]) => `${k}: ${v}`).join(" · ")
-                      : "—"}
+                      : "-"}
                   </span>
                   <span style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--textdim)", minWidth: 90, textAlign: "right" }}>
                     {fmtFull(e.timestamp)}
@@ -357,7 +357,7 @@ export default function ReputationTab({ toast }) {
                         </td>
                         <td><RepBadge pts={r.rep_points ?? 0} /></td>
                         <td style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--purple ?? #9775cc)" }}>
-                          {r.archetype?.replace(/_/g, " ") || <span style={{ color: "var(--muted)" }}>—</span>}
+                          {r.archetype?.replace(/_/g, " ") || <span style={{ color: "var(--muted)" }}>-</span>}
                         </td>
                         <td style={{
                           fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)",

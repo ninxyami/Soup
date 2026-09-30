@@ -1,6 +1,6 @@
 "use client";
 // @ts-nocheck
-// Zombita Data Observatory — a research-grade, read-only window into EVERY table
+// Zombita Data Observatory - a research-grade, read-only window into EVERY table
 // Zombita writes: the hidden gauges (trust/respect/disposition/reputation), mood,
 // per-player knowledge files, cognition, the economy brain, treasury, and shop
 // pricing. Two modes: browse any table (sortable + CSV export) or look up one
@@ -8,7 +8,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { API, fetchApi, relTime, Load, Empty, Title } from "./shared";
 
-// columns whose big-int values are unix timestamps — show a relative hint next to raw
+// columns whose big-int values are unix timestamps - show a relative hint next to raw
 const TIME_COLS = new Set([
   "updated_at","created_at","set_at","decays_at","last_decay","shifted_at",
   "computed_at","requested_at","rotated_at","next_rotation","last_updated",
@@ -24,7 +24,7 @@ const isIdCol = (col) =>
 
 // `names` is an {idString: displayName} map; resolves id columns to "Name (id)".
 const cell = (col, v, names) => {
-  if (v === null || v === undefined || v === "") return <span style={{ color: "var(--muted)" }}>—</span>;
+  if (v === null || v === undefined || v === "") return <span style={{ color: "var(--muted)" }}>-</span>;
   if (isIdCol(col)) {
     // raw id, no thousands-grouping. The name lives in the separate `player`
     // column the backend injects beside discord_id.
@@ -208,7 +208,7 @@ function PersonView({ toast }) {
         <select value={sel} onChange={e => setSel(e.target.value)}
           style={{ background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)",
                    padding: "8px 10px", fontFamily: "var(--mono)", fontSize: 12, minWidth: 260 }}>
-          <option value="">— pick a player ({filtered.length}) —</option>
+          <option value="">- pick a player ({filtered.length}) -</option>
           {filtered.map(p => <option key={p.discord_id} value={p.discord_id}>{p.name} ({p.discord_id})</option>)}
         </select>
       </div>
@@ -264,14 +264,14 @@ export default function ZombitaDataTab({ toast }) {
       .catch(() => {});
   }, []);
 
-  // {idString: name} — resolves discord_id columns to player names in the table view
+  // {idString: name} - resolves discord_id columns to player names in the table view
   const names = useMemo(
     () => Object.fromEntries((people || []).map(p => [p.discord_id, p.name])),
     [people]);
 
   return (
     <div style={{ padding: "4px 2px" }}>
-      <Title t="Zombita Data Observatory" s="Read-only view of every variable Zombita writes — gauges, mood, memory, economy, treasury. Browse any table or look up one person across all gauges. Export any table to CSV." />
+      <Title t="Zombita Data Observatory" s="Read-only view of every variable Zombita writes - gauges, mood, memory, economy, treasury. Browse any table or look up one person across all gauges. Export any table to CSV." />
 
       <div style={{ display: "flex", gap: 8, margin: "14px 0" }}>
         <Btn sm active={mode === "table"} onClick={() => setMode("table")}>By Table</Btn>
@@ -296,7 +296,7 @@ export default function ZombitaDataTab({ toast }) {
                       color: table === t.name ? "var(--accent)" : "var(--textdim)",
                     }}>
                     <span>{t.label}</span>
-                    <span style={{ color: "var(--muted)", fontFamily: "var(--mono)", fontSize: 10 }}>{t.rows ?? "—"}</span>
+                    <span style={{ color: "var(--muted)", fontFamily: "var(--mono)", fontSize: 10 }}>{t.rows ?? "-"}</span>
                   </div>
                 ))}
               </div>

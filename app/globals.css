@@ -21,7 +21,7 @@
   h2 { font-size: 1.1rem; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 1rem; }
   ul { list-style: none; }
   ul li { padding-left: 1rem; position: relative; margin-bottom: 0.5rem; }
-  ul li::before { content: "—"; position: absolute; left: 0; color: #666; }
+  ul li::before { content: "-"; position: absolute; left: 0; color: #666; }
 }
 
 @layer components {

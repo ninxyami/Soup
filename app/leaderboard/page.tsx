@@ -20,7 +20,7 @@ function medal(i: number) {
   return `${i + 1}.`;
 }
 function fmtTime(s: number) {
-  if (!s || s <= 0) return "—";
+  if (!s || s <= 0) return "-";
   const d = Math.floor(s/86400), h = Math.floor((s%86400)/3600), m = Math.floor((s%3600)/60);
   if (d > 0) return `${d}d ${h}h`;
   if (h > 0) return `${h}h ${m}m`;
@@ -162,7 +162,7 @@ export default function LeaderboardPage() {
       </section>
       <div className="divider"/>
 
-      {/* Board selector — scrollable on mobile */}
+      {/* Board selector - scrollable on mobile */}
       <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 pb-1">
         <div className="flex gap-2 mb-8 min-w-max sm:min-w-0 sm:flex-wrap">
           {([["ingame","⚔️ In-Game"],["jobs","📋 Jobs"],["wolf","🐺 Werewolf"],["quiz","🧠 Quizarium"],["rps","🪨 RPS"],["c4","🔴 Connect4"],["chess","♞ Chess"],["arcade","🕹️ Arcade"],["cah","🃏 CAH"],["reputation","📋 Reputation"]] as [BoardType,string][]).map(([id,label])=>(
@@ -178,7 +178,7 @@ export default function LeaderboardPage() {
 
         {board==="ingame" && <div>
           {ingame?.updatedAt && <p className="text-[0.72rem] text-[#444] mb-4">Updated {timeAgo(ingame.updatedAt)}</p>}
-          {/* Sub-tabs — horizontally scrollable */}
+          {/* Sub-tabs - horizontally scrollable */}
           <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
             <div className="flex gap-0 border-b border-[#222] mb-6 min-w-max sm:min-w-0 sm:flex-wrap">
               {tabBtn(ingameTab==="kills",()=>setIngameTab("kills"),"⚔️ Kills")}
@@ -272,7 +272,7 @@ export default function LeaderboardPage() {
         {board==="quiz" && (quiz.length
           ? <div className="overflow-x-auto -mx-2 px-2"><table className="lb-table min-w-full"><thead><tr><th/><th>Player</th><th className="text-right">Pts</th><th className="text-right hidden sm:table-cell">Wins</th><th className="text-right hidden sm:table-cell">Accuracy</th></tr></thead>
               <tbody>{quiz.map((p:any,i:number)=>(
-                <tr key={i} className={`lb-row ${rc(i)}`}><td className="text-center text-sm">{medal(i)}</td><td><a href={`/player?id=${encodeURIComponent(p.display_name)}`} className="hover:text-[#4a7c59] transition-colors">{p.display_name}</a></td><td className="text-right font-mono">{p.total_points}</td><td className="text-right font-mono hidden sm:table-cell">{p.games_won}</td><td className="text-right font-mono hidden sm:table-cell">{p.total_answers>0?Math.round((p.correct_answers/p.total_answers)*100)+'%':'—'}</td></tr>
+                <tr key={i} className={`lb-row ${rc(i)}`}><td className="text-center text-sm">{medal(i)}</td><td><a href={`/player?id=${encodeURIComponent(p.display_name)}`} className="hover:text-[#4a7c59] transition-colors">{p.display_name}</a></td><td className="text-right font-mono">{p.total_points}</td><td className="text-right font-mono hidden sm:table-cell">{p.games_won}</td><td className="text-right font-mono hidden sm:table-cell">{p.total_answers>0?Math.round((p.correct_answers/p.total_answers)*100)+'%':'-'}</td></tr>
               ))}</tbody></table></div>
           : <p className="text-[#555] font-mono text-sm italic">No quiz games yet.</p>
         )}
@@ -285,7 +285,7 @@ export default function LeaderboardPage() {
             {tabBtn(rpsTab==="coins",()=>setRpsTab("coins"),"💰 Coins")}
           </div>
           {rpsTab==="pvp"     && <GameTable rows={[...rpsBoard].sort((a:any,b:any)=>b.wins-a.wins)} c1={p=>`${p.wins}W/${p.losses}L/${p.draws}D`} c2={p=>`${p.win_rate}%`} h1="Record" h2="Win %"/>}
-          {rpsTab==="zombita" && <GameTable rows={[...rpsBoard].sort((a:any,b:any)=>b.vs_zombita.wins-a.vs_zombita.wins)} c1={p=>`${p.vs_zombita.wins}W/${p.vs_zombita.losses}L`} c2={p=>{const t=p.vs_zombita.wins+p.vs_zombita.losses+p.vs_zombita.draws;return t>0?Math.round((p.vs_zombita.wins/t)*100)+'%':'—';}} h1="vs Zombita" h2="Win %"/>}
+          {rpsTab==="zombita" && <GameTable rows={[...rpsBoard].sort((a:any,b:any)=>b.vs_zombita.wins-a.vs_zombita.wins)} c1={p=>`${p.vs_zombita.wins}W/${p.vs_zombita.losses}L`} c2={p=>{const t=p.vs_zombita.wins+p.vs_zombita.losses+p.vs_zombita.draws;return t>0?Math.round((p.vs_zombita.wins/t)*100)+'%':'-';}} h1="vs Zombita" h2="Win %"/>}
           {rpsTab==="coins"   && <GameTable rows={[...rpsBoard].sort((a:any,b:any)=>b.coins_net-a.coins_net)} c1={p=>`${p.coins_won.toLocaleString()} 🟤`} c2={p=>`${p.coins_net>=0?'+':''}${p.coins_net.toLocaleString()}`} h1="Won" h2="Net"/>}
         </div>}
 
@@ -297,7 +297,7 @@ export default function LeaderboardPage() {
             {tabBtn(c4Tab==="coins",()=>setC4Tab("coins"),"💰 Coins")}
           </div>
           {c4Tab==="pvp"     && <GameTable rows={[...c4Board].sort((a:any,b:any)=>b.wins-a.wins)} c1={p=>`${p.wins}W/${p.losses}L/${p.draws}D`} c2={p=>`${p.win_rate}%`} h1="Record" h2="Win %"/>}
-          {c4Tab==="zombita" && <GameTable rows={[...c4Board].sort((a:any,b:any)=>b.vs_zombita.wins-a.vs_zombita.wins)} c1={p=>`${p.vs_zombita.wins}W/${p.vs_zombita.losses}L`} c2={p=>{const t=p.vs_zombita.wins+p.vs_zombita.losses+p.vs_zombita.draws;return t>0?Math.round((p.vs_zombita.wins/t)*100)+'%':'—';}} h1="vs Zombita" h2="Win %"/>}
+          {c4Tab==="zombita" && <GameTable rows={[...c4Board].sort((a:any,b:any)=>b.vs_zombita.wins-a.vs_zombita.wins)} c1={p=>`${p.vs_zombita.wins}W/${p.vs_zombita.losses}L`} c2={p=>{const t=p.vs_zombita.wins+p.vs_zombita.losses+p.vs_zombita.draws;return t>0?Math.round((p.vs_zombita.wins/t)*100)+'%':'-';}} h1="vs Zombita" h2="Win %"/>}
           {c4Tab==="coins"   && <GameTable rows={[...c4Board].sort((a:any,b:any)=>b.coins_net-a.coins_net)} c1={p=>`${p.coins_won.toLocaleString()} 🟤`} c2={p=>`${p.coins_net>=0?'+':''}${p.coins_net.toLocaleString()}`} h1="Won" h2="Net"/>}
         </div>}
 
@@ -312,7 +312,7 @@ export default function LeaderboardPage() {
             <p className="text-[0.72rem] text-[#555] mb-4">Ranked by rating: everyone starts at 1200, beating a stronger player earns more. &quot;new&quot; = under 5 rated games. Games against Zombita don&apos;t count.</p>
             <GameTable rows={chessBoard.filter((p:any)=>p.wins+p.losses+p.draws>0)} c1={p=>`${p.rating ?? 1200}${p.provisional?' new':''}`} c2={p=>`${p.wins}W/${p.losses}L/${p.draws}D`} h1="Rating" h2="Record"/>
           </>}
-          {chessTab==="zombita" && <GameTable rows={[...chessBoard].sort((a:any,b:any)=>b.vs_zombita.wins-a.vs_zombita.wins)} c1={p=>`${p.vs_zombita.wins}W/${p.vs_zombita.losses}L`} c2={p=>{const t=p.vs_zombita.wins+p.vs_zombita.losses+p.vs_zombita.draws;return t>0?Math.round((p.vs_zombita.wins/t)*100)+'%':'—';}} h1="vs Zombita" h2="Win %"/>}
+          {chessTab==="zombita" && <GameTable rows={[...chessBoard].sort((a:any,b:any)=>b.vs_zombita.wins-a.vs_zombita.wins)} c1={p=>`${p.vs_zombita.wins}W/${p.vs_zombita.losses}L`} c2={p=>{const t=p.vs_zombita.wins+p.vs_zombita.losses+p.vs_zombita.draws;return t>0?Math.round((p.vs_zombita.wins/t)*100)+'%':'-';}} h1="vs Zombita" h2="Win %"/>}
           {chessTab==="coins"   && <GameTable rows={[...chessBoard].sort((a:any,b:any)=>b.coins_net-a.coins_net)} c1={p=>`${p.coins_won.toLocaleString()} 🟤`} c2={p=>`${p.coins_net>=0?'+':''}${p.coins_net.toLocaleString()}`} h1="Won" h2="Net"/>}
         </div>}
 
@@ -334,7 +334,7 @@ export default function LeaderboardPage() {
               : <p className="text-[0.72rem] text-[#555] mb-4">The phones&apos; own games. Every week the best scores of the week win 100 / 60 / 30 bronze.</p>}
           {arcadeTab==="paws"
             ? <GameTable rows={arcade?.paws || []} c1={(p:any)=>`Level ${p.level ?? p.best ?? 0}`} c2={(p:any)=>`${p.games||0} boards${p.best_streak>0?` · ${p.best_streak}🔥`:''}`} h1="Level" h2="Boards · streak"/>
-            : <GameTable rows={arcade?.[arcadeTab] || []} c1={(p:any)=>(p.best||0).toLocaleString()} c2={(p:any)=>p.week_best>0?(p.week_best||0).toLocaleString():"—"} h1="Best" h2="This week"/>}
+            : <GameTable rows={arcade?.[arcadeTab] || []} c1={(p:any)=>(p.best||0).toLocaleString()} c2={(p:any)=>p.week_best>0?(p.week_best||0).toLocaleString():"-"} h1="Best" h2="This week"/>}
         </div>}
 
         {board==="cah" && <div>
@@ -412,7 +412,7 @@ export default function LeaderboardPage() {
               </div>
           }
           <p className="font-mono text-[0.65rem] text-[#333] mt-6 italic">
-            Reputation is Zombita&apos;s cumulative impression — not just what they achieved, but how they showed up.
+            Reputation is Zombita&apos;s overall impression of a player, built up over the season.
           </p>
         </div>}
 

@@ -144,7 +144,7 @@ export default function VehiclesAnimalsTab({ toast }) {
         <NumberField label="Days Until Max Rat Index" value={cfg.DaysUntilMaximumRatIndex} onChange={set("DaysUntilMaximumRatIndex")} min={0} max={365} />
       </Section>
 
-      <SaveBar dirty={dirty} saving={saving} onSave={save} onReset={() => setCfg({ ...orig })} label="Unsaved vehicle & animal changes — server restart required" />
+      <SaveBar dirty={dirty} saving={saving} onSave={save} onReset={() => setCfg({ ...orig })} label="Unsaved vehicle & animal changes - server restart required" />
     </>
   );
 }

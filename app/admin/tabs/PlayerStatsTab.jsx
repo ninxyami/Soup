@@ -3,14 +3,14 @@
 // Player Stats: what the in-game stat recorder has for each player, laid out for people.
 // Every player in one sortable table; click one for all their numbers in sections
 // (time, towns, kills, weapons, hunting, PvP, deaths, skills, activities, Dawn of the Dead)
-// and their recent events. Read-only — see routers/admin_player_stats.py.
+// and their recent events. Read-only - see routers/admin_player_stats.py.
 // The raw tables are still in Zombita Data.
 import { useState, useEffect, useCallback, useMemo, Fragment } from "react";
 import { fetchApi, relTime, fmtFull, fmt, Title, SC, TW, B, Load, Empty } from "./shared";
 
 const mono = { fontFamily: "var(--mono)", fontSize: 12 };
 const dim = { ...mono, color: "var(--textdim)" };
-const num = (v, unit) => (v == null ? "—" : `${Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 })}${unit ? " " + unit : ""}`);
+const num = (v, unit) => (v == null ? "-" : `${Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 })}${unit ? " " + unit : ""}`);
 
 const COLS = [
   { key: "name", label: "Player", text: true },
@@ -95,7 +95,7 @@ const PlayerDetail = ({ name, season, onClose, toast }) => {
         <SC label="Online" value={num(val("time", "Online"), "h")} sub={`AFK ${num(val("time", "AFK (standing still 10+ min)"), "h")}`} />
         <SC label="Zombie kills" value={num(sec.kills?.total)} color="gold" sub={topWeapon ? `mostly ${topWeapon.label}` : ""} />
         <SC label="Deaths" value={num(sec.deaths?.total)} color="red" sub={`PvP kills ${num(val("pvp", "Players killed"))}`} />
-        <SC label="Most time in" value={sec.towns?.rows?.[0]?.label || "—"} color="blue" sub={sec.towns?.rows?.[0] ? num(sec.towns.rows[0].value, "h") : ""} />
+        <SC label="Most time in" value={sec.towns?.rows?.[0]?.label || "-"} color="blue" sub={sec.towns?.rows?.[0] ? num(sec.towns.rows[0].value, "h") : ""} />
       </div>
       <div className="ap-3c" style={{ alignItems: "start" }}>
         {d.sections.map(s => <SectionCard key={s.key} s={s} />)}
@@ -110,8 +110,8 @@ const PlayerDetail = ({ name, season, onClose, toast }) => {
               <td style={{ ...mono, color: t.nice ? "var(--green)" : undefined }}>{t.nice}</td>
               <td style={{ ...mono, color: t.mean ? "var(--red)" : undefined }}>{t.mean}</td>
               <td style={mono}>{t.zombita_nice} nice / {t.zombita_mean} mean</td>
-              <td style={{ ...mono, color: t.troll ? "var(--orange)" : undefined }}>{t.troll ? "yes" : "—"}</td>
-              <td style={dim}>{t.note || "—"}</td>
+              <td style={{ ...mono, color: t.troll ? "var(--orange)" : undefined }}>{t.troll ? "yes" : "-"}</td>
+              <td style={dim}>{t.note || "-"}</td>
             </tr>)}
           </tbody></table></div>}
       </TW>
@@ -121,8 +121,8 @@ const PlayerDetail = ({ name, season, onClose, toast }) => {
             {d.events.map((e, i) => <tr key={i}>
               <td style={dim}>{fmtFull(e.ts)}</td>
               <td style={mono}>{EVENT_LABELS[e.kind] || e.kind}</td>
-              <td style={mono}>{e.town || "—"}{e.x != null && <span style={dim}> ({e.x}, {e.y})</span>}</td>
-              <td style={dim}>{Object.entries(e.data || {}).map(([k, v]) => `${k}: ${typeof v === "object" ? JSON.stringify(v) : v}`).join(" · ") || "—"}</td>
+              <td style={mono}>{e.town || "-"}{e.x != null && <span style={dim}> ({e.x}, {e.y})</span>}</td>
+              <td style={dim}>{Object.entries(e.data || {}).map(([k, v]) => `${k}: ${typeof v === "object" ? JSON.stringify(v) : v}`).join(" · ") || "-"}</td>
             </tr>)}
           </tbody></table></div>}
       </TW>
@@ -213,10 +213,10 @@ export default function PlayerStatsTab({ toast }) {
               <td style={{ ...mono, color: p.mean ? "var(--red)" : undefined }}>{fmt(p.mean)}</td>
               <td style={mono}>{num(p.walk_km)}</td>
               <td style={mono}>{num(p.drive_km)}</td>
-              <td style={mono}>{p.top_town || "—"}</td>
-              <td style={mono}>{p.top_weapon || "—"}</td>
+              <td style={mono}>{p.top_town || "-"}</td>
+              <td style={mono}>{p.top_weapon || "-"}</td>
               <td style={mono}>{fmt(p.dotd)}</td>
-              <td style={dim}>{p.last_seen ? relTime(p.last_seen) : "—"}</td>
+              <td style={dim}>{p.last_seen ? relTime(p.last_seen) : "-"}</td>
             </tr>)}
           </tbody></table></div>}
       </TW>

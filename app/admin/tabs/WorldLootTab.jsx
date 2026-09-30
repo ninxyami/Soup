@@ -307,7 +307,7 @@ export default function WorldLootTab({ toast }) {
         <ToggleField label="Fire Spreads" description="Fire propagates to nearby tiles" value={cfg.FireSpread} onChange={set("FireSpread")} />
       </Section>
 
-      <SaveBar dirty={dirty} saving={saving} onSave={save} onReset={() => setCfg({ ...orig })} label="Unsaved world & loot changes — server restart required" />
+      <SaveBar dirty={dirty} saving={saving} onSave={save} onReset={() => setCfg({ ...orig })} label="Unsaved world & loot changes - server restart required" />
     </>
   );
 }

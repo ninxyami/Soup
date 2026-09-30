@@ -67,7 +67,7 @@ const CategoryBadge = ({ cat }) => {
 };
 
 const TimeAgo = ({ ts }) => {
-  if (!ts) return <span style={{ color: "var(--textdim)" }}>—</span>;
+  if (!ts) return <span style={{ color: "var(--textdim)" }}>-</span>;
   const s = Math.floor((Date.now() - new Date(ts)) / 1000);
   if (s < 60) return <span>{s}s ago</span>;
   if (s < 3600) return <span>{Math.floor(s / 60)}m ago</span>;
@@ -111,7 +111,7 @@ const AddModModal = ({ onClose, onAdd, toast }) => {
     if (!name.trim()) { toast("Mod name is required", "error"); return; }
     // Clean mod IDs - strip trailing semicolons and whitespace
     const cleanModIds = modIds.split(";").map(m => m.trim()).filter(Boolean).join(";");
-    if (!cleanModIds) { toast("Mod ID is required — check the Steam description", "error"); return; }
+    if (!cleanModIds) { toast("Mod ID is required - check the Steam description", "error"); return; }
     setLoading(true);
     try {
       await onAdd({ workshop_id: workshopId, name: name.trim(), mod_ids: cleanModIds, category, notes, status });
@@ -138,20 +138,20 @@ const AddModModal = ({ onClose, onAdd, toast }) => {
 
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <div>
-            <FieldLabel label="Steam Workshop URL or ID" description="Paste the link — name and mod IDs will auto-fill from Steam" />
+            <FieldLabel label="Steam Workshop URL or ID" description="Paste the link - name and mod IDs will auto-fill from Steam" />
             <TextInput value={input} onChange={setInput} placeholder="https://steamcommunity.com/sharedfiles/filedetails/?id=3171167894" />
-            {workshopId && !fetching && <div style={{ fontSize: 11, color: "var(--green)", fontFamily: "var(--mono)", marginTop: 4 }}>✓ Workshop ID: {workshopId}{fetched ? " — auto-filled from Steam" : ""}</div>}
+            {workshopId && !fetching && <div style={{ fontSize: 11, color: "var(--green)", fontFamily: "var(--mono)", marginTop: 4 }}>✓ Workshop ID: {workshopId}{fetched ? " - auto-filled from Steam" : ""}</div>}
             {workshopId && fetching && <div style={{ fontSize: 11, color: "var(--accent)", fontFamily: "var(--mono)", marginTop: 4 }}>⏳ Looking up on Steam...</div>}
             {input && !workshopId && <div style={{ fontSize: 11, color: "var(--red)", fontFamily: "var(--mono)", marginTop: 4 }}>✗ Could not parse workshop ID</div>}
           </div>
 
           <div>
-            <FieldLabel label="Mod Name" description="Auto-filled from Steam — edit if needed" />
+            <FieldLabel label="Mod Name" description="Auto-filled from Steam - edit if needed" />
             <TextInput value={name} onChange={setName} placeholder="that DAMN Library" />
           </div>
 
           <div>
-            <FieldLabel label="Mod IDs (semicolon separated)" description="Auto-filled from Steam description — edit if needed" />
+            <FieldLabel label="Mod IDs (semicolon separated)" description="Auto-filled from Steam description - edit if needed" />
             <TextInput value={modIds} onChange={setModIds} placeholder="damnlib" />
           </div>
 
@@ -201,7 +201,7 @@ const ModRow = ({ mod, index, selected, onSelect, onToggle, onRemove, onStatusCh
   const [editModIds, setEditModIds] = useState(null); // null = not editing, string = editing
   const admin = ADMINS[mod.added_by] || { name: "Unknown", color: "#4a5568", initials: "??" };
   const modKey = mod.workshop_id || mod.mod_ids;
-  // Clean display of mod_ids — strip trailing semicolons
+  // Clean display of mod_ids - strip trailing semicolons
   const displayModIds = (mod.mod_ids || "").split(";").map(m => m.trim()).filter(Boolean).join("; ");
 
   return (
@@ -313,7 +313,7 @@ const ModRow = ({ mod, index, selected, onSelect, onToggle, onRemove, onStatusCh
                   </div>
                 ) : (
                   <div style={{ display: "flex", gap: 6, alignItems: "center" }} onClick={e => e.stopPropagation()}>
-                    <span style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--text)" }}>{displayModIds || "—"}</span>
+                    <span style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--text)" }}>{displayModIds || "-"}</span>
                     <button onClick={() => setEditModIds(mod.mod_ids || "")} style={{ background: "none", border: "1px solid var(--border)", color: "var(--textdim)", padding: "2px 8px", cursor: "pointer", fontFamily: "var(--mono)", fontSize: 9 }}>✏ Edit</button>
                   </div>
                 )}
@@ -404,7 +404,7 @@ const MapsManager = ({ maps, setMaps, toast, currentUser, registryMods }) => {
         </div>
         <div style={{ background: "var(--surface)", border: "1px solid var(--border)", overflow: "hidden" }}>
           {maps.length === 0 ? (
-            <div style={{ padding: 20, textAlign: "center", color: "var(--textdim)", fontFamily: "var(--mono)", fontSize: 12 }}>No maps active — add maps below</div>
+            <div style={{ padding: 20, textAlign: "center", color: "var(--textdim)", fontFamily: "var(--mono)", fontSize: 12 }}>No maps active - add maps below</div>
           ) : maps.map((mapId, idx) => (
             <div
               key={mapId}
@@ -539,14 +539,14 @@ const IniImporter = ({ onImportMods, onImportMaps, toast }) => {
         notes: "Imported from INI paste",
       }));
     } else if (result.modIds.length > 0) {
-      // Only mod IDs, no workshop IDs — still useful
+      // Only mod IDs, no workshop IDs - still useful
       result.mods = result.modIds.map(modId => ({
         workshop_id: "",
         name: modId,
         mod_ids: modId,
         category: "other",
         status: "testing",
-        notes: "Imported from INI paste (no workshop ID — add manually)",
+        notes: "Imported from INI paste (no workshop ID - add manually)",
       }));
     }
 
@@ -630,7 +630,7 @@ const IniImporter = ({ onImportMods, onImportMaps, toast }) => {
                     {parsed.mods.map((m, i) => (
                       <tr key={i}>
                         <td style={{ padding: "6px 14px", borderBottom: "1px solid rgba(30,37,48,.4)", fontFamily: "var(--mono)", fontSize: 11, color: m.workshop_id ? "var(--text)" : "var(--red)" }}>
-                          {m.workshop_id || "—"}
+                          {m.workshop_id || "-"}
                           {m.workshop_id && (
                             <a href={`https://steamcommunity.com/sharedfiles/filedetails/?id=${m.workshop_id}`} target="_blank" rel="noopener noreferrer"
                               style={{ marginLeft: 6, color: "var(--blue)", fontSize: 10 }}>↗</a>
@@ -714,7 +714,7 @@ const BulkAddMods = ({ toast, onDone }) => {
   const [category, setCategory] = useState("other");
 
   const parsIds = (text) => {
-    // Extract workshop IDs from text — supports URLs, raw IDs, mixed
+    // Extract workshop IDs from text - supports URLs, raw IDs, mixed
     const ids = [];
     const seen = new Set();
     // Match URLs with ?id=XXXX
@@ -763,7 +763,7 @@ const BulkAddMods = ({ toast, onDone }) => {
       <div style={{ marginBottom: 16, padding: "12px 16px", background: "rgba(76,175,125,0.06)", border: "1px solid rgba(76,175,125,0.2)" }}>
         <div style={{ fontSize: 12, color: "var(--green)", marginBottom: 4, fontWeight: 500 }}>Bulk Add Mods</div>
         <div style={{ fontSize: 11, color: "var(--textdim)", lineHeight: 1.5 }}>
-          Paste a bunch of Steam Workshop URLs or IDs — one per line, comma separated, or mixed. The system looks them all up on Steam at once, shows you what it found, and lets you add them all in one click.
+          Paste a bunch of Steam Workshop URLs or IDs - one per line, comma separated, or mixed. The system looks them all up on Steam at once, shows you what it found, and lets you add them all in one click.
         </div>
       </div>
 
@@ -833,7 +833,7 @@ const BulkAddMods = ({ toast, onDone }) => {
                       {r.title || "Not found on Steam"}
                     </td>
                     <td style={{ padding: "6px 14px", borderBottom: "1px solid rgba(30,37,48,.4)", fontFamily: "var(--mono)", fontSize: 11, color: r.mod_ids ? "var(--green)" : "var(--textdim)" }}>
-                      {r.mod_ids || "—"}
+                      {r.mod_ids || "-"}
                     </td>
                   </tr>
                 ))}
@@ -973,7 +973,7 @@ const LuaImporter = ({ toast }) => {
       const changes = [];
       for (const [key, value] of Object.entries(parsed)) {
         if (typeof value === "object" && value !== null) {
-          // Nested block — send each sub-key
+          // Nested block - send each sub-key
           for (const [subKey, subVal] of Object.entries(value)) {
             changes.push({ key: subKey, value: subVal });
           }
@@ -1201,11 +1201,11 @@ export default function ModsMapTab({ toast, currentUser }) {
 
   useEffect(() => { load(); }, [load]);
 
-  // P1: live-refresh the mod list when another admin changes mods — but NOT
+  // P1: live-refresh the mod list when another admin changes mods - but NOT
   // while this admin is mid-drag (would jump the list under their cursor).
   useLiveRefresh("mods", load, {
     shouldReload: () => dragOver === null,
-    onSkip: () => toast?.("Mods changed by another admin — finish your edit to see updates", "info"),
+    onSkip: () => toast?.("Mods changed by another admin - finish your edit to see updates", "info"),
   });
 
   const handleMapChange = (newMaps) => {
@@ -1371,7 +1371,7 @@ export default function ModsMapTab({ toast, currentUser }) {
             background: "rgba(200,168,75,0.06)", border: "1px solid var(--accent)",
           }}>
             <span style={{ flex: 1, fontSize: 11, color: "var(--accent)", fontFamily: "var(--mono)" }}>
-              ⚠ Mod order changed — this affects load order in the server. Libraries should be first.
+              ⚠ Mod order changed - this affects load order in the server. Libraries should be first.
             </span>
             <Btn color="ghost" sm onClick={() => { load(); setOrderDirty(false); }}>Discard</Btn>
             <Btn color="green" sm onClick={saveOrder}>💾 Save Order to INI</Btn>
@@ -1413,7 +1413,7 @@ export default function ModsMapTab({ toast, currentUser }) {
                         border: `1px solid ${selected.size > 0 ? "var(--accent)" : "var(--border)"}`,
                         display: "flex", alignItems: "center", justifyContent: "center",
                         fontSize: 10, color: "#fff",
-                      }}>{selected.size > 0 && selected.size === filteredMods.length ? "✓" : selected.size > 0 ? "—" : ""}</div>
+                      }}>{selected.size > 0 && selected.size === filteredMods.length ? "✓" : selected.size > 0 ? "-" : ""}</div>
                       <span style={{ fontSize: 10, letterSpacing: 2, color: "var(--textdim)", fontFamily: "var(--mono)" }}>#</span>
                     </div>
                   </th>
@@ -1485,10 +1485,10 @@ export default function ModsMapTab({ toast, currentUser }) {
       </>}
 
       {sub === "import" && <IniImporter onImportMods={(imported) => {
-        // Merge imported mods with existing — skip duplicates by workshop_id
+        // Merge imported mods with existing - skip duplicates by workshop_id
         const existingIds = new Set(mods.map(m => m.workshop_id));
         const newMods = imported.filter(m => !existingIds.has(m.workshop_id));
-        if (newMods.length === 0) { toast("All mods already in list — nothing to import", "info"); return; }
+        if (newMods.length === 0) { toast("All mods already in list - nothing to import", "info"); return; }
         // Add each via API
         const doImport = async () => {
           let added = 0;
@@ -1506,7 +1506,7 @@ export default function ModsMapTab({ toast, currentUser }) {
         const merged = [...new Set([...maps, ...importedMaps])];
         setMaps(merged);
         setMapsDirty(true);
-        toast(`Imported ${importedMaps.length} map entries — review in Map List tab`, "success");
+        toast(`Imported ${importedMaps.length} map entries - review in Map List tab`, "success");
       }} toast={toast} />}
 
       {sub === "lua" && <LuaImporter toast={toast} />}

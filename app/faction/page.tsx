@@ -3,21 +3,21 @@
 // One faction's page (/faction?id=<fid>): banner, logo, members with their numbers, former members,
 // history, the faction wallet, ranks, recruitment, the log. The founder unlocks it here (1 silver);
 // what each member may do comes from their rank (viewer.perms); members pay into the wallet.
-// Everything that moves money is a button the person presses — nothing is charged on its own.
+// Everything that moves money is a button the person presses - nothing is charged on its own.
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { API } from "@/lib/constants";
 import { FactionLogo, FactionBanner, fmtBronze } from "@/components/FactionBits";
 
 function fmtGameTime(hours: number) {
-  if (!hours || hours <= 0) return "—";
+  if (!hours || hours <= 0) return "-";
   const days = hours / 24, years = Math.floor(days / 360), rem = days - years * 360, months = Math.floor(rem / 30), d = Math.floor(rem - months * 30), h = Math.floor(hours % 24);
   if (years > 0) return `${years}y ${months}mo`;
   if (months > 0) return `${months}mo ${d}d`;
   if (d > 0) return `${d}d ${h}h`;
   return `${h}h`;
 }
-const day = (ts: number) => (ts ? new Date(ts * 1000).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—");
+const day = (ts: number) => (ts ? new Date(ts * 1000).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "-");
 const when = (ts: number) => (ts ? new Date(ts * 1000).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "");
 
 async function post(path: string, body?: any) {
@@ -140,7 +140,7 @@ export default function FactionPage() {
           <div className="text-[0.8rem] text-[#9a9a9a] mt-1">A private Discord channel for your members, this page with your own logo and banner, and a faction wallet. One payment of <b className="text-[#c8a84b]">{fmtBronze(f.unlockFee)}</b> from your wallet{f.viewerBalance != null ? <> (you have {fmtBronze(f.viewerBalance)})</> : null}. Nothing is charged until you press the button.</div>
           <div className="mt-3">
             <Btn gold disabled={busy || (f.viewerBalance != null && f.viewerBalance < f.unlockFee)} onClick={() => { if (confirm(`Pay ${fmtBronze(f.unlockFee)} to unlock ${f.name}?`)) act(() => post(`/api/factions/${fid}/unlock`)); }}>
-              {f.viewerBalance != null && f.viewerBalance < f.unlockFee ? `You need ${fmtBronze(f.unlockFee)}` : `Unlock — ${fmtBronze(f.unlockFee)}`}
+              {f.viewerBalance != null && f.viewerBalance < f.unlockFee ? `You need ${fmtBronze(f.unlockFee)}` : `Unlock - ${fmtBronze(f.unlockFee)}`}
             </Btn>
           </div>
         </div>
@@ -157,7 +157,7 @@ export default function FactionPage() {
       )}
       {v.canApply && !v.invited && !v.applied && (
         <div className="mt-4 border border-[#222] p-4 flex items-center gap-3 flex-wrap">
-          <span className="text-[0.85rem] text-[#9a9a9a]"><b className="text-[#e6e6e6]">{f.name}</b> is recruiting{f.blurb ? <> — &ldquo;{f.blurb}&rdquo;</> : null}.</span>
+          <span className="text-[0.85rem] text-[#9a9a9a]"><b className="text-[#e6e6e6]">{f.name}</b> is recruiting{f.blurb ? <> - &ldquo;{f.blurb}&rdquo;</> : null}.</span>
           <Btn gold disabled={busy} onClick={() => act(() => post(`/api/factions/${fid}/apply`))}>Apply to join</Btn>
         </div>
       )}
@@ -185,7 +185,7 @@ export default function FactionPage() {
               </div>
             </div>}
             {P.RECRUIT && <div className="border border-[#222] p-3">
-              <div className="font-mono text-[0.65rem] text-[#9a9a9a] mb-2">Recruitment — {f.recruiting ? <span className="text-[#4a7c59]">OPEN, listed on the board</span> : "closed"}</div>
+              <div className="font-mono text-[0.65rem] text-[#9a9a9a] mb-2">Recruitment - {f.recruiting ? <span className="text-[#4a7c59]">OPEN, listed on the board</span> : "closed"}</div>
               <div className="flex gap-2 flex-wrap items-center">
                 <input value={blurb} maxLength={240} onChange={(e: any) => setBlurb(e.target.value)} placeholder="Why join? (shown on the board)" className="flex-1 min-w-[200px] bg-[#0b0b0b] border border-[#333] text-[#e6e6e6] text-[0.8rem] px-2 py-1 focus:border-[#c8a84b] outline-none" />
                 <Btn disabled={busy} onClick={() => act(() => post(`/api/factions/${fid}/recruiting`, { on: true, blurb }))}>{f.recruiting ? "Save pitch" : "Open recruitment"}</Btn>
@@ -215,12 +215,12 @@ export default function FactionPage() {
           {P.EDIT_RANKS && (
             <div className="border border-[#222] p-3 mt-3">
               <div className="flex items-baseline justify-between gap-2 flex-wrap">
-                <div className="font-mono text-[0.65rem] text-[#9a9a9a]">Ranks — lowest first; the owner is above all of them. Up to 8.</div>
+                <div className="font-mono text-[0.65rem] text-[#9a9a9a]">Ranks - lowest first; the owner is above all of them. Up to 8.</div>
                 <Btn disabled={busy} onClick={() => setEditRanks(!editRanks)}>{editRanks ? "Cancel" : "Edit ranks"}</Btn>
               </div>
               {!editRanks ? (
                 <div className="mt-2 font-mono text-[0.7rem] text-[#9a9a9a]">
-                  {(f.rankLadder || []).map((r: any, i: number) => <div key={i}><span className="text-[#e6e6e6]">{i + 1}. {r.name}</span> <span className="text-[#555]">— {Object.keys(r.perms || {}).filter((p) => r.perms[p]).map((p) => PERM_TEXT[p] || p).join(", ") || "nothing special"}</span></div>)}
+                  {(f.rankLadder || []).map((r: any, i: number) => <div key={i}><span className="text-[#e6e6e6]">{i + 1}. {r.name}</span> <span className="text-[#555]">- {Object.keys(r.perms || {}).filter((p) => r.perms[p]).map((p) => PERM_TEXT[p] || p).join(", ") || "nothing special"}</span></div>)}
                 </div>
               ) : (
                 <div className="mt-2 overflow-x-auto">
@@ -368,7 +368,7 @@ export default function FactionPage() {
           ) : (
             <div className="border border-[#222] p-3 font-mono text-[0.7rem] text-[#9a9a9a]">
               No claim yet. Plant one <b className="text-[#e6e6e6]">in game</b> (faction window &rarr; PLANT THE CLAIM HERE, where you stand): it becomes the faction&rsquo;s safehouse, the owner&rsquo;s, with every member on it.
-              <div className="mt-1 text-[#555]">Outpost {fmtBronze(costs[1]?.[0])} (r{costs[1]?.[1]}) &middot; Compound {fmtBronze(costs[2]?.[0])} (r{costs[2]?.[1]}) &middot; Stronghold {fmtBronze(costs[3]?.[0])} (r{costs[3]?.[1]}) &mdash; from the faction wallet; upgrades cost the difference.</div>
+              <div className="mt-1 text-[#555]">Outpost {fmtBronze(costs[1]?.[0])} (r{costs[1]?.[1]}) &middot; Compound {fmtBronze(costs[2]?.[0])} (r{costs[2]?.[1]}) &middot; Stronghold {fmtBronze(costs[3]?.[0])} (r{costs[3]?.[1]}) - from the faction wallet; upgrades cost the difference.</div>
             </div>
           )}
         </Sec>

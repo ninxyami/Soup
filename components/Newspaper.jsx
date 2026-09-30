@@ -140,7 +140,7 @@ export default function Newspaper({ paper }) {
                 ))}
               </div>
             )}
-            {paper.editor_note && <div className="np-note">{paper.editor_note} &mdash; Zombita</div>}
+            {paper.editor_note && <div className="np-note">{paper.editor_note} - Zombita</div>}
           </div>
         </div>
         <div className="np-board">

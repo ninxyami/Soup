@@ -39,7 +39,7 @@ export default function SeasonsPage() {
       <section className="mb-10">
         <p className="font-mono text-[0.62rem] tracking-[0.3em] text-[#c8a84b] uppercase mb-3">Current Season</p>
         <h1 className="text-[1.8rem] tracking-[0.18em] uppercase mb-2 leading-none">
-          {loading ? "—" : data.name}
+          {loading ? "-" : data.name}
         </h1>
         <div className="flex items-center gap-3">
           <span
@@ -85,7 +85,7 @@ export default function SeasonsPage() {
           <div key={label} className="border border-[#1a1a1a] bg-[#0a0d10] p-4 relative overflow-hidden">
             <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#c8a84b11] to-transparent" />
             <p className="font-mono text-[0.58rem] tracking-[0.2em] uppercase text-[#444] mb-1">{label}</p>
-            <p className="font-mono text-[0.82rem] text-[#c8c8c8] mb-0.5">{loading ? "—" : value}</p>
+            <p className="font-mono text-[0.82rem] text-[#c8c8c8] mb-0.5">{loading ? "-" : value}</p>
             <p className="font-mono text-[0.6rem] text-[#333]">{note}</p>
           </div>
         ))}

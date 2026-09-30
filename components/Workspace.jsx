@@ -9,10 +9,10 @@
 // the other lost "new document". Now there is exactly one.
 //
 // Props:
-//   me    — { id, name, color, initials }  resolved identity (each host supplies
+//   me    - { id, name, color, initials }  resolved identity (each host supplies
 //           it after its own auth gate). REQUIRED for the live editors.
-//   toast — optional (msg, type) => void   for success/error notifications.
-//   fillViewport — when true, the surface fills 100% of its parent's height
+//   toast - optional (msg, type) => void   for success/error notifications.
+//   fillViewport - when true, the surface fills 100% of its parent's height
 //           (standalone page, which gives it 100vh). When false/omitted it uses
 //           a self-contained 78vh box (admin panel, whose <main> scrolls).
 //
@@ -171,7 +171,7 @@ export default function Workspace({ me, toast, fillViewport = false }) {
       const d = await postApi(`/api/workspace/documents/${docId}/versions/${versionId}/restore`, {});
       toast?.(
         d.live_push
-          ? "Restored — open editors updated live."
+          ? "Restored - open editors updated live."
           : "Restored. Reopen the document to see it.",
         "success"
       );
@@ -336,7 +336,7 @@ export default function Workspace({ me, toast, fillViewport = false }) {
   };
 
   // When a document becomes active: mark it seen (clears its NEW badge for me)
-  // and load its change history. Opening the doc IS the acknowledgment — no button.
+  // and load its change history. Opening the doc IS the acknowledgment - no button.
   useEffect(() => {
     if (activeDoc?.id) {
       markSeen(activeDoc.id);
@@ -363,7 +363,7 @@ export default function Workspace({ me, toast, fillViewport = false }) {
   // Outer height: standalone page gives a 100vh parent → fill it; admin <main>
   // scrolls, so use a self-contained tall box. Either way the grid below gets a
   // DEFINITE height so the editor's sticky Save toolbar can anchor (this was the
-  // bug — an unsized parent collapsed the toolbar off-screen).
+  // bug - an unsized parent collapsed the toolbar off-screen).
   const outerStyle = fillViewport
     ? { height: "100%", display: "flex", flexDirection: "column", minHeight: 0 }
     : {};
@@ -403,7 +403,7 @@ export default function Workspace({ me, toast, fillViewport = false }) {
       ` }} />
 
       {activeConfig && me ? (
-        // Config files open as a full-pane takeover — the SAME dedicated
+        // Config files open as a full-pane takeover - the SAME dedicated
         // full-height layout the original /workspace used (where the Save
         // toolbar always worked). Not crammed into the grid cell beside the
         // sidebar, which is the layout that never showed the toolbar.
@@ -425,7 +425,7 @@ export default function Workspace({ me, toast, fillViewport = false }) {
       <div style={gridStyle}>
         {/* ── LEFT RAIL ── */}
         <div style={{ borderRight: "1px solid var(--border)", display: "flex", flexDirection: "column", minHeight: 0 }}>
-          {/* SERVER CONFIG — live co-edit of the raw ini / sandbox files */}
+          {/* SERVER CONFIG - live co-edit of the raw ini / sandbox files */}
           <div style={{ borderBottom: "1px solid var(--border)" }}>
             <div style={{ padding: "12px 14px 8px" }}>
               <span style={{ fontFamily: "var(--mono)", fontSize: 10, letterSpacing: 2, color: "var(--textdim)", textTransform: "uppercase" }}>
@@ -574,7 +574,7 @@ export default function Workspace({ me, toast, fillViewport = false }) {
                                 // escalate: fresh = soft accent; older = hotter + pulse
                                 const hot = d >= 2;
                                 return (
-                                  <span title={`NEW — edited by ${unreadByDoc[doc.id]?.last_editor_name || "someone"} ${relTime(unreadByDoc[doc.id]?.updated_at)}`} style={{
+                                  <span title={`NEW - edited by ${unreadByDoc[doc.id]?.last_editor_name || "someone"} ${relTime(unreadByDoc[doc.id]?.updated_at)}`} style={{
                                     flexShrink: 0, fontFamily: "var(--mono)", fontSize: 8.5, fontWeight: 800,
                                     letterSpacing: 0.5, padding: "1px 5px", borderRadius: 3,
                                     color: "#0b0d10",
@@ -685,7 +685,7 @@ export default function Workspace({ me, toast, fillViewport = false }) {
               </div>
               <div style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--textdim)", letterSpacing: 1, lineHeight: 1.8, maxWidth: 360 }}>
                 {projects.length === 0
-                  ? "Open a config file or create a project on the left, add a document, and start planning together — live."
+                  ? "Open a config file or create a project on the left, add a document, and start planning together - live."
                   : "Pick a document or a config file from the left to open it."}
               </div>
             </div>
@@ -702,7 +702,7 @@ export default function Workspace({ me, toast, fillViewport = false }) {
               className="wsx-inp" autoFocus value={newProj.name}
               onChange={(e) => setNewProj((p) => ({ ...p, name: e.target.value }))}
               onKeyDown={(e) => e.key === "Enter" && createProject()}
-              placeholder="e.g. Zomboid — Season 2"
+              placeholder="e.g. Zomboid - Season 2"
             />
           </Field>
           <Field label="Kind">
@@ -843,7 +843,7 @@ function Modal({ title, onClose, children }) {
 }
 
 // ── CHANGES PANEL ── the "who changed what" timeline (Feature 2).
-// Reads /api/workspace/documents/{id}/changes — attributed block/cell edits.
+// Reads /api/workspace/documents/{id}/changes - attributed block/cell edits.
 function VersionsPanel({ versions, loading, restoringId, onRestore, onRefresh, onClose }) {
   const [confirmId, setConfirmId] = useState(null);
 

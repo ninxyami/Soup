@@ -1,7 +1,7 @@
 "use client";
 // @ts-nocheck
 // app/admin/tabs/SystemResourcesTab.jsx
-// "Can I afford a test server?" dashboard — total RAM, what's using it, free
+// "Can I afford a test server?" dashboard - total RAM, what's using it, free
 // ports, and a live inventory of every PZ server instance on the box.
 
 import { useState, useEffect, useCallback } from "react";
@@ -19,7 +19,7 @@ const COLOR_MAP = {
 };
 
 function fmtMb(mb) {
-  if (mb == null) return "—";
+  if (mb == null) return "-";
   return mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${mb} MB`;
 }
 
@@ -137,7 +137,7 @@ function PortRow({ row }) {
       <span style={{ color: inUse ? "var(--red)" : "var(--green)", width: 70 }}>
         {inUse ? "IN USE" : "FREE"}
       </span>
-      <span style={{ color: "var(--textdim)", flex: 1 }}>{row.label || "—"}</span>
+      <span style={{ color: "var(--textdim)", flex: 1 }}>{row.label || "-"}</span>
     </div>
   );
 }
@@ -149,7 +149,7 @@ function PortsPanel({ ports }) {
   return (
     <FB title="🔌 PORT MAP">
       <div className="ap-note" style={{ marginBottom: 14 }}>
-        Reserved / known ports on this box — check before assigning a new server's ports.
+        Reserved / known ports on this box - check before assigning a new server's ports.
       </div>
 
       <div style={{ display: "flex", gap: 24, flexWrap: "wrap", marginBottom: 16 }}>
@@ -212,8 +212,8 @@ function ServerCard({ s }) {
       <div style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--textdim)", lineHeight: 1.8 }}>
         <div>RAM (live): <span style={{ color: "var(--text)" }}>{fmtMb(s.ram_mb)}</span></div>
         {s.ram_allocated_mb && <div>RAM (allocated): <span style={{ color: "var(--text)" }}>{fmtMb(s.ram_allocated_mb)}</span></div>}
-        <div>Game port: <span style={{ color: "var(--accent)" }}>{s.game_port ?? "—"}</span></div>
-        <div>RCON port: <span style={{ color: "var(--accent)" }}>{s.rcon_port ?? "—"}</span></div>
+        <div>Game port: <span style={{ color: "var(--accent)" }}>{s.game_port ?? "-"}</span></div>
+        <div>RCON port: <span style={{ color: "var(--accent)" }}>{s.rcon_port ?? "-"}</span></div>
         {s.description && <div>Purpose: <span style={{ color: "var(--text)" }}>{s.description}</span></div>}
         {s.created_by && <div>Created by: <span style={{ color: "var(--text)" }}>{s.created_by}</span></div>}
       </div>
@@ -265,7 +265,7 @@ export default function SystemResourcesTab({ toast }) {
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 24, flexWrap: "wrap" }}>
-        <Title t="📊 SYSTEM RESOURCES" s="RAM usage, port availability, and server inventory — check this before provisioning a test server" />
+        <Title t="📊 SYSTEM RESOURCES" s="RAM usage, port availability, and server inventory - check this before provisioning a test server" />
         <B c="ghost" sm onClick={load} style={{ marginLeft: "auto" }}>⟳ Refresh</B>
       </div>
 

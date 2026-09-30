@@ -129,7 +129,7 @@ export default function SkillsXPTab({ toast }) {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
           <div>
             <div style={{ fontSize: 12, color: "var(--accent)", fontFamily: "var(--mono)", letterSpacing: 1 }}>GLOBAL MULTIPLIER MODE</div>
-            <div style={{ fontSize: 11, color: "var(--textdim)", marginTop: 2 }}>When ON — all skills use the single Global rate below, ignoring individual settings</div>
+            <div style={{ fontSize: 11, color: "var(--textdim)", marginTop: 2 }}>When ON - all skills use the single Global rate below, ignoring individual settings</div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ fontSize: 11, color: "var(--textdim)", fontFamily: "var(--mono)" }}>
@@ -231,7 +231,7 @@ export default function SkillsXPTab({ toast }) {
           <FieldLabel label="Negative Traits Penalty" description="Diminishing returns on stacking negative traits" />
           <select value={cfg.NegativeTraitsPenalty} onChange={e => set("NegativeTraitsPenalty")(Number(e.target.value))}
             style={{ width: "100%", background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", padding: "8px 10px", fontFamily: "var(--mono)", fontSize: 12 }}>
-            <option value={1}>None — Stack freely</option>
+            <option value={1}>None - Stack freely</option>
             <option value={2}>-1 point per 3 negative traits</option>
             <option value={3}>-1 point per 2 negative traits</option>
             <option value={4}>-1 point per negative trait after first</option>
@@ -239,7 +239,7 @@ export default function SkillsXPTab({ toast }) {
         </div>
       </Section>
 
-      <SaveBar dirty={dirty} saving={saving} onSave={save} onReset={() => setCfg({ ...orig })} label="Unsaved skill changes — server restart required" />
+      <SaveBar dirty={dirty} saving={saving} onSave={save} onReset={() => setCfg({ ...orig })} label="Unsaved skill changes - server restart required" />
     </>
   );
 }

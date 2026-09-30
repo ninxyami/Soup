@@ -7,15 +7,15 @@ const GAMES = [
     name: "Werewolf",
     color: "#e05555",
     tagline: "Social deduction. 20+ roles. Zombita narrated.",
-    desc: "The flagship mini-game. A full-featured social deduction game where players are secretly assigned roles and must survive the night — or eliminate the village by day.",
+    desc: "Our biggest game. Everyone gets a secret role: the village hunts the wolves by day, the wolves hunt the village by night.",
     mechanics: [
       "20+ roles including Cupid, Gunner, Detective, Blacksmith, Mayor, Serial Killer",
-      "Night actions handled via Discord DMs — no public reveals until morning",
-      "Zombita narrates key events in her dry, observational voice — deaths, votes, dramatic turns",
-      "Role reveal embeds, voting embeds, and live game state tracking",
+      "Night actions handled via Discord DMs - no public reveals until morning",
+      "Zombita narrates key events in her dry, observational voice - deaths, votes, dramatic turns",
+      "Roles, votes and the state of the game all shown in Discord",
       "Werewolf win earns 300 bronze from treasury + reputation events",
     ],
-    rewards: "300 bronze (win) · Reputation: werewolf_win, werewolf_survived, werewolf_clutch",
+    rewards: "300 bronze (win) · counts toward your reputation",
     command: "/werewolf",
     detailHref: "/features/werewolf",
   },
@@ -24,31 +24,31 @@ const GAMES = [
     name: "Quizarium",
     color: "#4a8fc4",
     tagline: "Speed trivia. 5 categories. Global leaderboard.",
-    desc: "A fast-paced trivia game where speed matters as much as accuracy. Questions come from 5 categories — correct answers score points based on how quickly you answered.",
+    desc: "Trivia where speed counts: the faster you get it right, the more points you score. Five categories.",
     mechanics: [
       "5 question categories covering a range of topics",
-      "Speed-scored — faster answers earn more points",
+      "Speed-scored - faster answers earn more points",
       "Global leaderboard tracking wins, correct answers, and games played",
       "Perfect game achievements tracked separately",
       "Weekly winner earns 300 bronze from treasury",
     ],
-    rewards: "300 bronze (weekly win) · Reputation: quizarium_win, quizarium_perfect, quizarium_dominant",
+    rewards: "300 bronze (weekly win) · counts toward your reputation",
     command: "/quiz",
   },
   {
     icon: "🃏",
     name: "Cards Against Humanity",
     color: "#9775cc",
-    tagline: "Zombita judges. In character. No mercy.",
-    desc: "The classic game, fully implemented with Zombita as the judge. She reads every submission and picks her favourite — in character, with full personality. It's genuinely funny.",
+    tagline: "Zombita judges, and she doesn't hold back.",
+    desc: "The party card game with Zombita as the judge. She reads every answer and picks her favourite, in character.",
     mechanics: [
       "Full CAH deck with black and white cards",
-      "Zombita judges every round in her own voice — she votes with her actual personality",
-      "cah_zombita_approved reputation event for when she personally approves your card",
-      "All games logged to cah_game_log and cah_stats tables",
+      "Zombita judges every round in her own voice",
+      "A reputation bonus when she really likes your card",
+      "Every game counts toward the leaderboards",
       "CAH win earns 200 bronze from treasury",
     ],
-    rewards: "200 bronze (win) · Reputation: cah_win, cah_played, cah_zombita_approved",
+    rewards: "200 bronze (win) · counts toward your reputation",
     command: "/cah",
   },
   {
@@ -56,10 +56,10 @@ const GAMES = [
     name: "Rock Paper Scissors",
     color: "#4caf7d",
     tagline: "Simple. Bettable. Zombita plays too.",
-    desc: "Player vs player or player vs Zombita. Optional coin bets with a 5% rake flowing to the treasury. Full stats tracked — including separate vs-Zombita breakdowns.",
+    desc: "Player vs player or player vs Zombita. Optional coin bets with a 5% rake flowing to the treasury. Your record is kept, with a separate one against Zombita.",
     mechanics: [
       "Challenge any player or Zombita with /rps",
-      "Optional coin bet — both players wager the same amount",
+      "Optional coin bet - both players wager the same amount",
       "5% rake on bets goes to treasury",
       "Separate stats tracked for vs-players and vs-Zombita",
       "Total coins won/lost tracked over the season",
@@ -72,16 +72,16 @@ const GAMES = [
     name: "Connect Four",
     color: "#c8a84b",
     tagline: "6×7 board. Discord buttons. Live updates.",
-    desc: "A full Connect Four implementation using Discord's button UI. The board lives inside a Discord message and updates in place as players take turns clicking column buttons.",
+    desc: "Connect Four inside a Discord message. Take turns tapping a column to drop your piece.",
     mechanics: [
       "6 rows × 7 columns, full win detection (horizontal, vertical, diagonal)",
-      "Each column is a Discord button — tap to drop your piece",
+      "Each column is a Discord button - tap to drop your piece",
       "Board updates live in the same message each turn",
-      "60-second turn timer — too slow and you forfeit",
-      "60-second challenge timer — opponent must accept before it expires",
+      "60-second turn timer - too slow and you forfeit",
+      "60-second challenge timer - opponent must accept before it expires",
       "5% rake on coin bets goes to treasury",
     ],
-    rewards: "Coin bets (variable) · Stats: wins, losses, draws tracked in c4_stats",
+    rewards: "Coin bets (variable) · Stats: wins, losses, draws",
     command: "/connect4",
   },
 ];
@@ -98,8 +98,8 @@ export default function GamesPage() {
           <p className="font-mono text-[0.65rem] tracking-[0.3em] text-[#4a8fc4] uppercase mb-3 mt-4">Mini-Games</p>
           <h1 className="text-[1.8rem] sm:text-[2.5rem] tracking-[0.2em] mb-4">GAMES</h1>
           <p className="text-[#666] text-[0.88rem] max-w-[560px] leading-relaxed">
-            Five fully custom games built into Zombita. Stats are tracked across the season, 
-            winners earn treasury bronze, and reputation events fire on notable achievements.
+            Five games built into Zombita. Your stats last all season, 
+            winners get bronze from the treasury, and good plays count toward your reputation.
           </p>
         </div>
 

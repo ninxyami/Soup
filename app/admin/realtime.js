@@ -2,11 +2,11 @@
 // @ts-nocheck
 // app/admin/realtime.js
 //
-// P1 foundation — the shared real-time layer for the whole admin panel.
+// P1 foundation - the shared real-time layer for the whole admin panel.
 //
 // PROBLEM with the old approach: AdminPanel used `<ActivePanel key={refreshKey}>`
 // and bumped refreshKey on EVERY change broadcast. That remounts the entire tab
-// from scratch on any change anywhere — losing scroll, open modals, in-progress
+// from scratch on any change anywhere - losing scroll, open modals, in-progress
 // typing, and firing even for changes the tab doesn't care about.
 //
 // THIS replaces that with a surgical model:
@@ -155,7 +155,7 @@ export function RealtimeProvider({ enabled = true, onToast, children }) {
 
 // ── Feature 1: live change-flash overlay ──
 // A small stack of fading pings in the corner: actor-colored dot + "Dawnie
-// changed shop". Inherited by the whole panel — no per-tab work needed.
+// changed shop". Inherited by the whole panel - no per-tab work needed.
 const FLASH_ADMINS = {
   228533264174940160: { name: "Nin Nin",   color: "#c8a84b" },
   698164264950693950: { name: "Nikki",     color: "#4a8fc4" },
@@ -267,7 +267,7 @@ export function useLiveRefresh(scope, reloadFn, opts = {}) {
       }, debounceMs);
     });
     return () => { unsub(); };
-    // Depends ONLY on ctx (now a stable object) — subscribe once, live-read
+    // Depends ONLY on ctx (now a stable object) - subscribe once, live-read
     // scope via ref. We do NOT clear the pending timer here, so a queued reload
     // still fires even if this effect re-runs.
   }, [ctx]); // eslint-disable-line react-hooks/exhaustive-deps

@@ -97,7 +97,7 @@ function LiveStatus() {
                 </div>
                 <p className="font-mono text-[0.58rem] text-[#2a2a2a] mt-1.5">
                   {status.player_count === 0
-                    ? "No survivors online — first one in sets the tone."
+                    ? "No survivors online - first one in sets the tone."
                     : status.player_count === 1
                     ? "One survivor out there. Could be you next."
                     : `${status.player_count} survivors in the field right now.`}
@@ -157,17 +157,17 @@ const FEATURES = [
   },
   {
     icon: "💰", title: "Economy Engine", slug: "economy", href: "/features/economy",
-    desc: "Full closed-loop economy — dynamic pricing, a treasury, 39 general-store kiosks plus 8 specialists, a scratch-card lottery.",
+    desc: "Full closed-loop economy - dynamic pricing, a treasury, 39 general-store kiosks plus 8 specialists, a scratch-card lottery.",
     tags: ["Bronze/Silver/Gold", "Dynamic", "Marketplace"],
   },
   {
     icon: "🐺", title: "Mini-Games", slug: "games", href: "/features/games",
-    desc: "Werewolf with 20+ roles, Quizarium, Cards Against Zombita, Chess, RPS, Connect Four — on Discord and on your in-game phone.",
+    desc: "Werewolf with 20+ roles, Quizarium, Cards Against Zombita, Chess, RPS, Connect Four - on Discord and on your in-game phone.",
     tags: ["Werewolf", "Chess", "Arcade"],
   },
   {
     icon: "💀", title: "World Events", slug: "events", href: "/features/events",
-    desc: "Lady Dawnie's Dawn of the Dead hordes and Treasure Hunts — moments the whole server lives through together.",
+    desc: "Lady Dawnie's Dawn of the Dead hordes and treasure hunts, for everyone online at once.",
     tags: ["DotD", "Treasure Hunt", "Lady Dawnie"],
   },
   {
@@ -177,8 +177,8 @@ const FEATURES = [
   },
   {
     icon: "📋", title: "Zombita's Jobs", slug: null, href: "/jobs",
-    desc: "Zombita posts jobs on your phone every few hours — hordes, bandit camps, errands. First come, first served. Take them here too.",
-    tags: ["C to S Tier", "Job Rank", "Parties"],
+    desc: "Race other players for Zombita's quests on your phone. Whoever brings her the code first gets paid. Take them here too.",
+    tags: ["D to S Tier", "Job Rank", "Crews"],
   },
 ];
 
@@ -236,18 +236,18 @@ export default function HomePage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-16 items-center">
             <div>
               <p className="font-mono text-[0.65rem] tracking-[0.3em] text-[#4a7c59] uppercase mb-3">About the Server</p>
-              <h2 className="text-[1.4rem] tracking-[0.12em] mb-4 !normal-case">Not Just a Game Server</h2>
+              <h2 className="text-[1.4rem] tracking-[0.12em] mb-4 !normal-case">What Runs Behind It</h2>
               <p className="text-[#777] text-[0.88rem] leading-relaxed mb-3">
                 SoUP is a long-term, PVE-focused private server where progress is slow by design and seasons last.
-                But the server itself is just part of the picture.
+                The game server is only half of it.
               </p>
               <p className="text-[#666] text-[0.85rem] leading-relaxed mb-3">
-                Behind it runs <span className="text-[#e6e6e6]">Zombita</span> — a fully custom Discord bot with her
+                Next to it runs <span className="text-[#e6e6e6]">Zombita</span>, our own Discord bot, with her
                 own personality, memory, and opinions. She manages a live economy, hosts games, narrates events,
                 and keeps track of every player&apos;s reputation over the entire season.
               </p>
               <p className="text-[#555] text-[0.82rem] leading-relaxed">
-                This website is her front-end — shop, marketplace, leaderboards, community feed, and a full admin
+                This website is her front end: the shop, marketplace, leaderboards, community feed, and a full admin
                 panel with live server console.
               </p>
             </div>
@@ -310,12 +310,12 @@ export default function HomePage() {
                 <p className="font-mono text-[0.65rem] tracking-[0.3em] text-[#9775cc] uppercase mb-3">Meet Zombita</p>
                 <h2 className="!mb-4 !normal-case text-[1.3rem] tracking-[0.1em]">Your Server&apos;s AI Personality</h2>
                 <p className="text-[#666] text-[0.85rem] leading-relaxed mb-3">
-                  Zombita is not a generic bot. She holds real conversations and passively watches
-                  every channel — chiming in without being asked, on her own terms.
+                  Zombita talks with people, reads the channels
+                  and sometimes jumps in without being asked.
                 </p>
                 <p className="text-[#555] text-[0.82rem] leading-relaxed mb-4">
                   She has a 4-layer memory system, tracks every player&apos;s reputation across the whole season,
-                  and writes her own announcements. She forms opinions. She remembers things. She has favourites.
+                  and writes her own announcements. She has opinions about people, and yes, she has favourites.
                 </p>
                 <div className="flex flex-wrap gap-2 mb-5">
                   {["4-Layer Memory", "27 Mood States", "Daily Reputation Analysis", "Passive Perception", "Announcements"].map(t => (
@@ -348,9 +348,9 @@ export default function HomePage() {
               <p className="font-mono text-[0.65rem] tracking-[0.3em] text-[#c8a84b] uppercase mb-3">Economy System</p>
               <h2 className="!mb-4 !normal-case text-[1.2rem] tracking-[0.1em]">A Living Economy</h2>
               <p className="text-[#666] text-[0.85rem] leading-relaxed mb-3">
-                Not a coin system — a full economic simulation. Prices shift with treasury health,
+                A real economy with a limited money supply. Prices shift with treasury health,
                 player wealth, and item demand, always within 0.7×–1.8× of the base price, and every item costs the same in every shop.
-                The whole thing runs without admin intervention.
+                It runs on its own from day to day.
               </p>
               <div className="space-y-2 mb-5">
                 {[
@@ -378,14 +378,14 @@ export default function HomePage() {
               <p className="font-mono text-[0.65rem] tracking-[0.3em] text-[#e05555] uppercase mb-3">World Events</p>
               <h2 className="!mb-4 !normal-case text-[1.2rem] tracking-[0.1em]">The World Reacts</h2>
               <p className="text-[#666] text-[0.85rem] leading-relaxed mb-3">
-                Zombie hordes, treasure hunts and a job board run by Zombita herself. Events that affect every player
-                and create server lore — moments people talk about weeks later.
+                Zombie hordes, treasure hunts and Zombita's quest board. The big ones hit everyone online at once,
+                and people are still talking about them the week after.
               </p>
               <div className="space-y-2 mb-5">
                 {[
                   { icon: "💀", label: "Dawn of the Dead", desc: "Lady Dawnie's multi-wave hordes, spawned by the game" },
                   { icon: "🗺️", label: "Treasure Hunt", desc: "Race to claim hidden caches" },
-                  { icon: "📋", label: "Zombita's Jobs", desc: "New jobs every few hours, C to S tier" },
+                  { icon: "📋", label: "Zombita's Jobs", desc: "Quests all day, D to S tier" },
                   { icon: "📰", label: "The Weekly Paper", desc: "Written by Zombita, delivered in game" },
                 ].map(item => (
                   <div key={item.label} className="flex items-center gap-3 border border-[#1a1a1a] px-3 py-2.5 bg-[#0a0d10]">

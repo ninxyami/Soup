@@ -54,7 +54,7 @@ function RotationPanel({ toast }) {
     setForcing(shopType);
     try {
       const d = await postApi("/api/admin/marketplace/force-rotate", { shop_type: shopType });
-      toast(`✅ ${SHOPS[shopType]?.npc}'s shop rotated — ${d.items?.length || 0} items`, "success");
+      toast(`✅ ${SHOPS[shopType]?.npc}'s shop rotated - ${d.items?.length || 0} items`, "success");
       load();
     } catch (e) { toast(e.message, "error"); }
     finally { setForcing(null); }
@@ -81,7 +81,7 @@ function RotationPanel({ toast }) {
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
               <div>
                 <div className="ap-title" style={{ fontSize: 14, marginBottom: 2 }}>{shopInfo.npc}</div>
-                <div className="ap-sub">{items.length} items · Next restock: {nextRot ? timeUntil(nextRot) : "—"}</div>
+                <div className="ap-sub">{items.length} items · Next restock: {nextRot ? timeUntil(nextRot) : "-"}</div>
               </div>
               <div style={{ flex: 1 }} />
               <B c="orange" sm onClick={() => forceRotate(shopType)} disabled={forcing === shopType}>
@@ -105,7 +105,7 @@ function RotationPanel({ toast }) {
                     <tr key={item.item_id}>
                       <td className="admin-td" style={{ color: TIER_COLOR[item.tier] || "#9ca3af", fontWeight: 500 }}>{item.name}</td>
                       <td className="admin-td"><code style={{ fontSize: 11, color: "#555" }}>{item.item_id}</code></td>
-                      <td className="admin-td">{item.buy != null ? `${item.buy.toLocaleString()} 🟤` : "—"}</td>
+                      <td className="admin-td">{item.buy != null ? `${item.buy.toLocaleString()} 🟤` : "-"}</td>
                       <td className="admin-td">
                         <span style={{ color: TIER_COLOR[item.tier], fontSize: 11, textTransform: "capitalize" }}>
                           {item.tier}
@@ -335,7 +335,7 @@ function PricingPanel({ toast }) {
     setRunning(true);
     try {
       const d = await postApi("/api/admin/marketplace/run-pricing", {});
-      toast(`✅ Pricing pass complete — ${d.repriced} items repriced`, "success");
+      toast(`✅ Pricing pass complete - ${d.repriced} items repriced`, "success");
       load();
     } catch (e) { toast(e.message, "error"); }
     finally { setRunning(false); }
@@ -388,7 +388,7 @@ function PricingPanel({ toast }) {
                       <td className="admin-td"><code style={{ fontSize: 10 }}>{item_id}</code></td>
                       <td className="admin-td">{ov.buy_price?.toLocaleString()} 🟤</td>
                       <td className="admin-td" style={{ color: up ? "#e05555" : dn ? "#4caf7d" : "#6b7280" }}>
-                        {up ? "▲" : dn ? "▼" : "—"} {f.toFixed(2)}×
+                        {up ? "▲" : dn ? "▼" : "-"} {f.toFixed(2)}×
                       </td>
                       <td className="admin-td">{relTime(ov.computed_at)}</td>
                       <td className="admin-td">

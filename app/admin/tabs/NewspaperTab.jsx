@@ -19,7 +19,7 @@ const STATUS_TEXT = {
 };
 
 const putApi = (path, body) => fetchApi(path, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-const when = (ts) => (ts ? fmtFull(ts) + " UTC" : "—");
+const when = (ts) => (ts ? fmtFull(ts) + " UTC" : "-");
 
 // ── the editor ───────────────────────────────────────────────────────────────
 function Editor({ issue, templates, layouts, onSaved, toast }) {
@@ -267,7 +267,7 @@ export default function NewspaperTab({ toast }) {
       </TW>
 
       {sel && (
-        <TW title={`EDITOR — No. ${sel.issue_no} (${sel.status})`} right={<span style={{ ...mono, color: "#777" }}>the preview updates as you type; Save puts your name on the paper</span>}>
+        <TW title={`EDITOR - No. ${sel.issue_no} (${sel.status})`} right={<span style={{ ...mono, color: "#777" }}>the preview updates as you type; Save puts your name on the paper</span>}>
           <Editor issue={sel} templates={st.templates} layouts={st.layouts} toast={toast} onSaved={(i) => { setSel(i); load(); }} />
         </TW>
       )}
@@ -281,8 +281,8 @@ export default function NewspaperTab({ toast }) {
               <td style={{ ...mono, color: col(i.status) }}>{i.status}</td>
               <td style={mono}>{(i.paper.headline || {}).title}</td>
               <td style={mono}>{when(i.written_at)}</td>
-              <td style={mono}>{i.decided_by || "—"}</td>
-              <td style={mono}>{i.contributors?.length ? i.contributors.join(", ") : "—"}</td>
+              <td style={mono}>{i.decided_by || "-"}</td>
+              <td style={mono}>{i.contributors?.length ? i.contributors.join(", ") : "-"}</td>
               <td style={{ whiteSpace: "nowrap" }}><B c="ghost" sm onClick={() => setSel(i)}>open</B>
                 {i.status === "published" && <> <B c="ghost" sm disabled={busy} onClick={() => takeDown(i)}>take down</B></>}
                 {i.status === "withdrawn" && <> <B c="ghost" sm disabled={busy} onClick={() => act(i, "publish", "Put it back out (website, hub, and a new post in the news channel)?")}>publish again</B></>}</td>

@@ -119,7 +119,7 @@ export default function ConsoleTab() {
     if (wsRef.current && wsRef.current.readyState === 1) {
       wsRef.current.send(JSON.stringify({ action: "rcon", command: c }));
     } else {
-      addLine({ source: "system", line: "⚠ Not connected — command not sent", color: "warn" });
+      addLine({ source: "system", line: "⚠ Not connected - command not sent", color: "warn" });
     }
     setCmd("");
     cmdRef.current?.focus();
@@ -148,7 +148,7 @@ export default function ConsoleTab() {
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div>
-      <Title t="🖥️ Service Logs" s="Live log viewer — Bot · API · Shop Watcher" />
+      <Title t="🖥️ Service Logs" s="Live log viewer - Bot · API · Shop Watcher" />
 
       {/* ── Source tabs ── */}
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
@@ -266,7 +266,7 @@ export default function ConsoleTab() {
               fontFamily: "var(--mono)", fontSize: 10, color: "var(--accent)", letterSpacing: 1,
             }}
           >
-            ↓ NEW OUTPUT — click to resume auto-scroll
+            ↓ NEW OUTPUT - click to resume auto-scroll
           </div>
         )}
       </div>

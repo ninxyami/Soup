@@ -14,7 +14,7 @@ function translateLine(raw) {
   const line = raw.toLowerCase();
   const ts = new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
-  // ── Hard noise — always skip ───────────────────────────────────────────────
+  // ── Hard noise - always skip ───────────────────────────────────────────────
   const hardNoise = [
     "animalpacket class doesn",
     "animaleventpacket class doesn",
@@ -87,7 +87,7 @@ function translateLine(raw) {
     if (line.includes("overrides")) {
       return { category: "mods", icon: "🧩", color: "#b07dff", ts,
         title: `Mod override: ${modName}`,
-        detail: "This mod is replacing a base game file — this is normal behaviour" };
+        detail: "This mod is replacing a base game file - this is normal behaviour" };
     }
     return { category: "mods", icon: "🧩", color: "#b07dff", ts,
       title: `Mod loaded: ${modName}`,
@@ -131,7 +131,7 @@ function translateLine(raw) {
     const portMatch = raw.match(/port (\d+)/i);
     return { category: "server", icon: "⚡", color: "#4a8fc4", ts,
       title: "RCON interface ready",
-      detail: portMatch ? `Listening on port ${portMatch[1]} — admin commands enabled` : "Admin command interface active" };
+      detail: portMatch ? `Listening on port ${portMatch[1]} - admin commands enabled` : "Admin command interface active" };
   }
 
   if (line.includes("steam is enabled")) {
@@ -149,7 +149,7 @@ function translateLine(raw) {
   if (line.includes("luanet: initialization [done]") || line.includes("luanet: initialization")) {
     return { category: "server", icon: "🔩", color: "#4caf7d", ts,
       title: "Lua engine initialized",
-      detail: "Script system ready — mods can now run" };
+      detail: "Script system ready - mods can now run" };
   }
 
   if (line.includes("initialising raknet") || line.includes("initializing raknet")) {
@@ -181,8 +181,8 @@ function translateLine(raw) {
       return { category: "warnings", icon: "⚠️", color: "#c8a84b", ts,
         title: "Mod script missing",
         detail: reqMatch
-          ? `Could not load script: ${reqMatch[1].split("/").pop()} — a mod may have a missing dependency`
-          : "A mod script failed to load — usually harmless unless the mod breaks" };
+          ? `Could not load script: ${reqMatch[1].split("/").pop()} - a mod may have a missing dependency`
+          : "A mod script failed to load - usually harmless unless the mod breaks" };
     }
 
     return { category: "warnings", icon: "⚠️", color: "#c8a84b", ts,
@@ -206,7 +206,7 @@ function translateLine(raw) {
       detail: "Server loaded or generated a new area of the map" };
   }
 
-  // Everything else — skip to keep the feed clean
+  // Everything else - skip to keep the feed clean
   return null;
 }
 
@@ -260,7 +260,7 @@ export default function ServerActivityTab() {
         const msg = JSON.parse(e.data);
         if (msg.source === "system") return;
 
-        // Session separator — special divider event
+        // Session separator - special divider event
         if (msg.event === "session_separator") {
           addEvent({
             category: "session",
@@ -274,7 +274,7 @@ export default function ServerActivityTab() {
           return;
         }
 
-        // Player list update — inject as a players event
+        // Player list update - inject as a players event
         if (msg.event === "player_list") {
           const players = msg.players || [];
           if (players.length === 0) {
@@ -295,7 +295,7 @@ export default function ServerActivityTab() {
           return;
         }
 
-        // Normal line — translate to plain English
+        // Normal line - translate to plain English
         const evt = translateLine(msg.line || "");
         if (evt) addEvent(evt);
       } catch {}
@@ -322,7 +322,7 @@ export default function ServerActivityTab() {
     };
   }, [connect]);
 
-  // ── Filter — separators always visible in "all" view ─────────────────────
+  // ── Filter - separators always visible in "all" view ─────────────────────
   const visible = events.filter(e => {
     if (e.isSeparator) return activeCategory === "all" || activeCategory === "session";
     if (activeCategory !== "all" && e.category !== activeCategory) return false;
@@ -421,12 +421,12 @@ export default function ServerActivityTab() {
             }}>
               {status === "connected"
                 ? "⏳ Waiting for server activity...\nEvents will appear here as they happen on the server."
-                : "Not connected — click ▶ Connect to start monitoring."}
+                : "Not connected - click ▶ Connect to start monitoring."}
             </div>
           )}
 
           {visible.map(evt => {
-            // ── Session separator — full width divider ──
+            // ── Session separator - full width divider ──
             if (evt.isSeparator) {
               return (
                 <div key={evt.id} style={{

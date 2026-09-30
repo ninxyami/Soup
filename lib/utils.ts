@@ -1,4 +1,4 @@
-// Shared utility functions — extracted to avoid duplication across pages
+// Shared utility functions - extracted to avoid duplication across pages
 
 export function repTier(pts: number): { label: string; color: string } {
   if (pts >= 200) return { label: "Legendary", color: "#c8a84b" };
@@ -17,7 +17,7 @@ export function timeAgo(ts: number): string {
 }
 
 export function formatDuration(secs: number): string {
-  if (!secs || secs <= 0) return "—";
+  if (!secs || secs <= 0) return "-";
   const d = Math.floor(secs / 86400);
   const h = Math.floor((secs % 86400) / 3600);
   const m = Math.floor((secs % 3600) / 60);

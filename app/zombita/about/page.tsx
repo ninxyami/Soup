@@ -3,9 +3,9 @@ import Link from "next/link";
 
 const MEMORY_LAYERS = [
   { label: "Instant Memory", desc: "Everything said in the current conversation. She tracks the thread, follows what you said three messages ago, and doesn't pretend she didn't hear you." },
-  { label: "Session Memory", desc: "What happened this session — what mood she was in, what topics came up, what she decided about you today." },
+  { label: "Session Memory", desc: "What happened this session - what mood she was in, what topics came up, what she decided about you today." },
   { label: "Player Memory", desc: "Her running opinions on specific people. If you've been a clown in the past, she remembers. If you helped someone, she noticed that too." },
-  { label: "Server Memory", desc: "The full shape of the community — events, season history, which factions run what, what the economy looks like right now." },
+  { label: "Server Memory", desc: "The full shape of the community - events, season history, which factions run what, what the economy looks like right now." },
 ];
 
 const MOOD_EXAMPLES = [
@@ -18,13 +18,13 @@ const MOOD_EXAMPLES = [
 ];
 
 const THINGS_SHE_DOES = [
-  { icon: "💬", title: "Holds Conversations", desc: "Direct messages, replies, mentions — she responds in full character. No template answers, no canned responses. She actually engages." },
-  { icon: "👁️", title: "Watches Without Being Asked", desc: "She reads the channels. Sometimes she chimes in on her own. Not to be helpful — because something caught her attention." },
-  { icon: "🏦", title: "Runs the Economy", desc: "Shop restocks, lottery draws, price announcements, treasury updates — all delivered through her voice. The economy has a face." },
-  { icon: "🎮", title: "Hosts & Narrates Games", desc: "Werewolf narrator, CAH judge, quiz host, RPS opponent. Each game has her personality woven into it." },
-  { icon: "📣", title: "Makes Announcements", desc: "Server events, season updates, Dawn of the Dead warnings — she writes them herself, in her own way." },
+  { icon: "💬", title: "Holds Conversations", desc: "Direct messages, replies, mentions - she responds in full character. Her replies are written fresh each time, not picked from a list." },
+  { icon: "👁️", title: "Watches Without Being Asked", desc: "She reads the channels. Sometimes she chimes in on her own. Usually because something caught her eye." },
+  { icon: "🏦", title: "Runs the Economy", desc: "Shop restocks, lottery draws, price announcements, treasury updates, all in her own voice." },
+  { icon: "🎮", title: "Hosts & Narrates Games", desc: "Werewolf narrator, CAH judge, quiz host, RPS opponent. She's the same Zombita in every game." },
+  { icon: "📣", title: "Makes Announcements", desc: "Server events, season updates, Dawn of the Dead warnings - she writes them herself, in her own way." },
   { icon: "🎭", title: "Tracks Reputation", desc: "Every notable thing you do gets observed. Wins, losses, how you treat people, what you spend your money on. She forms opinions." },
-  { icon: "📋", title: "Hands Out Jobs", desc: "Every few hours she posts jobs on everyone's in-game phone - how many depends on her mood. The players she likes sometimes get one just for them." },
+  { icon: "📋", title: "Hands Out Jobs", desc: "She keeps a quest board on everyone's in-game phone. The players she likes sometimes get one just for them." },
   { icon: "📰", title: "Writes the Paper", desc: "Every Sunday she writes the community's newspaper from the week's events. It lands in every player's bag in game." },
 ];
 
@@ -37,7 +37,7 @@ export default function ZombitaAboutPage() {
         <p className="font-mono text-[0.62rem] tracking-[0.3em] text-[#9775cc] uppercase mb-3">Meet Zombita</p>
         <h1 className="text-[1.8rem] tracking-[0.18em] uppercase mb-4 leading-none">Your Server&apos;s AI Personality</h1>
         <p className="text-[#666] text-[0.9rem] leading-relaxed max-w-[520px]">
-          Zombita is the Discord bot that runs State of Undead Purge — but calling her a bot is doing her a disservice.
+          Zombita is the Discord bot that runs State of Undead Purge - but she'd tell you she's more than that.
           She has a personality, opinions, a memory, and a reputation for not suffering fools.
         </p>
       </section>
@@ -92,7 +92,7 @@ export default function ZombitaAboutPage() {
           <p className="font-mono text-[0.58rem] tracking-[0.25em] text-[#9775cc] uppercase mb-2">Memory System</p>
           <h2 className="text-[1rem] tracking-[0.08em] mb-4 !normal-case">She remembers. Everything.</h2>
           <p className="text-[0.8rem] text-[#555] leading-relaxed mb-5">
-            Her memory operates in four layers, each with a different scope and purpose. Together they let her hold a consistent identity across weeks and months of play.
+            Her memory has four layers, from the conversation you're in right now to the whole season. That's how she stays the same person week after week.
           </p>
           <div className="flex flex-col gap-3">
             {MEMORY_LAYERS.map((l, i) => (
@@ -113,7 +113,7 @@ export default function ZombitaAboutPage() {
         <p className="font-mono text-[0.58rem] tracking-[0.25em] text-[#9775cc] uppercase mb-2">Mood System</p>
         <h2 className="text-[1rem] tracking-[0.08em] mb-2 !normal-case">27 distinct moods.</h2>
         <p className="text-[0.8rem] text-[#555] leading-relaxed mb-5">
-          Her mood isn&apos;t a decoration — it changes how she writes, what she notices, and how she responds to you.
+          Her mood changes how she writes, what she notices and how she answers you.
           Here are a few examples.
         </p>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -132,14 +132,14 @@ export default function ZombitaAboutPage() {
         <div className="border border-[#1a1a1a] bg-[#0a0d10] p-6 relative overflow-hidden">
           <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#c8a84b22] to-transparent" />
           <p className="font-mono text-[0.58rem] tracking-[0.25em] text-[#c8a84b] uppercase mb-2">Reputation Tracking</p>
-          <h2 className="text-[1rem] tracking-[0.08em] mb-3 !normal-case">She keeps score. Not just of kills.</h2>
+          <h2 className="text-[1rem] tracking-[0.08em] mb-3 !normal-case">She keeps score</h2>
           <p className="text-[0.8rem] text-[#555] leading-relaxed mb-3">
-            Every notable action in the server gets observed — game wins and losses, how you interact with people,
+            Every notable action in the server gets observed - game wins and losses, how you interact with people,
             what you spend your bronze on, whether you show up when it matters.
           </p>
           <p className="text-[0.78rem] text-[#666] leading-relaxed mb-4">
             Each player earns a reputation archetype that Zombita updates daily.
-            It reflects her honest read of you — not just what you&apos;ve done, but how you&apos;ve done it.
+            It&apos;s her honest read of you, including how you treat people.
             She forms opinions, and those opinions are part of how she talks to you.
           </p>
           <div className="flex flex-wrap gap-1.5">

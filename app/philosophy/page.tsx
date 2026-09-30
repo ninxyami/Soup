@@ -31,7 +31,7 @@ export default function PhilosophyPage() {
       <section>
         <h2>Community Over Competition</h2>
         <p>
-          Players are expected to help each other, share resources, and treat the server as a shared world — not a leaderboard to dominate.
+          Players are expected to help each other, share resources, and treat the server as a shared world - not a leaderboard to dominate.
         </p>
         <p>
           PVP exists in the game. It does not exist in our values.

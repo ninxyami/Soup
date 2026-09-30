@@ -83,18 +83,18 @@ export default function ServerPage() {
           <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#4a7c5944] to-transparent" />
           <div className="px-5 pt-5 pb-2">
             <p className="font-mono text-[0.58rem] tracking-[0.25em] text-[#4a7c59] uppercase mb-4">Connection</p>
-            <InfoRow label="IP Address" value={loading ? "—" : data.ip} copyable />
-            <InfoRow label="Port" value={loading ? "—" : data.port} copyable />
-            <InfoRow label="Password" value={loading ? "—" : data.password} copyable />
+            <InfoRow label="IP Address" value={loading ? "-" : data.ip} copyable />
+            <InfoRow label="Port" value={loading ? "-" : data.port} copyable />
+            <InfoRow label="Password" value={loading ? "-" : data.password} copyable />
           </div>
         </div>
         <div className="border border-[#1a1a1a] bg-[#0a0d10] relative overflow-hidden">
           <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#c8a84b33] to-transparent" />
           <div className="px-5 pt-5 pb-2">
             <p className="font-mono text-[0.58rem] tracking-[0.25em] text-[#c8a84b] uppercase mb-4">Server Specs</p>
-            <InfoRow label="Max Players" value={loading ? "—" : `${data.max_players} slots`} />
-            <InfoRow label="RAM" value={loading ? "—" : data.ram} />
-            <InfoRow label="Region" value={loading ? "—" : data.region} />
+            <InfoRow label="Max Players" value={loading ? "-" : `${data.max_players} slots`} />
+            <InfoRow label="RAM" value={loading ? "-" : data.ram} />
+            <InfoRow label="Region" value={loading ? "-" : data.region} />
           </div>
         </div>
       </div>
@@ -104,7 +104,7 @@ export default function ServerPage() {
         <p className="font-mono text-[0.58rem] tracking-[0.25em] text-[#4a8fc4] uppercase mb-3">Game Version</p>
         <div className="flex items-center gap-4 mb-3">
           <span className="font-mono text-[0.62rem] tracking-[0.15em] uppercase text-[#444] w-28 flex-shrink-0">Build</span>
-          <span className="font-mono text-[0.88rem] text-[#c8c8c8]">{loading ? "—" : data.game_version}</span>
+          <span className="font-mono text-[0.88rem] text-[#c8c8c8]">{loading ? "-" : data.game_version}</span>
         </div>
         <p className="text-[0.78rem] text-[#555] leading-relaxed pl-32">{loading ? "" : data.version_note}</p>
       </div>

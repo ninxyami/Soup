@@ -12,7 +12,7 @@ const hours = (h) => {
   const d = Math.floor(h / 24);
   return d > 0 ? `${d}d ${h % 24}h` : `${h}h`;
 };
-const days = (d) => (d == null ? "—" : `${Number(d).toFixed(1)} days`);
+const days = (d) => (d == null ? "-" : `${Number(d).toFixed(1)} days`);
 
 const PlayersTable = ({ players }) => {
   const rows = [...(players || [])].sort((a, b) => (b.overallKills || 0) - (a.overallKills || 0));
@@ -24,7 +24,7 @@ const PlayersTable = ({ players }) => {
       {rows.map((p, i) => <tr key={p.name}>
         <td style={mono}>{i + 1}</td><td style={mono}>{p.name}</td>
         <td style={{ ...mono, color: "var(--accent)" }}>{fmt(p.overallKills)}</td><td style={mono}>{fmt(p.deaths)}</td>
-        <td style={mono}>{hours(p.bestLife)}</td><td style={mono}>{p.wl ? "yes" : "—"}</td>
+        <td style={mono}>{hours(p.bestLife)}</td><td style={mono}>{p.wl ? "yes" : "-"}</td>
       </tr>)}
     </tbody></table></div>
   );
@@ -90,7 +90,7 @@ export default function LeaderboardsTab({ toast }) {
   return (<>
     <Title t="LEADERBOARDS" s="end a session (posts to the archive) · reset (no archive) · history" />
     <div className="ap-sr" style={{ gridTemplateColumns: "repeat(4,1fr)" }}>
-      <SC label="Season" value={s.season || "—"} color="gold" />
+      <SC label="Season" value={s.season || "-"} color="gold" />
       <SC label="Session started" value={s.started_at ? fmtDate(s.started_at) : "not recorded"} color="blue"
           sub={s.started_at ? `${days(s.days_running)} ago` : "set it below"} />
       <SC label="Players on the board" value={fmt(live.count || 0)} color="green"
@@ -114,7 +114,7 @@ export default function LeaderboardsTab({ toast }) {
         <B c="ghost" onClick={saveStart} disabled={!startDate}>SET START DATE</B>
       </div>
       {s.pending?.length > 0 && <div className="ap-note" style={{ marginTop: 12 }}>
-        {s.pending.map(p => <div key={p.id}>⏳ {p.cmd === "end" ? "END SESSION" : "RESET"} requested by {p.by} {relTime(p.at)}{p.title ? ` — "${p.title}"` : ""}</div>)}
+        {s.pending.map(p => <div key={p.id}>⏳ {p.cmd === "end" ? "END SESSION" : "RESET"} requested by {p.by} {relTime(p.at)}{p.title ? ` - "${p.title}"` : ""}</div>)}
       </div>}
     </FB>
 
@@ -130,7 +130,7 @@ export default function LeaderboardsTab({ toast }) {
           {s.sessions.map(x => <Fragment key={x.id}>
             <tr>
               <td style={{ ...mono, color: x.kind === "end" ? "var(--green)" : "var(--orange)" }}>{x.kind === "end" ? "ENDED" : "RESET"}</td>
-              <td style={mono}>{x.title || "—"}<div style={{ color: "var(--textdim)", fontSize: 11 }}>{x.season}</div></td>
+              <td style={mono}>{x.title || "-"}<div style={{ color: "var(--textdim)", fontSize: 11 }}>{x.season}</div></td>
               <td style={mono}>{x.started_at ? fmtDate(x.started_at) : "not recorded"}</td>
               <td style={mono}>{fmtFull(x.ended_at)}</td>
               <td style={mono}>{days(x.days)}</td>

@@ -41,7 +41,7 @@ const ExternalEditAlert = ({ alerts, onDismiss, onClaim }) => {
               {a.last_panel_write && (
                 <span>{" "}Last panel write: {new Date(a.last_panel_write).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
               )}
-              {" "}— Check <span style={{ color: "var(--accent)" }}>Activity Log</span> and{" "}
+              {" "}- Check <span style={{ color: "var(--accent)" }}>Activity Log</span> and{" "}
               <span style={{ color: "var(--accent)" }}>Settings Changelog</span> for details.
             </div>
           </div>
@@ -80,7 +80,7 @@ export default function ServerConfigTab({ toast, initialTab = "mods" }) {
     try {
       await postApi("/api/admin/config/claim", { file: filename });
       setAlerts(p => p.filter(a => a.file !== filename));
-      if (toast) toast("Edit claimed — your name is now on it", "success");
+      if (toast) toast("Edit claimed - your name is now on it", "success");
     } catch {
       if (toast) toast("Could not claim edit", "error");
     }

@@ -6,7 +6,7 @@ import { useState, useEffect } from "react";
 // ── useStickyState ──────────────────────────────────────────────────────────
 // Like useState, but remembers the value per-key for the browser session, so a
 // sub-tab selection survives navigating away and back (and a refresh). Scope is
-// sessionStorage — persists across tab navigation + reload, clears when the
+// sessionStorage - persists across tab navigation + reload, clears when the
 // browser tab closes. SSR-safe: never touches sessionStorage during render, only
 // after mount, so it doesn't break the static export build.
 export function useStickyState(defaultValue, key) {
@@ -43,9 +43,9 @@ export const ADMINS = {
 };
 
 /* ═══ HELPERS ═══ */
-export const fmt = (n) => (n != null ? Number(n).toLocaleString() : "—");
+export const fmt = (n) => (n != null ? Number(n).toLocaleString() : "-");
 export const bronzeToCoins = (b) => {
-  if (b == null) return "—";
+  if (b == null) return "-";
   const G=10000,S=1000,p=[]; let r=Math.abs(b);
   if(r>=G){p.push(`${Math.floor(r/G)}🟡`);r%=G}
   if(r>=S){p.push(`${Math.floor(r/S)}⚪`);r%=S}
@@ -53,12 +53,12 @@ export const bronzeToCoins = (b) => {
   return (b<0?"−":"")+p.join(" ");
 };
 export const relTime = (ts) => {
-  if(!ts)return"—";const s=Math.floor(Date.now()/1000-(ts>1e12?ts/1000:ts));
+  if(!ts)return"-";const s=Math.floor(Date.now()/1000-(ts>1e12?ts/1000:ts));
   if(s<0)return"just now";if(s<60)return`${s}s ago`;if(s<3600)return`${Math.floor(s/60)}m ago`;
   if(s<86400)return`${Math.floor(s/3600)}h ago`;return`${Math.floor(s/86400)}d ago`;
 };
-export const fmtDate = (ts) => { if(!ts)return"—"; return new Date(ts>1e12?ts:ts*1000).toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"}); };
-export const fmtFull = (ts) => { if(!ts)return"—"; return new Date(ts>1e12?ts:ts*1000).toLocaleString("en-GB",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}); };
+export const fmtDate = (ts) => { if(!ts)return"-"; return new Date(ts>1e12?ts:ts*1000).toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"}); };
+export const fmtFull = (ts) => { if(!ts)return"-"; return new Date(ts>1e12?ts:ts*1000).toLocaleString("en-GB",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}); };
 
 export const fetchApi = async (path, opts={}) => {
   const r = await fetch(`${API}${path}`, {credentials:"include",...opts});
@@ -81,7 +81,7 @@ export const Empty = ({text="No data"}) => <div className="ap-empty">{text}</div
 export const Load = () => <div className="ap-load"><span>LOADING...</span></div>;
 export const EvBadge = ({type}) => <span className={`ap-ev ap-ev-${type}`}>{type}</span>;
 
-/* ═══ Toggle — supports BOTH old API (on/onClick) and new API (value/onChange) ═══ */
+/* ═══ Toggle - supports BOTH old API (on/onClick) and new API (value/onChange) ═══ */
 export const Toggle = ({ on, onClick, value, onChange, disabled }) => {
   const isOn = value !== undefined ? value : on;
   const handleClick = () => {

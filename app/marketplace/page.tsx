@@ -266,10 +266,10 @@ export default function MarketplacePage() {
           </div>
           <div className="grid sm:grid-cols-2 gap-4">
             {[
-              { step: "01", title: "List at a kiosk",    body: "Stand at any shopkeeper kiosk and open the Marketplace tab. Listing costs 10 bronze, and every day it sits unsold adds 0.5% of your asking total — price it to sell." },
+              { step: "01", title: "List at a kiosk",    body: "Stand at any shopkeeper kiosk and open the Marketplace tab. Listing costs 10 bronze, and every day it sits unsold adds 0.5% of your asking total - price it to sell." },
               { step: "02", title: "Browse anywhere",    body: "Check listings here, on your phone's Marketplace app anywhere in-game, or on the Marketplace tab at a kiosk. The website and the phone are for looking only." },
               { step: "03", title: "Buy at a kiosk",     body: "Buy at any kiosk. Items listed at another kiosk cost a delivery fee by distance (free at the same kiosk), plus purchase tax. The item is handed to you on the spot." },
-              { step: "04", title: "Seller gets paid",   body: "Coins reach the seller when the item is delivered, minus the daily listing fee. Cancelled or unsold after 7 days, it comes back — if you can't pay the fee, Zombita keeps it." },
+              { step: "04", title: "Seller gets paid",   body: "Coins reach the seller when the item is delivered, minus the daily listing fee. Cancelled or unsold after 7 days, it comes back - if you can't pay the fee, Zombita keeps it." },
             ].map(s => (
               <div key={s.step} className="flex gap-3">
                 <span className="font-display text-2xl text-[#1e2530] flex-shrink-0" style={{ fontFamily: "'Bebas Neue', sans-serif", lineHeight: 1 }}>{s.step}</span>

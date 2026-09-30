@@ -33,7 +33,7 @@ export default function GamesTab({ toast }) {
   const medalColor = (i) => i === 0 ? "#c8a84b" : i === 1 ? "#9ca3af" : i === 2 ? "#c47a4a" : "var(--textdim)";
 
   function timeAgo(ts) {
-    if (!ts) return "—";
+    if (!ts) return "-";
     const diff = Math.floor(Date.now() / 1000) - ts;
     if (diff < 60) return "just now";
     if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
@@ -89,7 +89,7 @@ export default function GamesTab({ toast }) {
       )}
 
       {tab === "cah" && (<>
-        <TW title="CAH LEADERBOARD — JUDGED BY ZOMBITA">
+        <TW title="CAH LEADERBOARD - JUDGED BY ZOMBITA">
           <table className="ap-t">
             <thead>
               <tr>
@@ -134,8 +134,8 @@ export default function GamesTab({ toast }) {
                   ? <tr><td colSpan={5}><Empty text="no game history yet" /></td></tr>
                   : cahH.map((g, i) => (
                     <tr key={i}>
-                      <td style={{ fontWeight: 500, color: "var(--green)" }}>{g.winner_name || "—"}</td>
-                      <td style={{ fontFamily: "var(--mono)" }}>{g.winner_score ?? "—"} pts</td>
+                      <td style={{ fontWeight: 500, color: "var(--green)" }}>{g.winner_name || "-"}</td>
+                      <td style={{ fontFamily: "var(--mono)" }}>{g.winner_score ?? "-"} pts</td>
                       <td style={{ fontFamily: "var(--mono)", color: "var(--textdim)" }}>{g.player_count}</td>
                       <td style={{ fontFamily: "var(--mono)", color: "var(--textdim)" }}>{g.rounds_played}</td>
                       <td style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)" }}>{timeAgo(g.started_at)}</td>

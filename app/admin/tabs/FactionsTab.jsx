@@ -1,7 +1,7 @@
 "use client";
 // @ts-nocheck
 // Faction spaces: every in-game faction Zombita knows (locked / unlocked, channel, wallet, pictures),
-// the money settings (unlock fee, war wager minimum, war tax), and the moderation buttons — remove a
+// the money settings (unlock fee, war wager minimum, war tax), and the moderation buttons - remove a
 // logo or banner someone shouldn't have uploaded. The bot (cogs/factions.py) does the Discord work.
 import { useState, useEffect, useCallback } from "react";
 import { fetchApi, postApi, Title, TW, B, Inp, Load, Empty } from "./shared";
@@ -14,7 +14,7 @@ const fmt = (b) => {
   if (g) out.push(`${g} gold`); if (s) out.push(`${s} silver`); if (br || !out.length) out.push(`${br} bronze`);
   return out.join(" ");
 };
-const day = (ts) => (ts ? new Date(ts * 1000).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—");
+const day = (ts) => (ts ? new Date(ts * 1000).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "-");
 
 export default function FactionsTab({ toast }) {
   const [data, setData] = useState(null);

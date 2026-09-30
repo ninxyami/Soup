@@ -3,11 +3,11 @@ import Link from "next/link";
 
 const HUNT_TYPES = [
   { emoji: "🥫", name: "Food Supply", guards: 20, zone: "Farm", risk: "Low", desc: "Food and provisions loot pool. Easier to reach, lighter zombie presence." },
-  { emoji: "🩺", name: "Medical Supply", guards: 20, zone: "Town", risk: "Low", desc: "Medical supplies. Critical finds for anyone running low on bandages and meds." },
+  { emoji: "🩺", name: "Medical Supply", guards: 20, zone: "Town", risk: "Low", desc: "Medical supplies. Good if you're low on bandages and meds." },
   { emoji: "🔫", name: "Ammo Cache", guards: 30, zone: "Town", risk: "Medium", desc: "Ammunition loot pool. More guards, better payoff. Know your way around a gun store." },
-  { emoji: "⚙️", name: "Tool Cache", guards: 25, zone: "Industrial", risk: "Medium", desc: "Tools and equipment. Industrial zone — harder to navigate, worth the detour." },
-  { emoji: "🚗", name: "Vehicle Parts", guards: 25, zone: "Road", risk: "Medium", desc: "Car parts loot pool. Perfect for survivors who need to keep their ride running." },
-  { emoji: "💎", name: "Rare Find", guards: 40, zone: "Random", risk: "HIGH", desc: "Rare and legendary loot pool. Most guards, best reward. The real race." },
+  { emoji: "⚙️", name: "Tool Cache", guards: 25, zone: "Industrial", risk: "Medium", desc: "Tools and equipment. Industrial zone - harder to navigate, worth the detour." },
+  { emoji: "🚗", name: "Vehicle Parts", guards: 25, zone: "Road", risk: "Medium", desc: "Car parts loot pool. Handy if your car needs work." },
+  { emoji: "💎", name: "Rare Find", guards: 40, zone: "Random", risk: "HIGH", desc: "Rare and legendary loot pool. Most guards, best reward." },
 ];
 
 const RISK_COLOR: Record<string, string> = { "Low": "#4caf7d", "Medium": "#c8a84b", "HIGH": "#e05555" };
@@ -27,8 +27,8 @@ export default function TreasureHuntPage() {
           <p className="font-mono text-[0.7rem] tracking-[0.15em] text-[#7a6a2a] uppercase mb-6">Hidden Cache · Zombie Guards · Claim Code Race</p>
           <p className="text-[#666] text-[0.88rem] max-w-[560px] leading-relaxed">
             A hidden cache of supplies somewhere on the map. Zombie guards surround it. 
-            Zombita drops cryptic hints in Discord. Players race in-game — the first to 
-            arrive and enter the claim code wins everything. Thirty minutes before it expires.
+            Zombita drops cryptic hints in Discord. Players race in-game - the first to 
+            arrive and enter the claim code wins it all. You have thirty minutes before it expires.
           </p>
         </div>
 
@@ -42,13 +42,13 @@ export default function TreasureHuntPage() {
                 <ol className="space-y-3">
                   {[
                     "Auto-scheduler fires or admin triggers a hunt manually",
-                    "Hunt type and map region selected — coordinates pinpointed",
+                    "Hunt type and map region selected - coordinates pinpointed",
                     "Discord announcement posted with type, risk level, and Zombita's flavour hint",
                     "Players start moving toward the area in-game",
-                    "The loot bag and zombie guards only appear once a player gets close — lazy spawn",
+                    "The loot bag and zombie guards only appear once a player gets close - lazy spawn",
                     "A map marker and HUD icon activate immediately for all players",
                     "First player to reach the bag finds a Note inside with the claim code",
-                    "Enter the code in Discord — reward delivered via RCON instantly",
+                    "Enter the code in Discord - reward delivered via RCON instantly",
                     "Hunt result logged with winner, location, and timestamps",
                   ].map((step, i) => (
                     <li key={i} className="flex items-start gap-2.5 text-[0.75rem] text-[#555]" style={{ paddingLeft: 0 }}>
@@ -62,10 +62,10 @@ export default function TreasureHuntPage() {
                     <p className="font-mono text-[0.6rem] tracking-widest text-[#444] uppercase mb-3">Key Rules</p>
                     <div className="space-y-2">
                       {[
-                        { k: "Window", v: "30 minutes — then the cache expires and is removed" },
+                        { k: "Window", v: "30 minutes - then the cache expires and is removed" },
                         { k: "Winner", v: "First to enter the correct claim code in Discord" },
                         { k: "Claim code", v: "Found inside a Note item in the loot bag" },
-                        { k: "Spawn timing", v: "Bag and guards appear when a player gets close — not before" },
+                        { k: "Spawn timing", v: "Bag and guards appear when a player gets close - not before" },
                         { k: "Map marker", v: "Active for all players from the moment the hunt starts" },
                         { k: "HUD icon", v: "Changes when you're within 75 tiles of the real location" },
                       ].map(r => (

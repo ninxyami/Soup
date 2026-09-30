@@ -102,7 +102,7 @@ const RconPassword = ({ toast }) => {
           </>
         )}
       </div>
-      {changed && <div style={{ fontSize: 10, color: "var(--accent)", fontFamily: "var(--mono)", marginTop: 4 }}>⚠ Unsaved — will update servertest.ini, config.py, and shared.py</div>}
+      {changed && <div style={{ fontSize: 10, color: "var(--accent)", fontFamily: "var(--mono)", marginTop: 4 }}>⚠ Unsaved - will update servertest.ini, config.py, and shared.py</div>}
     </div>
   );
 };
@@ -124,11 +124,11 @@ export default function ServerSettingsTab({ toast, currentUser }) {
 
   useEffect(() => { loadCfg(); }, [loadCfg]);
 
-  // P1: live-refresh when another admin saves server config — but DON'T clobber
+  // P1: live-refresh when another admin saves server config - but DON'T clobber
   // this admin's unsaved edits. If the form is dirty, skip the reload and notify.
   useLiveRefresh("server_config", loadCfg, {
     shouldReload: () => !dirty,
-    onSkip: () => toast?.("Another admin changed server settings — save or discard your edits, then reload", "info"),
+    onSkip: () => toast?.("Another admin changed server settings - save or discard your edits, then reload", "info"),
   });
 
   const set = (key) => (val) => setCfg(p => ({ ...p, [key]: val }));
@@ -149,10 +149,10 @@ export default function ServerSettingsTab({ toast, currentUser }) {
   if (loading) return <div style={{ padding: 40, color: "var(--textdim)", fontFamily: "var(--mono)" }}>Loading server config...</div>;
 
   const anticheatOpts = [
-    { value: 1, label: "1 — Disabled" },
-    { value: 2, label: "2 — Low" },
-    { value: 3, label: "3 — Medium" },
-    { value: 4, label: "4 — High (Default)" },
+    { value: 1, label: "1 - Disabled" },
+    { value: 2, label: "2 - Low" },
+    { value: 3, label: "3 - Medium" },
+    { value: 4, label: "4 - High (Default)" },
   ];
 
   return (
@@ -272,7 +272,7 @@ export default function ServerSettingsTab({ toast, currentUser }) {
         <ToggleField label="Mouse-over to See Name" description="Must hover to reveal player name" value={cfg.MouseOverToSeeDisplayName} onChange={set("MouseOverToSeeDisplayName")} />
         <ToggleField label="Hide Players Behind You" value={cfg.HidePlayersBehindYou} onChange={set("HidePlayersBehindYou")} />
         <ToggleField label="Player Bump (collide when running)" value={cfg.PlayerBumpPlayer} onChange={set("PlayerBumpPlayer")} />
-        <SelectField label="Map — Remote Player Visibility"
+        <SelectField label="Map - Remote Player Visibility"
           value={cfg.MapRemotePlayerVisibility} onChange={set("MapRemotePlayerVisibility")}
           options={[{ value: 1, label: "Hidden" }, { value: 2, label: "Friends" }, { value: 3, label: "Everyone" }]} />
       </Section>
@@ -287,7 +287,7 @@ export default function ServerSettingsTab({ toast, currentUser }) {
       </Section>
 
       {/* ANTI-CHEAT */}
-      <Section title="ANTI-CHEAT" sub="protection levels (1=off, 4=high) — set high unless you have issues">
+      <Section title="ANTI-CHEAT" sub="protection levels (1=off, 4=high) - set high unless you have issues">
         {[
           ["AntiCheatSafety","Safety"], ["AntiCheatMovement","Movement"], ["AntiCheatHit","Hit Detection"],
           ["AntiCheatPacket","Packets"], ["AntiCheatPermission","Permissions"], ["AntiCheatXP","XP"],

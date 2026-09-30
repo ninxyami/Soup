@@ -4,21 +4,21 @@ import Link from "next/link";
 const ROLES = [
   { icon: "🧑‍🌾", name: "Villager", team: "Village", desc: "No ability. Your only weapon is your vote and your wits." },
   { icon: "🐺", name: "Werewolf", team: "Wolves", desc: "Each night, choose a player to kill. Majority rules in a wolf pack." },
-  { icon: "🔮", name: "Seer", team: "Village", desc: "Investigate one player per night — learn their exact role. Most powerful village role." },
-  { icon: "🃏", name: "Fool", team: "Village", desc: "Thinks they're the Seer, but gets random results. A liability masquerading as an asset." },
+  { icon: "🔮", name: "Seer", team: "Village", desc: "Investigate one player per night - learn their exact role. Most powerful village role." },
+  { icon: "🃏", name: "Fool", team: "Village", desc: "Thinks they're the Seer, but gets random results. Not as helpful as they think." },
   { icon: "💃", name: "Harlot", team: "Village", desc: "Visit someone at night. If wolves attack you while you're away, you survive. Visiting a wolf means death." },
   { icon: "👼", name: "Guardian Angel", team: "Village", desc: "Protect one player from wolf and Serial Killer attacks per night. Cannot protect the same person twice in a row." },
   { icon: "🏹", name: "Hunter", team: "Village", desc: "When killed, drag one player down with you. Self-defense chance against wolves." },
-  { icon: "🕵️", name: "Detective", team: "Village", desc: "Day investigate — learn exact role. 40% chance the wolves detect you and kill you that night." },
-  { icon: "🔮", name: "Oracle", team: "Village", desc: "Investigate at night — learn one role this player is NOT." },
+  { icon: "🕵️", name: "Detective", team: "Village", desc: "Day investigate - learn exact role. 40% chance the wolves detect you and kill you that night." },
+  { icon: "🔮", name: "Oracle", team: "Village", desc: "Investigate at night - learn one role this player is NOT." },
   { icon: "🍺", name: "Drunk", team: "Village", desc: "When wolves eat you, they skip their next kill. Dead weight alive. Hero in death." },
   { icon: "🛠️", name: "Blacksmith", team: "Village", desc: "Once per game: activate silver dust at night to completely block the wolf kill." },
   { icon: "🧙", name: "Wise Elder", team: "Village", desc: "Survives the first wolf attack. The second one finishes the job." },
   { icon: "🎩", name: "Mayor", team: "Village", desc: "Double vote power when publicly revealed. Reveal is optional and permanent." },
   { icon: "🔫", name: "Gunner", team: "Village", desc: "Two bullets. Shoot any player during the day. Might hit a wolf. Might not." },
   { icon: "💘", name: "Cupid", team: "Village", desc: "On Night 1 only: link two players as Lovers. If one dies, the other dies immediately." },
-  { icon: "🔪", name: "Serial Killer", team: "Neutral", desc: "Kills one player per night, independent of wolves. Win alone — last survivor." },
-  { icon: "💀", name: "Tanner", team: "Neutral", desc: "Win condition: get lynched by the village. Chaos incarnate." },
+  { icon: "🔪", name: "Serial Killer", team: "Neutral", desc: "Kills one player per night, independent of wolves. Win alone - last survivor." },
+  { icon: "💀", name: "Tanner", team: "Neutral", desc: "Win condition: get lynched by the village. Pure chaos." },
   { icon: "🧒", name: "Wild Child", team: "Village", desc: "Choose a role model on Night 1. If your role model dies, you become a Werewolf." },
   { icon: "😈", name: "Cursed", team: "Village", desc: "Appears as villager. If wolves try to kill you, you convert to wolf instead of dying." },
   { icon: "🤝", name: "Traitor", team: "Village", desc: "Appears as villager. Knows who the wolves are but cannot communicate with them." },
@@ -43,8 +43,8 @@ export default function WerewolfPage() {
           <p className="font-mono text-[0.65rem] tracking-[0.3em] text-[#e05555] uppercase mb-3 mt-4">Mini-Games</p>
           <h1 className="text-[1.8rem] sm:text-[2.5rem] tracking-[0.2em] mb-4">WEREWOLF</h1>
           <p className="text-[#666] text-[0.88rem] max-w-[560px] leading-relaxed">
-            Full social deduction. Over 20 roles. Night actions handled in DMs. Zombita narrates every death, 
-            every vote, every mistake — in her dry, observational voice.
+            Social deduction with over 20 roles and night actions in your DMs. Zombita narrates the deaths, 
+            the votes and the mistakes in her dry voice.
           </p>
         </div>
 
@@ -65,7 +65,7 @@ export default function WerewolfPage() {
                   <p className="font-mono text-[0.6rem] tracking-widest text-[#444] uppercase mb-3">Game Flow</p>
                   <ol className="space-y-2">
                     {[
-                      "Lobby opens with !ww create — players join with !ww join",
+                      "Lobby opens with !ww create - players join with !ww join",
                       "Host starts the game (minimum 4 players)",
                       "Roles secretly assigned and sent to each player via DM",
                       "Day phase: open discussion, 5-minute button vote to lynch",
@@ -83,14 +83,14 @@ export default function WerewolfPage() {
                 <div>
                   <p className="font-mono text-[0.6rem] tracking-widest text-[#444] uppercase mb-3">Zombita's Narration</p>
                   <p className="text-[0.78rem] text-[#555] leading-relaxed mb-4">
-                    She narrates phase transitions, lynch outcomes, and night results. She doesn't comment on everything — 
-                    silence is part of her character. She fires more when things get dramatic.
+                    She narrates phase transitions, lynch outcomes, and night results. She doesn't comment on everything, 
+                    and she talks more when things get dramatic.
                   </p>
                   <div className="space-y-2">
                     {[
                       { event: "Vote change", chance: "40%" },
                       { event: "Bandwagon forming", chance: "35%" },
-                      { event: "Tie vote", chance: "70% — it's dramatic" },
+                      { event: "Tie vote", chance: "70% - it's dramatic" },
                       { event: "Confident mistake", chance: "55%" },
                       { event: "Silent player", chance: "30%" },
                     ].map(n => (
@@ -109,9 +109,9 @@ export default function WerewolfPage() {
                 <div className="flex flex-wrap gap-4">
                   {[
                     { label: "Werewolf win", val: "300 bronze from treasury" },
-                    { label: "Wolf win", val: "Reputation: werewolf_wolf_win" },
+                    { label: "Wolf win", val: "Counts toward your reputation" },
                     { label: "Survival", val: "Reputation: werewolf_survived" },
-                    { label: "Clutch play", val: "Reputation: werewolf_clutch" },
+                    { label: "Clutch play", val: "Counts toward your reputation" },
                   ].map(r => (
                     <div key={r.label} className="border border-[#1a1a1a] p-2.5 bg-[#070a0d]">
                       <div className="font-mono text-[0.6rem] text-[#e05555] mb-0.5">{r.label}</div>

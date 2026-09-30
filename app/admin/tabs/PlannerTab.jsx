@@ -395,7 +395,7 @@ const SeasonTimeline = () => {
       <div style={{ marginBottom: 20 }}>
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
           <span style={{ fontSize: 11, fontFamily: "var(--mono)", color: "var(--accent)" }}>
-            Season 2 Progress — Day {Math.max(0, currentDay)} / {totalDays}
+            Season 2 Progress - Day {Math.max(0, currentDay)} / {totalDays}
           </span>
           <span style={{ fontSize: 11, fontFamily: "var(--mono)", color: "var(--textdim)" }}>
             {Math.round(progress)}%
@@ -428,7 +428,7 @@ const SeasonTimeline = () => {
               </div>
               <div style={{ fontSize: 10, color: "var(--text)", lineHeight: 1.3, marginBottom: 4 }}>{ch.subtitle}</div>
               <div style={{ fontSize: 9, fontFamily: "var(--mono)", color: "var(--textdim)" }}>
-                {fmtDateShort(ch.start)} — {fmtDateShort(ch.end)}
+                {fmtDateShort(ch.start)} - {fmtDateShort(ch.end)}
               </div>
             </div>
           );
@@ -439,15 +439,15 @@ const SeasonTimeline = () => {
       <div style={{ display: "flex", gap: 16, padding: "10px 14px", background: "var(--surface)", border: "1px solid var(--border)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <span style={{ fontSize: 14 }}>📜</span>
-          <span style={{ fontSize: 11, fontFamily: "var(--mono)", color: "var(--textdim)" }}>Lore Drops — Every Tuesday</span>
+          <span style={{ fontSize: 11, fontFamily: "var(--mono)", color: "var(--textdim)" }}>Lore Drops - Every Tuesday</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <span style={{ fontSize: 14 }}>🧟</span>
-          <span style={{ fontSize: 11, fontFamily: "var(--mono)", color: "var(--textdim)" }}>Horde Events — Every Saturday</span>
+          <span style={{ fontSize: 11, fontFamily: "var(--mono)", color: "var(--textdim)" }}>Horde Events - Every Saturday</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <span style={{ fontSize: 14 }}>📰</span>
-          <span style={{ fontSize: 11, fontFamily: "var(--mono)", color: "var(--textdim)" }}>News Bulletins — Every Thursday</span>
+          <span style={{ fontSize: 11, fontFamily: "var(--mono)", color: "var(--textdim)" }}>News Bulletins - Every Thursday</span>
         </div>
       </div>
     </div>
@@ -568,7 +568,7 @@ const SettingsChangelog = ({ log, onClaim }) => {
 
   if (!log.length) return (
     <div style={{ padding: 32, textAlign: "center", color: "var(--textdim)", fontFamily: "var(--mono)", fontSize: 12 }}>
-      No settings changes recorded yet. Changes to servertest.ini or SandboxVars.lua will appear here — whether made through the panel or externally.
+      No settings changes recorded yet. Changes to servertest.ini or SandboxVars.lua will appear here - whether made through the panel or externally.
     </div>
   );
 
@@ -716,7 +716,7 @@ export default function PlannerTab({ toast, initialTab }) {
       setTasks(d.tasks || []);
       setChecks(d.checks || {});
     } catch {
-      // Backend not ready yet — use empty state
+      // Backend not ready yet - use empty state
     }
     try {
       const d = await fetchApi("/api/admin/planner/modlog");
@@ -735,7 +735,7 @@ export default function PlannerTab({ toast, initialTab }) {
     setTasks(newTasks);
     try {
       await postApi("/api/admin/planner/tasks", { tasks: newTasks, checks });
-    } catch {} // Backend not ready — that's fine
+    } catch {} // Backend not ready - that's fine
   }, [checks]);
 
   const saveChecks = useCallback(async (newChecks) => {
@@ -892,7 +892,7 @@ export default function PlannerTab({ toast, initialTab }) {
       {sub === "settingslog" && <SettingsChangelog log={settingsLog} onClaim={async (entryAt) => {
         try {
           await postApi("/api/admin/config/claim", { created_at: entryAt });
-          toast("Edit claimed — your name is now on it", "success");
+          toast("Edit claimed - your name is now on it", "success");
           load();
         } catch { toast("Could not claim edit", "error"); }
       }} />}

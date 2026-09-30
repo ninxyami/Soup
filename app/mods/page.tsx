@@ -47,10 +47,10 @@ export default function ModsPage() {
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#4a7c5933] to-transparent" />
         <p className="font-mono text-[0.58rem] tracking-[0.25em] text-[#4a7c59] uppercase mb-3">Our Philosophy</p>
         <p className="text-[0.82rem] text-[#666] leading-relaxed">
-          {data?.links.philosophy || "Mods on State of Undead Purge are not used to bypass survival or accelerate progression. They exist to deepen systems, expand long-term gameplay, and support quality-of-life without trivializing the experience."}
+          {data?.links.philosophy || "Mods on State of Undead Purge are not used to bypass survival or accelerate progression. They're here to add depth, give long seasons more to do, and fix annoyances without making the game easier."}
         </p>
         <p className="text-[0.78rem] text-[#444] mt-2 leading-relaxed">
-          All mods are tested before being added to the live server. Performance, compatibility, and balance are considered first. Experimental or unstable mods are avoided.
+          All mods are tested before being added to the live server. We check performance, compatibility and balance first, and skip mods that aren't stable.
         </p>
       </div>
 
@@ -168,7 +168,7 @@ export default function ModsPage() {
       {mods.length === 0 && data && (
         <div className="border border-[#1a1a1a] p-8 text-center">
           <p className="font-mono text-[0.72rem] text-[#444]">
-            No mods listed yet — check the{" "}
+            No mods listed yet - check the{" "}
             <a href={data.links.spreadsheet_url} target="_blank" rel="noopener noreferrer" className="text-[#4a7c59] no-underline hover:underline">
               spreadsheet
             </a>{" "}

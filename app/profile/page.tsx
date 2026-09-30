@@ -73,10 +73,10 @@ export default function ProfilePage() {
     finally { setBioSaving(false); }
   };
 
-  const pct = (wins: number, total: number) => total > 0 ? Math.round((wins / total) * 100) + "%" : "—";
+  const pct = (wins: number, total: number) => total > 0 ? Math.round((wins / total) * 100) + "%" : "-";
   const net = (won: number, lost: number) => { const n = won - lost; return (n >= 0 ? "+" : "") + n.toLocaleString() + " 🟤"; };
   const fmtTime = (s: number) => {
-    if (!s || s <= 0) return "—";
+    if (!s || s <= 0) return "-";
     const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60);
     if (d > 0) return `${d}d ${h}h`; if (h > 0) return `${h}h ${m}m`; return `${m}m`;
   };
@@ -187,7 +187,7 @@ export default function ProfilePage() {
           {/* In-Game */}
           {ingameStats && <>
             <section>
-              <h2>⚔️ In-Game — {SEASON_SHORT}</h2>
+              <h2>⚔️ In-Game - {SEASON_SHORT}</h2>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-6 mt-4 sm:mt-6">
                 <StatBlock value={(ingameStats.kills||0).toLocaleString()} label="Kills (this life)" />
                 <StatBlock value={(ingameStats.overallKills||0).toLocaleString()} label="All-Time Kills" />
@@ -205,7 +205,7 @@ export default function ProfilePage() {
           {/* Werewolf */}
           {user.player && user.player.games_played > 0 && <>
             <section>
-              <h2>🐺 Werewolf — {SEASON_SHORT}</h2>
+              <h2>🐺 Werewolf - {SEASON_SHORT}</h2>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-6 mt-4 sm:mt-6">
                 <StatBlock value={user.player.games_played} label="Games" />
                 <StatBlock value={user.player.games_won} label="Wins" />
@@ -219,9 +219,9 @@ export default function ProfilePage() {
           {/* Quizarium */}
           {user.quiz && <>
             <section>
-              <h2>🧠 Quizarium — {SEASON_SHORT}</h2>
+              <h2>🧠 Quizarium - {SEASON_SHORT}</h2>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-6 mt-4 sm:mt-6">
-                <StatBlock value={user.quiz.rank ? `#${user.quiz.rank}` : "—"} label="Rank" />
+                <StatBlock value={user.quiz.rank ? `#${user.quiz.rank}` : "-"} label="Rank" />
                 <StatBlock value={user.quiz.total_points} label="Points" />
                 <StatBlock value={user.quiz.correct_answers} label="Correct" />
                 <StatBlock value={user.quiz.games_played} label="Games" />

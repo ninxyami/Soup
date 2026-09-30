@@ -2,7 +2,7 @@
 // @ts-nocheck
 // components/BoardEditor.jsx
 //
-// The collaborative BOARD surface — a kanban (columns + draggable cards), live
+// The collaborative BOARD surface - a kanban (columns + draggable cards), live
 // through the relay. "Board" is the third document type alongside Document
 // (TipTap) and Sheet (jspreadsheet).
 //
@@ -13,7 +13,7 @@
 //     yCols  : Y.Array of { id, title }
 //   The kanban view groups cards by `status` (= column id) and orders by
 //   `order`. The gantt view (next round) reads the SAME yCards, using
-//   `start`/`end`. So the two views are interconnected for free — move a card
+//   `start`/`end`. So the two views are interconnected for free - move a card
 //   here, it moves on the gantt; set dates on the gantt, this card knows them.
 //
 //   Per-card Yjs keys mean two admins moving DIFFERENT cards never collide;
@@ -25,7 +25,7 @@ import { WebsocketProvider } from "y-websocket";
 
 const WS_BASE = "wss://api.stateofundeadpurge.site:8443/ws/workspace";
 
-// Card label colors — same palette/keys as the sheet + table cell colors.
+// Card label colors - same palette/keys as the sheet + table cell colors.
 const LABELS = [
   { key: "",       label: "None",      color: "transparent" },
   { key: "green",  label: "Done",      color: "#4caf7d" },
@@ -141,7 +141,7 @@ const toDayStr = (ms) => { const d = new Date(ms); return `${d.getUTCFullYear()}
 const dayDiff = (a, b) => Math.round((b - a) / DAY_MS);
 const DAY_W = 34; // px per day
 
-// Gantt timeline view — reads the SAME cards as the kanban, writes dates back
+// Gantt timeline view - reads the SAME cards as the kanban, writes dates back
 // via putCard so the two stay perfectly in sync.
 function GanttView({ cards, labelColor, putCard, setEditing, columns }) {
   const trackRef = useRef(null);
@@ -247,7 +247,7 @@ function GanttView({ cards, labelColor, putCard, setEditing, columns }) {
           })}
         </div>
       </div>
-      {/* tray of undated cards — click to give them dates (placed at today) */}
+      {/* tray of undated cards - click to give them dates (placed at today) */}
       {undated.length > 0 && (
         <div className="bd-tray">
           <span style={{ fontFamily: "var(--mono)", fontSize: 10, letterSpacing: 1, textTransform: "uppercase", color: "var(--textdim)", marginRight: 4 }}>No dates:</span>
@@ -496,7 +496,7 @@ export default function BoardEditor({ docId, me, admins = [] }) {
                 <label className="bd-flabel">Assignee</label>
                 <select className="bd-inp" value={editing.assignee}
                   onChange={(e) => setEditing({ ...editing, assignee: e.target.value })}>
-                  <option value="">—</option>
+                  <option value="">-</option>
                   {admins.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
                 </select>
               </div>
@@ -512,7 +512,7 @@ export default function BoardEditor({ docId, me, admins = [] }) {
                 </div>
               </div>
             </div>
-            {/* date fields — unused by kanban view, but feed the gantt later */}
+            {/* date fields - unused by kanban view, but feed the gantt later */}
             <div className="bd-row">
               <div className="bd-field" style={{ flex: 1 }}>
                 <label className="bd-flabel">Start date</label>

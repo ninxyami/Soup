@@ -80,7 +80,7 @@ const RconPasswordWidget = ({ toast }) => {
           <B c="gold" sm onClick={save} disabled={saving}>{saving ? "Saving..." : "Save"}</B>
         </>}
       </div>
-      {changed && <div style={{ fontSize: 10, color: "var(--accent)", fontFamily: "var(--mono)", marginTop: 4 }}>⚠ Unsaved — will update servertest.ini, config.py, and shared.py</div>}
+      {changed && <div style={{ fontSize: 10, color: "var(--accent)", fontFamily: "var(--mono)", marginTop: 4 }}>⚠ Unsaved - will update servertest.ini, config.py, and shared.py</div>}
     </div>
   );
 };
@@ -113,7 +113,7 @@ export default function OverviewTab({ toast }) {
         season_short:    shortInput.trim(),
         season_subtitle: subtitleInput.trim(),
       });
-      toast("Season updated — restart bot + API to apply", "success");
+      toast("Season updated - restart bot + API to apply", "success");
       await loadSeason();
     } catch (e) { toast(e.message, "error"); }
     setSeasonSaving(false);
@@ -144,10 +144,10 @@ export default function OverviewTab({ toast }) {
   return (<>
     <Title t="COMMAND CENTER" s="system overview · treasury health · recent activity" />
     <div className="ap-sr">
-      <SC label="Treasury Balance" value={t ? fmt(t.balance) : "—"} sub={t ? `${d?.t?.money?.health ? d.t.money.health + " · " : ""}${t.health_pct}% of cap` : ""} />
-      <SC label="Paid Out (24h)" value={s24 ? fmt(s24.paid_out) : "—"} color="green" sub={s24 ? `${s24.payout_count} payouts` : ""} />
-      <SC label="On Shop Shelves" value={shopTotals ? fmt(shopTotals.on_shelf) : "—"} color="blue" sub={shopTotals ? `${shopTotals.out_of_stock} out of stock · ${shopTotals.overdue_shops} overdue` : ""} />
-      <SC label="Total Players" value={com?.total_players ?? "—"} color="orange" sub={com?.total_games ? `${com.total_games} games played` : ""} />
+      <SC label="Treasury Balance" value={t ? fmt(t.balance) : "-"} sub={t ? `${d?.t?.money?.health ? d.t.money.health + " · " : ""}${t.health_pct}% of cap` : ""} />
+      <SC label="Paid Out (24h)" value={s24 ? fmt(s24.paid_out) : "-"} color="green" sub={s24 ? `${s24.payout_count} payouts` : ""} />
+      <SC label="On Shop Shelves" value={shopTotals ? fmt(shopTotals.on_shelf) : "-"} color="blue" sub={shopTotals ? `${shopTotals.out_of_stock} out of stock · ${shopTotals.overdue_shops} overdue` : ""} />
+      <SC label="Total Players" value={com?.total_players ?? "-"} color="orange" sub={com?.total_games ? `${com.total_games} games played` : ""} />
     </div>
 
     <OnlinePlayers />
@@ -160,7 +160,7 @@ export default function OverviewTab({ toast }) {
           <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)", marginTop: 4 }}>{bronzeToCoins(t.balance)}</div>
         </div>
         <div style={{ textAlign: "right" }}>
-          <div className={`ap-mbadge ${t.model}`}>{t.model === "B" ? "♻ MODEL B — CIRCULATING" : "🔥 MODEL A — HARD CAP"}</div>
+          <div className={`ap-mbadge ${t.model}`}>{t.model === "B" ? "♻ MODEL B - CIRCULATING" : "🔥 MODEL A - HARD CAP"}</div>
           <div style={{ fontFamily: "var(--mono)", fontSize: 10, letterSpacing: 2, color: "var(--textdim)", textTransform: "uppercase" }}>Cycle</div>
           <div style={{ fontFamily: "var(--display)", fontSize: 24, letterSpacing: 2, color: "var(--text)" }}>{t.cycle_days_remaining > 0 ? `${t.cycle_days_remaining}d left` : "OVERDUE"}</div>
         </div>
@@ -209,8 +209,8 @@ export default function OverviewTab({ toast }) {
     <TW title="RECENT ACTIVITY" right={<B c="ghost" sm onClick={load}>Refresh</B>}>
       {log.length ? <div>{log.slice(0, 12).map((e, i) => <div key={i} className="ap-lr">
         <span className="ap-lr-t">{relTime(e.timestamp)}</span><EvBadge type={e.event_type} />
-        <span className="ap-lr-d">{e.reason || "—"}</span>
-        <span className="ap-lr-p">{e.player || (e.discord_id ? `#${e.discord_id}` : "—")}</span>
+        <span className="ap-lr-d">{e.reason || "-"}</span>
+        <span className="ap-lr-p">{e.player || (e.discord_id ? `#${e.discord_id}` : "-")}</span>
         <span className={`ap-lr-v ${["payout", "burn"].includes(e.event_type) ? "neg" : e.amount > 0 ? "pos" : "neu"}`}>{["payout", "burn"].includes(e.event_type) ? "−" : e.amount > 0 ? "+" : ""}{fmt(Math.abs(e.amount))} 🟤</span>
       </div>)}</div> : <Empty text="no events yet" />}
     </TW>

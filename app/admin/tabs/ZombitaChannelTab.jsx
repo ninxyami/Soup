@@ -4,11 +4,11 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { fetchApi, ADMINS, fmtFull, relTime, Title, Empty, Load } from "./shared";
 
 // ──────────────────────────────────────────────────────────────────────────
-// P7.3 — Admin-channel live mirror (READ-ONLY broadcast)
+// P7.3 - Admin-channel live mirror (READ-ONLY broadcast)
 //
 // A web view of the "Zombita Thinking" admin channel: every message from any
 // admin (and from Zombita herself) appears here, styled as a chat rather than
-// a console. You cannot send from here — it purely mirrors Discord.
+// a console. You cannot send from here - it purely mirrors Discord.
 //
 //   • opens on the newest 100 messages
 //   • scroll to the top → loads the previous 100 ("load older")
@@ -33,7 +33,7 @@ const whoFor = (m) => {
   );
   if (hit) return hit;
   // unknown author → derive a stable-ish color from the name so it's still distinct
-  const name = m.name || "—";
+  const name = m.name || "-";
   const initials = name.slice(0, 2).toUpperCase();
   return { name, color: "#8a8f98", initials };
 };
@@ -43,7 +43,7 @@ const dayKey = (ts) => {
   return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 };
 
-// One message row — avatar chip + author + time + bubble (+ images).
+// One message row - avatar chip + author + time + bubble (+ images).
 const Msg = ({ m, prevSame }) => {
   const who = whoFor(m);
   return (
@@ -96,7 +96,7 @@ const Msg = ({ m, prevSame }) => {
                 marginLeft: 8, fontStyle: "italic", fontSize: 11.5, color: "#d98a8a",
                 textDecoration: "none", display: "inline-block",
               }}>
-                — this message was deleted
+                - this message was deleted
               </span>
             )}
             {m.edited && !m.deleted && (
@@ -148,7 +148,7 @@ const Msg = ({ m, prevSame }) => {
                   border: "1px solid var(--border)", background: "#000",
                 }}
                 onError={(e) => {
-                  // a video URL can expire (Discord ~24h) — fall back to a link
+                  // a video URL can expire (Discord ~24h) - fall back to a link
                   const a = document.createElement("a");
                   a.href = src; a.target = "_blank"; a.rel = "noreferrer";
                   a.textContent = "▶ video (open in Discord)";
@@ -178,7 +178,7 @@ export default function ZombitaChannelTab() {
   const firstIdRef = useRef(0);         // oldest id we have (for load-older)
   const atBottomRef = useRef(true);     // is the view pinned to the bottom?
 
-  // initial load — newest page
+  // initial load - newest page
   const loadInitial = useCallback(async () => {
     setLoading(true); setErr(null);
     try {
@@ -204,7 +204,7 @@ export default function ZombitaChannelTab() {
 
   useEffect(() => { loadInitial(); }, [loadInitial]);
 
-  // live poll — fetch new messages (after the last id) AND refresh edit/delete state
+  // live poll - fetch new messages (after the last id) AND refresh edit/delete state
   // on the most recent already-visible messages (edits/deletes mutate old rows, which
   // an after_id query alone would never re-see).
   useEffect(() => {
@@ -299,7 +299,7 @@ export default function ZombitaChannelTab() {
 
   return (
     <div>
-      <Title t="Admin Channel" s="Live mirror of the Zombita Thinking channel — read-only" />
+      <Title t="Admin Channel" s="Live mirror of the Zombita Thinking channel - read-only" />
 
       <div style={{
         display: "flex", alignItems: "center", gap: 12, margin: "4px 0 10px",
@@ -334,7 +334,7 @@ export default function ZombitaChannelTab() {
           color: "#e0857d", fontSize: 13, padding: "8px 10px", marginBottom: 8,
           border: "1px solid #e0857d44", borderRadius: 6, background: "#e0857d11",
         }}>
-          {err} — <button onClick={loadInitial}
+          {err} - <button onClick={loadInitial}
             style={{ color: "#e0857d", textDecoration: "underline", background: "none", border: "none", cursor: "pointer" }}>
             retry
           </button>
@@ -356,7 +356,7 @@ export default function ZombitaChannelTab() {
         )}
         {!hasMore && messages.length > 0 && (
           <div style={{ textAlign: "center", padding: "6px 0 10px", color: "var(--muted)", fontSize: 10.5, fontFamily: "var(--mono)", letterSpacing: 0.5 }}>
-            — start of channel —
+            - start of channel -
           </div>
         )}
 

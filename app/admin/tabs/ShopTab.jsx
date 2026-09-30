@@ -1,6 +1,6 @@
 "use client";
 // @ts-nocheck
-// Admin SHOP — the live shop network: 8 keepers, the authored catalog, what is on
+// Admin SHOP - the live shop network: 8 keepers, the authored catalog, what is on
 // each shelf right now, stock, and Zombita's restock decisions.
 // Backend: routers/admin_shop_live.py (/api/admin/shop/live/*).
 import { useState, useEffect, useCallback } from "react";
@@ -37,7 +37,7 @@ const mono = { fontFamily: "var(--mono)" };
 const dim  = { fontFamily: "var(--mono)", fontSize: 10, color: "var(--textdim)" };
 
 function untilText(ts) {
-  if (!ts) return "—";
+  if (!ts) return "-";
   const diff = ts - Math.floor(Date.now() / 1000);
   const abs = Math.abs(diff), d = Math.floor(abs / 86400), h = Math.floor((abs % 86400) / 3600), m = Math.floor((abs % 3600) / 60);
   const span = d > 0 ? `${d}d ${h}h` : h > 0 ? `${h}h ${m}m` : `${m}m`;
@@ -76,7 +76,7 @@ function ShopsView({ data, toast, onOpenShelf, reload }) {
     {t.overdue_shops > 0 && (
       <div className="ap-note" style={{ marginBottom: 16 }}>
         ⚠️ {t.overdue_shops} shop{t.overdue_shops > 1 ? "s are" : " is"} past the scheduled rotation. Shops only rotate when
-        someone rolls them (here or from the in-game Zombita Control panel) — nothing rotates them on a timer yet.
+        someone rolls them (here or from the in-game Zombita Control panel) - nothing rotates them on a timer yet.
       </div>
     )}
 
@@ -103,7 +103,7 @@ function ShopsView({ data, toast, onOpenShelf, reload }) {
                 <td style={mono}>{s.on_shelf}</td>
                 <td style={{ ...mono, color: s.out_of_stock ? "var(--red)" : "var(--textdim)" }}>{s.out_of_stock}</td>
                 <td style={{ ...mono, color: s.low_stock ? "var(--accent)" : "var(--textdim)" }}>{s.low_stock}</td>
-                <td style={mono}>{s.pending_restocks || "—"}</td>
+                <td style={mono}>{s.pending_restocks || "-"}</td>
                 <td style={dim}>{s.rotated_at ? relTime(s.rotated_at) : "never"}</td>
                 <td style={{ ...mono, fontSize: 12, color: s.overdue ? "var(--red)" : "var(--text)" }}>{untilText(s.next_rotation)}</td>
                 <td>
@@ -155,16 +155,16 @@ function ShelfView({ shop, setShop, toast }) {
   });
 
   return (
-    <TW title={`SHELF — ${SHOPS[shop]?.label?.toUpperCase() || shop}`} right={<>
+    <TW title={`SHELF - ${SHOPS[shop]?.label?.toUpperCase() || shop}`} right={<>
       <select className="ap-search" style={{ padding: "4px 8px" }} value={shop} onChange={e => setShop(e.target.value)}>
         {SHOP_ORDER.map(st => <option key={st} value={st}>{shopName(st)}</option>)}
       </select>
       <input className="ap-search" placeholder="search shelf…" value={search} onChange={e => setSearch(e.target.value)} />
       <B c="gold" sm onClick={load}>↻</B>
     </>}>
-      {loading ? <Load /> : !data?.items?.length ? <Empty text="Nothing on this shelf — roll the shop from the Shops view." /> : (<>
+      {loading ? <Load /> : !data?.items?.length ? <Empty text="Nothing on this shelf - roll the shop from the Shops view." /> : (<>
         <div style={{ ...dim, marginBottom: 10 }}>
-          {data.items.length} on the shelf · rotated {data.rotated_at ? relTime(data.rotated_at) : "—"} · next rotation {untilText(data.next_rotation)}
+          {data.items.length} on the shelf · rotated {data.rotated_at ? relTime(data.rotated_at) : "-"} · next rotation {untilText(data.next_rotation)}
           {" · "}prices come from the pricing pass (treasury, demand, Zombita's brain)
         </div>
         <table className="ap-t">
@@ -196,7 +196,7 @@ function ShelfView({ shop, setShop, toast }) {
                     )}
                   </td>
                   <td style={{ ...mono, fontSize: 13, color: stockColor(item.stock, item.max_stock) }}>
-                    {item.stock < 0 ? "—" : item.stock}
+                    {item.stock < 0 ? "-" : item.stock}
                     {item.max_stock > 0 && <span style={{ color: "var(--textdim)", fontSize: 10 }}> / {item.max_stock}</span>}
                   </td>
                   <td>
@@ -252,7 +252,7 @@ function CatalogView({ toast }) {
   const update = async (item, patch, msg) => {
     try {
       await postApi("/api/admin/shop/live/catalog", { item_id: item.item_id, shop_type: item.shop_type, ...patch });
-      toast(`${item.name}: ${msg} — applies on the next roll of ${SHOPS[item.shop_type]?.npc || item.shop_type}`, "success");
+      toast(`${item.name}: ${msg} - applies on the next roll of ${SHOPS[item.shop_type]?.npc || item.shop_type}`, "success");
       load();
     } catch (e) { toast(`Update failed: ${e.message}`, "error"); }
   };
@@ -260,11 +260,11 @@ function CatalogView({ toast }) {
   const pages = data ? Math.max(1, Math.ceil(data.total / PAGE_SIZE)) : 1;
   return (<>
     <div className="ap-note" style={{ marginBottom: 16 }}>
-      Names, tiers and price bands come from the economy sheets — a catalog reload rewrites them and
+      Names, tiers and price bands come from the economy sheets - a catalog reload rewrites them and
       re-enables hidden items. Here you can <b>hide</b> an item from future rotations or mark it
       <b> permanent</b> (always on the shelf). Both take effect the next time that shop is rolled.
     </div>
-    <TW title={`CATALOG${data ? ` — ${fmt(data.total)} items` : ""}`} right={<>
+    <TW title={`CATALOG${data ? ` - ${fmt(data.total)} items` : ""}`} right={<>
       <select className="ap-search" style={{ padding: "4px 8px" }} value={shop} onChange={e => setShop(e.target.value)}>
         <option value="">All shops</option>
         {SHOP_ORDER.map(st => <option key={st} value={st}>{shopName(st)}</option>)}
@@ -407,7 +407,7 @@ function RestocksView({ toast }) {
                 </span>
               </td>
               <td style={mono}>{fmt(r.rep_spent)}{r.verdict === "refused" && <span style={dim}> fee</span>}</td>
-              <td style={mono}>{r.price_set ? `${fmt(r.price_set)} 🟤` : "—"}</td>
+              <td style={mono}>{r.price_set ? `${fmt(r.price_set)} 🟤` : "-"}</td>
             </tr>
           ))}</tbody>
         </table>

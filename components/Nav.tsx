@@ -50,7 +50,7 @@ export default function Nav() {
           )}
         </div>
 
-        {/* Desktop: right side — bell + auth */}
+        {/* Desktop: right side - bell + auth */}
         <div className="hidden md:flex items-center gap-3">
           <GameTimeWidget />
           {user && <NotificationBell discordId={user.discord_id} />}

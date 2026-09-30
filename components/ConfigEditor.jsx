@@ -5,7 +5,7 @@
 // Collaborative RAW CONFIG editor (P2.2). Client-only (Yjs cannot SSR).
 // Same proven stack as CollabEditor: TipTap v2 + Yjs + y-websocket, on the
 // SAME relay. Differences for config files:
-//   • The surface is a single monospace CODE document — no rich formatting.
+//   • The surface is a single monospace CODE document - no rich formatting.
 //     A .ini / .lua is plain text; rich text would corrupt it.
 //   • The live doc is a DRAFT. The real file on disk is untouched until an
 //     admin hits Save → backend validates syntax → writes. A broken merge
@@ -14,7 +14,7 @@
 //   • A new config room is SEEDED once with the file's current on-disk text.
 //
 // Save flow: validate (backend) → write (backend) → "restart to apply".
-// Applying to the live server is the admin's normal restart — NOT here.
+// Applying to the live server is the admin's normal restart - NOT here.
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import * as Y from "yjs";
@@ -212,7 +212,7 @@ export default function ConfigEditor({ fileKey, fileLabel, me }) {
     const ydoc = new Y.Doc();
     ydocRef.current = ydoc;
     // Per-line authorship lives in its OWN map inside the SAME Yjs doc, so the
-    // relay persists it for free — no backend change. lineHash(text) -> {name,color,ts}
+    // relay persists it for free - no backend change. lineHash(text) -> {name,color,ts}
     const yAuthors = ydoc.getMap("lineAuthors");
     yAuthorsRef.current = yAuthors;
 
@@ -293,7 +293,7 @@ export default function ConfigEditor({ fileKey, fileLabel, me }) {
     });
     editorRef.current = editor;
 
-    // Seed the room with the file's on-disk text — but only ONCE, and only
+    // Seed the room with the file's on-disk text - but only ONCE, and only
     // if the synced Yjs doc is still empty (so the 2nd person to open it does
     // NOT re-insert and duplicate). We wait for the provider to sync first.
     const seedIfEmpty = async () => {
@@ -445,7 +445,7 @@ export default function ConfigEditor({ fileKey, fileLabel, me }) {
         borderBottom: "1px solid var(--border)", background: "var(--surface)",
         position: "sticky", top: 0, zIndex: 20,
       }}>
-        {/* info group — allowed to shrink/overflow, never pushes buttons away */}
+        {/* info group - allowed to shrink/overflow, never pushes buttons away */}
         <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0, flex: 1, overflow: "hidden" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
             <span style={{
@@ -488,7 +488,7 @@ export default function ConfigEditor({ fileKey, fileLabel, me }) {
           )}
         </div>
 
-        {/* action group — fixed, always visible, never wraps off-screen */}
+        {/* action group - fixed, always visible, never wraps off-screen */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
           <button onClick={() => setBlameOn((b) => !b)} disabled={loadingFile}
             style={btnStyle(blameOn ? "gold" : "ghost", loadingFile)}
@@ -570,7 +570,7 @@ export default function ConfigEditor({ fileKey, fileLabel, me }) {
         padding: "8px 16px", borderTop: "1px solid var(--border)", background: "rgba(0,0,0,0.15)",
         fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)", letterSpacing: 0.5,
       }}>
-        Edits are a shared live draft — nobody's changes get overwritten. The real file is written only on Save (after a syntax check). Restart the server to apply.
+        Edits are a shared live draft - nobody's changes get overwritten. The real file is written only on Save (after a syntax check). Restart the server to apply.
       </div>
 
       {/* HISTORY OVERLAY */}

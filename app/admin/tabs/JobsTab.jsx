@@ -299,7 +299,7 @@ export default function JobsTab({ toast }) {
                   : (q.racers || []).map((r) => (
                     <div key={r.name}>{r.name} <span style={dim}>({r.kills} kills)</span>{(r.crew || []).map((c) => (
                       <div key={c.name} style={{ ...dim, paddingLeft: 10 }}>+ {c.name} · {c.kills} kills · near {c.ticks ? Math.round((100 * c.near) / c.ticks) : 0}%</div>))}</div>))}</td>
-                <td style={mono}>{q.total > 1 ? `${q.progress}/${q.total}` : "—"}{q.bagOut ? <div style={dim}>bag out</div> : null}</td>
+                <td style={mono}>{q.total > 1 ? `${q.progress}/${q.total}` : "-"}{q.bagOut ? <div style={dim}>bag out</div> : null}</td>
                 <td style={mono}>{dur(q.left)}</td>
                 <td>{KIND[q.kind]?.[0] && <Flag c={KIND[q.kind][1]}>{KIND[q.kind][0]}</Flag>}{q.big && <Flag c="#ffcc2e">2 HORDES</Flag>}
                   {q.sprung && <Flag c="var(--red)">TRAP SPRUNG</Flag>}{q.trap && !q.sprung && <Flag c="var(--orange)">TRAP</Flag>}

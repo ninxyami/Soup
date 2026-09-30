@@ -67,7 +67,7 @@ export default function GameTimeWidget() {
 
   return (
     <div
-      title={`Knox County — Day ${time.day}, ${time.month} ${time.year}`}
+      title={`Knox County - Day ${time.day}, ${time.month} ${time.year}`}
       style={{
         display: "inline-flex",
         flexDirection: "column",
@@ -85,7 +85,7 @@ export default function GameTimeWidget() {
     >
       {/* Segment display background (unlit segments) */}
       <div style={{ position: "relative" }}>
-        {/* Unlit segments — ghost layer */}
+        {/* Unlit segments - ghost layer */}
         <div style={{
           fontFamily: "'DSEG7 Classic', 'DSEG7Classic', monospace",
           fontSize: "1.1rem",

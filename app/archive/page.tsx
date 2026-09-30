@@ -14,7 +14,7 @@ const STATIC_FALLBACK: Season[] = [
     season_name: "Dawnpocalypse",
     subtitle: "The Pre-Season",
     dates: "Early 2025",
-    description: "The chaotic pre-test run that started it all. No rules, no economy, just survival. Named to tease Dawnie — a tradition that stuck.",
+    description: "The chaotic pre-test run that started it all. No rules, no economy, just survival. Named to tease Dawnie - a tradition that stuck.",
     image_url: "/assets/dawnpocalypse.png",
     story: "",
     standouts: [
@@ -61,7 +61,7 @@ function LeaderboardSessionCard({ s }: { s: LbSession }) {
           return (
             <div key={t.label} className="flex flex-col gap-0.5">
               <span className="font-mono text-[0.58rem] tracking-[0.15em] uppercase text-[#444]">{t.label}</span>
-              <span className="font-mono text-[0.82rem] text-[#b0b0b0]">{best && Number(best[t.key]) > 0 ? `${best.name} (${t.show(best)})` : "—"}</span>
+              <span className="font-mono text-[0.82rem] text-[#b0b0b0]">{best && Number(best[t.key]) > 0 ? `${best.name} (${t.show(best)})` : "-"}</span>
             </div>
           );
         })}

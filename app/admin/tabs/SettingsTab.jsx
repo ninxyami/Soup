@@ -4,10 +4,10 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { API, fetchApi, postApi, Title, SC, TW, B, Empty, Load } from "./shared";
 
 // ──────────────────────────────────────────────────────────────────────────
-// P6 — Owner-only settings page.
+// P6 - Owner-only settings page.
 //
 // Edits the ZOMBITA_* tuning knobs in .env via owner-only endpoints. These
-// knobs are read at process start, so changes apply on RESTART — the page is
+// knobs are read at process start, so changes apply on RESTART - the page is
 // upfront about that and gives a restart button. Security is enforced
 // SERVER-SIDE (get_owner_session → 403); this UI just hides the controls from
 // non-owners as a courtesy.
@@ -146,10 +146,10 @@ export default function SettingsTab({ toast }) {
     try {
       const r = await postApi("/api/admin/settings/restart", {});
       if (r.ok) {
-        toast?.("Services restarting — settings now applied", "success");
+        toast?.("Services restarting - settings now applied", "success");
         setSavedNeedsRestart(false);
       } else {
-        toast?.("Some services failed to restart — check the box", "error");
+        toast?.("Some services failed to restart - check the box", "error");
       }
     } catch (e) { toast?.(e.message, "error"); }
     setRestarting(false);
@@ -174,7 +174,7 @@ export default function SettingsTab({ toast }) {
         <SC label="Knobs" value={schema.length} />
         <SC label="Unsaved" value={Object.keys(values).filter(k => values[k] !== original[k]).length}
             color={dirty ? "orange" : ""} />
-        <SC label="Apply" value={savedNeedsRestart ? "restart" : "—"}
+        <SC label="Apply" value={savedNeedsRestart ? "restart" : "-"}
             color={savedNeedsRestart ? "blue" : ""} />
       </div>
 
@@ -184,7 +184,7 @@ export default function SettingsTab({ toast }) {
         padding: "12px 16px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 4,
       }}>
         <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--textdim)", flex: 1, minWidth: 180 }}>
-          {dirty ? "Unsaved changes — save, then restart to apply."
+          {dirty ? "Unsaved changes - save, then restart to apply."
                  : savedNeedsRestart ? "Saved. Restart the services to apply."
                  : "All settings saved and applied."}
         </span>

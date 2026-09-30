@@ -4,15 +4,15 @@ import { useState, useEffect, useCallback } from "react";
 import { fetchApi, postApi, relTime, fmtDate, fmtFull, Title, SC, TW, B, Empty, Load } from "./shared";
 
 // ──────────────────────────────────────────────────────────────────────────
-// P5.3 — "Zombita's Thinking" surface (READ-ONLY)
+// P5.3 - "Zombita's Thinking" surface (READ-ONLY)
 //
 // Renders the nightly thinking entries Sonnet writes (zombita_thinking, via
 // GET /api/admin/zombita/thinking). Calm "no change needed" nights are shown
 // quietly; nights where she flagged something stand out. Admins can ACKNOWLEDGE
-// an entry they've read — that's the only write, and it touches nothing on the
+// an entry they've read - that's the only write, and it touches nothing on the
 // server. Also shows her current living memory doc + version history (read-only).
 //
-// NOTE: built before launch — until the pipeline is switched on and a few real
+// NOTE: built before launch - until the pipeline is switched on and a few real
 // summaries accumulate, this will correctly show "no thinking entries yet".
 // ──────────────────────────────────────────────────────────────────────────
 
@@ -89,7 +89,7 @@ const RatingControl = ({ label, mine, others, busy, onRate }) => {
           <textarea
             value={reason}
             onChange={e => setReason(e.target.value)}
-            placeholder={`what was ${label === "take" ? "right/wrong about her take" : "good/off about the suggestion"}? (optional — she reads this)`}
+            placeholder={`what was ${label === "take" ? "right/wrong about her take" : "good/off about the suggestion"}? (optional - she reads this)`}
             rows={2}
             style={{
               flex: 1, fontFamily: "var(--mono)", fontSize: 11, lineHeight: 1.5,
@@ -110,7 +110,7 @@ const RatingControl = ({ label, mine, others, busy, onRate }) => {
                 {r.rating === "good" ? "✓" : "✕"}
               </span>{" "}
               <span style={{ color: "var(--textdim)" }}>{r.admin_name || "an admin"}</span>
-              {r.reason ? <span> — “{r.reason}”</span> : null}
+              {r.reason ? <span> - “{r.reason}”</span> : null}
             </div>
           ))}
         </div>
@@ -130,7 +130,7 @@ const ThinkingCard = ({ entry, onAck, onRate, busy, myId }) => {
   const take = (st.take || "").trim();
   const suggestions = (st.suggestions || "").trim();
   // Prefer the structured observations. Only fall back to the rendered text body
-  // when observations is missing — and strip the "My take:"/"Suggestions:" tails
+  // when observations is missing - and strip the "My take:"/"Suggestions:" tails
   // from that fallback so they don't duplicate the dedicated sections below.
   let body = (st.observations || "").trim();
   if (!body) {
@@ -196,7 +196,7 @@ const ThinkingCard = ({ entry, onAck, onRate, busy, myId }) => {
         </div>
       )}
 
-      {/* Her Take — her own opinion, set apart from the neutral observations.
+      {/* Her Take - her own opinion, set apart from the neutral observations.
           Only renders when she actually formed one (conditional in the prompt). */}
       {take && (
         <div style={{
@@ -286,7 +286,7 @@ const MemoryPanel = ({ toast }) => {
   }, []);
 
   if (loading) return <Load />;
-  if (!doc) return <Empty text="no memory document yet — builds after launch" />;
+  if (!doc) return <Empty text="no memory document yet - builds after launch" />;
 
   const shown = viewVer || doc;
 
@@ -376,7 +376,7 @@ export default function ZombitaThinkingTab({ toast }) {
   };
 
   // Rate her take / suggestions. rating: 'good'|'off'|null(clear). Per-admin,
-  // visible to all — the server returns the entry's full updated ratings list.
+  // visible to all - the server returns the entry's full updated ratings list.
   const rate = async (thinking_date, target, rating, reason) => {
     setAckBusy(true);
     try {
@@ -473,10 +473,10 @@ export default function ZombitaThinkingTab({ toast }) {
             visible.length === 0
               ? <Empty text={
                   thinkView === "acked"
-                    ? "nothing acknowledged yet — entries you acknowledge move here"
+                    ? "nothing acknowledged yet - entries you acknowledge move here"
                     : (entries.length === 0
-                      ? "no thinking entries yet — she starts once the pipeline is live and summaries accumulate"
-                      : "all caught up — you've acknowledged everything")} />
+                      ? "no thinking entries yet - she starts once the pipeline is live and summaries accumulate"
+                      : "all caught up - you've acknowledged everything")} />
               : <div>{visible.map(e => (
                   <ThinkingCard key={e.thinking_date} entry={e} onAck={ack} onRate={rate}
                                 myId={e.my_admin_id} busy={ackBusy} />

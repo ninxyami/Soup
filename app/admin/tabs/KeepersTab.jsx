@@ -25,9 +25,9 @@ const LedgerRows = ({ rows, showKeeper }) => rows.length ? <div>{rows.map((e, i)
       {showKeeper && <strong style={{ color: "var(--text)" }}>{e.persona} </strong>}
       {e.quantity ? `${e.quantity}x ${e.item_id}` : ""}{e.kind === "sale" && e.treasury_cut ? ` · Zombita's cut ${fmt(e.treasury_cut)}` : ""}{e.detail ? ` · ${e.detail}` : ""}
     </span>
-    <span className="ap-lr-p">{e.player_name || e.npc_id || "—"}</span>
+    <span className="ap-lr-p">{e.player_name || e.npc_id || "-"}</span>
     <span className={`ap-lr-v ${e.amount > 0 ? "pos" : e.amount < 0 ? "neg" : "neu"}`}>{e.amount > 0 ? "+" : e.amount < 0 ? "−" : ""}{fmt(Math.abs(e.amount))} 🟤</span>
-    <span style={{ ...dim, minWidth: 80, textAlign: "right" }}>→ {e.balance_after != null ? fmt(e.balance_after) : "—"}</span>
+    <span style={{ ...dim, minWidth: 80, textAlign: "right" }}>→ {e.balance_after != null ? fmt(e.balance_after) : "-"}</span>
   </div>))}</div> : <Empty text="no activity yet" />;
 
 const TillForm = ({ d, toast, onDone }) => {
@@ -115,7 +115,7 @@ export default function KeepersTab({ toast }) {
         <th>Shopkeeper</th><th>Till</th><th>Restocks to · per player</th><th>Sales (3d)</th><th>Kept</th><th>Bought back (3d)</th><th>Refused</th><th>Customers</th><th>Swept / Funded</th>
       </tr></thead><tbody>
         {ks.map(k => <tr key={k.persona} onClick={() => setOpen(open === k.persona ? null : k.persona)} style={{ cursor: "pointer", background: open === k.persona ? "rgba(200,168,75,0.06)" : undefined }}>
-          <td><div style={{ ...mono, color: "var(--text)" }}>{k.name}</div><div style={dim}>{SHOP_LABEL[k.shop_type] || k.shop_type || "—"} · {k.kiosks} kiosk{k.kiosks === 1 ? "" : "s"}</div></td>
+          <td><div style={{ ...mono, color: "var(--text)" }}>{k.name}</div><div style={dim}>{SHOP_LABEL[k.shop_type] || k.shop_type || "-"} · {k.kiosks} kiosk{k.kiosks === 1 ? "" : "s"}</div></td>
           <td><Till balance={k.balance} target={k.target} /></td>
           <td style={dim} title={k.factors || "not decided yet"}>
             <div style={{ ...mono, color: "var(--text)" }}>{fmt(k.float)}</div>

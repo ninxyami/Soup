@@ -142,7 +142,7 @@ export default function ZombiesTab({ toast }) {
           {value:1,label:"Insane"},{value:2,label:"Very High"},{value:3,label:"High"},
           {value:4,label:"Normal"},{value:5,label:"Low"},{value:6,label:"None"},
         ]} />
-        <SliderField label="Population Multiplier" description="Fine-tune — Normal = 0.65" value={cfg.PopulationMultiplier} onChange={set("PopulationMultiplier")} min={0} max={4} step={0.05} accent="var(--red)" />
+        <SliderField label="Population Multiplier" description="Fine-tune - Normal = 0.65" value={cfg.PopulationMultiplier} onChange={set("PopulationMultiplier")} min={0} max={4} step={0.05} accent="var(--red)" />
         <SliderField label="Start Multiplier" description="Population at day 1" value={cfg.PopulationStartMultiplier} onChange={set("PopulationStartMultiplier")} min={0} max={4} step={0.05} />
         <SliderField label="Peak Multiplier" description="Maximum population reached" value={cfg.PopulationPeakMultiplier} onChange={set("PopulationPeakMultiplier")} min={0} max={4} step={0.05} accent="var(--orange)" />
         <NumberField label="Peak Day" description="Day when population reaches its peak" value={cfg.PopulationPeakDay} onChange={set("PopulationPeakDay")} min={1} max={365} />
@@ -254,7 +254,7 @@ export default function ZombiesTab({ toast }) {
         <SliderField label="Fence Damage Multiplier" value={cfg.FenceDamageMultiplier} onChange={set("FenceDamageMultiplier")} min={0.01} max={100} step={0.1} />
       </Section>
 
-      <SaveBar dirty={dirty} saving={saving} onSave={save} onReset={() => setCfg({ ...orig })} label="Unsaved zombie changes — server restart required" />
+      <SaveBar dirty={dirty} saving={saving} onSave={save} onReset={() => setCfg({ ...orig })} label="Unsaved zombie changes - server restart required" />
     </>
   );
 }

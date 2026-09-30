@@ -163,8 +163,8 @@ export default function EconomyTab({ toast }) {
     {tab === "give" && <div className="ap-2c">
       <FB title="GIVE COINS">
         <div className="ap-note">
-          <strong style={{ color: "var(--text)" }}>From Treasury</strong> — deducts from the treasury pool, legitimate payout.<br />
-          <strong style={{ color: "var(--orange)" }}>Admin Grant (cheat)</strong> — creates coins from nothing, bypasses treasury. Use for testing or corrections only.
+          <strong style={{ color: "var(--text)" }}>From Treasury</strong> - deducts from the treasury pool, legitimate payout.<br />
+          <strong style={{ color: "var(--orange)" }}>Admin Grant (cheat)</strong> - creates coins from nothing, bypasses treasury. Use for testing or corrections only.
         </div>
 
         {/* Source selector */}
@@ -215,7 +215,7 @@ export default function EconomyTab({ toast }) {
       {txnLoading ? <Load /> : txns.length > 0 ? <div style={{ marginTop: 16 }}>{txns.map((e, i) => <div key={i} className="ap-lr">
         <span className="ap-lr-t">{relTime(e.timestamp)}</span>
         <EvBadge type={e.type || e.event_type || "adjust"} />
-        <span className="ap-lr-d">{e.description || "—"}</span>
+        <span className="ap-lr-d">{e.description || "-"}</span>
         <span className={`ap-lr-v ${e.amount > 0 ? "pos" : "neg"}`}>{e.amount > 0 ? "+" : ""}{fmt(e.amount)} 🟤</span>
         <span style={{ color: "var(--textdim)", fontFamily: "var(--mono)", fontSize: 11, minWidth: 80, textAlign: "right" }}>→ {fmt(e.balance_after)}</span>
       </div>)}</div> : txnPlayer && !txnLoading ? <Empty text="no transactions found" /> : null}
@@ -225,8 +225,8 @@ export default function EconomyTab({ toast }) {
       {allLoading ? <Load /> : allTxns.length ? <div>{allTxns.map((e, i) => <div key={i} className="ap-lr">
         <span className="ap-lr-t">{relTime(e.timestamp)}</span>
         <EvBadge type={e.type || e.event_type || "adjust"} />
-        <span className="ap-lr-d">{e.description || "—"}</span>
-        <span className="ap-lr-p">{e.display_name || `#${e.discord_id}` || "—"}</span>
+        <span className="ap-lr-d">{e.description || "-"}</span>
+        <span className="ap-lr-p">{e.display_name || `#${e.discord_id}` || "-"}</span>
         <span className={`ap-lr-v ${e.amount > 0 ? "pos" : "neg"}`}>{e.amount > 0 ? "+" : ""}{fmt(e.amount)} 🟤</span>
         <span style={{ color: "var(--textdim)", fontFamily: "var(--mono)", fontSize: 11, minWidth: 80, textAlign: "right" }}>→ {fmt(e.balance_after)}</span>
       </div>)}</div> : <Empty text="no transactions found" />}
