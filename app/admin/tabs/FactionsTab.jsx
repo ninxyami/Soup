@@ -1,7 +1,7 @@
 "use client";
 // @ts-nocheck
 // Faction spaces: every in-game faction Zombita knows (locked / unlocked, channel, wallet, pictures),
-// the money settings (unlock fee, war wager minimum, war tax), and the moderation buttons - remove a
+// the money settings (unlock fee), and the moderation buttons - remove a
 // logo or banner someone shouldn't have uploaded. The bot (cogs/factions.py) does the Discord work.
 import { useState, useEffect, useCallback } from "react";
 import { fetchApi, postApi, Title, TW, B, Inp, Load, Empty } from "./shared";
