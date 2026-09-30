@@ -193,6 +193,8 @@ function RankEditor({ ranks, custom, send, busy }) {
 
 const KIND = { S: ["S", "#ffcc2e"], big: ["BIG", "#599ef2"], small: ["", ""], personal: ["PERSONAL", "#e64d4d"], exclusive: ["EXCLUSIVE", "#ad73f5"], admin: ["ADMIN", "#e64d4d"] };
 
+export { Items, TierPill };
+
 export default function JobsTab({ toast }) {
   const [d, setD] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -269,7 +271,7 @@ export default function JobsTab({ toast }) {
           </span>
         </div>
         <div className="ap-note" style={{ marginTop: 14, marginBottom: 0 }}>
-          The board keeps itself full: a slot refills 5-15 minutes after its quest is won or runs out. S rolls twice a day (50%, never within a day of the last).
+          The board keeps itself full: a slot refills 5-15 minutes after its quest is won or runs out. S rolls every 12 hours (25%, never within a day of the last), and every S quest can only be taken for a short time after it is posted (20 minutes, beast hunts 10 to 30).
         </div>
       </FB>}
 
@@ -283,10 +285,8 @@ export default function JobsTab({ toast }) {
         <RankEditor ranks={(s.ranks || []).map((r) => ({ name: r.name, min: r.min, maxTier: r.maxTier, quit: r.quit }))} custom={s.ranksCustom} send={send} busy={busy} />
       </FB>}
 
-      {v2 && <TW title="WHAT A WIN GIVES" right={<span style={dim}>per quest type · the winner&apos;s duffel · +rep (split with the crew)</span>}>
-        <div style={{ overflowX: "auto" }}><table className="ap-t"><thead><tr><th>Quest / ending</th><th>Extra rep</th><th>Items (duffel)</th><th></th></tr></thead>
-          <tbody>{(s.rows || []).map((r) => <RewardRow key={r.id} row={r} send={send} busy={busy} />)}</tbody></table></div>
-        <div className="ap-note" style={{ margin: "8px 16px 14px" }}>Each beast class has its own row (A+, S, SS, SSS, SSS+), so a harder boss can give better loot. Pick items with the picker, set how many, then SAVE. On an S or beast row, leaving the items empty gives the default goods (bandages, batteries, duct tape, beans), scaled up for the harder classes. The coins come from the treasury; when it runs short the winner still gets these items.</div>
+      {v2 && <TW title="WHAT A WIN GIVES" right={<span style={dim}>moved</span>}>
+        <div className="ap-note" style={{ margin: "8px 16px 14px" }}>The items a winner gets are edited in the <strong>Quest Rewards</strong> tab (WORLD, right under this one), one card per quest type and tier, with item search that includes the mods. The coins are the tier pots above.</div>
       </TW>}
 
       {v2 && <TW title={`OPEN QUESTS (${quests.length})`}>

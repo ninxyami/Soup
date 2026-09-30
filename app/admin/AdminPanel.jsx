@@ -36,6 +36,7 @@ import NewspaperTab       from "./tabs/NewspaperTab";
 import FactionsTab        from "./tabs/FactionsTab";
 import PlayerStatsTab     from "./tabs/PlayerStatsTab";
 import JobsTab            from "./tabs/JobsTab";
+import QuestRewardsTab    from "./tabs/QuestRewardsTab";
 
 const NAV_SECTIONS = [
   { label: "COMMAND", items: [
@@ -66,6 +67,7 @@ const NAV_SECTIONS = [
     { key: "mira",           icon: "🛰️", label: "Project MIRA" },
     { key: "hunt",           icon: "🗺️", label: "Treasure Hunt" },
     { key: "jobs",           icon: "📋", label: "Zombita's Jobs" },
+    { key: "jobrewards",     icon: "🎁", label: "Quest Rewards" },
   ]},
   { label: "COMMUNITY", items: [
     { key: "players",        icon: "👥", label: "Players" },
@@ -118,6 +120,7 @@ const PANELS = {
   reputation:  ReputationTab,
   leaderboards: LeaderboardsTab,
   jobs:        JobsTab,
+  jobrewards:  QuestRewardsTab,
   newspaper:    NewspaperTab,
   factions:     FactionsTab,
   player_stats: PlayerStatsTab,
