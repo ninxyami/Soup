@@ -30,39 +30,62 @@ const TIER_ORDER = ["", "D", "C", "B", "A", "S", "A+", "SS", "SSS", "SSS+"];
 const tierRank = (t) => { const i = TIER_ORDER.indexOf(t || ""); return i < 0 ? 99 : i; };
 const TIER_LABEL = { "": "Any tier (fallback)" };
 
-// one reward card: rep + items for one row
+// one reward card: TEMPLATES (a winner gets one of them at random), each with extra rep and items
+const MAX_TEMPLATES = 12;
 function RewardCard({ row, label, siblings, send, busy }) {
-  const [rep, setRep] = useState(row.rep);
-  const [items, setItems] = useState(row.items || []);
-  useEffect(() => { setRep(row.rep); setItems(row.items || []); }, [row.rep, JSON.stringify(row.items)]);
-  const dirty = Number(rep) !== row.rep || JSON.stringify(items) !== JSON.stringify(row.items || []);
+  const server = row.variants ?? (row.custom ? [{ rep: row.rep, items: row.items || [] }] : []);
+  const toDraft = (v) => ({ rep: v.rep, items: (v.items || []).map((x) => [x[0], x[1]]) });
+  const fresh = () => (server.length ? server.map(toDraft) : [{ rep: 0, items: [] }]);
+  const [drafts, setDrafts] = useState(fresh);
+  const [sel, setSel] = useState(0);
+  const sig = JSON.stringify(server);
+  useEffect(() => { setDrafts(fresh()); setSel((s) => Math.min(s, Math.max(0, server.length - 1))); }, [sig]);
+  const d = drafts[Math.min(sel, drafts.length - 1)] || { rep: 0, items: [] };
+  const saved = server[sel];
+  const patchDraft = (p) => setDrafts(drafts.map((x, i) => (i === sel ? { ...x, ...p } : x)));
+  const dirty = saved ? (Number(d.rep) !== saved.rep || JSON.stringify(d.items) !== JSON.stringify((saved.items || []).map((x) => [x[0], x[1]]))) : d.items.length > 0 || Number(d.rep) > 0;
   const copyFrom = (id) => {
     const src = siblings.find((x) => x.id === id);
     if (!src) return;
-    setItems((src.items || []).map((x) => [x[0], x[1]]));
-    setRep(src.rep);
+    const v = (src.variants && src.variants[0]) || { rep: src.rep, items: src.items || [] };
+    patchDraft({ items: (v.items || []).map((x) => [x[0], x[1]]), rep: v.rep });
   };
+  const count = server.length;
   return (
     <div style={{ background: "var(--bg)", border: `1px solid ${dirty ? "var(--accent)" : "var(--border)"}`, padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         {row.tier && !["A+", "SS", "SSS", "SSS+"].includes(row.tier) ? <TierPill t={row.tier} /> : row.tier ? <span className="ap-pill" style={{ background: "#ffcc2e", color: "#0e0e0e", fontWeight: 700 }}>{row.tier}</span> : null}
         <strong>{label}</strong>
-        {row.custom ? <span style={{ ...mono, color: "var(--accent)" }}>custom</span> : <span style={dim}>default</span>}
+        {count > 0 ? <span style={{ ...mono, color: "var(--accent)" }}>{count} template{count > 1 ? "s" : ""}</span> : <span style={dim}>default</span>}
       </div>
-      <div><Items items={items} onChange={setItems} /></div>
-      {items.length === 0 && <div style={dim}>Empty. Falls back to {row.tier ? "the general row for this quest, then the default goods on S" : "nothing"}.</div>}
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+        {drafts.map((x, i) => (
+          <button key={i} onClick={() => setSel(i)} title={x.items.length ? x.items.map((it) => `${it[0]} x${it[1]}`).join(", ") : "empty"}
+            style={{ padding: "3px 10px", ...mono, cursor: "pointer", background: i === sel ? "var(--accent)" : "var(--surface)", color: i === sel ? "#0e0e0e" : "var(--text)", border: "1px solid var(--border)" }}>
+            #{i + 1}{i >= count ? "*" : ""} <span style={{ opacity: 0.7 }}>({x.items.length})</span>
+          </button>
+        ))}
+        {drafts.length < MAX_TEMPLATES && (
+          <B sm c="ghost" disabled={busy} onClick={() => { setDrafts([...drafts, { rep: 0, items: [] }]); setSel(drafts.length); }}>+ TEMPLATE</B>
+        )}
+      </div>
+      {drafts.length > 1 && <div style={dim}>A winner gets one of these {drafts.length} at random.</div>}
+      <div><Items items={d.items} onChange={(items) => patchDraft({ items })} /></div>
+      {d.items.length === 0 && <div style={dim}>Empty. Falls back to {row.tier ? "the general row for this quest, then the default goods on S" : "nothing"}.</div>}
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         <span style={dim}>EXTRA REP</span>
-        <input className="ap-search" style={{ width: 56 }} type="number" min={0} max={10} value={rep} onChange={(e) => setRep(e.target.value)} />
+        <input className="ap-search" style={{ width: 56 }} type="number" min={0} max={10} value={d.rep} onChange={(e) => patchDraft({ rep: e.target.value })} />
         {siblings.length > 0 && (
-          <select className="ap-search" style={{ width: "auto" }} value="" onChange={(e) => e.target.value && copyFrom(e.target.value)} title="Copy another tier's items in (not saved until you press SAVE)">
+          <select className="ap-search" style={{ width: "auto" }} value="" onChange={(e) => e.target.value && copyFrom(e.target.value)} title="Copy another card's first template in (not saved until you press SAVE)">
             <option value="">Copy from...</option>
             {siblings.map((x) => <option key={x.id} value={x.id}>{x.tier || "Any tier"}{(x.items || []).length ? ` (${x.items.length} items)` : " (empty)"}</option>)}
           </select>
         )}
         <span style={{ flex: 1 }} />
-        <B sm c={dirty ? "gold" : "ghost"} disabled={!dirty || busy} onClick={() => send("set_reward", { row: row.id, rep: Number(rep) || 0, items: items.map(([id, n]) => ({ id, n })) })}>SAVE</B>
-        {row.custom && <B sm c="ghost" disabled={busy} onClick={() => confirm(`Put "${row.name}" back to its default?`) && send("default", { row: row.id })}>DEFAULT</B>}
+        <B sm c={dirty ? "gold" : "ghost"} disabled={!dirty || busy} onClick={() => send("set_reward", { row: row.id, rep: Number(d.rep) || 0, items: d.items.map(([id, n]) => ({ id, n })), slot: sel + 1 })}>SAVE #{sel + 1}</B>
+        {saved && count > 1 && <B sm c="ghost" disabled={busy} onClick={() => confirm(`Remove template #${sel + 1} from "${row.name}"?`) && send("del_variant", { row: row.id, slot: sel + 1 })}>REMOVE #{sel + 1}</B>}
+        {!saved && drafts.length > 1 && <B sm c="ghost" onClick={() => { setDrafts(drafts.filter((_, i) => i !== sel)); setSel(Math.max(0, sel - 1)); }}>DISCARD</B>}
+        {row.custom && <B sm c="ghost" disabled={busy} onClick={() => confirm(`Put "${row.name}" back to its default (removes ALL ${count} template${count > 1 ? "s" : ""})?`) && send("default", { row: row.id })}>DEFAULT</B>}
       </div>
     </div>
   );
@@ -134,8 +157,8 @@ export default function QuestRewardsTab({ toast }) {
               {type === "trap"
                 ? "What a player gets after one of Lady Dawnie's traps: for clearing it, or for getting away."
                 : type === "beast"
-                  ? "Each beast class has its own loot. A+ is the easy boss with a small horde, S to SSS+ are the flash sale bosses. Empty gives the default goods (bandages, batteries, duct tape, beans), scaled up for the harder classes."
-                  : "One card per tier this quest can appear at. Search any item, mods included, and set how many. A card left empty uses the Any tier card, and on S the default goods. Coins are separate: they come from the tier's pot."}
+                  ? "Each beast class has its own loot, with as many random templates as you like. A+ is the easy boss with a small horde, S to SSS+ are the flash sale bosses. Empty gives the default goods (bandages, batteries, duct tape, beans), scaled up for the harder classes."
+                  : "One card per tier this quest can appear at. Search any item, mods included, and set how many. Add several templates to a card with + TEMPLATE: each win gives one of them at random, so quests do not always pay the same. A card left empty uses the Any tier card, and on S the default goods. Coins are separate: they come from the tier's pot."}
             </div>
             {cur.length === 0 ? <Empty text="No reward rows for this quest yet" /> : (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 12 }}>
