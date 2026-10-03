@@ -167,8 +167,8 @@ const FEATURES = [
   },
   {
     icon: "💀", title: "World Events", slug: "events", href: "/features/events",
-    desc: "Lady Dawnie's Dawn of the Dead hordes and treasure hunts, for everyone online at once.",
-    tags: ["DotD", "Treasure Hunt", "Lady Dawnie"],
+    desc: "Dawn of the Dead hordes and treasure hunts, for everyone online at once.",
+    tags: ["DotD", "Treasure Hunt", "Hordes"],
   },
   {
     icon: "📱", title: "Zombita Phone", slug: null, href: "/features#phone",
@@ -383,7 +383,7 @@ export default function HomePage() {
               </p>
               <div className="space-y-2 mb-5">
                 {[
-                  { icon: "💀", label: "Dawn of the Dead", desc: "Lady Dawnie's multi-wave hordes, spawned by the game" },
+                  { icon: "💀", label: "Dawn of the Dead", desc: "Multi-wave hordes, spawned by the game" },
                   { icon: "🗺️", label: "Treasure Hunt", desc: "Race to claim hidden caches" },
                   { icon: "📋", label: "Zombita's Jobs", desc: "Quests all day, D to S tier" },
                   { icon: "📰", label: "The Weekly Paper", desc: "Written by Zombita, delivered in game" },

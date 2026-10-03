@@ -197,7 +197,7 @@ export default function LeaderboardPage() {
           {/* in-game hours, like F8 (bestLife); longestLife (real seconds) only when an older API has no bestLife */}
           {ingameTab==="bestlife" && <PlayerTable rows={[...players].sort((a,b)=>bestSecs(b)-bestSecs(a)).slice(0,10)} valueFn={p=>fmtTime(bestSecs(p))} colHeader="Best"/>}
           {ingameTab==="dotd" && <>
-            <p className="text-[0.72rem] text-[#555] mb-4">Dawn of the Dead: zombies killed while Lady Dawnie&apos;s horde was out, and how many of her nights you lived through.</p>
+            <p className="text-[0.72rem] text-[#555] mb-4">Dawn of the Dead: zombies killed while the horde was out, and how many of those nights you lived through.</p>
             {players.some((p:any)=>(p.dotdKills||0)>0||(p.dotdEvents||0)>0)
               ? <GameTable rows={[...players].filter((p:any)=>(p.dotdKills||0)>0||(p.dotdEvents||0)>0).sort((a:any,b:any)=>((b.dotdKills||0)-(a.dotdKills||0))||((b.dotdSurvived||0)-(a.dotdSurvived||0))).slice(0,10)}
                   c1={(p:any)=>`${(p.dotdKills||0).toLocaleString()} kills`} c2={(p:any)=>`survived ${p.dotdSurvived||0} of ${p.dotdEvents||0}`} h1="DotD kills" h2="Nights"/>

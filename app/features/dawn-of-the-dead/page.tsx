@@ -2,11 +2,11 @@
 import Link from "next/link";
 
 const HUNT_PHASES = [
-  { phase: "Buildup", icon: "🌅", desc: "Lady Dawnie posts her warning in Discord." },
+  { phase: "Buildup", icon: "🌅", desc: "A warning goes up in Discord: the horde is gathering." },
   { phase: "Warning", icon: "⚠️", desc: "A 10-minute warning goes out in game." },
   { phase: "Wave 1", icon: "💀", desc: "The game sends a horde at every online player at once, all from the same direction. The horde is here." },
   { phase: "Wave 2+", icon: "🧟", desc: "Additional waves fire at the configured interval. Each wave announced in Discord with a direction." },
-  { phase: "End", icon: "🌑", desc: "\"The horde withdraws. Lady Dawnie is... mildly impressed.\"" },
+  { phase: "End", icon: "🌑", desc: "The horde pulls back and Discord posts the end of the event. Count your losses." },
 ];
 
 const WAVE_DIRECTIONS = ["North", "Northeast", "East", "Southeast", "South", "Southwest", "West", "Northwest"];
@@ -23,11 +23,10 @@ export default function DawnOfTheDeadPage() {
           </Link>
           <p className="font-mono text-[0.65rem] tracking-[0.3em] text-[#e05555] uppercase mb-3 mt-4">World Events</p>
           <h1 className="text-[1.8rem] sm:text-[2.5rem] tracking-[0.2em] mb-2">DAWN OF THE DEAD</h1>
-          <p className="font-mono text-[0.7rem] tracking-[0.15em] text-[#7c4a4a] uppercase mb-6">Lady Dawnie's Horde · Recurring Server Event</p>
+          <p className="font-mono text-[0.7rem] tracking-[0.15em] text-[#7c4a4a] uppercase mb-6">The Horde · Recurring Server Event</p>
           <p className="text-[#666] text-[0.88rem] max-w-[560px] leading-relaxed">
             Our main server event. A scheduled zombie horde that attacks every online player simultaneously. 
-            Multiple configurable waves. Lore narration in Discord. Named after Admin Dawn - Lady Dawnie is the 
-            queen of the undead, and she sends her army on a schedule.
+            Multiple configurable waves, each one announced in Discord with the direction it's coming from.
           </p>
         </div>
 
@@ -57,7 +56,7 @@ export default function DawnOfTheDeadPage() {
           </div>
         </section>
 
-        {/* Wave mechanics + Lady Dawnie */}
+        {/* Wave mechanics + Discord narration */}
         <section className="mb-16">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
@@ -83,15 +82,14 @@ export default function DawnOfTheDeadPage() {
 
             <div className="border border-[#1a1a1a] bg-[#0a0d10] p-6 relative overflow-hidden">
               <div className="absolute top-0 left-0 right-0 h-px" style={{ background: "linear-gradient(90deg, transparent, #7c4a4a44, transparent)" }} />
-              <h3 className="font-mono text-[0.65rem] tracking-[0.2em] text-[#7c4a4a] uppercase mb-4">Lady Dawnie</h3>
+              <h3 className="font-mono text-[0.65rem] tracking-[0.2em] text-[#7c4a4a] uppercase mb-4">Discord Narration</h3>
               <p className="text-[0.78rem] text-[#555] leading-relaxed mb-4">
-                Every Dawn of the Dead event is narrated through Lady Dawnie - the lore character 
-                named after Admin Dawn, portrayed as the undead queen who controls the horde.
+                Every Dawn of the Dead event is narrated in Discord, from the first warning to the
+                last wave.
               </p>
               <p className="text-[0.78rem] text-[#555] leading-relaxed mb-4">
-                She provides buildup flavour before the event, directional commentary per wave 
-                ("Wave 2 from the North - Dawnie doubles down. Still alive? Interesting."), 
-                and a dismissive sign-off when it ends.
+                A buildup message before it starts, a line for every wave saying where the horde
+                is coming from, and a sign-off when the horde pulls back.
               </p>
               <div className="border-t border-[#141414] pt-4">
                 <p className="font-mono text-[0.6rem] text-[#333] uppercase mb-2">Wave directions</p>

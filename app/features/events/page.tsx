@@ -27,13 +27,12 @@ export default function EventsPage() {
                 <span className="text-3xl">💀</span>
                 <div>
                   <h2 className="!mb-1 !normal-case text-[1.1rem] tracking-[0.1em] text-[#e05555]">Dawn of the Dead</h2>
-                  <p className="font-mono text-[0.65rem] tracking-[0.15em] text-[#555] uppercase">Scheduled zombie horde · spawned by the game · Lady Dawnie lore</p>
+                  <p className="font-mono text-[0.65rem] tracking-[0.15em] text-[#555] uppercase">Scheduled zombie horde · spawned by the game · narrated in Discord</p>
                 </div>
               </div>
               <p className="text-[#666] text-[0.85rem] leading-relaxed mb-6">
                 Our main world event. A scheduled zombie horde that attacks the entire server on a
-                configurable interval. Built around Lady Dawnie - the lore character named after Admin Dawn,
-                portrayed as the queen of the undead.
+                configurable interval, with every wave announced in Discord.
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div>
@@ -41,13 +40,13 @@ export default function EventsPage() {
                   <ol className="space-y-2">
                     {[
                       "Automatic scheduler fires (default: every 13 hours)",
-                      "Lady Dawnie buildup message posted in Discord",
+                      "A buildup message is posted in Discord",
                       "10-minute warning sent to all players in-game",
                       "Event begins: the game sends hordes at every player from one direction",
                       "Each wave fires at the configured gap (default: 10 min); the last wave gets its own time",
                       "Every wave is announced in Discord with directional flavour text",
                       "Kills during the event count on the DotD leaderboard; players who log in mid-event see what's happening",
-                      "End: \"The horde withdraws. Lady Dawnie is... mildly impressed.\"",
+                      "End: the horde pulls back and Discord posts the wrap-up",
                     ].map((step, i) => (
                       <li key={i} className="flex items-start gap-2.5 text-[0.75rem] text-[#555]" style={{ paddingLeft: 0 }}>
                         <span className="font-mono text-[0.6rem] text-[#e05555] flex-shrink-0 mt-0.5">{String(i + 1).padStart(2, "0")}</span>
@@ -64,7 +63,7 @@ export default function EventsPage() {
                       { key: "Wave count", val: "Configurable per event" },
                       { key: "Wave interval", val: "Configurable (default 10 min)" },
                       { key: "Zombie spawn", val: "Configurable count and radius" },
-                      { key: "Narration", val: "Lady Dawnie flavour texts with Zombita voice" },
+                      { key: "Narration", val: "Horde flavour text in Discord, one line per wave" },
                       { key: "Admin trigger", val: "/dotd trigger - fires immediately" },
                     ].map(c => (
                       <div key={c.key} className="flex gap-3 text-[0.72rem]">
