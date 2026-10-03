@@ -1,7 +1,7 @@
 "use client";
 // @ts-nocheck
 // QUEST REWARDS (mod 1.7.98+): the items a winner's duffel carries, for EVERY quest type at EVERY tier (a Scout at D pays
-// something different from a Scout at C), plus the beast classes and Lady Dawnie's trap. Each card can hold several
+// something different from a Scout at C), plus the beast classes and Queen Dusk's trap. Each card can hold several
 // TEMPLATES (mod 1.7.102 + jobs_templates_patch): a win gives one of them at random.
 //
 // How a save travels: the website asks the bot, the bot appends the request to the game's command file, and the game applies
@@ -32,7 +32,7 @@ const TYPES = [
   { id: "glass", name: "Glassblowing" },
   { id: "cook", name: "Cook it" },
   { id: "beast", name: "Beast hunt" },
-  { id: "trap", name: "Lady Dawnie's trap" },
+  { id: "trap", name: "Queen Dusk's trap" },
 ];
 const TIER_ORDER = ["", "D", "C", "B", "A", "S", "A+", "SS", "SSS", "SSS+"];
 const tierRank = (t) => { const i = TIER_ORDER.indexOf(t || ""); return i < 0 ? 99 : i; };
@@ -239,7 +239,7 @@ export default function QuestRewardsTab({ toast }) {
           <FB title={(TYPES.find((t) => t.id === type)?.name || type).toUpperCase()}>
             <div className="ap-note" style={{ margin: "0 0 12px" }}>
               {type === "trap"
-                ? "What a player gets after one of Lady Dawnie's traps: for clearing it, or for getting away."
+                ? "What a player gets after one of Queen Dusk's traps: for clearing it, or for getting away."
                 : type === "beast"
                   ? "Each beast class has its own loot, with as many random templates as you like. A+ is the easy boss with a small horde, S to SSS+ are the flash sale bosses. Empty gives the default goods (bandages, batteries, duct tape, beans), scaled up for the harder classes."
                   : "One card per tier this quest can appear at. Search any item, mods included, and set how many. Add several templates to a card with + TEMPLATE: each win gives one of them at random, so quests do not always pay the same. A card left empty uses the Any tier card, and on S the default goods. Coins are separate: they come from the tier's pot."}

@@ -59,9 +59,9 @@ const RULE = { classic: "", vintage: "thin", bold: "fat", special: "thin" };
 
 // Zombita's Jobs box - the same words as the printed page (zombita_newspaper.jobs_line / notable_text)
 const jobsLine = (j) => `${j.total} job${j.total === 1 ? "" : "s"} done: ${("D" in j ? ["S", "A", "B", "C", "D"] : ["S", "A", "B", "C"]).map((t) => `${t} ${j[t] || 0}`).join(", ")}.`
-  + (j.traps ? ` ${j.traps} of Lady Dawnie's fake jobs survived.` : "");
+  + (j.traps ? ` ${j.traps} of Queen Dusk's fake jobs survived.` : "");
 const notableText = (n) => n.trap
-  ? `${n.who} - one of Lady Dawnie's fakes; ${n.outcome === "kill" ? "fought their way out" : "ran for it and made it"}.`
+  ? `${n.who} - one of Queen Dusk's fakes; ${n.outcome === "kill" ? "fought their way out" : "ran for it and made it"}.`
   : String(n.who || "");
 
 const Paras = ({ text }) => String(text || "").split(/\n+/).filter(Boolean).map((p, i) => <p key={i}>{p}</p>);

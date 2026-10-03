@@ -181,7 +181,7 @@ export default function EventsPage() {
                       "The winning side gets reward codes, split between the crew who were there",
                       "Enter it on the phone: items arrive in a duffel, coins go to your wallet",
                       "D to S: bigger tiers pay more and count more toward your Job Rank; A and S are fights only",
-                      "Sometimes a job was faked by Lady Dawnie - fight or run, you still get paid",
+                      "Sometimes a job was faked by Queen Dusk - fight or run, you still get paid",
                       "Get on Zombita's good side and she may send you a personal quest",
                     ].map((step, i) => (
                       <li key={i} className="flex items-start gap-2.5 text-[0.75rem] text-[#555]" style={{ paddingLeft: 0 }}>

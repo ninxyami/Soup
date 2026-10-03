@@ -241,7 +241,7 @@ export default function JobsPage() {
                       <div className="text-[#ccc] truncate">{r.title}</div>
                       <div className="text-[0.7rem] text-[#666] font-mono truncate">
                         {r.who.join(" & ")}
-                        {r.dawnie ? " · one of Lady Dawnie's fakes - survived!" : ""}
+                        {r.dawnie ? " · one of Queen Dusk's fakes - survived!" : ""}
                         {r.stolen && r.from ? ` · swiped it while ${r.from} did the killing 👀` : ""}
                       </div>
                     </div>
@@ -347,8 +347,8 @@ export default function JobsPage() {
             Invite phone friends or faction mates (up to 4 on a side) - an invite skips the rank check. The pot is split evenly between the ones who were there.
           </div>
           <div className="border p-4" style={{ borderColor: "#e0555555" }}>
-            <div className="text-[#e05555] mb-1">🎭 Lady Dawnie</div>
-            Sometimes a scout quest was faked by Lady Dawnie. Zombita is worried sick - fight your way out or run, and you still get paid. Dying in one costs nothing.
+            <div className="text-[#e05555] mb-1">🎭 Queen Dusk</div>
+            Sometimes a scout quest was faked by Queen Dusk. Zombita is worried sick - fight your way out or run, and you still get paid. Dying in one costs nothing.
           </div>
         </div>
         <p className="text-[0.72rem] text-[#555] font-mono">

@@ -48,7 +48,7 @@ const FEATURE_SECTIONS = [
     items: [
       { href: "/features/dawn-of-the-dead", icon: "💀", title: "Dawn of the Dead", desc: "Our main server event. Lady Dawnie sends her horde - waves of zombies spawned by the game across the map, announced in Discord, with its own leaderboard.", tags: ["Multi-Wave Hordes", "Lady Dawnie Lore", "DotD Leaderboard"] },
       { href: "/features/treasure-hunt", icon: "🗺️", title: "Treasure Hunt", desc: "A hidden cache guarded by zombies. Zombita drops cryptic hints. Players race in-game - first to arrive and enter the claim code wins the loot.", tags: ["Claim Code Race", "Zombie Guards", "6 Hunt Types"] },
-      { href: "/jobs", icon: "📋", title: "Zombita's Jobs", desc: "Race other players for Zombita's quests on your phone: hordes, bandit camps, hidden codes, deliveries. Whoever brings her the code first wins. D to S tier, Job Rank, crews, and sometimes one of Lady Dawnie's fakes. Take them on the website too.", tags: ["Races", "D to S Tier", "Crews"] },
+      { href: "/jobs", icon: "📋", title: "Zombita's Jobs", desc: "Race other players for Zombita's quests on your phone: hordes, bandit camps, hidden codes, deliveries. Whoever brings her the code first wins. D to S tier, Job Rank, crews, and sometimes one of Queen Dusk's fakes. Take them on the website too.", tags: ["Races", "D to S Tier", "Crews"] },
     ],
   },
   {
