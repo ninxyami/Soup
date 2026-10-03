@@ -96,6 +96,47 @@ function wrapLines(text, cpl) {
   return lines;
 }
 
+// ── Clipboard (tab-separated, what Excel / Google Sheets copy and paste) ──
+// A cell with a tab, a line break or a leading quote is wrapped in quotes with
+// inner quotes doubled, the same way Excel writes it.
+const tsvField = (v) => {
+  const s = String(v ?? "");
+  return /[\t\n"]/.test(s) && (/[\t\n]/.test(s) || s[0] === '"') ? '"' + s.replace(/"/g, '""') + '"' : s;
+};
+// Reads what Excel / Sheets / this sheet put on the clipboard. A field that
+// starts with a quote is only treated as quoted when the closing quote really
+// ends the field; otherwise it is kept as typed (Sheets copies 'He said "hi"'
+// raw), so text with quote marks in it never gets mangled.
+function parseTsv(text) {
+  const s = String(text).replace(/^﻿/, "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  const rows = [];
+  let row = [];
+  let i = 0;
+  const plainEnd = (k) => { while (k < s.length && s[k] !== "\t" && s[k] !== "\n") k++; return k; };
+  while (i <= s.length) {
+    if (s[i] === '"') {
+      let j = i + 1, f = "", ok = false;
+      while (j < s.length) {
+        if (s[j] === '"') {
+          if (s[j + 1] === '"') { f += '"'; j += 2; continue; }
+          ok = j + 1 === s.length || s[j + 1] === "\t" || s[j + 1] === "\n";
+          break;
+        }
+        f += s[j]; j++;
+      }
+      if (ok) { row.push(f); i = j + 1; }
+      else { const k = plainEnd(i); row.push(s.slice(i, k)); i = k; }
+    } else {
+      const k = plainEnd(i); row.push(s.slice(i, k)); i = k;
+    }
+    if (i >= s.length) { rows.push(row); break; }
+    if (s[i] === "\t") { i++; if (i === s.length) { row.push(""); rows.push(row); break; } continue; }
+    rows.push(row); row = []; i++;          // "\n"
+    if (i === s.length) break;              // a final line break is not an extra empty row
+  }
+  return rows;
+}
+
 // ── Cell editors ──
 // Text: a textarea, so long text wraps while you type. Enter saves (as before),
 // Alt+Enter or Shift+Enter starts a new line inside the cell, Esc cancels.
@@ -378,6 +419,7 @@ export default function SheetEditor({ docId, me, docTitle }) {
   const widthsRef = useRef(null);    // Y.Map "c" -> width px (persisted)
   const dropdownsRef = useRef(null); // Y.Map "c" -> { from: row, options: [{ v, c }] }
   const metaRef = useRef(null);      // Y.Map sheet settings ("wrap": false turns wrapping off)
+  const undoRef = useRef(null);      // Y.UndoManager: Ctrl+Z / Ctrl+Y for THIS admin's own edits
   const awarenessRef = useRef(null);
   const applyingRemote = useRef(false);
   const fileInputRef = useRef(null); // hidden <input type=file> for CSV import
@@ -438,6 +480,10 @@ export default function SheetEditor({ docId, me, docTitle }) {
     const yMeta = ydoc.getMap("sheetMeta");       // additive
     dropdownsRef.current = yDropdowns;
     metaRef.current = yMeta;
+    // Undo tracks only local changes (transactions with no origin); what arrives
+    // from the relay / other admins carries the provider as origin and is never undone.
+    const undo = new Y.UndoManager([yCells, yStyles, yTextColors], { captureTimeout: 400 });
+    undoRef.current = undo;
     cellsRef.current = yCells;
     stylesRef.current = yStyles;
     textColorsRef.current = yTextColors;
@@ -521,6 +567,8 @@ export default function SheetEditor({ docId, me, docTitle }) {
       try { yStyles.unobserve(bump); } catch {}
       try { yTextColors.unobserve(bump); } catch {}
       try { yWidths.unobserve(loadWidths); } catch {}
+      try { undo.destroy(); } catch {}
+      undoRef.current = null;
       try { yDropdowns.unobserve(loadDropdowns); } catch {}
       try { yMeta.unobserve(loadMeta); } catch {}
       try { provider.awareness.off("change", refreshPeers); } catch {}
@@ -947,6 +995,20 @@ export default function SheetEditor({ docId, me, docTitle }) {
   const onCellKeyDown = useCallback((args, event) => {
     if (args.mode === "SELECT" && event.key === "Enter") event.preventDefault();
     if (args.mode === "SELECT" && event.key === "Escape" && multiRef.current.size) setMulti(new Set());
+    // Ctrl+Z undo, Ctrl+Y / Ctrl+Shift+Z redo (your own edits only). While a cell is
+    // open for typing, the text box keeps its own undo.
+    if (args.mode === "SELECT" && (event.ctrlKey || event.metaKey) && !event.altKey) {
+      const k = event.key.toLowerCase();
+      // Ctrl+V: the grid would open the cell editor and the whole clipboard (rows,
+      // tabs and all) would land in ONE cell. Keep the cell closed so the paste
+      // event reaches onPaste, which spreads it over the cells.
+      if (k === "v") event.preventGridDefault();
+      if (k === "z" || k === "y") {
+        event.preventDefault();
+        event.preventGridDefault();
+        undoFnRef.current(k === "y" || (k === "z" && event.shiftKey));
+      }
+    }
   }, []);
 
   // Clicks: ▾ opens a dropdown; Ctrl/Cmd+click adds or removes a cell from the
@@ -1016,6 +1078,128 @@ export default function SheetEditor({ docId, me, docTitle }) {
     });
   }, [dropdowns]);
   fillRef.current = fillSelectedInColumn;
+
+  // short note in the status strip ("Copied 4 cells", "Undone", ...)
+  const [flash, setFlash] = useState("");
+  const flashT = useRef(null);
+  const say = useCallback((msg) => {
+    setFlash(msg);
+    clearTimeout(flashT.current);
+    flashT.current = setTimeout(() => setFlash(""), 2200);
+  }, []);
+  useEffect(() => () => clearTimeout(flashT.current), []);
+
+  // ── Copy / paste (native clipboard events, so they work like any app) ──
+  // Not while a cell is open for typing: then the text box copies/pastes normally.
+  const isTyping = (t) => t && (t.tagName === "TEXTAREA" || t.tagName === "INPUT");
+
+  const onCopy = useCallback((e) => {
+    if (isTyping(e.target)) return;
+    const yCells = cellsRef.current;
+    if (!yCells) return;
+    let keys = [...multiRef.current];
+    if (!keys.length) {
+      const s = selectedRef.current;
+      const c = s && s.colKey && s.colKey.startsWith("c") ? parseInt(s.colKey.slice(1), 10) : NaN;
+      if (!Number.isFinite(c)) return;
+      keys = [`${s.rowIdx}:${c}`];
+    }
+    // the block that holds every selected cell; cells inside it that aren't selected stay empty
+    let r0 = Infinity, r1 = -1, c0 = Infinity, c1 = -1;
+    for (const k of keys) {
+      const [r, c] = k.split(":").map(Number);
+      r0 = Math.min(r0, r); r1 = Math.max(r1, r); c0 = Math.min(c0, c); c1 = Math.max(c1, c);
+    }
+    const picked = new Set(keys);
+    const lines = [];
+    for (let r = r0; r <= r1; r++) {
+      const out = [];
+      for (let c = c0; c <= c1; c++) out.push(picked.has(`${r}:${c}`) ? tsvField(yCells.get(`${r}:${c}`) ?? "") : "");
+      lines.push(out.join("\t"));
+    }
+    e.clipboardData.setData("text/plain", lines.join("\n"));
+    e.preventDefault();
+    say(keys.length === 1 ? "Copied 1 cell" : `Copied ${keys.length} cells`);
+  }, [say]);
+
+  const onPaste = useCallback((e) => {
+    if (isTyping(e.target)) return;
+    const ydoc = ydocRef.current; const yCells = cellsRef.current;
+    if (!ydoc || !yCells) return;
+    const text = e.clipboardData ? e.clipboardData.getData("text/plain") : "";
+    if (!text) return;
+    e.preventDefault();
+    const grid = parseTsv(text);
+    if (!grid.length) return;
+    const write = (k, v) => { if (v === "" || v == null) yCells.delete(k); else yCells.set(k, String(v)); };
+    let count = 0, skipped = 0;
+    if (grid.length === 1 && grid[0].length === 1 && multiRef.current.size > 1) {
+      // one value onto several selected cells: fill them all (like Sheets)
+      ydoc.transact(() => { for (const k of multiRef.current) { write(k, grid[0][0]); count++; } });
+    } else {
+      const s = selectedRef.current || { rowIdx: 0, colKey: "c0" };
+      const baseR = Number.isFinite(s.rowIdx) ? s.rowIdx : 0;
+      const baseC = parseInt(String(s.colKey || "c0").slice(1), 10) || 0;
+      ydoc.transact(() => {
+        for (let ri = 0; ri < grid.length; ri++) {
+          for (let ci = 0; ci < grid[ri].length; ci++) {
+            const c = baseC + ci;
+            if (c >= DEFAULT_COLS) { skipped++; continue; }
+            write(`${baseR + ri}:${c}`, grid[ri][ci]); count++;
+          }
+        }
+      });
+    }
+    setRowCount(computeRowCount());
+    setDataVersion((v) => v + 1);
+    say(`Pasted ${count} cell${count === 1 ? "" : "s"}${skipped ? ` (${skipped} past column ${colName(DEFAULT_COLS - 1)} left out)` : ""} · Ctrl+Z to undo`);
+  }, [computeRowCount, say]);
+
+  // Chrome only runs Copy / Paste when there is selected text or an editable box.
+  // A grid cell is neither, so Ctrl+C / Ctrl+V did nothing at all. Cancelling
+  // "beforecopy" / "beforepaste" is how a page says "I handle these myself".
+  // With nothing selected Chrome sends all four events to <body>, not to the
+  // focused cell, so they are caught on the document. The sheet only takes them
+  // when a cell of THIS grid has focus, no cell is open for typing, and no other
+  // text on the page is selected (then the browser copies that, as usual).
+  const copyRef = useRef(onCopy); copyRef.current = onCopy;
+  const pasteRef = useRef(onPaste); pasteRef.current = onPaste;
+  useEffect(() => {
+    const owns = () => {
+      const el = gridWrapRef.current;
+      const a = document.activeElement;
+      if (!el || !a || !el.contains(a) || isTyping(a)) return false;
+      const s = window.getSelection && window.getSelection();
+      if (s && s.type === "Range" && !el.contains(s.anchorNode)) return false;
+      return true;
+    };
+    const claim = (e) => { if (owns()) e.preventDefault(); };
+    const copy = (e) => { if (owns()) copyRef.current(e); };
+    const paste = (e) => { if (owns()) pasteRef.current(e); };
+    document.addEventListener("beforecopy", claim);
+    document.addEventListener("beforepaste", claim);
+    document.addEventListener("copy", copy);
+    document.addEventListener("paste", paste);
+    return () => {
+      document.removeEventListener("beforecopy", claim);
+      document.removeEventListener("beforepaste", claim);
+      document.removeEventListener("copy", copy);
+      document.removeEventListener("paste", paste);
+    };
+  }, []);
+
+  const doUndo = useCallback((redo) => {
+    const u = undoRef.current;
+    if (!u) return;
+    const can = redo ? u.redoStack.length : u.undoStack.length;
+    if (!can) { say(redo ? "Nothing to redo" : "Nothing to undo"); return; }
+    if (redo) u.redo(); else u.undo();
+    setRowCount(computeRowCount());
+    setDataVersion((v) => v + 1);
+    say(redo ? "Redone" : "Undone");
+  }, [computeRowCount, say]);
+  const undoFnRef = useRef(doUndo);
+  undoFnRef.current = doUndo;
 
   const onColumnResize = useCallback((column, width) => {
     const ydoc = ydocRef.current; const yWidths = widthsRef.current;
@@ -1185,6 +1369,11 @@ export default function SheetEditor({ docId, me, docTitle }) {
           </span>
         </div>
         <div style={{ flex: 1 }} />
+        {flash && (
+          <span style={{ fontFamily: "var(--mono)", fontSize: 10, letterSpacing: 1, textTransform: "uppercase", color: "#4caf7d", marginRight: 12 }}>
+            {flash}
+          </span>
+        )}
         {multi.size > 1 && (
           <span title="Colours and dropdown picks apply to all of them. Click a cell (or Esc) to clear."
             style={{ fontFamily: "var(--mono)", fontSize: 10, letterSpacing: 1, textTransform: "uppercase", color: "var(--accent)", marginRight: 12 }}>
@@ -1289,7 +1478,7 @@ export default function SheetEditor({ docId, me, docTitle }) {
           style={exporting ? { opacity: 0.6, cursor: "wait" } : undefined}
         >{exporting ? "exporting…" : "⬇ Export XLSX"}</button>
         <span style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)", marginLeft: 8, letterSpacing: 0.5, flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-          Ctrl+click / Shift+click to select several · type to edit · Alt+Enter new line · drag column edges to resize
+          Ctrl+click / Shift+click to select several · Ctrl+C / Ctrl+V · Ctrl+Z undo · Alt+Enter new line · drag column edges to resize
         </span>
         <button
           className={"ss-btn" + (wrap ? " active" : "")}
