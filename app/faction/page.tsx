@@ -359,9 +359,11 @@ export default function FactionPage() {
             <div className="border border-[#222] p-3 font-mono text-[0.7rem] text-[#9a9a9a] flex items-center gap-3 flex-wrap">
               <span><b className="text-[#e6e6e6]">{TIERS[claim.tier] || "Claim"}</b> at {claim.x},{claim.y} &middot; radius {claim.radius} tiles &middot; planted by {claim.by || "?"} {day(claim.at)}</span>
               {P.CLAIM && canAct && claim.tier < 3 && (
-                <Btn gold disabled={busy} onClick={() => { const c = (costs[claim.tier + 1]?.[0] || 0) - (costs[claim.tier]?.[0] || 0); if (confirm(`Upgrade to ${TIERS[claim.tier + 1]} (radius ${costs[claim.tier + 1]?.[1]}) for ${fmtBronze(c)} from the wallet?`)) act(() => post(`/api/factions/${fid}/claim/upgrade`)); }}>
-                  Upgrade to {TIERS[claim.tier + 1]} ({fmtBronze((costs[claim.tier + 1]?.[0] || 0) - (costs[claim.tier]?.[0] || 0))})
-                </Btn>
+                // ISS-010: upgrades happen in game only. The game checks that the bigger claim doesn't cover anyone
+                // else's safehouse BEFORE the wallet is charged; this page can't see safehouses, so it doesn't upgrade.
+                <span className="text-[#777]">
+                  Upgrade to {TIERS[claim.tier + 1]} ({fmtBronze((costs[claim.tier + 1]?.[0] || 0) - (costs[claim.tier]?.[0] || 0))}) in game: faction window &rarr; UPGRADE
+                </span>
               )}
               {P.CLAIM && canAct && <Btn disabled={busy} onClick={() => { if (confirm("Abandon the claim? The safehouse goes and nothing is refunded.")) act(() => post(`/api/factions/${fid}/claim/abandon`)); }}>Abandon</Btn>}
             </div>
