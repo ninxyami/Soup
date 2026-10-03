@@ -76,7 +76,14 @@ const colName = (c) => {
 // SOUP theming over react-data-grid's base CSS. Scoped under .ss-surface.
 const SHEET_CSS = `
 .ss-surface{display:flex;flex-direction:column;flex:1;min-height:0;min-width:0;height:100%}
-.ss-surface.ss-full{position:fixed;inset:0;z-index:2000;width:100vw;height:100vh;background:var(--surface,#111)}
+.ss-surface.ss-full{position:fixed;inset:0;z-index:2000;background:var(--surface,#111)}
+/* the grid's own scrollbars: thick enough to grab, visible on the dark theme, kept on screen in fullscreen */
+.ss-surface .rdg{scrollbar-width:auto;scrollbar-color:#5a6578 rgba(0,0,0,0.35)}
+.ss-surface .rdg::-webkit-scrollbar{width:14px;height:14px}
+.ss-surface .rdg::-webkit-scrollbar-track{background:rgba(0,0,0,0.35)}
+.ss-surface .rdg::-webkit-scrollbar-thumb{background:#5a6578;border-radius:7px;border:3px solid transparent;background-clip:padding-box}
+.ss-surface .rdg::-webkit-scrollbar-thumb:hover{background:var(--accent);background-clip:padding-box}
+.ss-surface .rdg::-webkit-scrollbar-corner{background:rgba(0,0,0,0.35)}
 .ss-status{display:flex;align-items:center;gap:12px;padding:8px 14px;border-bottom:1px solid var(--border);flex-shrink:0}
 .ss-toolbar{display:flex;align-items:center;gap:6px;padding:6px 12px;border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
 .ss-btn{min-width:30px;height:30px;padding:0 8px;background:transparent;border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:13px;cursor:pointer;border-radius:2px;display:flex;align-items:center;justify-content:center}
