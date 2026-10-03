@@ -76,6 +76,7 @@ const colName = (c) => {
 // SOUP theming over react-data-grid's base CSS. Scoped under .ss-surface.
 const SHEET_CSS = `
 .ss-surface{display:flex;flex-direction:column;flex:1;min-height:0;min-width:0;height:100%}
+.ss-surface.ss-full{position:fixed;inset:0;z-index:2000;width:100vw;height:100vh;background:var(--surface,#111)}
 .ss-status{display:flex;align-items:center;gap:12px;padding:8px 14px;border-bottom:1px solid var(--border);flex-shrink:0}
 .ss-toolbar{display:flex;align-items:center;gap:6px;padding:6px 12px;border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
 .ss-btn{min-width:30px;height:30px;padding:0 8px;background:transparent;border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:13px;cursor:pointer;border-radius:2px;display:flex;align-items:center;justify-content:center}
@@ -632,6 +633,57 @@ export default function SheetEditor({ docId, me, docTitle }) {
     setDataVersion((v) => v + 1);
   }, []);
 
+  // ── Fullscreen ──────────────────────────────────────────────────────────
+  // The sheet covers the whole window (fixed overlay) and also asks the browser
+  // for real fullscreen, so the site menu, the project list and the browser bars
+  // all go away. If the browser refuses, the overlay alone still works. Leaving:
+  // the same button, or Esc (the browser handles Esc in real fullscreen; in the
+  // overlay we skip Esc while a cell is being edited, so it only cancels the edit).
+  const surfaceRef = useRef(null);
+  const [full, setFull] = useState(false);
+
+  const toggleFull = useCallback(() => {
+    if (full) {
+      if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {});
+      setFull(false);
+      return;
+    }
+    setFull(true);
+    const el = surfaceRef.current;
+    if (el && el.requestFullscreen) el.requestFullscreen().catch(() => {});
+  }, [full]);
+
+  useEffect(() => {
+    if (!full) return;
+    let native = false;
+    const onFs = () => {
+      if (document.fullscreenElement === surfaceRef.current) native = true;
+      else if (native) setFull(false); // browser fullscreen ended (Esc / F11): leave the overlay too
+    };
+    const onKey = (e) => {
+      if (e.key !== "Escape" || document.fullscreenElement) return;
+      const t = e.target;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
+      setFull(false);
+    };
+    document.addEventListener("fullscreenchange", onFs);
+    window.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("fullscreenchange", onFs);
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [full]);
+
+  // switching to another doc (unmount) while fullscreen: give the screen back
+  useEffect(() => () => {
+    if (document.fullscreenElement && document.fullscreenElement === surfaceRef.current && document.exitFullscreen) {
+      document.exitFullscreen().catch(() => {});
+    }
+  }, []);
+
   const setColor = (key) => { setColorOpen(false); applyColorToSelection(key, false); };
   const setTextColor = (hex) => { setTextColorOpen(false); applyColorToSelection(hex, true); };
 
@@ -642,7 +694,7 @@ export default function SheetEditor({ docId, me, docTitle }) {
   }[status] || { dot: "#888", color: "#888", label: status };
 
   return (
-    <div className="ss-surface">
+    <div className={"ss-surface" + (full ? " ss-full" : "")} ref={surfaceRef}>
       <style dangerouslySetInnerHTML={{ __html: SHEET_CSS }} />
 
       {/* status / presence strip */}
@@ -770,6 +822,12 @@ export default function SheetEditor({ docId, me, docTitle }) {
         <span style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)", marginLeft: 8, letterSpacing: 0.5 }}>
           Select a cell, then pick a color · type to edit · drag column edges to resize
         </span>
+        <button
+          className={"ss-btn" + (full ? " active" : "")}
+          title={full ? "Back to the normal page (Esc)" : "Fill the whole screen with this sheet (Esc to leave)"}
+          onClick={toggleFull}
+          style={{ marginLeft: "auto" }}
+        >{full ? "✕ Exit fullscreen" : "⛶ Fullscreen"}</button>
       </div>
 
       {/* grid - react-data-grid owns its own scroll viewport */}
