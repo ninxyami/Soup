@@ -2,7 +2,8 @@
 "use client";
 // app/ops/page.tsx - Live Ops: the admins' live control panel (2026-10-04). The world map with everything the game
 // reports (players, safehouses, zombie heat, bandits, claimed vehicles) and the tools to fix things without logging in:
-// teleport, give, message, kick, ban, safehouse edit / owner / members / delete / create, broadcast, chat feed.
+// teleport, give, message, kick, ban, safehouse edit / owner / members / delete / create, faction members / leader /
+// claims, chat linked with the Discord in-game chat channel, broadcast.
 // Backend: /api/admin/ops/* (routers/liveops.py); the game side is mod 1.7.111 ZO_Server.lua. Admins only.
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -53,6 +54,11 @@ export default function OpsPage() {
   const [pick, setPick] = useState(null);         // { mode: "teleport" | "corners", first?: {x,y} }
   const [toasts, setToasts] = useState([]);
   const [chat, setChat] = useState([]);
+  const [chatMeta, setChatMeta] = useState({ me: "", source: "" });
+  const [mine, setMine] = useState([]);          // what I sent, shown at once until the feed has it
+  const [facs, setFacs] = useState({ factions: [], radii: { 1: 10, 2: 20, 3: 30 }, tiers: {} });
+  const [selF, setSelF] = useState(null);        // faction fid
+  const [claimDraft, setClaimDraft] = useState(null);   // { cx, cy, tier }
   const [log, setLog] = useState([]);
 
   const toast = useCallback((ok, msg) => {
@@ -76,11 +82,12 @@ export default function OpsPage() {
     return () => { stop = true; clearTimeout(timer); };
   }, []);
   useEffect(() => {
-    if (tab !== "chat" && tab !== "log") return;
+    if (tab !== "chat" && tab !== "log" && tab !== "factions") return;
     let stop = false, timer = null;
     const tick = async () => {
       try {
-        if (tab === "chat") setChat((await api("/api/admin/ops/chat")).lines || []);
+        if (tab === "chat") { const d = await api("/api/admin/ops/chat"); setChat(d.lines || []); setChatMeta({ me: d.me || "", source: d.source || "" }); }
+        else if (tab === "factions") setFacs(await api("/api/admin/ops/factions"));
         else setLog((await api("/api/admin/ops/log")).log || []);
       } catch {}
       if (!stop) timer = setTimeout(tick, 5000);
@@ -104,6 +111,8 @@ export default function OpsPage() {
     } catch (e) { toast(false, e.message); }
   }, [toast]);
 
+  const refreshFactions = useCallback(async () => { try { setFacs(await api("/api/admin/ops/factions")); } catch {} }, []);
+  useEffect(() => { refreshFactions(); }, [refreshFactions]);   // so a faction claim's box on the map opens its faction
   const players = st?.players || [];
   const safehouses = st?.safehouses || [];
   const shKey = (s) => `${s.x},${s.y},${s.owner}`;
@@ -131,18 +140,32 @@ export default function OpsPage() {
       const k = shKey(s), on = k === selS;
       out.push({ id: "s:" + k, x: s.x, y: s.y, w: s.w, h: s.h, color: on ? C.gold : s.faction ? C.purple : C.blue,
         fill: on ? "rgba(200,168,75,.12)" : "rgba(74,143,196,.08)", label: on || s.faction ? (s.faction ? s.title : s.owner) : s.owner,
-        onClick: () => { setSelS(k); setDraft(null); setTab("safehouses"); } });
+        onClick: () => {
+          if (s.faction) {
+            const f = facs.factions.find((x) => "Faction: " + x.name === s.title);
+            if (f) { setSelF(f.fid); setTab("factions"); return; }
+          }
+          setSelS(k); setDraft(null); setTab("safehouses");
+        } });
     }
     if (draft) out.push({ id: "draft", x: draft.x, y: draft.y, w: draft.w, h: draft.h, color: "#fff", dashed: true, fill: "rgba(255,255,255,.08)",
       label: `${draft.w} x ${draft.h}` });
+    if (claimDraft) {
+      const r = facs.radii?.[claimDraft.tier] ?? 10;
+      out.push({ id: "claimdraft", x: claimDraft.cx - r, y: claimDraft.cy - r, w: 2 * r + 1, h: 2 * r + 1, color: C.purple, dashed: true,
+        fill: "rgba(151,117,204,.12)", label: `new claim ${2 * r + 1} x ${2 * r + 1}` });
+    }
     return out;
-  }, [st, layers, safehouses, selS, draft]);
+  }, [st, layers, safehouses, selS, draft, claimDraft, facs]);
 
   // map clicks: pick a teleport spot, or two corners of a safehouse box
   const onMapClick = useCallback((w) => {
     if (!pick) return;
     if (pick.mode === "teleport") {
       if (selP && confirm(`Teleport ${selP} to ${w.x}, ${w.y}?`)) act("teleport", { player: selP, tx: w.x, ty: w.y, tz: 0 });
+      setPick(null);
+    } else if (pick.mode === "claim") {
+      setClaimDraft((d) => ({ tier: d?.tier || 1, cx: w.x, cy: w.y }));
       setPick(null);
     } else if (pick.mode === "corners") {
       if (!pick.first) { setPick({ ...pick, first: w }); setDraft({ x: w.x, y: w.y, w: 1, h: 1 }); return; }
@@ -179,7 +202,7 @@ export default function OpsPage() {
       </div>
       {pick && (
         <div style={{ ...mono, fontSize: 12, padding: "6px 14px", background: "#2a2410", color: C.gold, display: "flex", gap: 12, alignItems: "center" }}>
-          {pick.mode === "teleport" ? `Click the spot on the map to teleport ${selP} to.` : pick.first ? "Now click the opposite corner." : "Click one corner of the safehouse on the map."}
+          {pick.mode === "teleport" ? `Click the spot on the map to teleport ${selP} to.` : pick.mode === "claim" ? "Click where the claim's flag goes (its center)." : pick.first ? "Now click the opposite corner." : "Click one corner of the safehouse on the map."}
           <Btn small onClick={() => { setPick(null); }}>Cancel</Btn>
         </div>
       )}
@@ -190,7 +213,7 @@ export default function OpsPage() {
         </div>
         <aside style={{ width: 380, maxWidth: "45vw", borderLeft: `1px solid ${C.line}`, display: "flex", flexDirection: "column", background: C.panel }}>
           <div style={{ display: "flex", borderBottom: `1px solid ${C.line}` }}>
-            {[["players", `Players (${players.length})`], ["safehouses", `Safehouses (${safehouses.length})`], ["chat", "Chat"], ["log", "Log"]].map(([k, l]) => (
+            {[["players", `Players (${players.length})`], ["safehouses", `Safehouses (${safehouses.length})`], ["factions", "Factions"], ["chat", "Chat"], ["log", "Log"]].map(([k, l]) => (
               <button key={k} onClick={() => setTab(k)} style={{ ...mono, flex: 1, fontSize: 11, padding: "9px 4px", background: tab === k ? C.bg : "transparent",
                 color: tab === k ? C.gold : C.grey, border: 0, borderBottom: tab === k ? `2px solid ${C.gold}` : "2px solid transparent", cursor: "pointer", textTransform: "uppercase" }}>{l}</button>
             ))}
@@ -199,7 +222,9 @@ export default function OpsPage() {
             {tab === "players" && <PlayersTab players={players} selP={selP} setSelP={setSelP} selPlayer={selPlayer} act={act} setPick={setPick} safehouses={safehouses} />}
             {tab === "safehouses" && <SafehousesTab safehouses={safehouses} selected={selected} setSelS={setSelS} shKey={shKey} draft={draft} setDraft={setDraft}
               setPick={setPick} act={act} players={players} />}
-            {tab === "chat" && <ChatTab chat={chat} act={act} />}
+            {tab === "factions" && <FactionsTab facs={facs} selF={selF} setSelF={setSelF} act={act} players={players} refresh={refreshFactions}
+              claimDraft={claimDraft} setClaimDraft={setClaimDraft} setPick={setPick} />}
+            {tab === "chat" && <ChatTab chat={chat} meta={chatMeta} mine={mine} setMine={setMine} act={act} />}
             {tab === "log" && <LogTab log={log} />}
           </div>
         </aside>
@@ -272,7 +297,7 @@ function PlayerCard({ p, act, setPick, players, safehouses }) {
       <div style={h}>Give an item</div>
       <div style={row}>
         <input style={inp} placeholder="Search, or Base.Bandage" value={item} onChange={(e) => setItem(e.target.value)} />
-        <input style={{ ...inp, width: 60 }} type="number" min={1} max={100} value={n} onChange={(e) => setN(Math.max(1, Math.min(100, Number(e.target.value) || 1)))} />
+        <input style={{ ...inp, width: 70 }} type="number" min={1} max={1000} value={n} onChange={(e) => setN(Math.max(1, Math.min(1000, Number(e.target.value) || 1)))} />
         <Btn small disabled={!/^\w+\.[\w-]+$/.test(item.trim())} onClick={() => { if (confirm(`Give ${n} x ${item.trim()} to ${p.name}?`)) act("give", { player: p.name, item: item.trim(), n }); }}>Give</Btn>
       </div>
       {res.length > 0 && (
@@ -414,26 +439,127 @@ function CreateCard({ draft, setDraft, setPick, act, players, onDone }) {
 }
 
 // ── chat + log ───────────────────────────────────────────────────────────────
-function ChatTab({ chat, act }) {
+const SRC = { game: { label: "game", color: C.green }, discord: { label: "discord", color: "#7289da" }, web: { label: "web", color: C.gold } };
+
+function ChatTab({ chat, meta, mine, setMine, act }) {
   const [text, setText] = useState("");
+  const [bc, setBc] = useState("");
   const end = useRef(null);
-  useEffect(() => { end.current?.scrollIntoView({ block: "end" }); }, [chat.length]);
+  // my messages show at once; dropped once the feed has them (or after 2 minutes)
+  const shown = useMemo(() => {
+    const now = Date.now();
+    const pending = mine.filter((m) => now - m.t < 120000 && !chat.some((c) => c.source === "web" && c.text === m.text));
+    return [...chat, ...pending.map((m) => ({ at: "", author: m.author, text: m.text, source: "web", sending: m.state }))];
+  }, [chat, mine]);
+  useEffect(() => { end.current?.scrollIntoView({ block: "end" }); }, [shown.length]);
+  const say = () => {
+    const t = text.trim(); if (!t) return;
+    const id = Math.random();
+    setMine((m) => [...m, { id, t: Date.now(), author: meta.me || "you", text: t, state: "sending..." }]);
+    setText("");
+    act("say", { text: t }, () => setMine((m) => m.map((x) => x.id === id ? { ...x, state: "" } : x)));
+  };
+  const time = (at) => { if (!at) return ""; if (/^\d{2}-/.test(at)) return String(at).slice(9, 14); const d = new Date(at); return isNaN(d) ? "" : d.toTimeString().slice(0, 5); };
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-      <div style={{ ...mono, fontSize: 10, color: C.grey, textTransform: "uppercase", letterSpacing: 1 }}>General chat (refreshes every 5 s)</div>
+      <div style={{ ...mono, fontSize: 10, color: C.grey, textTransform: "uppercase", letterSpacing: 1 }}>
+        In-game chat {meta.source === "discord" ? "(linked with the Discord in-game chat channel)" : meta.source === "log" ? "(from the game log; Discord unreachable)" : ""}
+      </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        {chat.length === 0 && <div style={{ ...mono, fontSize: 12, color: C.grey }}>Nothing said yet in this log.</div>}
-        {chat.map((l, i) => (
-          <div key={i} style={{ ...mono, fontSize: 12 }}><span style={{ color: "#666" }}>{String(l.at).slice(9, 14)} </span><b style={{ color: C.gold }}>{l.author}</b> {l.text}</div>
+        {shown.length === 0 && <div style={{ ...mono, fontSize: 12, color: C.grey }}>Nothing said yet.</div>}
+        {shown.map((l, i) => (
+          <div key={i} style={{ ...mono, fontSize: 12, opacity: l.sending ? 0.6 : 1 }}>
+            <span style={{ color: "#666" }}>{time(l.at)} </span>
+            <span style={{ fontSize: 9, color: (SRC[l.source] || SRC.game).color, border: `1px solid ${(SRC[l.source] || SRC.game).color}`, padding: "0 3px", borderRadius: 2, marginRight: 4 }}>{(SRC[l.source] || SRC.game).label}</span>
+            <b style={{ color: C.gold }}>{l.author}</b> {l.text}{l.sending ? <span style={{ color: C.grey }}> ({l.sending})</span> : null}
+          </div>
         ))}
         <div ref={end} />
       </div>
-      <div style={{ ...mono, fontSize: 10, color: C.grey, textTransform: "uppercase", letterSpacing: 1, marginTop: 8 }}>Server message (everyone sees it)</div>
-      <div style={{ display: "flex", gap: 6 }}>
-        <input style={inp} value={text} onChange={(e) => setText(e.target.value)} maxLength={300} placeholder="Restart in 10 minutes"
-          onKeyDown={(e) => { if (e.key === "Enter" && text.trim()) act("broadcast", { text }, () => setText("")); }} />
-        <Btn small disabled={!text.trim()} onClick={() => act("broadcast", { text }, () => setText(""))}>Send</Btn>
+      <div style={{ ...mono, fontSize: 10, color: C.grey, textTransform: "uppercase", letterSpacing: 1, marginTop: 8 }}>
+        Say in chat as {meta.me || "you"} (the game and the Discord channel see it)
       </div>
+      <div style={{ display: "flex", gap: 6 }}>
+        <input style={inp} value={text} onChange={(e) => setText(e.target.value)} maxLength={300} placeholder="Anyone near Valley Station?"
+          onKeyDown={(e) => { if (e.key === "Enter") say(); }} />
+        <Btn small disabled={!text.trim()} onClick={say}>Say</Btn>
+      </div>
+      <div style={{ ...mono, fontSize: 10, color: C.grey, textTransform: "uppercase", letterSpacing: 1, marginTop: 8 }}>Server announcement (a pop-up for everyone)</div>
+      <div style={{ display: "flex", gap: 6 }}>
+        <input style={inp} value={bc} onChange={(e) => setBc(e.target.value)} maxLength={300} placeholder="Restart in 10 minutes"
+          onKeyDown={(e) => { if (e.key === "Enter" && bc.trim()) act("broadcast", { text: bc }, () => setBc("")); }} />
+        <Btn small disabled={!bc.trim()} onClick={() => act("broadcast", { text: bc }, () => setBc(""))}>Send</Btn>
+      </div>
+    </div>
+  );
+}
+
+// ── factions ────────────────────────────────────────────────────────────────
+function FactionsTab({ facs, selF, setSelF, act, players, refresh, claimDraft, setClaimDraft, setPick }) {
+  const [q, setQ] = useState("");
+  const list = (facs.factions || []).filter((f) => (f.name + " " + f.tag + " " + f.members.join(" ")).toLowerCase().includes(q.toLowerCase()));
+  const f = (facs.factions || []).find((x) => x.fid === selF) || null;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      {f && <FactionCard f={f} facs={facs} act={act} players={players} refresh={refresh} claimDraft={claimDraft} setClaimDraft={setClaimDraft} setPick={setPick} />}
+      <input style={inp} placeholder="Find a faction or member" value={q} onChange={(e) => setQ(e.target.value)} />
+      {list.length === 0 && <div style={{ ...mono, fontSize: 12, color: C.grey }}>No factions.</div>}
+      {list.map((x) => (
+        <button key={x.fid} onClick={() => { setSelF(x.fid); setClaimDraft(null); if (x.claim?.x) flyTo(x.claim.x, x.claim.y, 1); }}
+          style={{ ...mono, fontSize: 12, textAlign: "left", padding: "7px 9px", background: x.fid === selF ? "#1a1424" : C.bg, color: C.text,
+            border: `1px solid ${x.fid === selF ? C.purple : C.line}`, borderRadius: 3, cursor: "pointer" }}>
+          <div style={{ display: "flex", gap: 8 }}><span style={{ flex: 1 }}>{x.name}{x.tag ? ` [${x.tag}]` : ""}</span><span style={{ color: C.grey }}>{x.members.length}</span></div>
+          <div style={{ color: C.grey, fontSize: 11 }}>led by {x.owner || "?"}{x.claim?.x ? ` · ${facs.tiers?.[x.claim.tier] || "claim"} at ${x.claim.x}, ${x.claim.y}` : " · no claim"}</div>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function FactionCard({ f, facs, act, players, refresh, claimDraft, setClaimDraft, setPick }) {
+  const [who, setWho] = useState("");
+  const done = () => setTimeout(refresh, 1500);
+  const h = { ...mono, fontSize: 10, color: C.grey, textTransform: "uppercase", letterSpacing: 1, marginTop: 4 };
+  const row = { display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" };
+  const c = f.claim || {};
+  const d = claimDraft || (c.x ? { cx: c.x, cy: c.y, tier: c.tier || 1 } : null);
+  const changed = claimDraft && (!c.x || claimDraft.cx !== c.x || claimDraft.cy !== c.y || claimDraft.tier !== (c.tier || 1));
+  return (
+    <div style={{ border: `1px solid ${C.purple}`, borderRadius: 3, padding: 10, display: "flex", flexDirection: "column", gap: 8, background: "#14101c" }}>
+      <div><b style={{ fontSize: 15 }}>{f.name}</b>{f.tag ? <span style={{ ...mono, color: C.grey }}> [{f.tag}]</span> : null}
+        <div style={{ ...mono, fontSize: 11, color: C.grey }}>Wallet {f.wallet.toLocaleString()} bronze</div></div>
+      <div style={h}>Members</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+        {f.members.map((m) => (
+          <div key={m} style={{ ...mono, fontSize: 12, display: "flex", gap: 6, alignItems: "center" }}>
+            <span style={{ flex: 1 }}>{m}{m === f.owner ? <span style={{ color: C.purple }}> (leader)</span> : null}</span>
+            {m !== f.owner && <Btn small color={C.purple} onClick={() => { if (confirm(`Make ${m} the leader of ${f.name}? ${f.owner} stays a member.`)) act("fa_owner", { faction: f.name, player: m }, done); }}>Leader</Btn>}
+            {m !== f.owner && <Btn small color={C.red} onClick={() => { if (confirm(`Kick ${m} from ${f.name}?`)) act("fa_kick", { faction: f.name, player: m }, done); }}>Kick</Btn>}
+          </div>
+        ))}
+      </div>
+      <div style={row}>
+        <input style={{ ...inp, flex: 1, width: "auto" }} list="ops-online-fa" placeholder="Player name" value={who} onChange={(e) => setWho(e.target.value)} />
+        <datalist id="ops-online-fa">{players.map((p) => <option key={p.name} value={p.name} />)}</datalist>
+        <Btn small disabled={!who.trim()} onClick={() => act("fa_add", { faction: f.name, player: who.trim() }, () => { setWho(""); done(); })}>Add</Btn>
+      </div>
+      <div style={h}>Claim {changed ? "(dashed purple box = new)" : ""}</div>
+      {!d ? <div style={{ ...mono, fontSize: 12, color: C.grey }}>No claim.</div> : (
+        <div style={{ ...mono, fontSize: 12 }}>{facs.tiers?.[d.tier] || "Tier " + d.tier} at {d.cx}, {d.cy} ({2 * (facs.radii?.[d.tier] ?? 10) + 1} x {2 * (facs.radii?.[d.tier] ?? 10) + 1})</div>
+      )}
+      <div style={row}>
+        {[1, 2, 3].map((t) => (
+          <Btn key={t} small color={d?.tier === t ? C.gold : C.grey} disabled={!d} onClick={() => setClaimDraft({ ...(d || {}), tier: t })}>{facs.tiers?.[t] || "Tier " + t}</Btn>
+        ))}
+      </div>
+      <div style={row}>
+        <Btn small onClick={() => setPick({ mode: "claim" })}>{c.x ? "Move on map" : "Place on map"}</Btn>
+        <Btn small disabled={!changed} onClick={() => act("fa_claim_set", { fid: f.fid, cx: d.cx, cy: d.cy, tier: d.tier }, () => { setClaimDraft(null); done(); })}>Save claim</Btn>
+        {changed && <Btn small color={C.grey} onClick={() => setClaimDraft(null)}>Undo</Btn>}
+        <span style={{ flex: 1 }} />
+        {c.x ? <Btn small color={C.red} onClick={() => { if (confirm(`Remove ${f.name}'s claim? Its safehouse goes within a minute.`)) act("fa_claim_remove", { fid: f.fid }, done); }}>Remove</Btn> : null}
+      </div>
+      <div style={{ ...mono, fontSize: 11, color: C.grey }}>Admin claims are free. The game makes the safehouse within a minute and refuses one that overlaps another safehouse.</div>
     </div>
   );
 }
