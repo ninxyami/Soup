@@ -45,6 +45,34 @@ async function api(path, body) {
   return d;
 }
 
+// A car spawned where a player was JUST teleported can fall out of step with the server: the game lost Dawn's truck,
+// the server kept pulling her back to its own copy, and she couldn't forage after (2026-10-04, truck spawned 2 min
+// after a teleport into the wilds). So the spawn button asks first when the player moved far in the last 2 minutes.
+// Far moves come from two places: the page itself (any teleport, also in-game or a bus ticket, while /ops is open)
+// and the website's action log (teleports sent from this site by any admin, even before this page was opened).
+const FRESH_MS = 120000;
+const farMoves = new Map();          // lower-case name -> ms of their last far move seen by this page
+async function secondsSinceTeleport(name) {
+  const lc = String(name).toLowerCase();
+  let at = farMoves.get(lc) || 0;
+  try {
+    for (const r of (await api("/api/admin/ops/log")).log || []) {
+      if ((r.cmd === "teleport" || r.cmd === "teleport_to") && r.ok !== false && String(r.args?.player || "").toLowerCase() === lc)
+        at = Math.max(at, (Number(r.at) || 0) * 1000);
+    }
+  } catch { /* the log is a bonus; the page's own record still counts */ }
+  const ago = Math.round((Date.now() - at) / 1000);
+  return at && ago >= 0 && ago * 1000 < FRESH_MS ? ago : null;
+}
+async function confirmSpawn(name, script) {
+  const ago = await secondsSinceTeleport(name);
+  if (ago === null) return confirm(`Spawn ${script} next to ${name}?`);
+  const wait = Math.max(10, Math.round(FRESH_MS / 1000 - ago));
+  return confirm(`${name} was teleported ${ago} s ago and the area around them may still be loading. A car spawned now can get out of `
+    + `step with the server: it snaps back and forth and the player has to rejoin (Dawn's truck, Oct 4).\n\n`
+    + `Better to wait about ${wait} s more. Spawn ${script} anyway?`);
+}
+
 function Btn({ children, onClick, color = C.gold, disabled = false, small = false, title = "" }) {
   return (
     <button onClick={onClick} disabled={disabled} title={title}
@@ -123,6 +151,41 @@ export default function OpsPage() {
     tick();
     return () => { stop = true; clearTimeout(timer); };
   }, []);
+
+  // Watch every poll for players who moved impossibly far (a 5 s gap allows ~250 squares even in a fast car):
+  // on foot that's a teleport (remembered for the spawn check above); in a car both before and after, it's the game
+  // snapping the car back (Dawn's truck jumped 373 / 489 / 807 squares). A snap raises a banner that stays until
+  // dismissed, with what to tell the player.
+  const lastPos = useRef(new Map());
+  const [snaps, setSnaps] = useState([]);
+  useEffect(() => {
+    if (!st?.players) return;
+    const now = Date.now(), prev = lastPos.current, next = new Map(), found = [];
+    for (const p of st.players) {
+      const o = prev.get(p.name);
+      if (o && (o.x !== p.x || o.y !== p.y)) {
+        const d = Math.round(Math.hypot(p.x - o.x, p.y - o.y)), secs = Math.max(1, (now - o.t) / 1000);
+        if (d > 250 && d / secs > 50) {
+          if (o.car && p.in_vehicle) found.push({ name: p.name, d, x: p.x, y: p.y, at: now });
+          else farMoves.set(String(p.name).toLowerCase(), now);
+        }
+      }
+      // keep the time of the last CHANGE, so a poll that repeats old positions doesn't shrink the gap
+      next.set(p.name, o && o.x === p.x && o.y === p.y ? o : { x: p.x, y: p.y, car: !!p.in_vehicle, t: now });
+    }
+    lastPos.current = next;
+    if (!found.length) return;
+    setSnaps((cur) => {
+      let out = [...cur];
+      for (const f of found) {
+        const i = out.findIndex((s) => s.name === f.name && f.at - s.last < 5 * 60000);
+        if (i >= 0) out[i] = { ...out[i], n: out[i].n + 1, last: f.at, d: Math.max(out[i].d, f.d), x: f.x, y: f.y };
+        else out = [...out, { id: f.name + ":" + f.at, name: f.name, n: 1, first: f.at, last: f.at, d: f.d, x: f.x, y: f.y }];
+      }
+      return out;
+    });
+    for (const f of found) toast(false, `${f.name}'s car jumped ${f.d} squares. See the banner at the top.`);
+  }, [st, toast]);
   useEffect(() => {
     if (tab !== "chat" && tab !== "log" && tab !== "factions") return;
     let stop = false, timer = null;
@@ -332,6 +395,16 @@ export default function OpsPage() {
           {st?.world_stale ? " · world data paused (nobody online or mod older than 1.7.111)" : ""}
         </span>
       </div>
+      {snaps.map((s) => (
+        <div key={s.id} style={{ ...mono, fontSize: 12, padding: "6px 14px", background: "#2a1414", color: "#f3b0b0", display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", borderBottom: `1px solid ${C.line}` }}>
+          <span style={{ flex: 1, minWidth: 240 }}>
+            <b style={{ color: C.red }}>{s.name}'s car is snapping around</b> ({s.n === 1 ? "1 jump" : `${s.n} jumps`}, up to {s.d} squares, last at {new Date(s.last).toTimeString().slice(0, 5)}).
+            {" "}The game lost track of the car and the server keeps pulling it back. Tell them: get out of the car, exit to the main menu and join again.
+          </span>
+          <Btn small onClick={() => flyTo(s.x, s.y, 1)}>Show</Btn>
+          <Btn small color={C.grey} onClick={() => setSnaps((cur) => cur.filter((x) => x.id !== s.id))}>Dismiss</Btn>
+        </div>
+      ))}
       {pick && (
         <div style={{ ...mono, fontSize: 12, padding: "6px 14px", background: "#2a2410", color: C.gold, display: "flex", gap: 12, alignItems: "center" }}>
           {pick.mode === "z" ? pick.hint : pick.mode === "teleport" ? `Click the spot on the map to teleport ${selP} to.` : pick.mode === "claim" ? "Click where the claim's flag goes (its center)." : pick.mode === "marker" ? "Click where the marker goes." : pick.mode === "spot" ? (pick.hint || "Click the spot on the map.") : pick.mode === "move" ? `Click where ${moveK?.name || "it"} should stand now.` : pick.first ? "Now click the opposite corner." : "Click one corner of the safehouse on the map."}
@@ -697,7 +770,7 @@ function PlayerExtras({ p, act, cars, trailPts, setTrailPts }) {
           onFocus={async () => { if (!scripts.length) try { setScripts((await api("/api/admin/ops/vehicle-scripts")).scripts || []); } catch {} }}
           onChange={(e) => setVeh(e.target.value)} />
         <datalist id="ops-veh">{scripts.map((v) => <option key={v} value={v} />)}</datalist>
-        <Btn small disabled={!/^\w+\.[\w-]+$/.test(veh.trim())} onClick={() => { if (confirm(`Spawn ${veh.trim()} next to ${p.name}?`)) act("veh_spawn", { player: p.name, script: veh.trim() }, () => setVeh("")); }}>Spawn</Btn>
+        <Btn small disabled={!/^\w+\.[\w-]+$/.test(veh.trim())} onClick={async () => { const s = veh.trim(); if (await confirmSpawn(p.name, s)) act("veh_spawn", { player: p.name, script: s }, () => setVeh("")); }}>Spawn</Btn>
       </div>
       <div style={h}>Warnings ({warns.length})</div>
       {warns.slice(-5).map((w, i) => (
