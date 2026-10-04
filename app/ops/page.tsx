@@ -11,6 +11,11 @@ import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { flyTo } from "@/components/WorldMap";
 import { API } from "@/lib/constants";
+import ZombitaControl from "@/components/ops/ZombitaControl";
+
+// the mode (Live / Zombita) and Zombita's last tab survive a reload (per browser)
+function remembered(key, fallback) { try { return localStorage.getItem(key) || fallback; } catch { return fallback; } }
+function remember(key, value) { try { localStorage.setItem(key, value); } catch {} }
 
 const WorldMap = dynamic(() => import("@/components/WorldMap"), { ssr: false });
 
@@ -80,6 +85,14 @@ export default function OpsPage() {
   const [selF, setSelF] = useState(null);        // faction fid
   const [claimDraft, setClaimDraft] = useState(null);   // { cx, cy, tier }
   const [log, setLog] = useState([]);
+  // Zombita mode: the in-game Zombita Control panel (components/ops/ZombitaControl.tsx)
+  const [mode, setModeState] = useState("live");
+  const [ztab, setZtabState] = useState("overview");
+  const [zLayer, setZLayer] = useState({ dots: [], rects: [] });
+  const [wide, setWide] = useState(false);
+  useEffect(() => { setModeState(remembered("soup-ops-mode", "live")); setZtabState(remembered("soup-ops-ztab", "overview")); }, []);
+  const setMode = useCallback((m) => { setModeState(m); remember("soup-ops-mode", m); setPick(null); }, []);
+  const setZtab = useCallback((t) => { setZtabState(t); remember("soup-ops-ztab", t); setPick(null); }, []);
 
   const toast = useCallback((ok, msg) => {
     const id = Math.random();
@@ -173,8 +186,9 @@ export default function OpsPage() {
     for (const a of admins) if (a.id !== meId && a.x && a.y) out.push({ id: "adm:" + a.id, label: `${a.name} is looking here`, x: a.x, y: a.y, size: 9, color: "#00d2ff" });
     if (layers.vehicles) (st?.vehicles || []).forEach((v) => out.push({ id: "v:" + v.id, label: "", x: v.x, y: v.y, size: 8, color: "#cfd3da",
       onClick: () => toast(true, `${v.owner}'s ${String(v.model).replace(/^Base\./, "")} at ${v.x}, ${v.y}`) }));
+    if (mode === "zombita") out.push(...zLayer.dots);
     return out;
-  }, [st, layers, selP, toast, markDraft, trailPts, spot, admins, meId]);
+  }, [st, layers, selP, toast, markDraft, trailPts, spot, admins, meId, mode, zLayer]);
   const rects = useMemo(() => {
     const out = [];
     if (layers.zombies && st?.zombies) {
@@ -203,12 +217,19 @@ export default function OpsPage() {
       out.push({ id: "claimdraft", x: claimDraft.cx - r, y: claimDraft.cy - r, w: 2 * r + 1, h: 2 * r + 1, color: C.purple, dashed: true,
         fill: "rgba(151,117,204,.12)", label: `new claim ${2 * r + 1} x ${2 * r + 1}` });
     }
+    if (mode === "zombita") out.push(...zLayer.rects);
     return out;
-  }, [st, layers, safehouses, selS, draft, claimDraft, facs, spot]);
+  }, [st, layers, safehouses, selS, draft, claimDraft, facs, spot, mode, zLayer]);
 
   // map clicks: pick a teleport spot, or two corners of a safehouse box
   const onMapClick = useCallback((w) => {
     if (!pick) return;
+    if (pick.mode === "z") {                 // a Zombita mode tool asked for a spot (it may ask for the next one)
+      const cb = pick.cb;
+      setPick(null);
+      cb(w);
+      return;
+    }
     if (pick.mode === "teleport") {
       if (selP && confirm(`Teleport ${selP} to ${w.x}, ${w.y}?`)) act("teleport", { player: selP, tx: w.x, ty: w.y, tz: 0 });
       setPick(null);
@@ -235,13 +256,14 @@ export default function OpsPage() {
 
   // presence (Nin: "see which admin is here and doing what"): a beat every 5 s with what this admin is looking at
   const doing = useMemo(() => {
+    if (mode === "zombita") return `Zombita Control: ${ztab}`;
     if (tab === "players" && selP) return `Looking at ${selP}`;
     if (tab === "safehouses" && selS) return `Safehouse ${selS.split(",").slice(2).join(",")}'s`;
     if (tab === "factions" && selF) return `Faction ${(facs.factions.find((f) => f.fid === selF) || {}).name || ""}`;
     if (moveK) return `Moving ${moveK.name}`;
     return { players: "Players", safehouses: "Safehouses", factions: "Factions", cars: "Cars", world: "World tools", places: "Shops and stations",
       markers: "Markers", chat: "Chat", log: "Log" }[tab] || "Live Ops";
-  }, [tab, selP, selS, selF, facs, moveK]);
+  }, [tab, selP, selS, selF, facs, moveK, mode, ztab]);
   const doingRef = useRef(doing);
   doingRef.current = doing;
   useEffect(() => {
@@ -278,6 +300,12 @@ export default function OpsPage() {
       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "16px 14px 8px", borderBottom: `1px solid ${C.line}`, flexWrap: "wrap" }}>
         <a href="/" title="Back to the website" style={{ ...mono, fontSize: 11, color: C.grey, textDecoration: "none" }}>← site</a>
         <span style={{ font: "400 22px 'Bebas Neue',sans-serif", letterSpacing: 2 }}>LIVE OPS</span>
+        <span style={{ display: "inline-flex", border: `1px solid ${C.line}`, borderRadius: 3, overflow: "hidden" }}>
+          {[["live", "Live"], ["zombita", "Zombita"]].map(([m, l]) => (
+            <button key={m} onClick={() => setMode(m)} style={{ ...mono, fontSize: 11, padding: "4px 10px", border: 0, cursor: "pointer", textTransform: "uppercase",
+              background: mode === m ? (m === "zombita" ? "#2a1f33" : "#1a1e24") : "transparent", color: mode === m ? (m === "zombita" ? "#c9a8f0" : C.gold) : "#777" }}>{l}</button>
+          ))}
+        </span>
         <a href="/workspace" style={{ ...mono, fontSize: 11, color: C.grey, textDecoration: "none" }}>workspace</a>
         {LAYERS.map((l) => (
           <button key={l.id} onClick={() => setLayers((x) => ({ ...x, [l.id]: !x[l.id] }))}
@@ -302,7 +330,7 @@ export default function OpsPage() {
       </div>
       {pick && (
         <div style={{ ...mono, fontSize: 12, padding: "6px 14px", background: "#2a2410", color: C.gold, display: "flex", gap: 12, alignItems: "center" }}>
-          {pick.mode === "teleport" ? `Click the spot on the map to teleport ${selP} to.` : pick.mode === "claim" ? "Click where the claim's flag goes (its center)." : pick.mode === "marker" ? "Click where the marker goes." : pick.mode === "spot" ? (pick.hint || "Click the spot on the map.") : pick.mode === "move" ? `Click where ${moveK?.name || "it"} should stand now.` : pick.first ? "Now click the opposite corner." : "Click one corner of the safehouse on the map."}
+          {pick.mode === "z" ? pick.hint : pick.mode === "teleport" ? `Click the spot on the map to teleport ${selP} to.` : pick.mode === "claim" ? "Click where the claim's flag goes (its center)." : pick.mode === "marker" ? "Click where the marker goes." : pick.mode === "spot" ? (pick.hint || "Click the spot on the map.") : pick.mode === "move" ? `Click where ${moveK?.name || "it"} should stand now.` : pick.first ? "Now click the opposite corner." : "Click one corner of the safehouse on the map."}
           <Btn small onClick={() => { setPick(null); }}>Cancel</Btn>
         </div>
       )}
@@ -311,7 +339,10 @@ export default function OpsPage() {
           {err ? <div style={{ ...mono, padding: 30, color: C.red }}>{err}</div> :
             <WorldMap places={livePlaces} hidden={hiddenKinds} dots={dots} rects={rects} onMapClick={onMapClick} />}
         </div>
-        <aside style={{ width: 400, maxWidth: "48vw", minWidth: 0, overflowX: "hidden", borderLeft: `1px solid ${C.line}`, display: "flex", flexDirection: "column", background: C.panel }}>
+        <aside style={{ width: mode === "zombita" && wide ? 640 : 400, maxWidth: mode === "zombita" && wide ? "62vw" : "48vw", minWidth: 0, overflowX: "hidden",
+          borderLeft: `1px solid ${C.line}`, display: "flex", flexDirection: "column", background: C.panel }}>
+          {mode === "zombita" ? <ZombitaControl act={act} setPick={setPick} st={st} players={players} setLayer={setZLayer} setWide={setWide}
+            tab={ztab} setTab={setZtab} /> : <>
           <div style={{ display: "flex", flexWrap: "wrap", borderBottom: `1px solid ${C.line}` }}>
             {[["players", `Players (${players.length})`], ["safehouses", `Safehouses (${safehouses.length})`], ["factions", "Factions"], ["cars", `Cars (${(st?.vehicles || []).length})`], ["world", "World"], ["places", "Places"],
               ["markers", `Markers (${(st?.markers || []).length})`], ["chat", "Chat"], ["log", "Log"]].map(([k, l]) => (
@@ -334,6 +365,7 @@ export default function OpsPage() {
             {tab === "chat" && <ChatTab chat={chat} meta={chatMeta} mine={mine} setMine={setMine} act={act} />}
             {tab === "log" && <LogTab log={log} />}
           </div>
+          </>}
         </aside>
       </div>
       <div style={{ position: "fixed", left: 16, bottom: 16, display: "flex", flexDirection: "column", gap: 6, zIndex: 50, maxWidth: 460 }}>
@@ -797,12 +829,17 @@ function EventsBox({ act, spot, pickSpot, players, box, row, num }) {
   const [n, setN] = useState(1);
   const [name, setName] = useState("Supply drop");
   const [mark, setMark] = useState(true);
+  // bandit events (1.7.116): a group from one of the Bandits mod's clans, at a spot or near a player
+  const [clans, setClans] = useState([]);
+  const [bandit, setBandit] = useState({ cid: "", size: 6, program: "Bandit", player: "", at: null, mark: true });
+  useEffect(() => { api("/api/admin/ops/board").then((d) => setClans(d.clans || [])).catch(() => {}); }, []);
   const tRef = useRef(null);
   useEffect(() => {
     if (!spot?.x) return;
     if (spot.for === "hordefrom") setFrom({ x: spot.x, y: spot.y });
     if (spot.for === "hordeto") setTo({ x: spot.x, y: spot.y });
     if (spot.for === "bag") setBagAt({ x: spot.x, y: spot.y });
+    if (spot.for === "bandits") setBandit((b) => ({ ...b, at: { x: spot.x, y: spot.y }, player: "" }));
   }, [spot]);
   useEffect(() => {
     clearTimeout(tRef.current);
@@ -874,6 +911,36 @@ function EventsBox({ act, spot, pickSpot, players, box, row, num }) {
           act("ev_bag", { x: bagAt.x, y: bagAt.y, items: items.map((it) => ({ id: it.id, n: it.n })), name, mark }, () => setItems([]));
         }}>Drop the bag</Btn>
       </div>
+      <div style={{ ...mono, fontSize: 11, color: C.grey, marginTop: 6 }}>Bandits from one of the Bandits mod's clans (the spot must be near a player).</div>
+      {clans.length === 0 ? <div style={{ ...mono, fontSize: 11, color: "#777" }}>No clans from the game yet (needs mod 1.7.116, the Bandits mod and someone online).</div> : <>
+        <div style={row}>
+          <select style={{ ...inp, width: 150 }} value={bandit.cid} onChange={(e) => setBandit({ ...bandit, cid: e.target.value })}>
+            <option value="">Clan...</option>{clans.map((c) => <option key={c.cid} value={c.cid}>{c.name} ({c.members})</option>)}</select>
+          {num(bandit.size, (v) => setBandit({ ...bandit, size: v }), 1, 20, 56)}
+          <select style={{ ...inp, width: 110 }} value={bandit.program} onChange={(e) => setBandit({ ...bandit, program: e.target.value })}>
+            {[["Bandit", "hunt players"], ["Defend", "hold the spot"], ["Looter", "loot"], ["Thief", "steal"], ["Camper", "camp"], ["Roadblock", "roadblock"]].map(([v, l]) =>
+              <option key={v} value={v}>{l}</option>)}</select>
+        </div>
+        <div style={row}>
+          <Btn small onClick={() => pickSpot("bandits", 0, "Click where the bandits appear.")}>At: {bandit.at && !bandit.player ? `${bandit.at.x}, ${bandit.at.y}` : "pick on map"}</Btn>
+          <select style={{ ...inp, width: 130 }} value={bandit.player} onChange={(e) => setBandit({ ...bandit, player: e.target.value })}>
+            <option value="">or near a player</option>{players.map((pp) => <option key={pp.name} value={pp.name}>{pp.name}</option>)}</select>
+          <label style={{ ...mono, fontSize: 11, color: C.grey, display: "flex", gap: 4, alignItems: "center" }}>
+            <input type="checkbox" checked={bandit.mark} onChange={(e) => setBandit({ ...bandit, mark: e.target.checked })} /> danger marker (2 h)</label>
+        </div>
+        <div style={row}>
+          <Btn small color={C.red} disabled={!bandit.cid || (!bandit.player && !bandit.at)} onClick={() => {
+            const clan = clans.find((c) => c.cid === bandit.cid)?.name || bandit.cid;
+            const where = bandit.player ? `near ${bandit.player}` : `at ${bandit.at.x}, ${bandit.at.y}`;
+            const near = !bandit.player ? nearestPlayer(players, bandit.at) : null;
+            if (!confirm(`Send ${bandit.size} ${clan} (${bandit.program}) ${where}?${near ? `\nNearest player: ${near.name}, ${near.d} squares away.` : ""}`)) return;
+            const args = { cid: bandit.cid, size: bandit.size, program: bandit.program };
+            if (bandit.player) args.player = bandit.player; else { args.x = bandit.at.x; args.y = bandit.at.y; }
+            act("ev_bandits", args);
+            if (bandit.mark && !bandit.player) act("mk_add", { x: bandit.at.x, y: bandit.at.y, kind: "danger", title: "Bandits", text: `${clan} seen here`, hours: 2 });
+          }}>Send the bandits</Btn>
+        </div>
+      </>}
     </div>
   );
 }
