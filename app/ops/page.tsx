@@ -300,12 +300,6 @@ export default function OpsPage() {
       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "16px 14px 8px", borderBottom: `1px solid ${C.line}`, flexWrap: "wrap" }}>
         <a href="/" title="Back to the website" style={{ ...mono, fontSize: 11, color: C.grey, textDecoration: "none" }}>← site</a>
         <span style={{ font: "400 22px 'Bebas Neue',sans-serif", letterSpacing: 2 }}>LIVE OPS</span>
-        <span style={{ display: "inline-flex", border: `1px solid ${C.line}`, borderRadius: 3, overflow: "hidden" }}>
-          {[["live", "Live"], ["zombita", "Zombita"]].map(([m, l]) => (
-            <button key={m} onClick={() => setMode(m)} style={{ ...mono, fontSize: 11, padding: "4px 10px", border: 0, cursor: "pointer", textTransform: "uppercase",
-              background: mode === m ? (m === "zombita" ? "#2a1f33" : "#1a1e24") : "transparent", color: mode === m ? (m === "zombita" ? "#c9a8f0" : C.gold) : "#777" }}>{l}</button>
-          ))}
-        </span>
         <a href="/workspace" style={{ ...mono, fontSize: 11, color: C.grey, textDecoration: "none" }}>workspace</a>
         {LAYERS.map((l) => (
           <button key={l.id} onClick={() => setLayers((x) => ({ ...x, [l.id]: !x[l.id] }))}
@@ -341,6 +335,14 @@ export default function OpsPage() {
         </div>
         <aside style={{ width: mode === "zombita" && wide ? 640 : 400, maxWidth: mode === "zombita" && wide ? "62vw" : "48vw", minWidth: 0, overflowX: "hidden",
           borderLeft: `1px solid ${C.line}`, display: "flex", flexDirection: "column", background: C.panel }}>
+          {/* the mode switch sits on top of the panel it changes (Nin: people don't look at the top left) */}
+          <div style={{ display: "flex", borderBottom: `1px solid ${C.line}` }}>
+            {[["live", "Live", C.gold, "#1a1e24"], ["zombita", "Zombita Control", "#c9a8f0", "#2a1f33"]].map(([m, l, fg, bg]) => (
+              <button key={m} onClick={() => setMode(m)} style={{ ...mono, flex: 1, fontSize: 12, fontWeight: 700, padding: "10px 6px", border: 0, cursor: "pointer",
+                textTransform: "uppercase", letterSpacing: 1, background: mode === m ? bg : "transparent", color: mode === m ? fg : "#777",
+                borderBottom: mode === m ? `2px solid ${fg}` : "2px solid transparent" }}>{l}</button>
+            ))}
+          </div>
           {mode === "zombita" ? <ZombitaControl act={act} setPick={setPick} st={st} players={players} setLayer={setZLayer} setWide={setWide}
             tab={ztab} setTab={setZtab} /> : <>
           <div style={{ display: "flex", flexWrap: "wrap", borderBottom: `1px solid ${C.line}` }}>
