@@ -305,7 +305,7 @@ export default function OpsPage() {
           {err ? <div style={{ ...mono, padding: 30, color: C.red }}>{err}</div> :
             <WorldMap places={livePlaces} hidden={hiddenKinds} dots={dots} rects={rects} onMapClick={onMapClick} />}
         </div>
-        <aside style={{ width: 380, maxWidth: "45vw", borderLeft: `1px solid ${C.line}`, display: "flex", flexDirection: "column", background: C.panel }}>
+        <aside style={{ width: 400, maxWidth: "48vw", minWidth: 0, overflowX: "hidden", borderLeft: `1px solid ${C.line}`, display: "flex", flexDirection: "column", background: C.panel }}>
           <div style={{ display: "flex", flexWrap: "wrap", borderBottom: `1px solid ${C.line}` }}>
             {[["players", `Players (${players.length})`], ["safehouses", `Safehouses (${safehouses.length})`], ["factions", "Factions"], ["cars", `Cars (${(st?.vehicles || []).length})`], ["world", "World"], ["places", "Places"],
               ["markers", `Markers (${(st?.markers || []).length})`], ["chat", "Chat"], ["log", "Log"]].map(([k, l]) => (
@@ -345,12 +345,12 @@ function PlayersTab({ players, selP, setSelP, selPlayer, act, setPick, safehouse
   const list = players.filter((p) => p.name.toLowerCase().includes(q.toLowerCase())).sort((a, b) => a.name.localeCompare(b.name));
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-      {selPlayer && <PlayerCard p={selPlayer} act={act} setPick={setPick} players={players} safehouses={safehouses} cars={cars}
+      {selPlayer && <PlayerCard onClose={() => setSelP(null)} p={selPlayer} act={act} setPick={setPick} players={players} safehouses={safehouses} cars={cars}
         trailPts={trailPts} setTrailPts={setTrailPts} />}
       <input style={inp} placeholder="Find a player" value={q} onChange={(e) => setQ(e.target.value)} />
       {list.length === 0 && <div style={{ ...mono, fontSize: 12, color: C.grey }}>Nobody online.</div>}
       {list.map((p) => (
-        <button key={p.name} onClick={() => { setSelP(p.name); flyTo(p.x, p.y, 1); }}
+        <button key={p.name} onClick={() => { if (p.name === selP) { setSelP(null); return; } setSelP(p.name); flyTo(p.x, p.y, 1); }}
           style={{ ...mono, fontSize: 12, textAlign: "left", padding: "7px 9px", background: p.name === selP ? "#1d1a10" : C.bg, color: C.text,
             border: `1px solid ${p.name === selP ? C.gold : C.line}`, borderRadius: 3, cursor: "pointer", display: "flex", gap: 8, alignItems: "center" }}>
           <span style={{ width: 9, height: 9, borderRadius: 5, background: p.dead ? C.red : p.in_vehicle ? C.blue : C.green }} />
@@ -362,7 +362,7 @@ function PlayersTab({ players, selP, setSelP, selPlayer, act, setPick, safehouse
   );
 }
 
-function PlayerCard({ p, act, setPick, players, safehouses, cars, trailPts, setTrailPts }) {
+function PlayerCard({ p, act, setPick, players, safehouses, cars, trailPts, setTrailPts, onClose }) {
   const [to, setTo] = useState("");
   const [item, setItem] = useState("");
   const [n, setN] = useState(1);
@@ -385,6 +385,7 @@ function PlayerCard({ p, act, setPick, players, safehouses, cars, trailPts, setT
       <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
         <b style={{ fontSize: 16 }}>{p.name}</b>
         <span style={{ ...mono, fontSize: 11, color: C.grey }}>{p.x}, {p.y}{p.z ? `, floor ${p.z}` : ""} · {p.health}% · {p.dead ? "dead" : p.in_vehicle ? "driving" : "on foot"}</span>
+        <button onClick={onClose} title="Close" style={{ marginLeft: "auto", background: "transparent", border: `1px solid ${C.red}`, color: C.red, borderRadius: 3, cursor: "pointer", fontSize: 12, padding: "1px 8px", fontFamily: "var(--mono, monospace)" }}>× Close</button>
       </div>
       {homes.length > 0 && <div style={{ ...mono, fontSize: 11, color: C.grey }}>Safehouse: {homes.map((s) => `${s.owner === p.name ? "owns" : "member of"} ${s.owner}'s at ${s.x},${s.y}`).join("; ")}</div>}
       <div style={row}><Btn small onClick={() => flyTo(p.x, p.y, 2)}>Show</Btn><Btn small onClick={() => setPick({ mode: "teleport" })}>Teleport to a spot</Btn></div>
@@ -476,13 +477,13 @@ function CharacterPanel({ p, act }) {
   };
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6, borderTop: `1px solid ${C.line}`, paddingTop: 6 }}>
-      <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-        <div style={{ ...h, marginTop: 0, flex: 1 }}>Character {sheet ? `(${sheet.age ?? 0}s old)` : ""}</div>
+      <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+        <div style={{ ...h, marginTop: 0, flex: "1 1 120px" }}>Character {sheet ? `(${sheet.age ?? 0}s old)` : ""}</div>
         <label style={{ ...mono, fontSize: 11, color: C.grey, display: "flex", gap: 4, alignItems: "center" }}>
           <input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} /> tell the player
         </label>
         <Btn small disabled={busy} onClick={load}>{busy ? "..." : "Refresh"}</Btn>
-        <Btn small color={C.grey} onClick={() => setOpen(false)}>Close</Btn>
+        <Btn small color={C.red} onClick={() => setOpen(false)}>× Close</Btn>
       </div>
       {!sheet ? <div style={{ ...mono, fontSize: 12, color: C.grey }}>{busy ? "Asking the game..." : "No sheet (is the player online?)"}</div> : (<>
         <div style={{ ...mono, fontSize: 12 }}>
@@ -550,6 +551,7 @@ function CharacterPanel({ p, act }) {
           <Btn small disabled={!xpPerk || !xpAmt} onClick={() => act("addxp", { player: p.name, perk: xpPerk, amount: xpAmt, notify }, reload)}>Add XP</Btn>
         </div>
       </>)}
+      <Btn small color={C.red} onClick={() => setOpen(false)}>× Close character sheet</Btn>
     </div>
   );
 }
@@ -570,9 +572,9 @@ function InventoryPanel({ p, act }) {
   for (const it of items) (groups[it.where] = groups[it.where] || []).push(it);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6, borderTop: `1px solid ${C.line}`, paddingTop: 6 }}>
-      <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-        <div style={{ ...h, marginTop: 0, flex: 1 }}>Inventory {inv ? `(${inv.items.length} kinds, ${inv.age ?? 0}s old)` : ""}</div>
-        <Btn small onClick={load}>Refresh</Btn><Btn small color={C.grey} onClick={() => setOpen(false)}>Close</Btn>
+      <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+        <div style={{ ...h, marginTop: 0, flex: "1 1 120px" }}>Inventory {inv ? `(${inv.items.length} kinds, ${inv.age ?? 0}s old)` : ""}</div>
+        <Btn small onClick={load}>Refresh</Btn><Btn small color={C.red} onClick={() => setOpen(false)}>× Close</Btn>
       </div>
       {!inv ? <div style={{ ...mono, fontSize: 12, color: C.grey }}>Asking the game...</div> : (<>
         <input style={inp} placeholder="Find an item" value={q} onChange={(e) => setQ(e.target.value)} />
@@ -631,8 +633,10 @@ function PlayerExtras({ p, act, cars, trailPts, setTrailPts }) {
           <a style={{ flex: 1, cursor: "pointer" }} onClick={() => flyTo(c.x, c.y, 1)}>{String(c.model).replace(/^Base\./, "")} <span style={{ color: C.grey }}>{c.x}, {c.y}</span></a>
           <Btn small onClick={() => act("teleport", { player: p.name, tx: c.x, ty: c.y, tz: 0 })}>Go to it</Btn>
           <Btn small onClick={() => act("veh_repair", { vid: c.id })}>Repair</Btn>
+          <Btn small onClick={() => act("veh_flip", { vid: c.id })}>Flip</Btn>
         </div>
       ))}
+      <Btn small onClick={() => act("veh_flip", { player: p.name })}>Flip the car next to them</Btn>
       <div style={{ display: "flex", gap: 6 }}>
         <input style={inp} list="ops-veh" placeholder="Spawn a car next to them: Base.CarNormal" value={veh}
           onFocus={async () => { if (!scripts.length) try { setScripts((await api("/api/admin/ops/vehicle-scripts")).scripts || []); } catch {} }}
@@ -664,7 +668,7 @@ function CarsTab({ cars, act, players }) {
   const list = cars.filter((c) => (c.owner + " " + c.model).toLowerCase().includes(q.toLowerCase())).sort((a, b) => String(a.owner).localeCompare(String(b.owner)));
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-      <div style={{ ...mono, fontSize: 11, color: C.grey }}>Every claimed car (Zombita Vehicles) at its last known spot. Repair needs someone near the car.</div>
+      <div style={{ ...mono, fontSize: 11, color: C.grey }}>Every claimed car (Zombita Vehicles) at its last known spot. Repair and flip need someone near the car.</div>
       <input style={inp} placeholder="Find by owner or model" value={q} onChange={(e) => setQ(e.target.value)} />
       <datalist id="ops-online-car">{players.map((pp) => <option key={pp.name} value={pp.name} />)}</datalist>
       {list.length === 0 && <div style={{ ...mono, fontSize: 12, color: C.grey }}>No claimed cars.</div>}
@@ -677,6 +681,7 @@ function CarsTab({ cars, act, players }) {
           <div style={{ color: C.grey, fontSize: 11 }}>{c.x}, {c.y}{c.at ? ` · seen ${new Date(c.at * 1000).toLocaleString()}` : ""}</div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             <Btn small onClick={() => act("veh_repair", { vid: c.id })}>Repair</Btn>
+            <Btn small onClick={() => act("veh_flip", { vid: c.id })}>Flip</Btn>
             <Btn small color={C.red} onClick={() => { if (confirm(`Unclaim ${c.owner}'s ${c.model}?`)) act("veh_unclaim", { vid: c.id }); }}>Unclaim</Btn>
             <input style={{ ...inp, width: 110 }} list="ops-online-car" placeholder="new owner" value={to[c.id] || ""} onChange={(e) => setTo({ ...to, [c.id]: e.target.value })} />
             <Btn small disabled={!(to[c.id] || "").trim()} onClick={() => { if (confirm(`Give ${c.owner}'s ${c.model} to ${to[c.id]}?`)) act("veh_transfer", { vid: c.id, player: to[c.id].trim() }); }}>Give</Btn>
@@ -878,7 +883,7 @@ function SafehousesTab({ safehouses, selected, setSelS, shKey, draft, setDraft, 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
       {selected && !creating && <SafehouseCard s={selected} draft={draft} setDraft={setDraft} setPick={setPick} act={act} players={players}
-        onGone={() => { setSelS(null); setDraft(null); }} onMoved={(k) => setSelS(k)} />}
+        onGone={() => { setSelS(null); setDraft(null); }} onMoved={(k) => setSelS(k)} onClose={() => { setSelS(null); setDraft(null); }} />}
       {creating ? <CreateCard draft={draft} setDraft={setDraft} setPick={setPick} act={act} players={players} onDone={() => { setCreating(false); setDraft(null); }} />
         : <Btn onClick={() => { setCreating(true); setSelS(null); setDraft(null); setPick({ mode: "corners" }); }}>New safehouse</Btn>}
       <input style={inp} placeholder="Find by owner, member or name" value={q} onChange={(e) => setQ(e.target.value)} />
@@ -919,7 +924,7 @@ function BoxInputs({ d, setDraft }) {
   );
 }
 
-function SafehouseCard({ s, draft, setDraft, setPick, act, players, onGone, onMoved }) {
+function SafehouseCard({ s, draft, setDraft, setPick, act, players, onGone, onMoved, onClose }) {
   const [who, setWho] = useState("");
   const d = draft || { x: s.x, y: s.y, w: s.w, h: s.h };
   const changed = draft && (draft.x !== s.x || draft.y !== s.y || draft.w !== s.w || draft.h !== s.h);
@@ -928,6 +933,7 @@ function SafehouseCard({ s, draft, setDraft, setPick, act, players, onGone, onMo
   const row = { display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" };
   return (
     <div style={{ border: `1px solid ${C.gold}`, borderRadius: 3, padding: 10, display: "flex", flexDirection: "column", gap: 8, background: "#15130c" }}>
+      <div style={{ display: "flex" }}><button onClick={onClose} title="Close" style={{ marginLeft: "auto", background: "transparent", border: `1px solid ${C.red}`, color: C.red, borderRadius: 3, cursor: "pointer", fontSize: 12, padding: "1px 8px", fontFamily: "var(--mono, monospace)" }}>× Close</button></div>
       <div><b style={{ fontSize: 15 }}>{s.faction ? s.title : `${s.owner}'s safehouse`}</b>
         <div style={{ ...mono, fontSize: 11, color: C.grey }}>{s.x}, {s.y} to {s.x + s.w - 1}, {s.y + s.h - 1} · {s.w} x {s.h}</div></div>
       {s.faction ? (
@@ -1102,7 +1108,7 @@ function FactionsTab({ facs, selF, setSelF, act, players, refresh, claimDraft, s
   const f = (facs.factions || []).find((x) => x.fid === selF) || null;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-      {f && <FactionCard f={f} facs={facs} act={act} players={players} refresh={refresh} claimDraft={claimDraft} setClaimDraft={setClaimDraft} setPick={setPick} />}
+      {f && <FactionCard onClose={() => { setSelF(null); setClaimDraft(null); }} f={f} facs={facs} act={act} players={players} refresh={refresh} claimDraft={claimDraft} setClaimDraft={setClaimDraft} setPick={setPick} />}
       <input style={inp} placeholder="Find a faction or member" value={q} onChange={(e) => setQ(e.target.value)} />
       {list.length === 0 && <div style={{ ...mono, fontSize: 12, color: C.grey }}>No factions.</div>}
       {list.map((x) => (
@@ -1117,7 +1123,7 @@ function FactionsTab({ facs, selF, setSelF, act, players, refresh, claimDraft, s
   );
 }
 
-function FactionCard({ f, facs, act, players, refresh, claimDraft, setClaimDraft, setPick }) {
+function FactionCard({ f, facs, act, players, refresh, claimDraft, setClaimDraft, setPick, onClose }) {
   const [who, setWho] = useState("");
   const done = () => setTimeout(refresh, 1500);
   const h = { ...mono, fontSize: 10, color: C.grey, textTransform: "uppercase", letterSpacing: 1, marginTop: 4 };
@@ -1127,6 +1133,7 @@ function FactionCard({ f, facs, act, players, refresh, claimDraft, setClaimDraft
   const changed = claimDraft && (!c.x || claimDraft.cx !== c.x || claimDraft.cy !== c.y || claimDraft.tier !== (c.tier || 1));
   return (
     <div style={{ border: `1px solid ${C.purple}`, borderRadius: 3, padding: 10, display: "flex", flexDirection: "column", gap: 8, background: "#14101c" }}>
+      <div style={{ display: "flex" }}><button onClick={onClose} title="Close" style={{ marginLeft: "auto", background: "transparent", border: `1px solid ${C.red}`, color: C.red, borderRadius: 3, cursor: "pointer", fontSize: 12, padding: "1px 8px", fontFamily: "var(--mono, monospace)" }}>× Close</button></div>
       <div><b style={{ fontSize: 15 }}>{f.name}</b>{f.tag ? <span style={{ ...mono, color: C.grey }}> [{f.tag}]</span> : null}
         <div style={{ ...mono, fontSize: 11, color: C.grey }}>Wallet {f.wallet.toLocaleString()} bronze</div></div>
       <div style={h}>Members</div>
