@@ -61,7 +61,11 @@ const CSS = `
 .wm-style button.on{color:#0b0d10;background:#c8a84b}
 `;
 
-export default function WorldMap({ places = [], dots = [], rects = [], hidden = {}, focus = null, onPlaceClick = null, onMapClick = null }:
+// Defaults made once: a fresh [] on every render would look like new places each time and wipe the overlays.
+const NONE = [];
+const NO_HIDDEN = {};
+
+export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hidden = NO_HIDDEN, focus = null, onPlaceClick = null, onMapClick = null }:
   { places?: Place[]; dots?: Dot[]; rects?: Rect[]; hidden?: Record<string, boolean>; focus?: { x: number; y: number; z?: number } | null;
     onPlaceClick?: ((p: Place) => void) | null; onMapClick?: ((w: { x: number; y: number }) => void) | null }) {
   const host = useRef<HTMLDivElement>(null);
@@ -237,10 +241,10 @@ export default function WorldMap({ places = [], dots = [], rects = [], hidden = 
   useEffect(() => {
     const v = viewerRef.current; if (!ready || !v) return;
     let alive = true;
+    const els = [];
     (async () => {
       const OSD = (await import("openseadragon")).default;
       if (!alive) return;
-      const els = [];
       for (const p of places) {
         const vp = toVp(OSD, p.x, p.y); if (!vp) continue;
         const el = document.createElement("div");
@@ -256,9 +260,9 @@ export default function WorldMap({ places = [], dots = [], rects = [], hidden = 
         els.push(el);
       }
       setTimeout(declutter, 50);
-      return () => els.forEach((el) => { try { v.removeOverlay(el); } catch {} });
     })();
-    return () => { alive = false; try { v.clearOverlays(); } catch {} dotEls.current.clear(); rectEls.current.clear(); };
+    // only this effect's own pins: the live dots and boxes stay (clearing everything here made them blink out)
+    return () => { alive = false; els.forEach((el) => { try { v.removeOverlay(el); } catch {} }); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, places]);
 
