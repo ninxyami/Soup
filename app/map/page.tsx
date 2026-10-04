@@ -5,6 +5,7 @@
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import { KIND } from "@/components/WorldMap";
+import { API } from "@/lib/constants";
 
 const WorldMap = dynamic(() => import("@/components/WorldMap"), { ssr: false });
 
@@ -13,6 +14,41 @@ export default function MapPage() {
   const [hidden, setHidden] = useState({});
   const [q, setQ] = useState("");
   const [focus, setFocus] = useState(null);
+
+  // live dots: admins see everyone (/api/map/live), a logged-in player only themselves (/api/map/me), others nobody.
+  // Positions come from mod 1.7.110 (every 5 s); polled every 5 s while the page is open.
+  const [dots, setDots] = useState([]);
+  const [live, setLive] = useState(null);       // { mode: "admin"|"me", text }
+  useEffect(() => {
+    let stop = false, timer = null, mode = "admin";
+    const tick = async () => {
+      try {
+        if (mode === "admin") {
+          const r = await fetch(`${API}/api/map/live`, { credentials: "include" });
+          if (r.ok) {
+            const d = await r.json();
+            const g = d.game;
+            const clock = g ? ` - in game ${String(g.hour).padStart(2, "0")}:${String(g.minute).padStart(2, "0")}` : "";
+            setDots((d.players || []).map((p) => ({ id: p.name, label: p.name, x: p.x, y: p.y,
+              color: p.dead ? "#e05555" : p.in_vehicle ? "#4a8fc4" : "#4caf7d" })));
+            setLive({ mode: "admin", text: d.stale ? "No live positions (nobody online, or the server is paused)" : `${d.count} online${clock}` });
+          } else mode = r.status === 401 ? "none" : "me";     // 403 = logged in but not an admin
+        }
+        if (mode === "me") {
+          const r = await fetch(`${API}/api/map/me`, { credentials: "include" });
+          if (r.ok) {
+            const d = await r.json();
+            setDots(d.me ? [{ id: "me", label: "You", x: d.me.x, y: d.me.y, color: "#c8a84b" }] : []);
+            setLive({ mode: "me", text: d.me ? "You're on the map" : (d.name ? `${d.name} isn't in game right now` : "Link your in-game name to see yourself") });
+          } else mode = "none";
+        }
+        if (mode === "none") { setDots([]); setLive(null); return; }   // logged out: nothing to poll
+      } catch { /* network blip: try again next tick */ }
+      if (!stop) timer = setTimeout(tick, 5000);
+    };
+    tick();
+    return () => { stop = true; clearTimeout(timer); };
+  }, []);
   // fill exactly the space under the site menu (its height changes with the screen width)
   const [top, setTop] = useState(0);
   useEffect(() => {
@@ -55,6 +91,11 @@ export default function MapPage() {
             {v.label}
           </button>
         ))}
+        {live && (
+          <span className="font-mono text-[0.68rem]" style={{ color: live.mode === "admin" ? "#c8a84b" : "#9aa" }}>
+            {live.mode === "admin" ? "ADMIN VIEW - " : ""}{live.text}
+          </span>
+        )}
         <div className="flex-1" />
         <div style={{ position: "relative" }}>
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find a shop, station or town"
@@ -72,7 +113,7 @@ export default function MapPage() {
           )}
         </div>
       </div>
-      <WorldMap places={places} hidden={hidden} focus={focus} />
+      <WorldMap places={places} dots={dots} hidden={hidden} focus={focus} />
     </div>
   );
 }
