@@ -27,6 +27,9 @@ const CARTO_BASE = (process.env.NEXT_PUBLIC_MAP_TILES_CARTO || "https://api.stat
 const ISO_BASE = (process.env.NEXT_PUBLIC_MAP_TILES_3D || "https://api.stateofundeadpurge.site/map-tiles/3d").replace(/\/$/, "");
 const STYLES = [{ id: "normal", label: "Normal" }, { id: "carto", label: "Floor plans" }];
 const VIEWS = [{ id: "top", label: "Top" }, { id: "3d", label: "3D" }];
+// the remembered Top / 3D choice. A new key on 2026-10-04 when 3D became the default, so a "Top" picked before
+// that is forgotten once and everyone starts on 3D (Nin: "from now on, because some people already visited")
+const VIEW_KEY = "soup-map-view-2";
 // iso geometry (pzmap2dzi IsoDZI): half a square's width / height, and one floor's height, in image px
 const ISO_GW = 64, ISO_GH = 32, ISO_FLOOR = 192;
 // zoom is shared between the views as "screen px per square"; an iso square is 128 px corner to corner, ~90 px a side
@@ -140,7 +143,7 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
   // the map starts (so they don't load the top map first); if 3D isn't there they get the top map.
   const wish3d = useRef<boolean | null>(null);
   if (wish3d.current === null) {
-    try { const v = new URLSearchParams(window.location.search).get("v"); wish3d.current = (v || localStorage.getItem("soup-map-view") || "3d") === "3d"; }
+    try { const v = new URLSearchParams(window.location.search).get("v"); wish3d.current = (v || localStorage.getItem(VIEW_KEY) || "3d") === "3d"; }
     catch { wish3d.current = true; }
   }
   const [has3d, setHas3d] = useState<boolean | null>(null);
@@ -366,7 +369,7 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
   // the camera handed over by the cleanup above is in the OLD view's floor; keep the switch on the same floor
   const switchView = (v) => {
     if (v === view) return;
-    try { localStorage.setItem("soup-map-view", v); } catch {}
+    try { localStorage.setItem(VIEW_KEY, v); } catch {}
     setView(v);
   };
 
