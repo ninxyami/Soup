@@ -660,13 +660,6 @@
   },
   {
    "kind": "town",
-   "id": "town:Maplewood",
-   "name": "Maplewood",
-   "x": 7652,
-   "y": 8060
-  },
-  {
-   "kind": "town",
    "id": "town:March Ridge",
    "name": "March Ridge",
    "x": 10026,
@@ -678,13 +671,6 @@
    "name": "Muldraugh",
    "x": 10701,
    "y": 9794
-  },
-  {
-   "kind": "town",
-   "id": "town:Near Foxtrot",
-   "name": "Near Foxtrot",
-   "x": 10537,
-   "y": 13655
   },
   {
    "kind": "town",
@@ -713,6 +699,126 @@
    "name": "Westpoint",
    "x": 11438,
    "y": 6975
+  },
+  {
+   "kind": "town",
+   "id": "town:Anruisi Town",
+   "name": "Anruisi Town",
+   "x": 12572,
+   "y": 11556,
+   "mod": true
+  },
+  {
+   "kind": "town",
+   "id": "town:Safeharbor Garrison",
+   "name": "Safeharbor Garrison",
+   "x": 12100,
+   "y": 10676,
+   "mod": true
+  },
+  {
+   "kind": "town",
+   "id": "town:HavenFall",
+   "name": "HavenFall",
+   "x": 4572,
+   "y": 9096,
+   "mod": true
+  },
+  {
+   "kind": "town",
+   "id": "town:Blackstone",
+   "name": "Blackstone",
+   "x": 15460,
+   "y": 7584,
+   "mod": true
+  },
+  {
+   "kind": "town",
+   "id": "town:Nettle Township",
+   "name": "Nettle Township",
+   "x": 6792,
+   "y": 9176,
+   "mod": true
+  },
+  {
+   "kind": "town",
+   "id": "town:Willowbrook",
+   "name": "Willowbrook",
+   "x": 8904,
+   "y": 9824,
+   "mod": true
+  },
+  {
+   "kind": "town",
+   "id": "town:Oakshire",
+   "name": "Oakshire",
+   "x": 8544,
+   "y": 7880,
+   "mod": true
+  },
+  {
+   "kind": "town",
+   "id": "town:Daisy County",
+   "name": "Daisy County",
+   "x": 10396,
+   "y": 7292,
+   "mod": true
+  },
+  {
+   "kind": "town",
+   "id": "town:Constown",
+   "name": "Constown",
+   "x": 5752,
+   "y": 11176,
+   "mod": true
+  },
+  {
+   "kind": "town",
+   "id": "town:Frogtown",
+   "name": "Frogtown",
+   "x": 3428,
+   "y": 7152,
+   "mod": true
+  },
+  {
+   "kind": "town",
+   "id": "town:Foxtrot Warehouse",
+   "name": "Foxtrot Warehouse",
+   "x": 10668,
+   "y": 13400,
+   "mod": true
+  },
+  {
+   "kind": "town",
+   "id": "town:Maplewood",
+   "name": "Maplewood",
+   "x": 8232,
+   "y": 8564,
+   "mod": true
+  },
+  {
+   "kind": "town",
+   "id": "town:Greenleaf",
+   "name": "Greenleaf",
+   "x": 6592,
+   "y": 10660,
+   "mod": true
+  },
+  {
+   "kind": "town",
+   "id": "town:Clover Lake",
+   "name": "Clover Lake",
+   "x": 9788,
+   "y": 9120,
+   "mod": true
+  },
+  {
+   "kind": "town",
+   "id": "town:Wildsteel",
+   "name": "Wildsteel",
+   "x": 14496,
+   "y": 5804,
+   "mod": true
   }
  ]
 }
