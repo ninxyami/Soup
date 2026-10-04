@@ -79,6 +79,8 @@ const WipeModal = ({ answers, onClose, toast }) => {
   const [results, setResults] = useState([]);
   const [stopped, setStopped] = useState([]);
   const [failMsg, setFailMsg] = useState("");
+  // the panel password, checked by the bot itself (the wipe is the one thing that can't be undone, Nin 2026-10-04)
+  const [pw, setPw] = useState("");
 
   const runWipe = async () => {
     setPhase("running");
@@ -88,7 +90,7 @@ const WipeModal = ({ answers, onClose, toast }) => {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(answers),
+        body: JSON.stringify({ ...answers, password: pw }),
       });
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({ detail: resp.statusText }));
@@ -144,8 +146,12 @@ const WipeModal = ({ answers, onClose, toast }) => {
               The server warns players, saves, kicks everyone, stops, backs the characters up to Zomboid/wipe_backups/, wipes, {answers.season !== "fix" ? "runs the season reset, " : ""}and starts again. Scheduled restarts are stopped while it runs.{"\n"}
               This cannot be undone.
             </div>
+            <input type="password" value={pw} onChange={e => setPw(e.target.value)} placeholder="Panel password to confirm"
+              onKeyDown={e => { if (e.key === "Enter" && pw) runWipe(); }}
+              style={{ width: "100%", boxSizing: "border-box", marginTop: 14, background: "var(--bg)", border: "1px solid var(--red)",
+                color: "var(--text)", padding: "10px 12px", fontFamily: "var(--mono)", fontSize: 13, letterSpacing: 2, outline: "none" }} />
             <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-              <B c="red" onClick={runWipe}>START</B>
+              <B c="red" onClick={() => pw && runWipe()} disabled={!pw}>START</B>
               <B c="ghost" onClick={onClose}>Cancel</B>
             </div>
           </>
