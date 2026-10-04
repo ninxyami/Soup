@@ -263,14 +263,14 @@ export default function OpsPage() {
   // fill the space under the site menu
   const [top, setTop] = useState(0);
   useEffect(() => {
-    const m = () => { const nav = document.querySelector("body > nav, body > header, nav"); setTop(nav ? Math.round(nav.getBoundingClientRect().bottom) : 0); };
-    m(); window.addEventListener("resize", m); const t = setTimeout(m, 300);
+    const m = () => { const nav = document.querySelector("body > nav, body > header, nav"); setTop(document.fullscreenElement ? 0 : nav ? Math.round(nav.getBoundingClientRect().bottom) : 0); };
+    m(); window.addEventListener("resize", m); document.addEventListener("fullscreenchange", m); const t = setTimeout(m, 300);
     return () => { window.removeEventListener("resize", m); clearTimeout(t); };
   }, []);
 
   const clock = st?.game ? `${String(st.game.hour).padStart(2, "0")}:${String(st.game.minute).padStart(2, "0")}` : "";
   return (
-    <div style={{ position: "fixed", top, left: 0, right: 0, bottom: 0, display: "flex", flexDirection: "column", background: C.bg, color: C.text }}>
+    <div data-fs-root style={{ position: "fixed", top, left: 0, right: 0, bottom: 0, display: "flex", flexDirection: "column", background: C.bg, color: C.text }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", borderBottom: `1px solid ${C.line}`, flexWrap: "wrap" }}>
         <span style={{ font: "400 22px 'Bebas Neue',sans-serif", letterSpacing: 2 }}>LIVE OPS</span>
         {LAYERS.map((l) => (

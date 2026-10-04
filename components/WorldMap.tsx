@@ -56,6 +56,8 @@ const CSS = `
 .wm-coords{position:absolute;left:10px;bottom:10px;font:12px var(--mono,monospace);color:#cfd3da;background:rgba(0,0,0,.6);padding:4px 8px;border-radius:3px;pointer-events:none}
 .wm-tip{position:absolute;pointer-events:none;background:rgba(10,13,16,.95);border:1px solid #2a2f37;padding:6px 9px;font:12px var(--mono,monospace);color:#e6e6e6;border-radius:3px;z-index:5;max-width:260px}
 .wm-tip b{color:#c8a84b}
+.wm-fs{position:absolute;left:10px;top:10px;z-index:4;font:600 11px var(--mono,monospace);letter-spacing:.5px;color:#cfd3da;background:rgba(0,0,0,.6);border:1px solid #2a2f37;border-radius:3px;padding:5px 10px;cursor:pointer;text-transform:uppercase}
+.wm-fs:hover{color:#c8a84b;border-color:#c8a84b}
 .wm-style{position:absolute;right:10px;top:10px;display:flex;background:rgba(0,0,0,.6);border:1px solid #2a2f37;border-radius:3px;overflow:hidden;z-index:4}
 .wm-style button{font:600 11px var(--mono,monospace);letter-spacing:.5px;color:#9aa;padding:5px 10px;background:none;border:0;cursor:pointer;text-transform:uppercase}
 .wm-style button.on{color:#0b0d10;background:#c8a84b}
@@ -81,6 +83,18 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
   const [coords, setCoords] = useState<{ x: number; y: number } | null>(null);
   const [tip, setTip] = useState<{ p: Place; left: number; top: number } | null>(null);
   const [hasCarto, setHasCarto] = useState(false);
+  // fullscreen (Nin: "full screen option for maps"): the page root marked data-fs-root, else the map itself
+  const [isFs, setIsFs] = useState(false);
+  useEffect(() => {
+    const on = () => setIsFs(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", on);
+    return () => document.removeEventListener("fullscreenchange", on);
+  }, []);
+  const toggleFs = () => {
+    if (document.fullscreenElement) { document.exitFullscreen?.(); return; }
+    const root = wrap.current?.closest("[data-fs-root]") || wrap.current;
+    root?.requestFullscreen?.().catch(() => {});
+  };
   const [look, setLook] = useState(() => { try { return localStorage.getItem("soup-map-look") || "normal"; } catch { return "normal"; } });
   const cartoItem = useRef<any>(null);
 
@@ -339,6 +353,7 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
     <div ref={wrap} className={`wm-wrap ${hideCls}`} data-zoom="far">
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
       <div ref={host} className="wm-osd" />
+      <button className="wm-fs" onClick={toggleFs} title={isFs ? "Leave full screen (Esc)" : "Full screen"}>{isFs ? "Exit full screen" : "Full screen"}</button>
       {ready && hasCarto && (
         <div className="wm-style">
           {STYLES.map((st) => <button key={st.id} className={look === st.id ? "on" : ""} onClick={() => setLook(st.id)}>{st.label}</button>)}

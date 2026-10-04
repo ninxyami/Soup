@@ -79,10 +79,11 @@ export default function MapPage() {
   useEffect(() => {
     const measure = () => {
       const nav = document.querySelector("body > nav, body > header, nav");
-      setTop(nav ? Math.round(nav.getBoundingClientRect().bottom) : 0);
+      setTop(document.fullscreenElement ? 0 : nav ? Math.round(nav.getBoundingClientRect().bottom) : 0);
     };
     measure();
     window.addEventListener("resize", measure);
+    document.addEventListener("fullscreenchange", measure);
     const t = setTimeout(measure, 300);
     return () => { window.removeEventListener("resize", measure); clearTimeout(t); };
   }, []);
@@ -125,7 +126,7 @@ export default function MapPage() {
   };
 
   return (
-    <div style={{ position: "fixed", top, left: 0, right: 0, bottom: 0, display: "flex", flexDirection: "column", background: "#07090b" }}>
+    <div data-fs-root style={{ position: "fixed", top, left: 0, right: 0, bottom: 0, display: "flex", flexDirection: "column", background: "#07090b" }}>
       <div className="flex items-center gap-3 flex-wrap px-4 py-2 border-b border-[#1a1a1a]">
         <h1 className="text-[1.2rem] tracking-[0.2em] !m-0 mr-2">WORLD MAP</h1>
         {Object.entries(KIND).map(([k, v]) => (
