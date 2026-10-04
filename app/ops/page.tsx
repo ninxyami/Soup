@@ -704,7 +704,9 @@ function WorldTab({ act, spot, setSpot, setPick, players, showTrail }) {
   const box = { border: `1px solid ${C.line}`, borderRadius: 3, padding: 10, display: "flex", flexDirection: "column", gap: 6, background: C.bg };
   const row = { display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" };
   const num = (v, set, min, max, w = 70) => <input style={{ ...inp, width: w }} type="number" min={min} max={max} value={v} onChange={(e) => set(Math.max(min, Math.min(max, Number(e.target.value) || min)))} />;
-  const pickSpot = (forWhat, radius, hint) => { setSpot((s) => ({ ...(s || {}), for: forWhat, r: radius })); setPick({ mode: "spot", for: forWhat, r: radius, hint, label: forWhat }); };
+  // a new pick starts empty: keeping the last x/y let one tool fire at another tool's spot (Tim's bag went to the horde's start)
+  const pickSpot = (forWhat, radius, hint) => { setSpot({ for: forWhat, r: radius }); setPick({ mode: "spot", for: forWhat, r: radius, hint, label: forWhat }); };
+  const picked = (forWhat) => spot?.for === forWhat && spot.x != null;
   const findWho = async () => {
     try { setWho((await api(`/api/admin/ops/near?x=${spot.x}&y=${spot.y}&radius=${nearR}&hours=${nearH}`)).players || []); } catch (e) { alert(e.message); }
   };
@@ -715,13 +717,13 @@ function WorldTab({ act, spot, setSpot, setPick, players, showTrail }) {
         <b>Zombies</b>
         <div style={{ ...mono, fontSize: 11, color: C.grey }}>Only works where a player is nearby (the game only has zombies loaded there).</div>
         <div style={row}>
-          <Btn small onClick={() => pickSpot("zombies", r, "Click the middle of the area.")}>{spot?.for === "zombies" ? `Spot: ${spot.x}, ${spot.y}` : "Pick the spot"}</Btn>
+          <Btn small onClick={() => pickSpot("zombies", r, "Click the middle of the area.")}>{picked("zombies") ? `Spot: ${spot.x}, ${spot.y}` : "Pick the spot"}</Btn>
           <span style={{ ...mono, fontSize: 11 }}>radius</span>{num(r, (v) => { setR(v); setSpot((s) => s ? { ...s, r: v } : s); }, 1, 200)}
         </div>
         <div style={row}>
-          <Btn small color={C.green} disabled={spot?.for !== "zombies"} onClick={() => { if (confirm(`Remove every zombie within ${r} squares of ${spot.x}, ${spot.y}?`)) act("zombies_clear", { x: spot.x, y: spot.y, radius: r }); }}>Clear zombies here</Btn>
+          <Btn small color={C.green} disabled={!picked("zombies")}onClick={() => { if (confirm(`Remove every zombie within ${r} squares of ${spot.x}, ${spot.y}?`)) act("zombies_clear", { x: spot.x, y: spot.y, radius: r }); }}>Clear zombies here</Btn>
           {num(count, setCount, 1, 500, 64)}
-          <Btn small color={C.red} disabled={spot?.for !== "zombies"} onClick={() => { if (confirm(`Spawn ${count} zombies around ${spot.x}, ${spot.y}?`)) act("horde", { x: spot.x, y: spot.y, radius: Math.min(r, 50), count }); }}>Spawn horde</Btn>
+          <Btn small color={C.red} disabled={!picked("zombies")}onClick={() => { if (confirm(`Spawn ${count} zombies around ${spot.x}, ${spot.y}?`)) act("horde", { x: spot.x, y: spot.y, radius: Math.min(r, 50), count }); }}>Spawn horde</Btn>
         </div>
       </div>
       <EventsBox act={act} spot={spot} pickSpot={pickSpot} players={players} box={box} row={row} num={num} />
@@ -745,12 +747,12 @@ function WorldTab({ act, spot, setSpot, setPick, players, showTrail }) {
         <b>Who was here?</b>
         <div style={{ ...mono, fontSize: 11, color: C.grey }}>Everyone who stood near a spot (positions are kept 14 days, one a minute).</div>
         <div style={row}>
-          <Btn small onClick={() => pickSpot("near", nearR, "Click the spot (a base, a car...).")}>{spot?.for === "near" ? `Spot: ${spot.x}, ${spot.y}` : "Pick the spot"}</Btn>
+          <Btn small onClick={() => pickSpot("near", nearR, "Click the spot (a base, a car...).")}>{picked("near") ? `Spot: ${spot.x}, ${spot.y}` : "Pick the spot"}</Btn>
           <span style={{ ...mono, fontSize: 11 }}>radius</span>{num(nearR, (v) => { setNearR(v); setSpot((s) => s ? { ...s, r: v } : s); }, 1, 500, 64)}
           <select style={{ ...inp, width: 100 }} value={nearH} onChange={(e) => setNearH(Number(e.target.value))}>
             {[1, 6, 12, 24, 48, 72, 168, 336].map((hh) => <option key={hh} value={hh}>last {hh < 24 ? `${hh} h` : `${hh / 24} d`}</option>)}
           </select>
-          <Btn small disabled={spot?.for !== "near"} onClick={findWho}>Search</Btn>
+          <Btn small disabled={!picked("near")} onClick={findWho}>Search</Btn>
         </div>
         {who && (who.length === 0 ? <div style={{ ...mono, fontSize: 12, color: C.grey }}>Nobody.</div> : who.map((w) => (
           <div key={w.player} style={{ ...mono, fontSize: 12, display: "flex", gap: 6, alignItems: "center" }}>
@@ -767,6 +769,16 @@ function WorldTab({ act, spot, setSpot, setPick, players, showTrail }) {
 }
 
 // ── events: a horde sent at someone, a loot bag on the floor ──────────────
+function nearestPlayer(players, p) {
+  let best = null;
+  for (const pp of players || []) {
+    if (pp.x == null || pp.y == null) continue;
+    const d = Math.round(Math.hypot(pp.x - p.x, pp.y - p.y));
+    if (!best || d < best.d) best = { name: pp.name, d };
+  }
+  return best;
+}
+
 function EventsBox({ act, spot, pickSpot, players, box, row, num }) {
   const [from, setFrom] = useState(null);
   const [to, setTo] = useState(null);
@@ -818,6 +830,10 @@ function EventsBox({ act, spot, pickSpot, players, box, row, num }) {
       <div style={{ ...mono, fontSize: 11, color: C.grey, marginTop: 6 }}>A loot bag on the floor (the spot must be near a player: the game only has loaded ground there).</div>
       <div style={row}>
         <Btn small onClick={() => pickSpot("bag", 0, "Click where the bag goes.")}>Bag at: {at(bagAt)}</Btn>
+        <select style={{ ...inp, width: 120 }} value="" onChange={(e) => { const pp = players.find((x) => x.name === e.target.value); if (pp) setBagAt({ x: Math.round(pp.x), y: Math.round(pp.y) }); }}>
+          <option value="">or at a player</option>
+          {players.map((pp) => <option key={pp.name} value={pp.name}>{pp.name}</option>)}
+        </select>
         <input style={{ ...inp, width: 140 }} value={name} onChange={(e) => setName(e.target.value)} maxLength={40} placeholder="Bag name" />
       </div>
       <div style={row}>
@@ -846,8 +862,11 @@ function EventsBox({ act, spot, pickSpot, players, box, row, num }) {
         <label style={{ ...mono, fontSize: 11, color: C.grey, display: "flex", gap: 4, alignItems: "center" }}>
           <input type="checkbox" checked={mark} onChange={(e) => setMark(e.target.checked)} /> mark it on everyone's map (2 h)
         </label>
-        <Btn small disabled={!bagAt || items.length === 0} onClick={() => act("ev_bag", { x: bagAt.x, y: bagAt.y, items: items.map((it) => ({ id: it.id, n: it.n })), name, mark },
-          () => setItems([]))}>Drop the bag</Btn>
+        <Btn small disabled={!bagAt || items.length === 0} onClick={() => {
+          const near = nearestPlayer(players, bagAt);
+          if (!confirm(`Drop the bag at ${bagAt.x}, ${bagAt.y}?\n${near ? `Nearest player: ${near.name}, ${near.d} squares away.` : "Nobody is online."}`)) return;
+          act("ev_bag", { x: bagAt.x, y: bagAt.y, items: items.map((it) => ({ id: it.id, n: it.n })), name, mark }, () => setItems([]));
+        }}>Drop the bag</Btn>
       </div>
     </div>
   );
