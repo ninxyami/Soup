@@ -21,7 +21,10 @@ const CARTO_BASE = (process.env.NEXT_PUBLIC_MAP_TILES_CARTO || "https://api.stat
 const STYLES = [{ id: "normal", label: "Normal" }, { id: "carto", label: "Floor plans" }];
 
 export type Place = { kind: "shop" | "bus" | "diner" | "town"; id: string; name: string; role?: string; town?: string; x: number; y: number };
-export type Dot = { id: string; label: string; x: number; y: number; color?: string };
+export type Dot = { id: string; label: string; x: number; y: number; color?: string; size?: number; onClick?: () => void };
+// Boxes in world squares (Live Ops: safehouses, zombie heat). They scale with the map. onClick makes one clickable.
+export type Rect = { id: string; x: number; y: number; w: number; h: number; color?: string; fill?: string; label?: string;
+  dashed?: boolean; onClick?: () => void };
 
 const KIND = {
   town:  { label: "Towns",        color: "#e6e6e6" },
@@ -46,6 +49,10 @@ const CSS = `
 .wm-hide-shop .wm-pin.shop,.wm-hide-bus .wm-pin.bus,.wm-hide-diner .wm-pin.diner,.wm-hide-town .wm-pin.town{display:none!important}
 .wm-dot{transform:translate(-50%,-50%);display:flex!important;align-items:center;gap:4px;pointer-events:none}
 .wm-dot .me{display:inline-block;flex:0 0 auto;width:14px;height:14px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 8px rgba(0,0,0,.8)}
+.wm-dot.click{pointer-events:auto;cursor:pointer}
+.wm-rect{box-sizing:border-box;pointer-events:none}
+.wm-rect.click{pointer-events:auto;cursor:pointer}
+.wm-rect .rl{position:absolute;left:0;top:-16px;font:600 11px var(--mono,monospace);color:#fff;text-shadow:0 1px 2px #000,0 0 3px #000;white-space:nowrap}
 .wm-coords{position:absolute;left:10px;bottom:10px;font:12px var(--mono,monospace);color:#cfd3da;background:rgba(0,0,0,.6);padding:4px 8px;border-radius:3px;pointer-events:none}
 .wm-tip{position:absolute;pointer-events:none;background:rgba(10,13,16,.95);border:1px solid #2a2f37;padding:6px 9px;font:12px var(--mono,monospace);color:#e6e6e6;border-radius:3px;z-index:5;max-width:260px}
 .wm-tip b{color:#c8a84b}
@@ -54,14 +61,17 @@ const CSS = `
 .wm-style button.on{color:#0b0d10;background:#c8a84b}
 `;
 
-export default function WorldMap({ places = [], dots = [], hidden = {}, focus = null, onPlaceClick = null, onMapClick = null }:
-  { places?: Place[]; dots?: Dot[]; hidden?: Record<string, boolean>; focus?: { x: number; y: number; z?: number } | null;
+export default function WorldMap({ places = [], dots = [], rects = [], hidden = {}, focus = null, onPlaceClick = null, onMapClick = null }:
+  { places?: Place[]; dots?: Dot[]; rects?: Rect[]; hidden?: Record<string, boolean>; focus?: { x: number; y: number; z?: number } | null;
     onPlaceClick?: ((p: Place) => void) | null; onMapClick?: ((w: { x: number; y: number }) => void) | null }) {
   const host = useRef<HTMLDivElement>(null);
   const wrap = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<any>(null);
   const infoRef = useRef<any>({ sqr: 4, x0: 0, y0: 0 });
   const dotEls = useRef<Map<string, HTMLElement>>(new Map());
+  const rectEls = useRef<Map<string, HTMLElement>>(new Map());
+  const clickRef = useRef(onMapClick);
+  clickRef.current = onMapClick;
   const [ready, setReady] = useState(false);
   const [error, setError] = useState("");
   const [coords, setCoords] = useState<{ x: number; y: number } | null>(null);
@@ -146,6 +156,14 @@ export default function WorldMap({ places = [], dots = [], hidden = {}, focus = 
           if (vp) { viewer.viewport.panTo(vp, true); viewer.viewport.zoomTo(viewer.world.getItemAt(0).imageToViewportZoom(f.z || 0.25), null, true); }
         }
       });
+      const fly = (ev) => {
+        const { x, y, z } = ev.detail || {};
+        const vp = toVp(OSD, x, y); const item = viewer.world.getItemAt(0);
+        if (!vp || !item) return;
+        viewer.viewport.panTo(vp); if (z) viewer.viewport.zoomTo(item.imageToViewportZoom(z));
+      };
+      window.addEventListener("wm-fly", fly);
+      viewer.addHandler("destroy", () => window.removeEventListener("wm-fly", fly));
       // zoom band -> which labels show (CSS on the wrapper)
       const band = () => {
         const item = viewer.world.getItemAt(0); if (!item || !wrap.current) return;
@@ -170,11 +188,11 @@ export default function WorldMap({ places = [], dots = [], hidden = {}, focus = 
         leaveHandler: () => setCoords(null),
       });
       viewer.addHandler("canvas-click", (e) => {
-        if (!e.quick || !onMapClick) return;
+        if (!e.quick || !clickRef.current) return;
         const item = viewer.world.getItemAt(0); if (!item) return;
         const img = item.viewerElementToImageCoordinates(e.position);
         const i = infoRef.current;
-        onMapClick({ x: Math.floor(img.x / i.sqr + i.x0), y: Math.floor(img.y / i.sqr + i.y0) });
+        clickRef.current({ x: Math.floor(img.x / i.sqr + i.x0), y: Math.floor(img.y / i.sqr + i.y0) });
       });
       // shareable view: ?x=&y=&z= kept in the address bar
       viewer.addHandler("animation-finish", () => {
@@ -240,7 +258,7 @@ export default function WorldMap({ places = [], dots = [], hidden = {}, focus = 
       setTimeout(declutter, 50);
       return () => els.forEach((el) => { try { v.removeOverlay(el); } catch {} });
     })();
-    return () => { alive = false; try { v.clearOverlays(); } catch {} dotEls.current.clear(); };
+    return () => { alive = false; try { v.clearOverlays(); } catch {} dotEls.current.clear(); rectEls.current.clear(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, places]);
 
@@ -263,13 +281,51 @@ export default function WorldMap({ places = [], dots = [], hidden = {}, focus = 
         } else {
           v.updateOverlay(el, vp);
         }
-        el.querySelector(".me").style.background = d.color || "#4caf7d";
+        const me = el.querySelector(".me");
+        me.style.background = d.color || "#4caf7d";
+        const sz = d.size || 14;
+        me.style.width = me.style.height = sz + "px";
+        me.style.borderWidth = (sz < 10 ? 1 : 3) + "px";
         el.querySelector(".lbl").textContent = d.label;
+        el.classList.toggle("click", !!d.onClick);
+        el.onclick = d.onClick ? (ev) => { ev.stopPropagation(); d.onClick(); } : null;
       }
       for (const [id, el] of dotEls.current) if (!seen.has(id)) { try { v.removeOverlay(el); } catch {} dotEls.current.delete(id); }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, dots]);
+
+  // boxes (Live Ops): keyed by id like the dots, moved / restyled in place
+  useEffect(() => {
+    const v = viewerRef.current; if (!ready || !v) return;
+    (async () => {
+      const OSD = (await import("openseadragon")).default;
+      const seen = new Set();
+      for (const r of rects) {
+        seen.add(r.id);
+        const a = toVp(OSD, r.x, r.y), b = toVp(OSD, r.x + r.w, r.y + r.h);
+        if (!a || !b) continue;
+        const loc = new OSD.Rect(a.x, a.y, b.x - a.x, b.y - a.y);
+        let el = rectEls.current.get(r.id);
+        if (!el) {
+          el = document.createElement("div");
+          el.className = "wm-rect";
+          el.innerHTML = `<span class="rl"></span>`;
+          v.addOverlay({ element: el, location: loc });
+          rectEls.current.set(r.id, el);
+        } else {
+          v.updateOverlay(el, loc);
+        }
+        el.style.border = `2px ${r.dashed ? "dashed" : "solid"} ${r.color || "transparent"}`;
+        el.style.background = r.fill || "transparent";
+        el.querySelector(".rl").textContent = r.label || "";
+        el.classList.toggle("click", !!r.onClick);
+        el.onclick = r.onClick ? (ev) => { ev.stopPropagation(); r.onClick(); } : null;
+      }
+      for (const [id, el] of rectEls.current) if (!seen.has(id)) { try { v.removeOverlay(el); } catch {} rectEls.current.delete(id); }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, rects]);
 
   useEffect(() => { if (ready) declutter(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [hidden, ready]);
 
@@ -298,3 +354,8 @@ export default function WorldMap({ places = [], dots = [], hidden = {}, focus = 
 }
 
 export { KIND };
+
+/** Pan / zoom the map to a world spot (squares); z = screen px per image px. */
+export function flyTo(x: number, y: number, z = 0.5) {
+  window.dispatchEvent(new CustomEvent("wm-fly", { detail: { x, y, z } }));
+}

@@ -24,6 +24,7 @@ import ConsoleTab        from "./tabs/ConsoleTab";
 import PZConsoleTab      from "./tabs/PZConsoleTab";
 import ServerActivityTab from "./tabs/ServerActivityTab";
 import WorkspaceTab      from "./tabs/WorkspaceTab";
+import LiveOpsTab        from "./tabs/LiveOpsTab";
 import ZombitaThinkingTab from "./tabs/ZombitaThinkingTab";
 import ZombitaChannelTab  from "./tabs/ZombitaChannelTab";
 import ZombitaDataTab     from "./tabs/ZombitaDataTab";
@@ -41,6 +42,7 @@ import QuestRewardsTab    from "./tabs/QuestRewardsTab";
 const NAV_SECTIONS = [
   { label: "COMMAND", items: [
     { key: "overview",        icon: "📡", label: "Overview" },
+    { key: "liveops",         icon: "🗺️", label: "Live Ops (map)" },
     { key: "server",          icon: "🖥️", label: "Server" },
     { key: "console",         icon: "⌨️", label: "Console" },
     { key: "pz_console",      icon: "🧟", label: "PZ Console" },
@@ -139,6 +141,7 @@ const PANELS = {
   pl_modlog:   (props) => <PlannerTab {...props} initialTab="modlog" />,
   pl_settingslog: (props) => <PlannerTab {...props} initialTab="settingslog" />,
   workspace:   WorkspaceTab,
+  liveops:     LiveOpsTab,
   files:       FilesTab,
   zombita_thinking: ZombitaThinkingTab,
   zombita_channel: ZombitaChannelTab,

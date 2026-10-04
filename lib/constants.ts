@@ -1,4 +1,4 @@
-export const API = "https://api.stateofundeadpurge.site:8443";
+export const API = process.env.NEXT_PUBLIC_API || "https://api.stateofundeadpurge.site:8443";
 export const AVATAR_BASE = "https://stateofundeadpurge.site/avatars";
 export const GUEST_LIMIT = 10;
 
