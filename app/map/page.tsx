@@ -1,7 +1,7 @@
 // @ts-nocheck
 "use client";
-// app/map/page.tsx - the server's world map (our own render, our own server). Players see the map and the places;
-// a logged-in player's own dot comes with the live layer. Admins get the separate Live Ops panel.
+// app/map/page.tsx - the server's world map (our own render, our own server). Everyone sees the map, the places and
+// every online player; a logged-in player's own dot is gold. Admins get the separate Live Ops panel.
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import { KIND } from "@/components/WorldMap";
@@ -15,34 +15,47 @@ export default function MapPage() {
   const [q, setQ] = useState("");
   const [focus, setFocus] = useState(null);
 
-  // live dots: admins see everyone (/api/map/live), a logged-in player only themselves (/api/map/me), others nobody.
-  // Positions come from mod 1.7.110 (every 5 s); polled every 5 s while the page is open.
+  // live dots (Nin 2026-10-04: "it should draw for everyone"): everyone sees every online player (/api/map/players);
+  // a logged-in player's own dot is gold (their linked name from /api/map/me, asked once); admins get /api/map/live
+  // (same dots + the in-game clock). Positions come from mod 1.7.110 (every 5 s); polled every 5 s while the page is open.
   const [dots, setDots] = useState([]);
-  const [live, setLive] = useState(null);       // { mode: "admin"|"me", text }
+  const [live, setLive] = useState(null);       // { mode: "admin"|"public", text }
   useEffect(() => {
-    let stop = false, timer = null, mode = "admin";
+    let stop = false, timer = null, mode = "admin", myName = null, loggedIn = false;
+    const colour = (p, mine) => (mine ? "#c8a84b" : p.dead ? "#e05555" : p.in_vehicle ? "#4a8fc4" : "#4caf7d");
+    const clockOf = (g) => (g ? ` - in game ${String(g.hour).padStart(2, "0")}:${String(g.minute).padStart(2, "0")}` : "");
+    const show = (d, m) => {
+      const mine = (p) => myName && p.name.toLowerCase() === myName.toLowerCase();
+      setDots((d.players || []).map((p) => ({ id: p.name, label: mine(p) ? `${p.name} (you)` : p.name, x: p.x, y: p.y, color: colour(p, mine(p)) })));
+      const n = d.count ?? (d.players || []).length;
+      setLive({ mode: m, text: d.stale ? "Nobody online right now" : `${n} online${clockOf(d.game)}` });
+    };
     const tick = async () => {
       try {
         if (mode === "admin") {
           const r = await fetch(`${API}/api/map/live`, { credentials: "include" });
-          if (r.ok) {
-            const d = await r.json();
-            const g = d.game;
-            const clock = g ? ` - in game ${String(g.hour).padStart(2, "0")}:${String(g.minute).padStart(2, "0")}` : "";
-            setDots((d.players || []).map((p) => ({ id: p.name, label: p.name, x: p.x, y: p.y,
-              color: p.dead ? "#e05555" : p.in_vehicle ? "#4a8fc4" : "#4caf7d" })));
-            setLive({ mode: "admin", text: d.stale ? "No live positions (nobody online, or the server is paused)" : `${d.count} online${clock}` });
-          } else mode = r.status === 401 ? "none" : "me";     // 403 = logged in but not an admin
+          if (r.ok) show(await r.json(), "admin");
+          else {
+            loggedIn = r.status === 403;                       // 403 = logged in but not an admin
+            mode = "public";
+            if (loggedIn) {
+              try {
+                const m = await fetch(`${API}/api/map/me`, { credentials: "include" });
+                if (m.ok) myName = (await m.json()).name || null;
+              } catch { /* no name: no gold dot */ }
+            }
+          }
         }
-        if (mode === "me") {
-          const r = await fetch(`${API}/api/map/me`, { credentials: "include" });
-          if (r.ok) {
-            const d = await r.json();
+        if (mode === "public") {
+          const r = await fetch(`${API}/api/map/players`);
+          if (r.ok) show(await r.json(), "public");
+          else if (r.status === 404 && loggedIn) {              // older API without the public route: just yourself
+            const m = await fetch(`${API}/api/map/me`, { credentials: "include" });
+            const d = m.ok ? await m.json() : {};
             setDots(d.me ? [{ id: "me", label: "You", x: d.me.x, y: d.me.y, color: "#c8a84b" }] : []);
-            setLive({ mode: "me", text: d.me ? "You're on the map" : (d.name ? `${d.name} isn't in game right now` : "Link your in-game name to see yourself") });
-          } else mode = "none";
+            setLive(d.me ? { mode: "public", text: "You're on the map" } : null);
+          } else { setDots([]); setLive(null); }
         }
-        if (mode === "none") { setDots([]); setLive(null); return; }   // logged out: nothing to poll
       } catch { /* network blip: try again next tick */ }
       if (!stop) timer = setTimeout(tick, 5000);
     };
