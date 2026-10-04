@@ -719,6 +719,7 @@ function WorldTab({ act, spot, setSpot, setPick, players, showTrail }) {
           <Btn small color={C.red} disabled={spot?.for !== "zombies"} onClick={() => { if (confirm(`Spawn ${count} zombies around ${spot.x}, ${spot.y}?`)) act("horde", { x: spot.x, y: spot.y, radius: Math.min(r, 50), count }); }}>Spawn horde</Btn>
         </div>
       </div>
+      <EventsBox act={act} spot={spot} pickSpot={pickSpot} players={players} box={box} row={row} num={num} />
       <div style={box}>
         <b>Weather and events</b>
         <div style={row}>
@@ -756,6 +757,93 @@ function WorldTab({ act, spot, setSpot, setPick, players, showTrail }) {
         )))}
       </div>
       {spot && <Btn small color={C.grey} onClick={() => setSpot(null)}>Clear the picked spot</Btn>}
+    </div>
+  );
+}
+
+// ── events: a horde sent at someone, a loot bag on the floor ──────────────
+function EventsBox({ act, spot, pickSpot, players, box, row, num }) {
+  const [from, setFrom] = useState(null);
+  const [to, setTo] = useState(null);
+  const [bagAt, setBagAt] = useState(null);
+  const [target, setTarget] = useState("");
+  const [count, setCount] = useState(40);
+  const [items, setItems] = useState([]);
+  const [q, setQ] = useState("");
+  const [res, setRes] = useState([]);
+  const [n, setN] = useState(1);
+  const [name, setName] = useState("Supply drop");
+  const [mark, setMark] = useState(true);
+  const tRef = useRef(null);
+  useEffect(() => {
+    if (!spot?.x) return;
+    if (spot.for === "hordefrom") setFrom({ x: spot.x, y: spot.y });
+    if (spot.for === "hordeto") setTo({ x: spot.x, y: spot.y });
+    if (spot.for === "bag") setBagAt({ x: spot.x, y: spot.y });
+  }, [spot]);
+  useEffect(() => {
+    clearTimeout(tRef.current);
+    if (q.trim().length < 2) { setRes([]); return; }
+    tRef.current = setTimeout(async () => {
+      try { setRes((await api(`/api/admin/jobs/items?q=${encodeURIComponent(q.trim())}`)).matches || []); } catch { setRes([]); }
+    }, 300);
+  }, [q]);
+  const at = (p) => p ? `${p.x}, ${p.y}` : "pick on map";
+  const goal = target === "__spot" ? (to ? `the spot ${to.x}, ${to.y}` : "") : target;
+  return (
+    <div style={box}>
+      <b>Events</b>
+      <div style={{ ...mono, fontSize: 11, color: C.grey }}>A horde that walks from a spot to a player (or a spot), the way Dawn of the Dead sends its waves.</div>
+      <div style={row}>
+        <Btn small onClick={() => pickSpot("hordefrom", 0, "Click where the horde starts (out of sight is best).")}>From: {at(from)}</Btn>
+        <select style={{ ...inp, width: 140 }} value={target} onChange={(e) => setTarget(e.target.value)}>
+          <option value="">To who?</option>
+          {players.map((pp) => <option key={pp.name} value={pp.name}>{pp.name}</option>)}
+          <option value="__spot">a spot on the map</option>
+        </select>
+        {target === "__spot" && <Btn small onClick={() => pickSpot("hordeto", 0, "Click where the horde should go.")}>To: {at(to)}</Btn>}
+      </div>
+      <div style={row}>
+        {num(count, setCount, 1, 300, 64)}<span style={{ ...mono, fontSize: 11 }}>zombies</span>
+        <Btn small color={C.red} disabled={!from || !goal} onClick={() => {
+          if (!confirm(`Send ${count} zombies from ${from.x}, ${from.y} to ${goal}?`)) return;
+          act("ev_horde", target === "__spot" ? { fx: from.x, fy: from.y, tx: to.x, ty: to.y, count } : { fx: from.x, fy: from.y, player: target, count });
+        }}>Send the horde</Btn>
+      </div>
+      <div style={{ ...mono, fontSize: 11, color: C.grey, marginTop: 6 }}>A loot bag on the floor (the spot must be near a player: the game only has loaded ground there).</div>
+      <div style={row}>
+        <Btn small onClick={() => pickSpot("bag", 0, "Click where the bag goes.")}>Bag at: {at(bagAt)}</Btn>
+        <input style={{ ...inp, width: 140 }} value={name} onChange={(e) => setName(e.target.value)} maxLength={40} placeholder="Bag name" />
+      </div>
+      <div style={row}>
+        <input style={{ ...inp, flex: 1, width: "auto" }} placeholder="Add an item: bandage, katana..." value={q} onChange={(e) => setQ(e.target.value)} />
+        {num(n, setN, 1, 100, 56)}
+      </div>
+      {res.length > 0 && (
+        <div style={{ maxHeight: 140, overflowY: "auto", border: `1px solid ${C.line}` }}>
+          {res.map((it) => (
+            <button key={it.id} onClick={() => { setItems((l) => [...l.filter((x) => x.id !== it.id), { id: it.id, name: it.name, n }]); setQ(""); setRes([]); }}
+              style={{ ...mono, fontSize: 11, display: "block", width: "100%", textAlign: "left", padding: "5px 8px", background: C.bg, color: C.text, border: 0, borderBottom: `1px solid ${C.line}`, cursor: "pointer" }}>
+              {it.name} <span style={{ color: C.grey }}>{it.id}</span> <span style={{ color: C.gold }}>+ {n}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+        {items.length === 0 && <span style={{ ...mono, fontSize: 11, color: C.grey }}>Empty bag.</span>}
+        {items.map((it) => (
+          <span key={it.id} style={{ ...mono, fontSize: 11, border: `1px solid ${C.line}`, padding: "2px 6px", borderRadius: 3 }}>
+            {it.name} x{it.n} <a style={{ color: C.red, cursor: "pointer" }} onClick={() => setItems((l) => l.filter((x) => x.id !== it.id))}>x</a>
+          </span>
+        ))}
+      </div>
+      <div style={row}>
+        <label style={{ ...mono, fontSize: 11, color: C.grey, display: "flex", gap: 4, alignItems: "center" }}>
+          <input type="checkbox" checked={mark} onChange={(e) => setMark(e.target.checked)} /> mark it on everyone's map (2 h)
+        </label>
+        <Btn small disabled={!bagAt || items.length === 0} onClick={() => act("ev_bag", { x: bagAt.x, y: bagAt.y, items: items.map((it) => ({ id: it.id, n: it.n })), name, mark },
+          () => setItems([]))}>Drop the bag</Btn>
+      </div>
     </div>
   );
 }
