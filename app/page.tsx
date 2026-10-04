@@ -191,6 +191,141 @@ const STAT_ROWS = [
   { label: "Werewolf Roles", value: "20+", sub: "Cupid · Detective · Mayor" },
 ];
 
+// ── JOIN: how to get in, right under the live status (Nin 2026-10-04: "we need server details live here as well so
+// people can join"). Same admin-edited content as /server, with that page's numbers as the fallback.
+const JOIN_FALLBACK = {
+  ip: "51.79.162.51", port: "16261", password: "", game_version: "B42 stable",
+  steam_collection_url: "https://steamcommunity.com/sharedfiles/filedetails/?id=3805641357",
+};
+
+function CopyChip({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      onClick={() => navigator.clipboard.writeText(value).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); })}
+      className="font-mono text-[0.58rem] tracking-widest uppercase border px-2 py-0.5 transition-all cursor-pointer bg-transparent"
+      style={{ borderColor: copied ? "#4a7c59" : "#2a2a2a", color: copied ? "#4a7c59" : "#666" }}>
+      {copied ? "copied" : "copy"}
+    </button>
+  );
+}
+
+function JoinServer() {
+  const [s, setS] = useState(JOIN_FALLBACK);
+  useEffect(() => {
+    fetch(`${API}/api/content/server`).then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setS({ ...JOIN_FALLBACK, ...Object.fromEntries(Object.entries(d).filter(([, v]) => v)) }); })
+      .catch(() => {});
+  }, []);
+  const rows = [
+    { label: "IP address", value: s.ip, copy: true },
+    { label: "Port", value: s.port, copy: true },
+    ...(s.password ? [{ label: "Password", value: s.password, copy: true }] : []),
+    { label: "Game", value: s.game_version, copy: false },
+  ];
+  return (
+    <div className="border border-[#1a1a1a] bg-[#0a0d10] w-full relative overflow-hidden mt-3">
+      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#c8a84b44] to-transparent" />
+      <div className="p-5 sm:p-6 grid grid-cols-1 md:grid-cols-[1fr_auto] gap-5 md:gap-8 items-center">
+        <div>
+          <p className="font-mono text-[0.62rem] tracking-[0.25em] text-[#c8a84b] uppercase mb-3">Join the server</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8">
+            {rows.map(r => (
+              <div key={r.label} className="flex items-center justify-between gap-3 py-2 border-b border-[#111]">
+                <span className="font-mono text-[0.6rem] tracking-[0.15em] uppercase text-[#555]">{r.label}</span>
+                <span className="font-mono text-[0.85rem] text-[#e6e6e6] ml-auto">{r.value}</span>
+                {r.copy && <CopyChip value={r.value} />}
+              </div>
+            ))}
+          </div>
+          <p className="text-[0.75rem] text-[#555] mt-3 leading-relaxed">
+            In Project Zomboid go to Join, add the IP and port, and subscribe to our mod collection first.
+            New here? Apply for the whitelist, it only takes a minute.
+          </p>
+        </div>
+        <div className="flex md:flex-col gap-2 flex-wrap">
+          <Link href="/whitelist" className="text-center px-4 py-2 border border-[#4a7c59] text-[#4a7c59] no-underline text-[0.68rem] tracking-[0.12em] uppercase hover:bg-[#4a7c59] hover:text-white transition-all">
+            Apply whitelist
+          </Link>
+          <a href={s.steam_collection_url} target="_blank" rel="noopener noreferrer" className="text-center px-4 py-2 border border-[#4a8fc4] text-[#4a8fc4] no-underline text-[0.68rem] tracking-[0.12em] uppercase hover:bg-[#4a8fc4] hover:text-white transition-all">
+            Mod collection
+          </a>
+          <Link href="/server" className="text-center px-4 py-2 border border-[#2a2a2a] text-[#777] no-underline text-[0.68rem] tracking-[0.12em] uppercase hover:border-[#444] hover:text-[#e6e6e6] transition-all">
+            Full server info
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── LIVE MAP showcase (Nin 2026-10-04: "exclusively show map functionality" on the home page). The picture is real
+// tiles from our own 3D render (Zombita's Diner, public/map/preview_3d_diner.webp); the button opens the map there.
+const MAP_3D_LINK = "/map?x=7330&y=8289&z=4&v=3d&f=0";
+
+function MapShowcase() {
+  const [online, setOnline] = useState<number | null>(null);
+  useEffect(() => {
+    fetch(`${API}/api/map/players`).then(r => r.ok ? r.json() : null)
+      .then(d => { if (d && !d.stale) setOnline(d.count ?? (d.players || []).length); })
+      .catch(() => {});
+  }, []);
+  return (
+    <section className="py-14 sm:py-20">
+      <div className="flex items-end justify-between mb-6 gap-4">
+        <div>
+          <p className="font-mono text-[0.65rem] tracking-[0.3em] text-[#c8a84b] uppercase mb-2">Live map</p>
+          <h2 className="!mb-0 !normal-case text-[1.2rem] tracking-[0.1em]">The Whole World, Every Floor, Live</h2>
+        </div>
+        <Link href="/map" className="font-mono text-[0.65rem] tracking-widest text-[#444] hover:text-[#c8a84b] no-underline transition-colors uppercase hidden sm:block">
+          Open the map →
+        </Link>
+      </div>
+      <Link href={MAP_3D_LINK} className="no-underline group block">
+        <div className="relative border border-[#1a1a1a] group-hover:border-[#c8a84b66] overflow-hidden transition-all">
+          <picture>
+            <source media="(max-width: 640px)" srcSet="/map/preview_3d_diner_small.webp" />
+            <img src="/map/preview_3d_diner.webp" alt="Zombita's Diner on our 3D map, walls cut away so you can see inside"
+              className="w-full h-auto block group-hover:scale-[1.02] transition-transform duration-700" loading="lazy" />
+          </picture>
+          <div className="absolute inset-0 bg-gradient-to-t from-[#07090bee] via-[#07090b33] to-transparent" />
+          <div className="absolute top-3 left-3 flex items-center gap-2 bg-[#07090bcc] border border-[#2a2a2a] px-2.5 py-1">
+            <span className="w-2 h-2 rounded-full bg-[#4caf7d] animate-pulse" />
+            <span className="font-mono text-[0.6rem] tracking-widest text-[#cfd3da] uppercase">
+              {online === null ? "Live" : online === 0 ? "Live · nobody online" : `Live · ${online} online now`}
+            </span>
+          </div>
+          <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6">
+            <p className="text-[#cfd3da] text-[0.82rem] sm:text-[0.9rem] max-w-[560px] leading-relaxed mb-3 hidden sm:block">
+              Our own map of the server, rendered and hosted by us with every map mod we run. Walk into any
+              building from your browser, go up floor by floor, and watch survivors move around in real time.
+            </p>
+            <span className="inline-block px-5 py-2.5 bg-[#c8a84b] text-[#0b0d10] text-[0.75rem] font-semibold tracking-[0.12em] uppercase group-hover:bg-[#e0bf5a] transition-all">
+              See the live map
+            </span>
+          </div>
+        </div>
+      </Link>
+      <p className="text-[#777] text-[0.82rem] leading-relaxed mt-3 sm:hidden">
+        Our own map of the server, rendered and hosted by us with every map mod we run. Walk into any
+        building from your browser, go up floor by floor, and watch survivors move around in real time.
+      </p>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-3">
+        {[
+          { t: "3D and top view", d: "Switch between the 3D view and a clean top-down map." },
+          { t: "Every floor", d: "Basements to rooftops, pick a floor and see inside." },
+          { t: "Shops and stations", d: "Find Zombita's shops, bus stations and the diner." },
+        ].map(x => (
+          <div key={x.t} className="border border-[#1a1a1a] bg-[#0a0d10] p-3">
+            <div className="font-mono text-[0.68rem] tracking-[0.15em] text-[#e6e6e6] uppercase mb-1">{x.t}</div>
+            <div className="text-[0.75rem] text-[#555] leading-relaxed">{x.d}</div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export default function HomePage() {
   return (
     <main>
@@ -208,6 +343,11 @@ export default function HomePage() {
             an in-game phone, jobs from Zombita herself, and games on Discord and in game.
           </p>
           <div className="flex gap-3 justify-center flex-wrap">
+            <Link href={MAP_3D_LINK}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#c8a84b] border border-[#c8a84b] text-[#0b0d10] no-underline text-[0.75rem] font-semibold tracking-[0.12em] uppercase hover:bg-[#e0bf5a] transition-all">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#0b0d10] animate-pulse" />
+              See the live map
+            </Link>
             <a href="https://discord.gg/zDwa2g37R" target="_blank" rel="noopener noreferrer"
               className="inline-block px-5 py-2.5 border border-[#5865F2] text-[#5865F2] no-underline text-[0.75rem] tracking-[0.12em] uppercase hover:bg-[#5865F2] hover:text-white transition-all">
               Join Discord
@@ -229,7 +369,12 @@ export default function HomePage() {
         {/* ── LIVE SERVER STATUS ── */}
         <section className="pt-10 pb-4">
           <LiveStatus />
+          <JoinServer />
         </section>
+
+        <MapShowcase />
+
+        <div className="h-px bg-[#1a1a1a]" />
 
         {/* ── WHAT IS THIS ── */}
         <section className="py-14 sm:py-20">
