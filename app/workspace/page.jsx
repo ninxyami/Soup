@@ -16,6 +16,7 @@
 import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import Workspace from "@/components/Workspace";
+import PanelGate from "@/components/PanelGate";
 
 const API = "https://api.stateofundeadpurge.site:8443";
 
@@ -53,7 +54,12 @@ const CONFIG_FILES = [
   { key: "servertest_SandboxVars.lua", label: "SandboxVars.lua", icon: "🧬" },
 ];
 
+// the admin panel password first (components/PanelGate.tsx), then the workspace
 export default function WorkspaceStandalone() {
+  return <PanelGate title="WORKSPACE"><WorkspaceInner /></PanelGate>;
+}
+
+function WorkspaceInner() {
   const [me, setMe] = useState(undefined);   // undefined=loading, null=unauthorized
   const [docId, setDocId] = useState(null);
   const [docIsSheet, setDocIsSheet] = useState(false);

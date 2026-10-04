@@ -12,6 +12,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { flyTo } from "@/components/WorldMap";
 import { API } from "@/lib/constants";
 import ZombitaControl from "@/components/ops/ZombitaControl";
+import PanelGate from "@/components/PanelGate";
 
 // the mode (Live / Zombita) and Zombita's last tab survive a reload (per browser)
 function remembered(key, fallback) { try { return localStorage.getItem(key) || fallback; } catch { return fallback; } }
@@ -85,7 +86,12 @@ function Btn({ children, onClick, color = C.gold, disabled = false, small = fals
 
 const inp = { ...mono, fontSize: 12, padding: "6px 8px", background: C.bg, color: C.text, border: `1px solid ${C.line}`, borderRadius: 3, width: "100%", boxSizing: "border-box" };
 
+// the admin panel password first (components/PanelGate.tsx), then Live Ops
 export default function OpsPage() {
+  return <PanelGate title="LIVE OPS"><OpsInner /></PanelGate>;
+}
+
+function OpsInner() {
   const [st, setSt] = useState(null);
   const [err, setErr] = useState("");
   const [layers, setLayers] = useState({ town: true, shop: true, bus: true, diner: true, markers: true, players: true, safehouses: true, zombies: true, bandits: true, vehicles: false });
