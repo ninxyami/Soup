@@ -39,7 +39,7 @@ export default function MapPage() {
     const clockOf = (g) => (g ? ` - in game ${String(g.hour).padStart(2, "0")}:${String(g.minute).padStart(2, "0")}` : "");
     const show = (d, m) => {
       const mine = (p) => myName && p.name.toLowerCase() === myName.toLowerCase();
-      setDots((d.players || []).map((p) => ({ id: p.name, label: mine(p) ? `${p.name} (you)` : p.name, x: p.x, y: p.y, color: colour(p, mine(p)) })));
+      setDots((d.players || []).map((p) => ({ id: p.name, label: mine(p) ? `${p.name} (you)` : p.name, x: p.x, y: p.y, z: p.z, color: colour(p, mine(p)) })));
       const n = d.count ?? (d.players || []).length;
       setLive({ mode: m, text: d.stale ? "Nobody online right now" : `${n} online${clockOf(d.game)}` });
     };
