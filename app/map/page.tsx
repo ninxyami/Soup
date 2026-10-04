@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from "react";
 import { KIND } from "@/components/WorldMap";
 import { API } from "@/lib/constants";
 
+const MARK = { go: { color: "#e8be4a" }, event: { color: "#ec8c3c" }, info: { color: "#60a0dc" }, danger: { color: "#e05246" } };
 const WorldMap = dynamic(() => import("@/components/WorldMap"), { ssr: false });
 
 export default function MapPage() {
@@ -19,6 +20,17 @@ export default function MapPage() {
   // a logged-in player's own dot is gold (their linked name from /api/map/me, asked once); admins get /api/map/live
   // (same dots + the in-game clock). Positions come from mod 1.7.110 (every 5 s); polled every 5 s while the page is open.
   const [dots, setDots] = useState([]);
+  // the admins' map markers (Live Ops, mod 1.7.112): the same ones players see on their map in game
+  const [markers, setMarkers] = useState([]);
+  useEffect(() => {
+    let stop = false, timer = null;
+    const tick = async () => {
+      try { const r = await fetch(`${API}/api/map/markers`); if (r.ok) setMarkers((await r.json()).markers || []); } catch {}
+      if (!stop) timer = setTimeout(tick, 30000);
+    };
+    tick();
+    return () => { stop = true; clearTimeout(timer); };
+  }, []);
   const [live, setLive] = useState(null);       // { mode: "admin"|"public", text }
   useEffect(() => {
     let stop = false, timer = null, mode = "admin", myName = null, loggedIn = false;
@@ -79,6 +91,12 @@ export default function MapPage() {
     fetch("/map/places.json").then((r) => r.json()).then((d) => setPlaces(d.places || [])).catch(() => {});
   }, []);
 
+  const shownDots = useMemo(() => [
+    ...(hidden.markers ? [] : markers.map((m) => ({ id: "m:" + m.id, label: m.text ? `${m.title} - ${m.text}` : m.title, x: m.x, y: m.y, size: 12,
+      color: (MARK[m.kind] || MARK.go).color }))),
+    ...(hidden.players ? [] : dots),
+  ], [dots, markers, hidden.players, hidden.markers]);
+
   const matches = useMemo(() => {
     const s = q.trim().toLowerCase();
     if (s.length < 2) return [];
@@ -104,6 +122,14 @@ export default function MapPage() {
             {v.label}
           </button>
         ))}
+        {[["players", "Players", "#4caf7d"], ["markers", "Markers", "#e8be4a"]].map(([k, label, color]) => (
+          <button key={k} onClick={() => setHidden((h) => ({ ...h, [k]: !h[k] }))}
+            className="font-mono text-[0.68rem] px-2 py-1 border rounded-sm"
+            style={{ borderColor: hidden[k] ? "#222" : "#333", color: hidden[k] ? "#555" : "#ddd", background: "transparent" }}>
+            <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 4, background: color, marginRight: 6, opacity: hidden[k] ? 0.3 : 1 }} />
+            {label}{k === "markers" && markers.length ? ` (${markers.length})` : ""}
+          </button>
+        ))}
         {live && (
           <span className="font-mono text-[0.68rem]" style={{ color: live.mode === "admin" ? "#c8a84b" : "#9aa" }}>
             {live.mode === "admin" ? "ADMIN VIEW - " : ""}{live.text}
@@ -126,7 +152,7 @@ export default function MapPage() {
           )}
         </div>
       </div>
-      <WorldMap places={places} dots={dots} hidden={hidden} focus={focus} />
+      <WorldMap places={places} dots={shownDots} hidden={hidden} focus={focus} />
     </div>
   );
 }

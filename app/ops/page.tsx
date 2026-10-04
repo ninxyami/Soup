@@ -3,7 +3,7 @@
 // app/ops/page.tsx - Live Ops: the admins' live control panel (2026-10-04). The world map with everything the game
 // reports (players, safehouses, zombie heat, bandits, claimed vehicles) and the tools to fix things without logging in:
 // teleport, give, message, kick, ban, safehouse edit / owner / members / delete / create, faction members / leader /
-// claims, chat linked with the Discord in-game chat channel, broadcast.
+// claims, chat linked with the Discord in-game chat channel, broadcast, map markers players see in game (1.7.112).
 // Backend: /api/admin/ops/* (routers/liveops.py); the game side is mod 1.7.111 ZO_Server.lua. Admins only.
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -14,7 +14,14 @@ const WorldMap = dynamic(() => import("@/components/WorldMap"), { ssr: false });
 
 const C = { gold: "#c8a84b", blue: "#4a8fc4", green: "#4caf7d", red: "#e05555", purple: "#9775cc", grey: "#9aa", text: "#e6e6e6", bg: "#0b0d10", panel: "#111418", line: "#2a2f37" };
 const mono = { fontFamily: "var(--mono, monospace)" };
+const MARK = { go: { label: "Go here", color: "#e8be4a" }, event: { label: "Event", color: "#ec8c3c" }, info: { label: "Info", color: "#60a0dc" },
+  danger: { label: "Danger", color: "#e05246" } };
 const LAYERS = [
+  { id: "town", label: "Towns", color: "#e6e6e6" },
+  { id: "shop", label: "Shops", color: "#c8a84b" },
+  { id: "bus", label: "Bus stations", color: "#4a8fc4" },
+  { id: "diner", label: "The diner", color: "#9775cc" },
+  { id: "markers", label: "Markers", color: "#e8be4a" },
   { id: "players", label: "Players", color: C.green },
   { id: "safehouses", label: "Safehouses", color: C.blue },
   { id: "zombies", label: "Zombies", color: C.red },
@@ -46,7 +53,13 @@ const inp = { ...mono, fontSize: 12, padding: "6px 8px", background: C.bg, color
 export default function OpsPage() {
   const [st, setSt] = useState(null);
   const [err, setErr] = useState("");
-  const [layers, setLayers] = useState({ players: true, safehouses: true, zombies: true, bandits: true, vehicles: false });
+  const [layers, setLayers] = useState({ town: true, shop: true, bus: true, diner: true, markers: true, players: true, safehouses: true, zombies: true, bandits: true, vehicles: false });
+  const [places, setPlaces] = useState([]);
+  const [markDraft, setMarkDraft] = useState(null);     // { x, y } where a new marker goes
+  // places on/off per kind, like /map (the map hides them with CSS; one object per switch so it doesn't redraw)
+  const hiddenKinds = useMemo(() => ({ town: !layers.town, shop: !layers.shop, bus: !layers.bus, diner: !layers.diner }),
+    [layers.town, layers.shop, layers.bus, layers.diner]);
+  useEffect(() => { fetch("/map/places.json").then((r) => r.json()).then((d) => setPlaces(d.places || [])).catch(() => {}); }, []);
   const [tab, setTab] = useState("players");
   const [selP, setSelP] = useState(null);         // player name
   const [selS, setSelS] = useState(null);         // safehouse key "x,y,owner"
@@ -125,10 +138,13 @@ export default function OpsPage() {
     if (layers.players) for (const p of players) out.push({ id: "p:" + p.name, label: p.name, x: p.x, y: p.y,
       color: p.name === selP ? C.gold : p.dead ? C.red : p.in_vehicle ? C.blue : C.green, onClick: () => { setSelP(p.name); setTab("players"); } });
     if (layers.bandits) (st?.bandits || []).forEach((b, i) => out.push({ id: "b:" + i, label: "", x: b.x, y: b.y, size: 7, color: b.hostile ? "#e0904a" : "#d8c36a" }));
+    if (layers.markers) (st?.markers || []).forEach((m) => out.push({ id: "m:" + m.id, label: m.title, x: m.x, y: m.y, size: 12,
+      color: (MARK[m.kind] || MARK.go).color, onClick: () => setTab("markers") }));
+    if (markDraft) out.push({ id: "m:draft", label: "new marker", x: markDraft.x, y: markDraft.y, size: 12, color: "#fff" });
     if (layers.vehicles) (st?.vehicles || []).forEach((v) => out.push({ id: "v:" + v.id, label: "", x: v.x, y: v.y, size: 8, color: "#cfd3da",
       onClick: () => toast(true, `${v.owner}'s ${String(v.model).replace(/^Base\./, "")} at ${v.x}, ${v.y}`) }));
     return out;
-  }, [st, layers, selP, toast]);
+  }, [st, layers, selP, toast, markDraft]);
   const rects = useMemo(() => {
     const out = [];
     if (layers.zombies && st?.zombies) {
@@ -163,6 +179,9 @@ export default function OpsPage() {
     if (!pick) return;
     if (pick.mode === "teleport") {
       if (selP && confirm(`Teleport ${selP} to ${w.x}, ${w.y}?`)) act("teleport", { player: selP, tx: w.x, ty: w.y, tz: 0 });
+      setPick(null);
+    } else if (pick.mode === "marker") {
+      setMarkDraft({ x: w.x, y: w.y });
       setPick(null);
     } else if (pick.mode === "claim") {
       setClaimDraft((d) => ({ tier: d?.tier || 1, cx: w.x, cy: w.y }));
@@ -202,18 +221,18 @@ export default function OpsPage() {
       </div>
       {pick && (
         <div style={{ ...mono, fontSize: 12, padding: "6px 14px", background: "#2a2410", color: C.gold, display: "flex", gap: 12, alignItems: "center" }}>
-          {pick.mode === "teleport" ? `Click the spot on the map to teleport ${selP} to.` : pick.mode === "claim" ? "Click where the claim's flag goes (its center)." : pick.first ? "Now click the opposite corner." : "Click one corner of the safehouse on the map."}
+          {pick.mode === "teleport" ? `Click the spot on the map to teleport ${selP} to.` : pick.mode === "claim" ? "Click where the claim's flag goes (its center)." : pick.mode === "marker" ? "Click where the marker goes." : pick.first ? "Now click the opposite corner." : "Click one corner of the safehouse on the map."}
           <Btn small onClick={() => { setPick(null); }}>Cancel</Btn>
         </div>
       )}
       <div style={{ flex: 1, minHeight: 0, display: "flex" }}>
         <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", cursor: pick ? "crosshair" : "default" }}>
           {err ? <div style={{ ...mono, padding: 30, color: C.red }}>{err}</div> :
-            <WorldMap dots={dots} rects={rects} onMapClick={onMapClick} />}
+            <WorldMap places={places} hidden={hiddenKinds} dots={dots} rects={rects} onMapClick={onMapClick} />}
         </div>
         <aside style={{ width: 380, maxWidth: "45vw", borderLeft: `1px solid ${C.line}`, display: "flex", flexDirection: "column", background: C.panel }}>
           <div style={{ display: "flex", borderBottom: `1px solid ${C.line}` }}>
-            {[["players", `Players (${players.length})`], ["safehouses", `Safehouses (${safehouses.length})`], ["factions", "Factions"], ["chat", "Chat"], ["log", "Log"]].map(([k, l]) => (
+            {[["players", `Players (${players.length})`], ["safehouses", `Safehouses (${safehouses.length})`], ["factions", "Factions"], ["markers", `Markers (${(st?.markers || []).length})`], ["chat", "Chat"], ["log", "Log"]].map(([k, l]) => (
               <button key={k} onClick={() => setTab(k)} style={{ ...mono, flex: 1, fontSize: 11, padding: "9px 4px", background: tab === k ? C.bg : "transparent",
                 color: tab === k ? C.gold : C.grey, border: 0, borderBottom: tab === k ? `2px solid ${C.gold}` : "2px solid transparent", cursor: "pointer", textTransform: "uppercase" }}>{l}</button>
             ))}
@@ -224,6 +243,7 @@ export default function OpsPage() {
               setPick={setPick} act={act} players={players} />}
             {tab === "factions" && <FactionsTab facs={facs} selF={selF} setSelF={setSelF} act={act} players={players} refresh={refreshFactions}
               claimDraft={claimDraft} setClaimDraft={setClaimDraft} setPick={setPick} />}
+            {tab === "markers" && <MarkersTab markers={st?.markers || []} draft={markDraft} setDraft={setMarkDraft} setPick={setPick} act={act} />}
             {tab === "chat" && <ChatTab chat={chat} meta={chatMeta} mine={mine} setMine={setMine} act={act} />}
             {tab === "log" && <LogTab log={log} />}
           </div>
@@ -490,6 +510,62 @@ function ChatTab({ chat, meta, mine, setMine, act }) {
           onKeyDown={(e) => { if (e.key === "Enter" && bc.trim()) act("broadcast", { text: bc }, () => setBc("")); }} />
         <Btn small disabled={!bc.trim()} onClick={() => act("broadcast", { text: bc }, () => setBc(""))}>Send</Btn>
       </div>
+    </div>
+  );
+}
+
+// ── map markers (players see them on their map + minimap in game) ─────────────
+function MarkersTab({ markers, draft, setDraft, setPick, act }) {
+  const [kind, setKind] = useState("go");
+  const [title, setTitle] = useState("");
+  const [text, setText] = useState("");
+  const [hours, setHours] = useState(0);
+  const h = { ...mono, fontSize: 10, color: C.grey, textTransform: "uppercase", letterSpacing: 1, marginTop: 4 };
+  const left = (m) => {
+    if (!m.expires) return "until removed";
+    const s = m.expires - Date.now() / 1000;
+    return s <= 0 ? "ending" : s > 3600 ? `${Math.round(s / 360) / 10} h left` : `${Math.max(1, Math.round(s / 60))} min left`;
+  };
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ border: `1px solid ${C.gold}`, borderRadius: 3, padding: 10, display: "flex", flexDirection: "column", gap: 8, background: "#15130c" }}>
+        <b>New marker</b>
+        <div style={{ ...mono, fontSize: 11, color: C.grey }}>Every player sees it on their map (M) and minimap, with the title next to it. A note pops over their head when it goes up.</div>
+        <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+          <Btn small onClick={() => setPick({ mode: "marker" })}>{draft ? "Move the spot" : "Pick the spot on the map"}</Btn>
+          {draft && <span style={{ ...mono, fontSize: 12 }}>{draft.x}, {draft.y}</span>}
+        </div>
+        <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+          {Object.entries(MARK).map(([k, v]) => (
+            <button key={k} onClick={() => setKind(k)} style={{ ...mono, fontSize: 11, padding: "4px 8px", borderRadius: 3, cursor: "pointer",
+              background: kind === k ? "#1a1e24" : "transparent", color: kind === k ? v.color : C.grey, border: `1px solid ${kind === k ? v.color : C.line}` }}>{v.label}</button>
+          ))}
+        </div>
+        <input style={inp} placeholder="Title (shown on the map), e.g. Horde fight here" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={40} />
+        <input style={inp} placeholder="A line under it (optional), e.g. Bring guns, 8 pm" value={text} onChange={(e) => setText(e.target.value)} maxLength={120} />
+        <label style={{ ...mono, fontSize: 11, color: C.grey, display: "flex", gap: 6, alignItems: "center" }}>Hours
+          <input style={{ ...inp, width: 80 }} type="number" min={0} max={720} value={hours} onChange={(e) => setHours(Math.max(0, Math.min(720, Number(e.target.value) || 0)))} />
+          <span>{hours ? "" : "0 = until removed"}</span>
+        </label>
+        <div style={{ display: "flex", gap: 6 }}>
+          <Btn small disabled={!draft || !title.trim()} onClick={() => act("mk_add", { x: draft.x, y: draft.y, kind, title: title.trim(), text: text.trim(), hours },
+            () => { setDraft(null); setTitle(""); setText(""); })}>Place marker</Btn>
+          {draft && <Btn small color={C.grey} onClick={() => setDraft(null)}>Cancel</Btn>}
+        </div>
+      </div>
+      <div style={h}>On the map now</div>
+      {markers.length === 0 && <div style={{ ...mono, fontSize: 12, color: C.grey }}>No markers.</div>}
+      {markers.map((m) => (
+        <div key={m.id} style={{ ...mono, fontSize: 12, padding: "7px 9px", background: C.bg, border: `1px solid ${C.line}`, borderLeft: `3px solid ${(MARK[m.kind] || MARK.go).color}`, borderRadius: 3 }}>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <a style={{ flex: 1, cursor: "pointer", color: C.text }} onClick={() => flyTo(m.x, m.y, 1)}>{m.title}</a>
+            <Btn small color={C.red} onClick={() => { if (confirm(`Remove the marker "${m.title}"?`)) act("mk_remove", { mid: m.id }); }}>Remove</Btn>
+          </div>
+          <div style={{ color: C.grey, fontSize: 11 }}>{(MARK[m.kind] || MARK.go).label} · {m.x}, {m.y} · {left(m)}{m.by ? ` · by ${String(m.by).replace(" (website)", "")}` : ""}</div>
+          {m.text ? <div style={{ fontSize: 11 }}>{m.text}</div> : null}
+        </div>
+      ))}
+      {markers.length > 1 && <Btn small color={C.red} onClick={() => { if (confirm("Remove ALL markers from everyone's map?")) act("mk_clear", {}); }}>Remove all</Btn>}
     </div>
   );
 }
