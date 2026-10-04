@@ -14,6 +14,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 const TILE_BASE = (process.env.NEXT_PUBLIC_MAP_TILES || "https://api.stateofundeadpurge.site/map-tiles/v1").replace(/\/$/, "");
+// The second look (Nin 2026-10-04: "keep tab to show both styles"): the same world drawn the way the game's paper map
+// draws it (buildings as white floor plans). Same size and origin as v1, so it sits exactly on top as a second layer.
+// The button only appears once that folder answers.
+const CARTO_BASE = (process.env.NEXT_PUBLIC_MAP_TILES_CARTO || "https://api.stateofundeadpurge.site/map-tiles/carto1").replace(/\/$/, "");
+const STYLES = [{ id: "normal", label: "Normal" }, { id: "carto", label: "Floor plans" }];
 
 export type Place = { kind: "shop" | "bus" | "diner" | "town"; id: string; name: string; role?: string; town?: string; x: number; y: number };
 export type Dot = { id: string; label: string; x: number; y: number; color?: string };
@@ -44,6 +49,9 @@ const CSS = `
 .wm-coords{position:absolute;left:10px;bottom:10px;font:12px var(--mono,monospace);color:#cfd3da;background:rgba(0,0,0,.6);padding:4px 8px;border-radius:3px;pointer-events:none}
 .wm-tip{position:absolute;pointer-events:none;background:rgba(10,13,16,.95);border:1px solid #2a2f37;padding:6px 9px;font:12px var(--mono,monospace);color:#e6e6e6;border-radius:3px;z-index:5;max-width:260px}
 .wm-tip b{color:#c8a84b}
+.wm-style{position:absolute;right:10px;top:10px;display:flex;background:rgba(0,0,0,.6);border:1px solid #2a2f37;border-radius:3px;overflow:hidden;z-index:4}
+.wm-style button{font:600 11px var(--mono,monospace);letter-spacing:.5px;color:#9aa;padding:5px 10px;background:none;border:0;cursor:pointer;text-transform:uppercase}
+.wm-style button.on{color:#0b0d10;background:#c8a84b}
 `;
 
 export default function WorldMap({ places = [], dots = [], hidden = {}, focus = null, onPlaceClick = null, onMapClick = null }:
@@ -58,6 +66,9 @@ export default function WorldMap({ places = [], dots = [], hidden = {}, focus = 
   const [error, setError] = useState("");
   const [coords, setCoords] = useState<{ x: number; y: number } | null>(null);
   const [tip, setTip] = useState<{ p: Place; left: number; top: number } | null>(null);
+  const [hasCarto, setHasCarto] = useState(false);
+  const [look, setLook] = useState(() => { try { return localStorage.getItem("soup-map-look") || "normal"; } catch { return "normal"; } });
+  const cartoItem = useRef<any>(null);
 
   // Labels that would overlap one already placed are hidden (the dot stays; hover still names it). Priority:
   // towns, the diner, bus stations, shops. Runs after every pan / zoom (throttled to one per frame).
@@ -182,6 +193,28 @@ export default function WorldMap({ places = [], dots = [], hidden = {}, focus = 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // is the second look on the server yet?
+  useEffect(() => {
+    fetch(`${CARTO_BASE}/map.dzi`, { method: "HEAD" }).then((r) => setHasCarto(r.ok)).catch(() => setHasCarto(false));
+  }, []);
+
+  // the second look is a layer over the first: added the first time it's picked, then just shown / hidden
+  // (a hidden layer loads no tiles)
+  useEffect(() => {
+    try { localStorage.setItem("soup-map-look", look); } catch {}
+    const v = viewerRef.current; if (!ready || !v || !hasCarto) return;
+    const want = look === "carto";
+    if (cartoItem.current) { cartoItem.current.setOpacity(want ? 1 : 0); return; }
+    if (!want) return;
+    cartoItem.current = "loading";
+    v.addTiledImage({
+      tileSource: `${CARTO_BASE}/map.dzi`, index: 1, x: 0, width: v.world.getItemAt(0).getBounds().width,
+      success: (e) => { cartoItem.current = e.item; e.item.setOpacity(look === "carto" ? 1 : 0); },
+      error: () => { cartoItem.current = null; setHasCarto(false); setLook("normal"); },
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [look, ready, hasCarto]);
+
   // place pins (OSD overlays follow pan/zoom by themselves)
   useEffect(() => {
     const v = viewerRef.current; if (!ready || !v) return;
@@ -246,6 +279,11 @@ export default function WorldMap({ places = [], dots = [], hidden = {}, focus = 
     <div ref={wrap} className={`wm-wrap ${hideCls}`} data-zoom="far">
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
       <div ref={host} className="wm-osd" />
+      {ready && hasCarto && (
+        <div className="wm-style">
+          {STYLES.map((st) => <button key={st.id} className={look === st.id ? "on" : ""} onClick={() => setLook(st.id)}>{st.label}</button>)}
+        </div>
+      )}
       {coords && <div className="wm-coords">x {coords.x} &middot; y {coords.y}</div>}
       {tip && (
         <div className="wm-tip" style={{ left: tip.left, top: tip.top }}>
