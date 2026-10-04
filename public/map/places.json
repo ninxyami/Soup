@@ -1,0 +1,739 @@
+{
+ "generated_from": "Zombita mod data (docs/make_map_places.py)",
+ "places": [
+  {
+   "kind": "shop",
+   "id": "bruno",
+   "name": "Bruno Kessler",
+   "role": "Melee & Tools",
+   "town": "Constown",
+   "x": 5496,
+   "y": 11186
+  },
+  {
+   "kind": "shop",
+   "id": "cal_frogtown",
+   "name": "Cal Briggs",
+   "role": "General Store",
+   "town": "Frogtown",
+   "x": 3725,
+   "y": 6984
+  },
+  {
+   "kind": "shop",
+   "id": "cal_irvington",
+   "name": "Cal Briggs",
+   "role": "General Store",
+   "town": "Irvington",
+   "x": 2530,
+   "y": 14476
+  },
+  {
+   "kind": "shop",
+   "id": "cal_marchridge",
+   "name": "Cal Briggs",
+   "role": "General Store",
+   "town": "March Ridge",
+   "x": 10137,
+   "y": 12792
+  },
+  {
+   "kind": "shop",
+   "id": "cal_oakshire",
+   "name": "Cal Briggs",
+   "role": "General Store",
+   "town": "Oakshire",
+   "x": 8602,
+   "y": 7821
+  },
+  {
+   "kind": "shop",
+   "id": "cal_rosewood",
+   "name": "Cal Briggs",
+   "role": "General Store",
+   "town": "Rosewood",
+   "x": 8286,
+   "y": 12225
+  },
+  {
+   "kind": "shop",
+   "id": "cal_safeharborgarrison",
+   "name": "Cal Briggs",
+   "role": "General Store",
+   "town": "Safeharbor Garrison",
+   "x": 12099,
+   "y": 10676
+  },
+  {
+   "kind": "shop",
+   "id": "colette",
+   "name": "Colette Vance",
+   "role": "Tailor & Apparel",
+   "town": "March Ridge",
+   "x": 10081,
+   "y": 12815
+  },
+  {
+   "kind": "shop",
+   "id": "dex_daisycounty",
+   "name": "Dex Malone",
+   "role": "General Store",
+   "town": "Daisy County",
+   "x": 10037,
+   "y": 8077
+  },
+  {
+   "kind": "shop",
+   "id": "dex_ekron",
+   "name": "Dex Malone",
+   "role": "General Store",
+   "town": "Ekron",
+   "x": 653,
+   "y": 9910
+  },
+  {
+   "kind": "shop",
+   "id": "dex_grapeseed",
+   "name": "Dex Malone",
+   "role": "General Store",
+   "town": "Grapeseed",
+   "x": 6498,
+   "y": 11179
+  },
+  {
+   "kind": "shop",
+   "id": "dex_muldraugh",
+   "name": "Dex Malone",
+   "role": "General Store",
+   "town": "Muldraugh",
+   "x": 10669,
+   "y": 10636
+  },
+  {
+   "kind": "shop",
+   "id": "dex_nettletownship",
+   "name": "Dex Malone",
+   "role": "General Store",
+   "town": "Nettle Township",
+   "x": 7055,
+   "y": 9449
+  },
+  {
+   "kind": "shop",
+   "id": "dex_raccooncity",
+   "name": "Dex Malone",
+   "role": "General Store",
+   "town": "Raccoon City",
+   "x": 9946,
+   "y": 10171
+  },
+  {
+   "kind": "shop",
+   "id": "dex_westpoint",
+   "name": "Dex Malone",
+   "role": "General Store",
+   "town": "West Point",
+   "x": 11820,
+   "y": 6874
+  },
+  {
+   "kind": "shop",
+   "id": "eli_bradenburg",
+   "name": "Eli Marsh",
+   "role": "General Store",
+   "town": "Bradenburg",
+   "x": 1672,
+   "y": 5751
+  },
+  {
+   "kind": "shop",
+   "id": "eli_constown",
+   "name": "Eli Marsh",
+   "role": "General Store",
+   "town": "Constown",
+   "x": 5351,
+   "y": 11242
+  },
+  {
+   "kind": "shop",
+   "id": "eli_daisycounty",
+   "name": "Eli Marsh",
+   "role": "General Store",
+   "town": "Daisy County",
+   "x": 10389,
+   "y": 7481
+  },
+  {
+   "kind": "shop",
+   "id": "eli_dixie",
+   "name": "Eli Marsh",
+   "role": "General Store",
+   "town": "Dixie",
+   "x": 11517,
+   "y": 8827
+  },
+  {
+   "kind": "shop",
+   "id": "eli_riverside",
+   "name": "Eli Marsh",
+   "role": "General Store",
+   "town": "Riverside",
+   "x": 5423,
+   "y": 5865
+  },
+  {
+   "kind": "shop",
+   "id": "eli_willowbrook",
+   "name": "Eli Marsh",
+   "role": "General Store",
+   "town": "Willowbrook",
+   "x": 9046,
+   "y": 9864
+  },
+  {
+   "kind": "shop",
+   "id": "emil",
+   "name": "Dr. Emil Voss",
+   "role": "Medical Supplies",
+   "town": "Oakshire",
+   "x": 8468,
+   "y": 7778
+  },
+  {
+   "kind": "shop",
+   "id": "lena_daisycounty",
+   "name": "Lena Vasquez",
+   "role": "General Store",
+   "town": "Daisy County",
+   "x": 10069,
+   "y": 7293
+  },
+  {
+   "kind": "shop",
+   "id": "lena_echocreek",
+   "name": "Lena Vasquez",
+   "role": "General Store",
+   "town": "Echo Creek",
+   "x": 3567,
+   "y": 10906
+  },
+  {
+   "kind": "shop",
+   "id": "lena_havenfall",
+   "name": "Lena Vasquez",
+   "role": "General Store",
+   "town": "Havenfall",
+   "x": 4376,
+   "y": 9261
+  },
+  {
+   "kind": "shop",
+   "id": "lena_muldraugh",
+   "name": "Lena Vasquez",
+   "role": "General Store",
+   "town": "Muldraugh",
+   "x": 10628,
+   "y": 9748
+  },
+  {
+   "kind": "shop",
+   "id": "lena_raccooncity",
+   "name": "Lena Vasquez",
+   "role": "General Store",
+   "town": "Raccoon City",
+   "x": 10032,
+   "y": 10427
+  },
+  {
+   "kind": "shop",
+   "id": "lena_valleystation",
+   "name": "Lena Vasquez",
+   "role": "General Store",
+   "town": "Valley Station",
+   "x": 12688,
+   "y": 6528
+  },
+  {
+   "kind": "shop",
+   "id": "lena_westpoint",
+   "name": "Lena Vasquez",
+   "role": "General Store",
+   "town": "West Point",
+   "x": 12071,
+   "y": 7153
+  },
+  {
+   "kind": "shop",
+   "id": "maya",
+   "name": "Maya Chen",
+   "role": "Gardener & Produce",
+   "town": "Raccoon City",
+   "x": 10217,
+   "y": 10100
+  },
+  {
+   "kind": "shop",
+   "id": "miles",
+   "name": "Miles Ashford",
+   "role": "Books & Skills",
+   "town": "Grapeseed",
+   "x": 6620,
+   "y": 11148
+  },
+  {
+   "kind": "shop",
+   "id": "nadia_anruisitown",
+   "name": "Nadia",
+   "role": "General Store",
+   "town": "Anruisi Town",
+   "x": 12137,
+   "y": 11587
+  },
+  {
+   "kind": "shop",
+   "id": "nadia_blackstone",
+   "name": "Nadia",
+   "role": "General Store",
+   "town": "Blackstone",
+   "x": 15388,
+   "y": 7698
+  },
+  {
+   "kind": "shop",
+   "id": "nadia_bradenburg",
+   "name": "Nadia",
+   "role": "General Store",
+   "town": "Bradenburg",
+   "x": 2059,
+   "y": 6430
+  },
+  {
+   "kind": "shop",
+   "id": "nadia_constown",
+   "name": "Nadia",
+   "role": "General Store",
+   "town": "Constown",
+   "x": 6122,
+   "y": 11168
+  },
+  {
+   "kind": "shop",
+   "id": "nadia_dixie",
+   "name": "Nadia",
+   "role": "General Store",
+   "town": "Dixie",
+   "x": 11600,
+   "y": 8314
+  },
+  {
+   "kind": "shop",
+   "id": "nadia_riverside",
+   "name": "Nadia",
+   "role": "General Store",
+   "town": "Riverside",
+   "x": 6066,
+   "y": 5310
+  },
+  {
+   "kind": "shop",
+   "id": "roxy_fallaslake",
+   "name": "Roxy",
+   "role": "General Store",
+   "town": "Fallas Lake",
+   "x": 7310,
+   "y": 8198
+  },
+  {
+   "kind": "shop",
+   "id": "roxy_grapeseed",
+   "name": "Roxy",
+   "role": "General Store",
+   "town": "Grapeseed",
+   "x": 7224,
+   "y": 11229
+  },
+  {
+   "kind": "shop",
+   "id": "roxy_irvington",
+   "name": "Roxy",
+   "role": "General Store",
+   "town": "Irvington",
+   "x": 2421,
+   "y": 13868
+  },
+  {
+   "kind": "shop",
+   "id": "roxy_nettletownship",
+   "name": "Roxy",
+   "role": "General Store",
+   "town": "Nettle Township",
+   "x": 6651,
+   "y": 9495
+  },
+  {
+   "kind": "shop",
+   "id": "roxy_oakshire",
+   "name": "Roxy",
+   "role": "General Store",
+   "town": "Oakshire",
+   "x": 8742,
+   "y": 8220
+  },
+  {
+   "kind": "shop",
+   "id": "roxy_rosewood",
+   "name": "Roxy",
+   "role": "General Store",
+   "town": "Rosewood",
+   "x": 8170,
+   "y": 11283
+  },
+  {
+   "kind": "shop",
+   "id": "roxy_safeharborgarrison",
+   "name": "Roxy",
+   "role": "General Store",
+   "town": "Safeharbor Garrison",
+   "x": 12438,
+   "y": 10721
+  },
+  {
+   "kind": "shop",
+   "id": "scarlett",
+   "name": "Scarlett Vance",
+   "role": "Records & Tapes",
+   "town": "Zombita's Diner",
+   "x": 7330,
+   "y": 8289
+  },
+  {
+   "kind": "shop",
+   "id": "sera",
+   "name": "Sera Okafor",
+   "role": "Parts & Mechanics",
+   "town": "West Point",
+   "x": 12261,
+   "y": 6945
+  },
+  {
+   "kind": "shop",
+   "id": "viktor",
+   "name": "Viktor Rask",
+   "role": "Arms & Ammunition",
+   "town": "Nettle Township",
+   "x": 7097,
+   "y": 9549
+  },
+  {
+   "kind": "bus",
+   "id": "westpoint",
+   "name": "Westpoint Station",
+   "town": "Westpoint",
+   "x": 12200,
+   "y": 6890
+  },
+  {
+   "kind": "bus",
+   "id": "rosewood",
+   "name": "Rosewood Station",
+   "town": "Rosewood",
+   "x": 8099,
+   "y": 11694
+  },
+  {
+   "kind": "bus",
+   "id": "riverside",
+   "name": "Riverside Station",
+   "town": "Riverside",
+   "x": 6532,
+   "y": 5329
+  },
+  {
+   "kind": "bus",
+   "id": "muldraugh",
+   "name": "Muldraugh Station",
+   "town": "Muldraugh",
+   "x": 10601,
+   "y": 9195
+  },
+  {
+   "kind": "bus",
+   "id": "fallaslake",
+   "name": "Fallas Lake Station",
+   "town": "Fallas Lake",
+   "x": 7284,
+   "y": 8366
+  },
+  {
+   "kind": "bus",
+   "id": "marchridge",
+   "name": "March Ridge Station",
+   "town": "March Ridge",
+   "x": 10370,
+   "y": 12814
+  },
+  {
+   "kind": "bus",
+   "id": "bradenburg",
+   "name": "Bradenburg Station",
+   "town": "Bradenburg",
+   "x": 2066,
+   "y": 5920
+  },
+  {
+   "kind": "bus",
+   "id": "echocreek",
+   "name": "Echo Creek Station",
+   "town": "Echo Creek",
+   "x": 3419,
+   "y": 10931
+  },
+  {
+   "kind": "bus",
+   "id": "ekron",
+   "name": "Ekron Station",
+   "town": "Ekron",
+   "x": 534,
+   "y": 9470
+  },
+  {
+   "kind": "bus",
+   "id": "irvington",
+   "name": "Irvington Station",
+   "town": "Irvington",
+   "x": 2507,
+   "y": 14092
+  },
+  {
+   "kind": "bus",
+   "id": "valleystation",
+   "name": "Valley Station",
+   "town": "Valley Station",
+   "x": 12691,
+   "y": 5732
+  },
+  {
+   "kind": "bus",
+   "id": "grapeseed",
+   "name": "Grapeseed Station",
+   "town": "Grapeseed",
+   "x": 6791,
+   "y": 11217
+  },
+  {
+   "kind": "bus",
+   "id": "frogtown",
+   "name": "Frogtown Station",
+   "town": "Frogtown",
+   "x": 3391,
+   "y": 7044
+  },
+  {
+   "kind": "bus",
+   "id": "constown",
+   "name": "Constown Station",
+   "town": "Constown",
+   "x": 5560,
+   "y": 11213
+  },
+  {
+   "kind": "bus",
+   "id": "racooncity",
+   "name": "Racoon City Station",
+   "town": "Racoon City",
+   "x": 10245,
+   "y": 10051
+  },
+  {
+   "kind": "bus",
+   "id": "oakshire",
+   "name": "Oakshire Station",
+   "town": "Oakshire",
+   "x": 8426,
+   "y": 7841
+  },
+  {
+   "kind": "bus",
+   "id": "blackstone",
+   "name": "Blackstone Station",
+   "town": "Blackstone",
+   "x": 14763,
+   "y": 7333
+  },
+  {
+   "kind": "bus",
+   "id": "daisycounty",
+   "name": "Daisy County Station",
+   "town": "Daisy County",
+   "x": 10110,
+   "y": 7694
+  },
+  {
+   "kind": "bus",
+   "id": "safeharborgarison",
+   "name": "Safeharbor Garison Station",
+   "town": "Safeharbor Garison",
+   "x": 12161,
+   "y": 10859
+  },
+  {
+   "kind": "bus",
+   "id": "anruisitown",
+   "name": "Anruisi Town Station",
+   "town": "Anruisi Town",
+   "x": 12230,
+   "y": 11618
+  },
+  {
+   "kind": "bus",
+   "id": "willowbrook",
+   "name": "Willowbrook Station",
+   "town": "Willowbrook",
+   "x": 9358,
+   "y": 9780
+  },
+  {
+   "kind": "bus",
+   "id": "havenfall",
+   "name": "Havenfall Station",
+   "town": "Havenfall",
+   "x": 4363,
+   "y": 9137
+  },
+  {
+   "kind": "bus",
+   "id": "nettletownship",
+   "name": "Nettle Township Station",
+   "town": "Nettle Township",
+   "x": 6921,
+   "y": 9158
+  },
+  {
+   "kind": "diner",
+   "id": "diner",
+   "name": "Zombita's Diner",
+   "role": "Zombita's home",
+   "x": 7327,
+   "y": 8286
+  },
+  {
+   "kind": "town",
+   "id": "town:Brandenburg",
+   "name": "Brandenburg",
+   "x": 1698,
+   "y": 6078
+  },
+  {
+   "kind": "town",
+   "id": "town:Echo Creek",
+   "name": "Echo Creek",
+   "x": 3652,
+   "y": 11284
+  },
+  {
+   "kind": "town",
+   "id": "town:Ekron",
+   "name": "Ekron",
+   "x": 536,
+   "y": 9821
+  },
+  {
+   "kind": "town",
+   "id": "town:Fallas Lake",
+   "name": "Fallas Lake",
+   "x": 7054,
+   "y": 8361
+  },
+  {
+   "kind": "town",
+   "id": "town:Frog Town",
+   "name": "Frog Town",
+   "x": 428,
+   "y": 905
+  },
+  {
+   "kind": "town",
+   "id": "town:Grapeseed",
+   "name": "Grapeseed",
+   "x": 845,
+   "y": 1281
+  },
+  {
+   "kind": "town",
+   "id": "town:Irvington",
+   "name": "Irvington",
+   "x": 2356,
+   "y": 14106
+  },
+  {
+   "kind": "town",
+   "id": "town:Louisville",
+   "name": "Louisville",
+   "x": 12671,
+   "y": 2241
+  },
+  {
+   "kind": "town",
+   "id": "town:Maplewood",
+   "name": "Maplewood",
+   "x": 7652,
+   "y": 8060
+  },
+  {
+   "kind": "town",
+   "id": "town:March Ridge",
+   "name": "March Ridge",
+   "x": 10026,
+   "y": 12647
+  },
+  {
+   "kind": "town",
+   "id": "town:Muldraugh",
+   "name": "Muldraugh",
+   "x": 10701,
+   "y": 9794
+  },
+  {
+   "kind": "town",
+   "id": "town:Near Foxtrot",
+   "name": "Near Foxtrot",
+   "x": 10537,
+   "y": 13655
+  },
+  {
+   "kind": "town",
+   "id": "town:Raccoon City",
+   "name": "Raccoon City",
+   "x": 1027,
+   "y": 1030
+  },
+  {
+   "kind": "town",
+   "id": "town:Riverside",
+   "name": "Riverside",
+   "x": 6288,
+   "y": 5739
+  },
+  {
+   "kind": "town",
+   "id": "town:Rosewood",
+   "name": "Rosewood",
+   "x": 8057,
+   "y": 11980
+  },
+  {
+   "kind": "town",
+   "id": "town:Valley Station",
+   "name": "Valley Station",
+   "x": 13378,
+   "y": 5300
+  },
+  {
+   "kind": "town",
+   "id": "town:Westpoint",
+   "name": "Westpoint",
+   "x": 11438,
+   "y": 6975
+  }
+ ]
+}
