@@ -92,6 +92,13 @@ const NO_HIDDEN = {};
 
 const floorName = (f) => (f === 0 ? "Ground" : f > 0 ? `Floor ${f}` : `Basement ${-f}`);
 const svgNS = "http://www.w3.org/2000/svg";
+// OpenSeadragon grabs the pointer on press (to drag the map), so the click then lands on its canvas and never on a
+// pin (Live Ops: shop pins in Zombita mode did nothing, 2026-10-04). A clickable overlay keeps its press to itself;
+// `when` says whether it is clickable right now (dots and boxes switch on and off).
+const keepPress = (el, when = () => true) => {
+  const stop = (ev) => { if (when()) ev.stopPropagation(); };
+  for (const t of ["pointerdown", "mousedown", "touchstart"]) el.addEventListener(t, stop);
+};
 
 export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hidden = NO_HIDDEN, focus = null, onPlaceClick = null, onMapClick = null }:
   { places?: Place[]; dots?: Dot[]; rects?: Rect[]; hidden?: Record<string, boolean>; focus?: { x: number; y: number; z?: number } | null;
@@ -435,6 +442,7 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
           el.addEventListener("mouseenter", () => { const r = el.getBoundingClientRect(), w = wrap.current.getBoundingClientRect(); setTip({ p, left: r.left - w.left + 14, top: r.top - w.top + 14 }); });
           el.addEventListener("mouseleave", () => setTip(null));
           el.addEventListener("click", (ev) => { ev.stopPropagation(); placeClickRef.current && placeClickRef.current(p); });
+          keepPress(el);
         }
         v.addOverlay({ element: el, location: vp, checkResize: false });
         els.push(el);
@@ -462,6 +470,7 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
         if (!el) {
           el = document.createElement("div");
           el.className = "wm-dot";
+          keepPress(el, () => !!el.onclick);
           el.innerHTML = `<span class="me"></span><span class="lbl" style="font:600 12px var(--mono,monospace);color:#fff;text-shadow:0 1px 2px #000"></span>`;
           v.addOverlay({ element: el, location: vp, checkResize: false });
           dotEls.current.set(d.id, el);
@@ -510,6 +519,7 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
         if (!el) {
           el = document.createElement("div");
           el.className = iso ? "wm-rect iso" : "wm-rect";
+          if (!iso) keepPress(el, () => !!el.onclick);
           el.innerHTML = `<span class="rl"></span>`;
           if (iso) {
             const svg = document.createElementNS(svgNS, "svg");
@@ -518,6 +528,7 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
             poly.setAttribute("vector-effect", "non-scaling-stroke");
             poly.setAttribute("stroke-width", "2");
             svg.appendChild(poly);
+            keepPress(poly, () => !!poly.onclick);
             el.prepend(svg);
           }
           v.addOverlay({ element: el, location: loc });
