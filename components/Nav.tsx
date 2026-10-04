@@ -17,6 +17,7 @@ export default function Nav() {
   const pathname = usePathname();
   const [user, setUser] = useState<Me | null>(null);
   const [open, setOpen] = useState(false);
+  const [peek, setPeek] = useState(false);   // the menu called up on a full-screen tool page
 
   useEffect(() => {
     fetch(`${API}/auth/me`, { credentials: "include" })
@@ -25,15 +26,33 @@ export default function Nav() {
       .catch(() => {});
   }, []);
 
-  useEffect(() => { setOpen(false); }, [pathname]);
+  useEffect(() => { setOpen(false); setPeek(false); }, [pathname]);
 
   const allLinks = [
     ...NAV_LINKS,
     { href: "/feed", label: "Feed" },
   ];
 
+  // The map, Live Ops and the Workspace are full-screen pages: the site menu stays hidden there, behind a small
+  // "menu" tab at the top edge that slides it in over the page when it's needed
+  const toolPage = pathname === "/map" || pathname?.startsWith("/ops") || pathname?.startsWith("/workspace");
+  if (toolPage && !peek) {
+    return (
+      <button onClick={() => setPeek(true)} title="Show the site menu"
+        className="fixed top-0 left-1/2 -translate-x-1/2 z-50 cursor-pointer font-mono text-[10px] tracking-[0.15em] uppercase text-[#777] hover:text-[#e6e6e6] bg-[rgba(14,14,14,0.92)] border border-t-0 border-[#2a2a2a] rounded-b px-3 py-[1px]">
+        ▾ menu
+      </button>
+    );
+  }
+
   return (
-    <nav className="sticky top-0 z-10 bg-[rgba(14,14,14,0.92)] backdrop-blur-[6px] border-b border-[#1f1f1f]">
+    <nav className={`${toolPage ? "fixed left-0 right-0 z-50" : "sticky z-10"} top-0 bg-[rgba(14,14,14,0.92)] backdrop-blur-[6px] border-b border-[#1f1f1f]`}>
+      {toolPage && (
+        <button onClick={() => setPeek(false)} title="Hide the site menu"
+          className="absolute top-full left-1/2 -translate-x-1/2 cursor-pointer font-mono text-[10px] tracking-[0.15em] uppercase text-[#777] hover:text-[#e6e6e6] bg-[rgba(14,14,14,0.92)] border border-t-0 border-[#2a2a2a] rounded-b px-3 py-[1px]">
+          ▴ hide
+        </button>
+      )}
       <div className="max-w-[960px] mx-auto px-6 py-3 flex items-center">
 
         {/* Desktop: nav links left */}
@@ -51,6 +70,11 @@ export default function Nav() {
           {user?.is_admin && (
             <Link href="/ops" className={`nav-link${pathname?.startsWith("/ops") ? " active" : ""}`} style={{ color: "#c8a84b" }}>
               Ops
+            </Link>
+          )}
+          {user?.is_admin && (
+            <Link href="/workspace" className={`nav-link${pathname?.startsWith("/workspace") ? " active" : ""}`} style={{ color: "#c8a84b" }}>
+              Workspace
             </Link>
           )}
         </div>
@@ -123,6 +147,9 @@ export default function Nav() {
               </Link>
               <Link href="/ops" className="nav-link text-[0.8rem] block mt-2" style={{ color: "#c8a84b" }} onClick={() => setOpen(false)}>
                 Live Ops
+              </Link>
+              <Link href="/workspace" className="nav-link text-[0.8rem] block mt-2" style={{ color: "#c8a84b" }} onClick={() => setOpen(false)}>
+                Workspace
               </Link>
             </div>
           )}

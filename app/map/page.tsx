@@ -79,7 +79,8 @@ export default function MapPage() {
   useEffect(() => {
     const measure = () => {
       const nav = document.querySelector("body > nav, body > header, nav");
-      setTop(document.fullscreenElement ? 0 : nav ? Math.round(nav.getBoundingClientRect().bottom) : 0);
+      const floating = nav && getComputedStyle(nav).position === "fixed";     // the menu called up over the map
+      setTop(document.fullscreenElement || !nav || floating ? 0 : Math.round(nav.getBoundingClientRect().bottom));
     };
     measure();
     window.addEventListener("resize", measure);
@@ -127,7 +128,8 @@ export default function MapPage() {
 
   return (
     <div data-fs-root style={{ position: "fixed", top, left: 0, right: 0, bottom: 0, display: "flex", flexDirection: "column", background: "#07090b" }}>
-      <div className="flex items-center gap-3 flex-wrap px-4 py-2 border-b border-[#1a1a1a]">
+      <div className="flex items-center gap-3 flex-wrap px-4 pt-4 pb-2 border-b border-[#1a1a1a]">
+        <a href="/" title="Back to the website" className="font-mono text-[11px] text-[#777] no-underline hover:text-[#e6e6e6]">← site</a>
         <h1 className="text-[1.2rem] tracking-[0.2em] !m-0 mr-2">WORLD MAP</h1>
         {Object.entries(KIND).map(([k, v]) => (
           <button key={k} onClick={() => setHidden((h) => ({ ...h, [k]: !h[k] }))}

@@ -263,7 +263,11 @@ export default function OpsPage() {
   // fill the space under the site menu
   const [top, setTop] = useState(0);
   useEffect(() => {
-    const m = () => { const nav = document.querySelector("body > nav, body > header, nav"); setTop(document.fullscreenElement ? 0 : nav ? Math.round(nav.getBoundingClientRect().bottom) : 0); };
+    const m = () => {
+      const nav = document.querySelector("body > nav, body > header, nav");
+      const floating = nav && getComputedStyle(nav).position === "fixed";     // the menu called up over the page
+      setTop(document.fullscreenElement || !nav || floating ? 0 : Math.round(nav.getBoundingClientRect().bottom));
+    };
     m(); window.addEventListener("resize", m); document.addEventListener("fullscreenchange", m); const t = setTimeout(m, 300);
     return () => { window.removeEventListener("resize", m); clearTimeout(t); };
   }, []);
@@ -271,8 +275,10 @@ export default function OpsPage() {
   const clock = st?.game ? `${String(st.game.hour).padStart(2, "0")}:${String(st.game.minute).padStart(2, "0")}` : "";
   return (
     <div data-fs-root style={{ position: "fixed", top, left: 0, right: 0, bottom: 0, display: "flex", flexDirection: "column", background: C.bg, color: C.text }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", borderBottom: `1px solid ${C.line}`, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "16px 14px 8px", borderBottom: `1px solid ${C.line}`, flexWrap: "wrap" }}>
+        <a href="/" title="Back to the website" style={{ ...mono, fontSize: 11, color: C.grey, textDecoration: "none" }}>← site</a>
         <span style={{ font: "400 22px 'Bebas Neue',sans-serif", letterSpacing: 2 }}>LIVE OPS</span>
+        <a href="/workspace" style={{ ...mono, fontSize: 11, color: C.grey, textDecoration: "none" }}>workspace</a>
         {LAYERS.map((l) => (
           <button key={l.id} onClick={() => setLayers((x) => ({ ...x, [l.id]: !x[l.id] }))}
             style={{ ...mono, fontSize: 11, padding: "4px 9px", borderRadius: 3, cursor: "pointer", background: layers[l.id] ? "#1a1e24" : "transparent",
