@@ -37,8 +37,8 @@ const CSS = `
 .wm-wrap{position:relative;flex:1;min-height:0;background:#07090b}
 .wm-osd{position:absolute;inset:0}
 .wm-pin{transform:translate(-50%,-50%);pointer-events:auto;cursor:pointer;display:flex!important;align-items:center;gap:4px;white-space:nowrap}
-.wm-pin .dot{display:inline-block;flex:0 0 auto;width:10px;height:10px;border-radius:50%;border:2px solid #0b0d10;box-shadow:0 0 0 1px rgba(255,255,255,.35)}
-.wm-pin .lbl{font:600 11px/1.2 var(--mono,monospace);color:#e6e6e6;text-shadow:0 1px 2px #000,0 0 3px #000;letter-spacing:.3px}
+.wm-pin .dot{display:inline-block;flex:0 0 auto;width:15px;height:15px;border-radius:50%;border:2px solid #0b0d10;box-shadow:0 0 0 1px rgba(255,255,255,.45),0 1px 4px rgba(0,0,0,.6)}
+.wm-pin .lbl{font:600 12px/1.2 var(--mono,monospace);color:#e6e6e6;text-shadow:0 1px 2px #000,0 0 3px #000;letter-spacing:.3px}
 .wm-pin.town{pointer-events:none}
 .wm-pin.town .lbl{font:600 15px/1.2 'Bebas Neue',sans-serif;letter-spacing:1.5px;color:#f2f2f2;text-transform:uppercase}
 /* OpenSeadragon writes an inline display on every overlay, so these need !important */
@@ -78,6 +78,9 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
   const rectEls = useRef<Map<string, HTMLElement>>(new Map());
   const clickRef = useRef(onMapClick);
   clickRef.current = onMapClick;
+  // pins are made once, so they call whatever handler the page has NOW (a captured one went stale: Live Ops' mode switch)
+  const placeClickRef = useRef(onPlaceClick);
+  placeClickRef.current = onPlaceClick;
   const [ready, setReady] = useState(false);
   const [error, setError] = useState("");
   const [coords, setCoords] = useState<{ x: number; y: number } | null>(null);
@@ -268,7 +271,7 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
         if (p.kind !== "town") {
           el.addEventListener("mouseenter", () => { const r = el.getBoundingClientRect(), w = wrap.current.getBoundingClientRect(); setTip({ p, left: r.left - w.left + 14, top: r.top - w.top + 14 }); });
           el.addEventListener("mouseleave", () => setTip(null));
-          el.addEventListener("click", (ev) => { ev.stopPropagation(); onPlaceClick && onPlaceClick(p); });
+          el.addEventListener("click", (ev) => { ev.stopPropagation(); placeClickRef.current && placeClickRef.current(p); });
         }
         v.addOverlay({ element: el, location: vp, checkResize: false });
         els.push(el);

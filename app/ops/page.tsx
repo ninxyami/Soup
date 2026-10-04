@@ -90,6 +90,14 @@ export default function OpsPage() {
   const [ztab, setZtabState] = useState("overview");
   const [zLayer, setZLayer] = useState({ dots: [], rects: [] });
   const [zPicked, setZPicked] = useState(null);      // a shop / station pin clicked on the map while in Zombita mode
+  // where shops and stations stand now (the public kiosk route; the admin state route doesn't carry them)
+  const [kiosks, setKiosks] = useState([]);
+  useEffect(() => {
+    let stop = false, t = null;
+    const tick = async () => { try { setKiosks((await api("/api/map/kiosks")).kiosks || []); } catch {} if (!stop) t = setTimeout(tick, 15000); };
+    tick();
+    return () => { stop = true; clearTimeout(t); };
+  }, []);
   const [wide, setWide] = useState(false);
   useEffect(() => { setModeState(remembered("soup-ops-mode", "live")); setZtabState(remembered("soup-ops-ztab", "overview")); }, []);
   const setMode = useCallback((m) => { setModeState(m); remember("soup-ops-mode", m); setPick(null); }, []);
@@ -149,7 +157,7 @@ export default function OpsPage() {
   useEffect(() => { refreshFactions(); }, [refreshFactions]);   // so a faction claim's box on the map opens its faction
   // shops and stations where they are NOW (admins move them; places.json is the build-time list)
   const livePlaces = useMemo(() => {
-    const ks = st?.kiosks || [];
+    const ks = kiosks;
     if (!ks.length) return places;
     const by = {};
     for (const k of ks) by[k.kind + ":" + k.id] = k;
@@ -157,8 +165,9 @@ export default function OpsPage() {
       const k = by[pl.kind + ":" + pl.id];
       return k ? { ...pl, x: k.x, y: k.y } : pl;
     });
-  }, [places, st]);
+  }, [places, kiosks]);
   const players = st?.players || [];
+  const zSt = useMemo(() => ({ ...(st || {}), kiosks }), [st, kiosks]);   // Zombita mode's view (stable between polls)
   const safehouses = st?.safehouses || [];
   const shKey = (s) => `${s.x},${s.y},${s.owner}`;
   const selected = useMemo(() => safehouses.find((s) => shKey(s) === selS) || null, [safehouses, selS]);
@@ -349,7 +358,7 @@ export default function OpsPage() {
                 borderBottom: mode === m ? `2px solid ${fg}` : "2px solid transparent" }}>{l}</button>
             ))}
           </div>
-          {mode === "zombita" ? <ZombitaControl act={act} setPick={setPick} st={st} players={players} setLayer={setZLayer} setWide={setWide}
+          {mode === "zombita" ? <ZombitaControl act={act} setPick={setPick} st={zSt} players={players} setLayer={setZLayer} setWide={setWide}
             tab={ztab} setTab={setZtab} picked={zPicked} /> : <>
           <div style={{ display: "flex", flexWrap: "wrap", borderBottom: `1px solid ${C.line}` }}>
             {[["players", `Players (${players.length})`], ["safehouses", `Safehouses (${safehouses.length})`], ["factions", "Factions"], ["cars", `Cars (${(st?.vehicles || []).length})`], ["world", "World"], ["places", "Places"],
@@ -368,7 +377,7 @@ export default function OpsPage() {
             {tab === "cars" && <CarsTab cars={st?.vehicles || []} act={act} players={players} />}
             {tab === "world" && <WorldTab act={act} spot={spot} setSpot={setSpot} setPick={setPick} players={players} places={livePlaces}
               showTrail={(player, points) => setTrailPts({ player, points })} />}
-            {tab === "places" && <PlacesTab kiosks={st?.kiosks || []} moveK={moveK} setMoveK={setMoveK} setPick={setPick} />}
+            {tab === "places" && <PlacesTab kiosks={kiosks} moveK={moveK} setMoveK={setMoveK} setPick={setPick} />}
             {tab === "markers" && <MarkersTab markers={st?.markers || []} draft={markDraft} setDraft={setMarkDraft} setPick={setPick} act={act} />}
             {tab === "chat" && <ChatTab chat={chat} meta={chatMeta} mine={mine} setMine={setMine} act={act} />}
             {tab === "log" && <LogTab log={log} />}
