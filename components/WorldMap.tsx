@@ -135,13 +135,13 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
   const [look, setLook] = useState(() => { try { return localStorage.getItem("soup-map-look") || "normal"; } catch { return "normal"; } });
   const cartoItem = useRef<any>(null);
 
-  // Top / 3D. ?v=3d in the address wins over the remembered choice. Only a visitor who asked for 3D waits for the 3D
-  // check before the map starts (so they don't load the top map first); everyone else gets the top map at once and
-  // the switch appears when the check answers.
+  // Top / 3D. 3D is the default (Nin 2026-10-04: "make sure 3D is whats visible first"); ?v=top|3d in the address wins
+  // over the remembered choice, which wins over the default. A visitor headed for 3D waits for the 3D check before
+  // the map starts (so they don't load the top map first); if 3D isn't there they get the top map.
   const wish3d = useRef<boolean | null>(null);
   if (wish3d.current === null) {
-    try { const v = new URLSearchParams(window.location.search).get("v"); wish3d.current = (v || localStorage.getItem("soup-map-view")) === "3d"; }
-    catch { wish3d.current = false; }
+    try { const v = new URLSearchParams(window.location.search).get("v"); wish3d.current = (v || localStorage.getItem("soup-map-view") || "3d") === "3d"; }
+    catch { wish3d.current = true; }
   }
   const [has3d, setHas3d] = useState<boolean | null>(null);
   const [boot, setBoot] = useState(!wish3d.current);
@@ -338,7 +338,7 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
         u.searchParams.set("y", String(Math.floor(y)));
         u.searchParams.set("z", (pps / infoRef.current.sqr).toFixed(3));
         if (is3d()) { u.searchParams.set("v", "3d"); u.searchParams.set("f", String(floorRef.current)); }
-        else { u.searchParams.delete("v"); u.searchParams.delete("f"); }
+        else { u.searchParams.set("v", "top"); u.searchParams.delete("f"); }   // 3D is the default, so a top link says so
         window.history.replaceState(null, "", u.toString());
       });
     })().catch((e) => setError(String(e?.message || e)));
