@@ -37,6 +37,7 @@ const CSS = `
 .wm-wrap[data-zoom="far"] .wm-pin.shop,.wm-wrap[data-zoom="far"] .wm-pin.bus,.wm-wrap[data-zoom="far"] .wm-pin.diner{display:none!important}
 .wm-wrap[data-zoom="mid"] .wm-pin.shop .lbl,.wm-wrap[data-zoom="mid"] .wm-pin.bus .lbl{display:none!important}
 .wm-wrap[data-zoom="near"] .wm-pin.town{opacity:.35}
+.wm-pin.wm-clash .lbl{visibility:hidden}
 .wm-hide-shop .wm-pin.shop,.wm-hide-bus .wm-pin.bus,.wm-hide-diner .wm-pin.diner,.wm-hide-town .wm-pin.town{display:none!important}
 .wm-dot{transform:translate(-50%,-50%);display:flex!important;align-items:center;gap:4px;pointer-events:none}
 .wm-dot .me{display:inline-block;flex:0 0 auto;width:14px;height:14px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 8px rgba(0,0,0,.8)}
@@ -57,6 +58,35 @@ export default function WorldMap({ places = [], dots = [], hidden = {}, focus = 
   const [error, setError] = useState("");
   const [coords, setCoords] = useState<{ x: number; y: number } | null>(null);
   const [tip, setTip] = useState<{ p: Place; left: number; top: number } | null>(null);
+
+  // Labels that would overlap one already placed are hidden (the dot stays; hover still names it). Priority:
+  // towns, the diner, bus stations, shops. Runs after every pan / zoom (throttled to one per frame).
+  const PRIO = { town: 0, diner: 1, bus: 2, shop: 3 };
+  const declutterQueued = useRef(false);
+  const declutter = () => {
+    if (declutterQueued.current) return;
+    declutterQueued.current = true;
+    requestAnimationFrame(() => {
+      declutterQueued.current = false;
+      const root = wrap.current; if (!root) return;
+      const pins = Array.from(root.querySelectorAll(".wm-pin"));
+      const items = [];
+      for (const el of pins) {
+        el.classList.remove("wm-clash");
+        const lbl = el.querySelector(".lbl");
+        if (!lbl || getComputedStyle(el).display === "none" || getComputedStyle(lbl).display === "none") continue;
+        const kind = el.classList.contains("town") ? "town" : el.classList.contains("diner") ? "diner" : el.classList.contains("bus") ? "bus" : "shop";
+        items.push({ el, kind, r: lbl.getBoundingClientRect() });
+      }
+      items.sort((a, b) => PRIO[a.kind] - PRIO[b.kind]);
+      const kept = [];
+      const hit = (a, b) => !(a.right < b.left - 2 || a.left > b.right + 2 || a.bottom < b.top - 1 || a.top > b.bottom + 1);
+      for (const it of items) {
+        if (kept.some((k) => hit(k, it.r))) it.el.classList.add("wm-clash");
+        else kept.push(it.r);
+      }
+    });
+  };
 
   // world <-> viewport
   const toVp = (OSD, x, y) => {
@@ -113,6 +143,9 @@ export default function WorldMap({ places = [], dots = [], hidden = {}, focus = 
         wrap.current.dataset.zoom = pxPerSquare < 0.35 ? "far" : pxPerSquare < 1.5 ? "mid" : "near";
       };
       viewer.addHandler("zoom", band);
+      viewer.addHandler("animation", declutter);
+      viewer.addHandler("animation-finish", declutter);
+      viewer.addHandler("resize", declutter);
       viewer.addHandler("open", band);
       // mouse -> world coords
       new OSD.MouseTracker({
@@ -171,6 +204,7 @@ export default function WorldMap({ places = [], dots = [], hidden = {}, focus = 
         v.addOverlay({ element: el, location: vp, checkResize: false });
         els.push(el);
       }
+      setTimeout(declutter, 50);
       return () => els.forEach((el) => { try { v.removeOverlay(el); } catch {} });
     })();
     return () => { alive = false; try { v.clearOverlays(); } catch {} dotEls.current.clear(); };
@@ -203,6 +237,8 @@ export default function WorldMap({ places = [], dots = [], hidden = {}, focus = 
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, dots]);
+
+  useEffect(() => { if (ready) declutter(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [hidden, ready]);
 
   const hideCls = useMemo(() => Object.entries(hidden).filter(([, h]) => h).map(([k]) => `wm-hide-${k}`).join(" "), [hidden]);
 

@@ -646,20 +646,6 @@
   },
   {
    "kind": "town",
-   "id": "town:Frog Town",
-   "name": "Frog Town",
-   "x": 428,
-   "y": 905
-  },
-  {
-   "kind": "town",
-   "id": "town:Grapeseed",
-   "name": "Grapeseed",
-   "x": 845,
-   "y": 1281
-  },
-  {
-   "kind": "town",
    "id": "town:Irvington",
    "name": "Irvington",
    "x": 2356,
@@ -699,13 +685,6 @@
    "name": "Near Foxtrot",
    "x": 10537,
    "y": 13655
-  },
-  {
-   "kind": "town",
-   "id": "town:Raccoon City",
-   "name": "Raccoon City",
-   "x": 1027,
-   "y": 1030
   },
   {
    "kind": "town",
