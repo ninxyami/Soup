@@ -5,6 +5,7 @@
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import { KIND } from "@/components/WorldMap";
+import MapSidebar from "@/components/MapSidebar";
 import { API } from "@/lib/constants";
 
 const MARK = { go: { color: "#e8be4a" }, event: { color: "#ec8c3c" }, info: { color: "#60a0dc" }, danger: { color: "#e05246" } };
@@ -169,7 +170,12 @@ export default function MapPage() {
           )}
         </div>
       </div>
-      <WorldMap places={places} dots={shownDots} hidden={hidden} focus={focus} />
+      <div style={{ flex: 1, minHeight: 0, display: "flex", position: "relative" }}>
+        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+          <WorldMap places={places} dots={shownDots} hidden={hidden} focus={focus} />
+        </div>
+        <MapSidebar players={dots} markers={markers} places={places} live={live} />
+      </div>
     </div>
   );
 }

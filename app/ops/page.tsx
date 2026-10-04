@@ -358,7 +358,7 @@ export default function OpsPage() {
             {tab === "factions" && <FactionsTab facs={facs} selF={selF} setSelF={setSelF} act={act} players={players} refresh={refreshFactions}
               claimDraft={claimDraft} setClaimDraft={setClaimDraft} setPick={setPick} />}
             {tab === "cars" && <CarsTab cars={st?.vehicles || []} act={act} players={players} />}
-            {tab === "world" && <WorldTab act={act} spot={spot} setSpot={setSpot} setPick={setPick} players={players}
+            {tab === "world" && <WorldTab act={act} spot={spot} setSpot={setSpot} setPick={setPick} players={players} places={livePlaces}
               showTrail={(player, points) => setTrailPts({ player, points })} />}
             {tab === "places" && <PlacesTab kiosks={st?.kiosks || []} moveK={moveK} setMoveK={setMoveK} setPick={setPick} />}
             {tab === "markers" && <MarkersTab markers={st?.markers || []} draft={markDraft} setDraft={setMarkDraft} setPick={setPick} act={act} />}
@@ -731,7 +731,7 @@ function CarsTab({ cars, act, players }) {
 }
 
 // ── world: zombies, weather, events, who was here ──────────────────────────
-function WorldTab({ act, spot, setSpot, setPick, players, showTrail }) {
+function WorldTab({ act, spot, setSpot, setPick, players, showTrail, places = [] }) {
   const [r, setR] = useState(30);
   const [count, setCount] = useState(20);
   const [stormH, setStormH] = useState(2);
@@ -764,7 +764,7 @@ function WorldTab({ act, spot, setSpot, setPick, players, showTrail }) {
           <Btn small color={C.red} disabled={!picked("zombies")}onClick={() => { if (confirm(`Spawn ${count} zombies around ${spot.x}, ${spot.y}?`)) act("horde", { x: spot.x, y: spot.y, radius: Math.min(r, 50), count }); }}>Spawn horde</Btn>
         </div>
       </div>
-      <EventsBox act={act} spot={spot} pickSpot={pickSpot} players={players} box={box} row={row} num={num} />
+      <EventsBox act={act} spot={spot} pickSpot={pickSpot} players={players} places={places} box={box} row={row} num={num} />
       <div style={box}>
         <b>Weather and events</b>
         <div style={row}>
@@ -807,6 +807,14 @@ function WorldTab({ act, spot, setSpot, setPick, players, showTrail }) {
 }
 
 // ── events: a horde sent at someone, a loot bag on the floor ──────────────
+// Zombita's word when admins send bandits: worried for the players, never the one behind it ({where} = nearest town)
+const BANDIT_WARNINGS = [
+  "Bandits were seen near {where}. Please stay together and watch each other's backs.",
+  "I don't like this... armed people are moving near {where}. Be careful out there, okay?",
+  "Someone spotted a group of bandits around {where}. Stay safe, all of you.",
+  "Please be careful near {where}. There are bandits about, and they aren't friendly.",
+];
+
 function nearestPlayer(players, p) {
   let best = null;
   for (const pp of players || []) {
@@ -817,7 +825,7 @@ function nearestPlayer(players, p) {
   return best;
 }
 
-function EventsBox({ act, spot, pickSpot, players, box, row, num }) {
+function EventsBox({ act, spot, pickSpot, players, places = [], box, row, num }) {
   const [from, setFrom] = useState(null);
   const [to, setTo] = useState(null);
   const [bagAt, setBagAt] = useState(null);
@@ -832,6 +840,19 @@ function EventsBox({ act, spot, pickSpot, players, box, row, num }) {
   // bandit events (1.7.116): a group from one of the Bandits mod's clans, at a spot or near a player
   const [clans, setClans] = useState([]);
   const [bandit, setBandit] = useState({ cid: "", size: 6, program: "Bandit", player: "", at: null, mark: true });
+  // Zombita warns everyone (she's on the players' side, never behind it); the text can be edited before it goes out
+  const [warn, setWarn] = useState({ on: true, text: "", v: Math.floor(Math.random() * BANDIT_WARNINGS.length) });
+  const banditWhere = useMemo(() => {
+    const p = bandit.player ? players.find((pp) => pp.name === bandit.player) : bandit.at;
+    if (!p) return "";
+    let best = null;
+    for (const pl of places) if (pl.kind === "town") {
+      const d = Math.hypot(pl.x - p.x, pl.y - p.y);
+      if (!best || d < best.d) best = { name: pl.name, d };
+    }
+    return best && best.d < 1500 ? best.name : "the wilds";
+  }, [bandit.player, bandit.at, players, places]);
+  const warnText = warn.text || (banditWhere ? `Zombita: ${BANDIT_WARNINGS[warn.v].replace("{where}", banditWhere)}` : "");
   useEffect(() => { api("/api/admin/ops/board").then((d) => setClans(d.clans || [])).catch(() => {}); }, []);
   const tRef = useRef(null);
   useEffect(() => {
@@ -938,8 +959,14 @@ function EventsBox({ act, spot, pickSpot, players, box, row, num }) {
             if (bandit.player) args.player = bandit.player; else { args.x = bandit.at.x; args.y = bandit.at.y; }
             act("ev_bandits", args);
             if (bandit.mark && !bandit.player) act("mk_add", { x: bandit.at.x, y: bandit.at.y, kind: "danger", title: "Bandits", text: `${clan} seen here`, hours: 2 });
+            if (warn.on && warnText.trim()) act("broadcast", { text: warnText.trim() });
+            setWarn({ on: warn.on, text: "", v: Math.floor(Math.random() * BANDIT_WARNINGS.length) });
           }}>Send the bandits</Btn>
         </div>
+        <label style={{ ...mono, fontSize: 11, color: C.grey, display: "flex", gap: 4, alignItems: "center" }}>
+          <input type="checkbox" checked={warn.on} onChange={(e) => setWarn({ ...warn, on: e.target.checked })} /> Zombita warns everyone (in game + Discord)</label>
+        {warn.on && <textarea style={{ ...inp, minHeight: 44, resize: "vertical" }} value={warnText} placeholder="Pick a spot or a player first"
+          onChange={(e) => setWarn({ ...warn, text: e.target.value })} />}
       </>}
     </div>
   );

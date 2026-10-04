@@ -106,7 +106,7 @@ export default function ZombitaControl({ act, setPick, st, players, setLayer, se
 
   const b = data?.board || {};
   const mods = b.mods || {};
-  const ctx = { b, mods, data, za, bridge, sw, pickOnMap, players, st, setLayer };
+  const ctx = { b, mods, data, za, bridge, sw, pickOnMap, players, st, setLayer, run };
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: 0, flex: 1 }}>
       <div style={{ display: "flex", flexWrap: "wrap", borderBottom: `1px solid ${C.line}` }}>
@@ -377,7 +377,7 @@ function Quests({ mods, za, pickOnMap, players }) {
 }
 
 // ── events: Dawn of the Dead ────────────────────────────────────────────────
-function Events({ b, mods, za, bridge }) {
+function Events({ b, mods, za, bridge, run }) {
   const d = mods.dotd || {}, cfg = b.dotdCfg || {};
   const on = yes(cfg.enabled);
   return (<>
@@ -400,8 +400,58 @@ function Events({ b, mods, za, bridge }) {
         <span style={{ ...mono, fontSize: 12, width: 190, color: C.grey }}>{label}</span><span style={{ ...mono, fontSize: 12 }}>{cfg[key] ?? "?"}</span>
         <span style={{ marginLeft: "auto" }}><Btn color={C.grey} onClick={() => { const v = prompt(`${label}:`, cfg[key] ?? ""); if (v) bridge("dotd_set", { field, value: String(v) }); }}>Set</Btn></span></Row>)}
     </Box>
+    <Lottery run={run} />
     <Note>Hordes, loot bags and bandit events at a spot are in Live mode, World tab.</Note>
   </>);
+}
+
+// ── the lottery (the bot's ticket book, works with nobody in game) ──────────
+function Lottery({ run }) {
+  const [d, setD] = useState(null), [err, setErr] = useState("");
+  const load = useCallback(async () => {
+    try {
+      const r = await fetch(`${API}/api/admin/ops/lottery`, { credentials: "include" });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.detail || `HTTP ${r.status}`);
+      setD(j); setErr("");
+    } catch (e) { setErr(e.message); }
+  }, []);
+  useEffect(() => { load(); }, [load]);
+  const lot = async (args) => { await run("lottery", args); setTimeout(load, 800); };
+  const edit = (p) => {
+    const name = prompt("Prize name:", p?.name || ""); if (name === null) return;
+    const id = p?.prize_id || (prompt("Prize id (lowercase, e.g. axe_prize):", name.toLowerCase().replace(/[^a-z0-9]+/g, "_").slice(0, 40)) || "");
+    if (!id) return;
+    const count = prompt("How many tickets carry it (per 100):", p?.count ?? 1); if (count === null) return;
+    const how = (prompt("Paid as 'item' or 'money':", p?.how || "item") || "").trim().toLowerCase(); if (!how) return;
+    const args = { action: "set", prize_id: id, name, count: Math.round(Number(count)), how };
+    if (how === "money") { const v = prompt("Value in bronze:", p?.value_bronze || ""); if (!v) return; args.value_bronze = Math.round(Number(v)); }
+    else { const it = prompt("Item ids, comma separated (e.g. Base.Axe, Base.Saw):", (p?.items || []).join(", ")); if (!it) return; args.items = it; }
+    lot(args);
+  };
+  const t = d?.takings || {};
+  return (
+    <Box title="Lottery" right={<>
+      <Btn color={C.green} onClick={() => edit(null)}>Add prize</Btn>
+      <Btn color={C.red} onClick={() => confirm("Bin the batch on sale and deal a fresh one from the current prizes? Players hear about it in game.") && lot({ action: "redeal" })}>Re-deal</Btn></>}>
+      {err && <Note color={C.red}>{err}</Note>}
+      {d && <>
+        <Note color={C.text}>Batch {t.batch ?? "?"}: {n(t.sold)} of {d.tickets} sold · took {money(t.took)} · {n(t.claimed)} prizes claimed · paid {money(t.paid_cash)} cash</Note>
+        <Note>{d.per_batch} prize tickets per {d.tickets}; the rest are blanks. Changes apply to the next batch (or re-deal now).</Note>
+        {list(d.prizes).map((p) => <Row key={p.prize_id}>
+          <span style={{ ...mono, fontSize: 12, width: 150, color: p.active ? C.text : "#666" }}>{p.name}</span>
+          <Note>x{p.count} · {p.how === "money" ? money(p.value_bronze) : list(p.items).join(", ")}</Note>
+          <span style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+            <Btn color={C.grey} onClick={() => edit(p)}>Edit</Btn>
+            <Btn color={p.active ? C.grey : C.green} onClick={() => lot({ action: "set", prize_id: p.prize_id, active: !p.active })}>{p.active ? "Pause" : "Use"}</Btn>
+            <Btn color={C.red} onClick={() => confirm(`Remove ${p.name} from the prize table?`) && lot({ action: "remove", prize_id: p.prize_id })}>×</Btn>
+          </span></Row>)}
+        <div style={{ borderTop: `1px solid ${C.line}`, paddingTop: 5 }}>
+          {list(d.log).map((r, i) => <Note key={i}>{r.who}: {r.what} (#{r.slot}, {ago(Math.floor(Date.now() / 1000) - n(r.at))})</Note>)}
+        </div>
+      </>}
+    </Box>
+  );
 }
 
 // ── areas: save / restore / copy / paste / clear, picked on the map ─────────
