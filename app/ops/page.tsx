@@ -4,7 +4,8 @@
 // reports (players, safehouses, zombie heat, bandits, claimed vehicles) and the tools to fix things without logging in:
 // teleport, give, message, kick, ban, safehouse edit / owner / members / delete / create, faction members / leader /
 // claims, chat linked with the Discord in-game chat channel, broadcast, map markers players see in game (1.7.112),
-// a player's character: skills / levels, traits, heal, needs, god / invisible / noclip (1.7.114).
+// a player's character: skills / levels, traits, heal, needs, god / invisible / noclip (1.7.114), inventory, cars,
+// movement trail + "who was here", warnings, zombies, weather + events, moving shops / bus stations, admin presence (1.7.115).
 // Backend: /api/admin/ops/* (routers/liveops.py); the game side is mod 1.7.111 ZO_Server.lua. Admins only.
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -57,6 +58,11 @@ export default function OpsPage() {
   const [layers, setLayers] = useState({ town: true, shop: true, bus: true, diner: true, markers: true, players: true, safehouses: true, zombies: true, bandits: true, vehicles: false });
   const [places, setPlaces] = useState([]);
   const [markDraft, setMarkDraft] = useState(null);     // { x, y } where a new marker goes
+  const [trailPts, setTrailPts] = useState(null);       // { player, points } drawn on the map
+  const [spot, setSpot] = useState(null);               // { x, y, for } a spot picked for the World tools
+  const [moveK, setMoveK] = useState(null);             // { kind, id, name } a shop / station being moved
+  const [admins, setAdmins] = useState([]);             // other admins on /ops right now
+  const [meId, setMeId] = useState("");
   // places on/off per kind, like /map (the map hides them with CSS; one object per switch so it doesn't redraw)
   const hiddenKinds = useMemo(() => ({ town: !layers.town, shop: !layers.shop, bus: !layers.bus, diner: !layers.diner }),
     [layers.town, layers.shop, layers.bus, layers.diner]);
@@ -127,6 +133,17 @@ export default function OpsPage() {
 
   const refreshFactions = useCallback(async () => { try { setFacs(await api("/api/admin/ops/factions")); } catch {} }, []);
   useEffect(() => { refreshFactions(); }, [refreshFactions]);   // so a faction claim's box on the map opens its faction
+  // shops and stations where they are NOW (admins move them; places.json is the build-time list)
+  const livePlaces = useMemo(() => {
+    const ks = st?.kiosks || [];
+    if (!ks.length) return places;
+    const by = {};
+    for (const k of ks) by[k.kind + ":" + k.id] = k;
+    return places.filter((pl) => !(by[pl.kind + ":" + pl.id]?.off)).map((pl) => {
+      const k = by[pl.kind + ":" + pl.id];
+      return k ? { ...pl, x: k.x, y: k.y } : pl;
+    });
+  }, [places, st]);
   const players = st?.players || [];
   const safehouses = st?.safehouses || [];
   const shKey = (s) => `${s.x},${s.y},${s.owner}`;
@@ -142,10 +159,22 @@ export default function OpsPage() {
     if (layers.markers) (st?.markers || []).forEach((m) => out.push({ id: "m:" + m.id, label: m.title, x: m.x, y: m.y, size: 12,
       color: (MARK[m.kind] || MARK.go).color, onClick: () => setTab("markers") }));
     if (markDraft) out.push({ id: "m:draft", label: "new marker", x: markDraft.x, y: markDraft.y, size: 12, color: "#fff" });
+    if (trailPts?.points?.length) {
+      const pts = trailPts.points, step = Math.max(1, Math.ceil(pts.length / 300));
+      for (let i = 0; i < pts.length; i += step) {
+        const t = i / Math.max(1, pts.length - 1);
+        out.push({ id: "t:" + i, label: "", x: pts[i].x, y: pts[i].y, size: 6, color: `rgba(${Math.round(120 + 135 * t)},${Math.round(80 + 100 * t)},255,${(0.35 + 0.65 * t).toFixed(2)})` });
+      }
+      const a0 = pts[0], a1 = pts[pts.length - 1];
+      out.push({ id: "t:start", label: `${trailPts.player} ${new Date(a0.ts * 1000).toTimeString().slice(0, 5)}`, x: a0.x, y: a0.y, size: 9, color: "#7a5cff" });
+      out.push({ id: "t:end", label: `${trailPts.player} ${new Date(a1.ts * 1000).toTimeString().slice(0, 5)}`, x: a1.x, y: a1.y, size: 11, color: "#c9b8ff" });
+    }
+    if (spot && spot.x) out.push({ id: "spot", label: spot.label || "here", x: spot.x, y: spot.y, size: 12, color: "#ff5ab4" });
+    for (const a of admins) if (a.id !== meId && a.x && a.y) out.push({ id: "adm:" + a.id, label: `${a.name} is looking here`, x: a.x, y: a.y, size: 9, color: "#00d2ff" });
     if (layers.vehicles) (st?.vehicles || []).forEach((v) => out.push({ id: "v:" + v.id, label: "", x: v.x, y: v.y, size: 8, color: "#cfd3da",
       onClick: () => toast(true, `${v.owner}'s ${String(v.model).replace(/^Base\./, "")} at ${v.x}, ${v.y}`) }));
     return out;
-  }, [st, layers, selP, toast, markDraft]);
+  }, [st, layers, selP, toast, markDraft, trailPts, spot, admins, meId]);
   const rects = useMemo(() => {
     const out = [];
     if (layers.zombies && st?.zombies) {
@@ -167,19 +196,28 @@ export default function OpsPage() {
     }
     if (draft) out.push({ id: "draft", x: draft.x, y: draft.y, w: draft.w, h: draft.h, color: "#fff", dashed: true, fill: "rgba(255,255,255,.08)",
       label: `${draft.w} x ${draft.h}` });
+    if (spot && spot.r && spot.x) out.push({ id: "spotr", x: spot.x - spot.r, y: spot.y - spot.r, w: spot.r * 2 + 1, h: spot.r * 2 + 1, color: "#ff5ab4",
+      dashed: true, fill: "rgba(255,90,180,.08)", label: `${spot.r * 2 + 1} x ${spot.r * 2 + 1}` });
     if (claimDraft) {
       const r = facs.radii?.[claimDraft.tier] ?? 10;
       out.push({ id: "claimdraft", x: claimDraft.cx - r, y: claimDraft.cy - r, w: 2 * r + 1, h: 2 * r + 1, color: C.purple, dashed: true,
         fill: "rgba(151,117,204,.12)", label: `new claim ${2 * r + 1} x ${2 * r + 1}` });
     }
     return out;
-  }, [st, layers, safehouses, selS, draft, claimDraft, facs]);
+  }, [st, layers, safehouses, selS, draft, claimDraft, facs, spot]);
 
   // map clicks: pick a teleport spot, or two corners of a safehouse box
   const onMapClick = useCallback((w) => {
     if (!pick) return;
     if (pick.mode === "teleport") {
       if (selP && confirm(`Teleport ${selP} to ${w.x}, ${w.y}?`)) act("teleport", { player: selP, tx: w.x, ty: w.y, tz: 0 });
+      setPick(null);
+    } else if (pick.mode === "spot") {
+      setSpot((sp) => ({ ...(sp || {}), x: w.x, y: w.y, for: pick.for, r: pick.r ?? sp?.r, label: pick.label }));
+      setPick(null);
+    } else if (pick.mode === "move") {
+      if (moveK && confirm(`Move ${moveK.name} to ${w.x}, ${w.y}?`))
+        act(moveK.kind === "bus" ? "move_bus" : "move_shop", { kid: moveK.id, x: w.x, y: w.y }, () => setMoveK(null));
       setPick(null);
     } else if (pick.mode === "marker") {
       setMarkDraft({ x: w.x, y: w.y });
@@ -193,7 +231,34 @@ export default function OpsPage() {
       setDraft({ x, y, w: Math.abs(w.x - pick.first.x) + 1, h: Math.abs(w.y - pick.first.y) + 1 });
       setPick(null);
     }
-  }, [pick, selP, act]);
+  }, [pick, selP, act, moveK]);
+
+  // presence (Nin: "see which admin is here and doing what"): a beat every 5 s with what this admin is looking at
+  const doing = useMemo(() => {
+    if (tab === "players" && selP) return `Looking at ${selP}`;
+    if (tab === "safehouses" && selS) return `Safehouse ${selS.split(",").slice(2).join(",")}'s`;
+    if (tab === "factions" && selF) return `Faction ${(facs.factions.find((f) => f.fid === selF) || {}).name || ""}`;
+    if (moveK) return `Moving ${moveK.name}`;
+    return { players: "Players", safehouses: "Safehouses", factions: "Factions", cars: "Cars", world: "World tools", places: "Shops and stations",
+      markers: "Markers", chat: "Chat", log: "Log" }[tab] || "Live Ops";
+  }, [tab, selP, selS, selF, facs, moveK]);
+  const doingRef = useRef(doing);
+  doingRef.current = doing;
+  useEffect(() => {
+    let stop = false, timer = null;
+    const beat = async () => {
+      const q = new URLSearchParams(window.location.search);
+      try {
+        const d = await api("/api/admin/ops/presence", { doing: doingRef.current, x: Number(q.get("x")) || null, y: Number(q.get("y")) || null });
+        setAdmins(d.admins || []); setMeId(d.me || "");
+      } catch {}
+      fetch(`${API}/api/admin/presence/heartbeat`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tab: "liveops" }) }).catch(() => {});
+      if (!stop) timer = setTimeout(beat, 5000);
+    };
+    beat();
+    return () => { stop = true; clearTimeout(timer); };
+  }, []);
 
   // fill the space under the site menu
   const [top, setTop] = useState(0);
@@ -215,35 +280,50 @@ export default function OpsPage() {
             <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 4, background: l.color, marginRight: 6, opacity: layers[l.id] ? 1 : 0.3 }} />{l.label}
           </button>
         ))}
-        <span style={{ ...mono, fontSize: 11, color: C.grey, marginLeft: "auto" }}>
+        <span style={{ display: "flex", gap: 4, marginLeft: "auto", alignItems: "center" }}>
+          {admins.map((a) => (
+            <span key={a.id} title={`${a.name}${a.id === meId ? " (you)" : ""}: ${a.doing}`} style={{ position: "relative", width: 24, height: 24 }}>
+              <img src={a.avatar} alt="" width={24} height={24} style={{ borderRadius: 12, border: `2px solid ${a.id === meId ? C.gold : "#00d2ff"}` }} />
+            </span>
+          ))}
+          {admins.length > 1 && <span style={{ ...mono, fontSize: 10, color: "#00d2ff" }}>
+            {admins.filter((a) => a.id !== meId).map((a) => `${a.name}: ${a.doing}`).join(" · ")}</span>}
+        </span>
+        <span style={{ ...mono, fontSize: 11, color: C.grey }}>
           {st ? `${players.length} online${clock ? ` · in game ${clock}` : ""} · ${st.zombies?.total ?? 0} zombies loaded · ${(st.bandits || []).length} bandits` : ""}
           {st?.world_stale ? " · world data paused (nobody online or mod older than 1.7.111)" : ""}
         </span>
       </div>
       {pick && (
         <div style={{ ...mono, fontSize: 12, padding: "6px 14px", background: "#2a2410", color: C.gold, display: "flex", gap: 12, alignItems: "center" }}>
-          {pick.mode === "teleport" ? `Click the spot on the map to teleport ${selP} to.` : pick.mode === "claim" ? "Click where the claim's flag goes (its center)." : pick.mode === "marker" ? "Click where the marker goes." : pick.first ? "Now click the opposite corner." : "Click one corner of the safehouse on the map."}
+          {pick.mode === "teleport" ? `Click the spot on the map to teleport ${selP} to.` : pick.mode === "claim" ? "Click where the claim's flag goes (its center)." : pick.mode === "marker" ? "Click where the marker goes." : pick.mode === "spot" ? (pick.hint || "Click the spot on the map.") : pick.mode === "move" ? `Click where ${moveK?.name || "it"} should stand now.` : pick.first ? "Now click the opposite corner." : "Click one corner of the safehouse on the map."}
           <Btn small onClick={() => { setPick(null); }}>Cancel</Btn>
         </div>
       )}
       <div style={{ flex: 1, minHeight: 0, display: "flex" }}>
         <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", cursor: pick ? "crosshair" : "default" }}>
           {err ? <div style={{ ...mono, padding: 30, color: C.red }}>{err}</div> :
-            <WorldMap places={places} hidden={hiddenKinds} dots={dots} rects={rects} onMapClick={onMapClick} />}
+            <WorldMap places={livePlaces} hidden={hiddenKinds} dots={dots} rects={rects} onMapClick={onMapClick} />}
         </div>
         <aside style={{ width: 380, maxWidth: "45vw", borderLeft: `1px solid ${C.line}`, display: "flex", flexDirection: "column", background: C.panel }}>
-          <div style={{ display: "flex", borderBottom: `1px solid ${C.line}` }}>
-            {[["players", `Players (${players.length})`], ["safehouses", `Safehouses (${safehouses.length})`], ["factions", "Factions"], ["markers", `Markers (${(st?.markers || []).length})`], ["chat", "Chat"], ["log", "Log"]].map(([k, l]) => (
-              <button key={k} onClick={() => setTab(k)} style={{ ...mono, flex: 1, fontSize: 11, padding: "9px 4px", background: tab === k ? C.bg : "transparent",
+          <div style={{ display: "flex", flexWrap: "wrap", borderBottom: `1px solid ${C.line}` }}>
+            {[["players", `Players (${players.length})`], ["safehouses", `Safehouses (${safehouses.length})`], ["factions", "Factions"], ["cars", `Cars (${(st?.vehicles || []).length})`], ["world", "World"], ["places", "Places"],
+              ["markers", `Markers (${(st?.markers || []).length})`], ["chat", "Chat"], ["log", "Log"]].map(([k, l]) => (
+              <button key={k} onClick={() => setTab(k)} style={{ ...mono, flex: "1 0 22%", fontSize: 11, padding: "8px 4px", background: tab === k ? C.bg : "transparent",
                 color: tab === k ? C.gold : C.grey, border: 0, borderBottom: tab === k ? `2px solid ${C.gold}` : "2px solid transparent", cursor: "pointer", textTransform: "uppercase" }}>{l}</button>
             ))}
           </div>
           <div style={{ flex: 1, overflowY: "auto", padding: 12 }}>
-            {tab === "players" && <PlayersTab players={players} selP={selP} setSelP={setSelP} selPlayer={selPlayer} act={act} setPick={setPick} safehouses={safehouses} />}
+            {tab === "players" && <PlayersTab players={players} selP={selP} setSelP={setSelP} selPlayer={selPlayer} act={act} setPick={setPick} safehouses={safehouses}
+              cars={st?.vehicles || []} trailPts={trailPts} setTrailPts={setTrailPts} />}
             {tab === "safehouses" && <SafehousesTab safehouses={safehouses} selected={selected} setSelS={setSelS} shKey={shKey} draft={draft} setDraft={setDraft}
               setPick={setPick} act={act} players={players} />}
             {tab === "factions" && <FactionsTab facs={facs} selF={selF} setSelF={setSelF} act={act} players={players} refresh={refreshFactions}
               claimDraft={claimDraft} setClaimDraft={setClaimDraft} setPick={setPick} />}
+            {tab === "cars" && <CarsTab cars={st?.vehicles || []} act={act} players={players} />}
+            {tab === "world" && <WorldTab act={act} spot={spot} setSpot={setSpot} setPick={setPick} players={players}
+              showTrail={(player, points) => setTrailPts({ player, points })} />}
+            {tab === "places" && <PlacesTab kiosks={st?.kiosks || []} moveK={moveK} setMoveK={setMoveK} setPick={setPick} />}
             {tab === "markers" && <MarkersTab markers={st?.markers || []} draft={markDraft} setDraft={setMarkDraft} setPick={setPick} act={act} />}
             {tab === "chat" && <ChatTab chat={chat} meta={chatMeta} mine={mine} setMine={setMine} act={act} />}
             {tab === "log" && <LogTab log={log} />}
@@ -260,12 +340,13 @@ export default function OpsPage() {
 }
 
 // ── players ──────────────────────────────────────────────────────────────────
-function PlayersTab({ players, selP, setSelP, selPlayer, act, setPick, safehouses }) {
+function PlayersTab({ players, selP, setSelP, selPlayer, act, setPick, safehouses, cars, trailPts, setTrailPts }) {
   const [q, setQ] = useState("");
   const list = players.filter((p) => p.name.toLowerCase().includes(q.toLowerCase())).sort((a, b) => a.name.localeCompare(b.name));
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-      {selPlayer && <PlayerCard p={selPlayer} act={act} setPick={setPick} players={players} safehouses={safehouses} />}
+      {selPlayer && <PlayerCard p={selPlayer} act={act} setPick={setPick} players={players} safehouses={safehouses} cars={cars}
+        trailPts={trailPts} setTrailPts={setTrailPts} />}
       <input style={inp} placeholder="Find a player" value={q} onChange={(e) => setQ(e.target.value)} />
       {list.length === 0 && <div style={{ ...mono, fontSize: 12, color: C.grey }}>Nobody online.</div>}
       {list.map((p) => (
@@ -281,7 +362,7 @@ function PlayersTab({ players, selP, setSelP, selPlayer, act, setPick, safehouse
   );
 }
 
-function PlayerCard({ p, act, setPick, players, safehouses }) {
+function PlayerCard({ p, act, setPick, players, safehouses, cars, trailPts, setTrailPts }) {
   const [to, setTo] = useState("");
   const [item, setItem] = useState("");
   const [n, setN] = useState(1);
@@ -336,6 +417,8 @@ function PlayerCard({ p, act, setPick, players, safehouses }) {
         <Btn small disabled={!msg.trim()} onClick={() => act("tell", { player: p.name, text: msg }, () => setMsg(""))}>Send</Btn>
       </div>
       <CharacterPanel p={p} act={act} />
+      <InventoryPanel p={p} act={act} />
+      <PlayerExtras p={p} act={act} cars={cars} trailPts={trailPts} setTrailPts={setTrailPts} />
       <div style={h}>Kick / ban</div>
       <div style={row}>
         <input style={inp} placeholder="Reason (needed for a ban)" value={reason} onChange={(e) => setReason(e.target.value)} maxLength={120} />
@@ -467,6 +550,233 @@ function CharacterPanel({ p, act }) {
           <Btn small disabled={!xpPerk || !xpAmt} onClick={() => act("addxp", { player: p.name, perk: xpPerk, amount: xpAmt, notify }, reload)}>Add XP</Btn>
         </div>
       </>)}
+    </div>
+  );
+}
+
+// ── 1.7.115: inventory, the player's cars / trail / warnings / events ──────────────────────────────────────────
+function InventoryPanel({ p, act }) {
+  const [open, setOpen] = useState(false);
+  const [inv, setInv] = useState(null);
+  const [q, setQ] = useState("");
+  const h = { ...mono, fontSize: 10, color: C.grey, textTransform: "uppercase", letterSpacing: 1, marginTop: 6 };
+  const load = useCallback(() => act("pl_inv", { player: p.name }, async () => {
+    try { setInv(await api(`/api/admin/ops/inv/${encodeURIComponent(p.name)}`)); } catch {}
+  }), [act, p.name]);
+  useEffect(() => { setInv(null); setOpen(false); }, [p.name]);
+  if (!open) return <div><div style={h}>Inventory</div><Btn small onClick={() => { setOpen(true); load(); }}>Open inventory</Btn></div>;
+  const items = (inv?.items || []).filter((it) => !q || (it.name + " " + it.type).toLowerCase().includes(q.toLowerCase()));
+  const groups = {};
+  for (const it of items) (groups[it.where] = groups[it.where] || []).push(it);
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6, borderTop: `1px solid ${C.line}`, paddingTop: 6 }}>
+      <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+        <div style={{ ...h, marginTop: 0, flex: 1 }}>Inventory {inv ? `(${inv.items.length} kinds, ${inv.age ?? 0}s old)` : ""}</div>
+        <Btn small onClick={load}>Refresh</Btn><Btn small color={C.grey} onClick={() => setOpen(false)}>Close</Btn>
+      </div>
+      {!inv ? <div style={{ ...mono, fontSize: 12, color: C.grey }}>Asking the game...</div> : (<>
+        <input style={inp} placeholder="Find an item" value={q} onChange={(e) => setQ(e.target.value)} />
+        <div style={{ maxHeight: 300, overflowY: "auto", border: `1px solid ${C.line}` }}>
+          {Object.entries(groups).map(([where, list]) => (
+            <div key={where}>
+              <div style={{ ...mono, fontSize: 10, color: C.gold, padding: "4px 6px", background: "#0e0f12" }}>{where === "main" ? "Carried" : where}</div>
+              {list.map((it) => (
+                <div key={where + it.type} style={{ ...mono, fontSize: 12, display: "flex", gap: 6, alignItems: "center", padding: "3px 6px", borderBottom: "1px solid #16191e" }}>
+                  <span style={{ flex: 1 }}>{it.name} <span style={{ color: C.grey, fontSize: 10 }}>{it.type}</span></span>
+                  <span>x{it.count}</span>
+                  <a style={{ color: C.red, cursor: "pointer", fontSize: 11 }} onClick={() => {
+                    const n = Number(prompt(`Take how many ${it.name} from ${p.name}? (they have ${it.count})`, String(it.count)));
+                    if (n > 0) act("inv_remove", { player: p.name, type: it.type, count: Math.min(n, 1000) }, () => setTimeout(load, 800));
+                  }}>take</a>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </>)}
+    </div>
+  );
+}
+
+function PlayerExtras({ p, act, cars, trailPts, setTrailPts }) {
+  const [hours, setHours] = useState(3);
+  const [warns, setWarns] = useState([]);
+  const [reason, setReason] = useState("");
+  const [scripts, setScripts] = useState([]);
+  const [veh, setVeh] = useState("");
+  const h = { ...mono, fontSize: 10, color: C.grey, textTransform: "uppercase", letterSpacing: 1, marginTop: 6 };
+  const loadWarns = useCallback(async () => { try { setWarns((await api(`/api/admin/ops/warnings?player=${encodeURIComponent(p.name)}`)).warnings || []); } catch {} }, [p.name]);
+  useEffect(() => { loadWarns(); }, [loadWarns]);
+  const mine = cars.filter((c) => String(c.owner).toLowerCase() === p.name.toLowerCase());
+  const showTrail = async () => {
+    try { const d = await api(`/api/admin/ops/trail/${encodeURIComponent(p.name)}?hours=${hours}`);
+      setTrailPts({ player: p.name, points: d.points || [] });
+      if ((d.points || []).length) { const last = d.points[d.points.length - 1]; flyTo(last.x, last.y, 0.5); }
+    } catch (e) { alert(e.message); }
+  };
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6, borderTop: `1px solid ${C.line}`, paddingTop: 6 }}>
+      <div style={h}>Where they've been</div>
+      <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+        <select style={{ ...inp, width: 110 }} value={hours} onChange={(e) => setHours(Number(e.target.value))}>
+          {[1, 3, 6, 12, 24, 48, 72, 168].map((hh) => <option key={hh} value={hh}>last {hh < 24 ? `${hh} h` : `${hh / 24} d`}</option>)}
+        </select>
+        <Btn small onClick={showTrail}>Show trail</Btn>
+        {trailPts && <Btn small color={C.grey} onClick={() => setTrailPts(null)}>Hide</Btn>}
+        {trailPts?.player === p.name && <span style={{ ...mono, fontSize: 11, color: C.grey }}>{trailPts.points.length} points</span>}
+      </div>
+      <div style={h}>Their cars ({mine.length})</div>
+      {mine.map((c) => (
+        <div key={c.id} style={{ ...mono, fontSize: 12, display: "flex", gap: 6, alignItems: "center" }}>
+          <a style={{ flex: 1, cursor: "pointer" }} onClick={() => flyTo(c.x, c.y, 1)}>{String(c.model).replace(/^Base\./, "")} <span style={{ color: C.grey }}>{c.x}, {c.y}</span></a>
+          <Btn small onClick={() => act("teleport", { player: p.name, tx: c.x, ty: c.y, tz: 0 })}>Go to it</Btn>
+          <Btn small onClick={() => act("veh_repair", { vid: c.id })}>Repair</Btn>
+        </div>
+      ))}
+      <div style={{ display: "flex", gap: 6 }}>
+        <input style={inp} list="ops-veh" placeholder="Spawn a car next to them: Base.CarNormal" value={veh}
+          onFocus={async () => { if (!scripts.length) try { setScripts((await api("/api/admin/ops/vehicle-scripts")).scripts || []); } catch {} }}
+          onChange={(e) => setVeh(e.target.value)} />
+        <datalist id="ops-veh">{scripts.map((v) => <option key={v} value={v} />)}</datalist>
+        <Btn small disabled={!/^\w+\.[\w-]+$/.test(veh.trim())} onClick={() => { if (confirm(`Spawn ${veh.trim()} next to ${p.name}?`)) act("veh_spawn", { player: p.name, script: veh.trim() }, () => setVeh("")); }}>Spawn</Btn>
+      </div>
+      <div style={h}>Warnings ({warns.length})</div>
+      {warns.slice(-5).map((w, i) => (
+        <div key={i} style={{ ...mono, fontSize: 11, color: C.grey }}>{new Date(w.at * 1000).toLocaleDateString()} · {w.reason} <span style={{ color: "#666" }}>({String(w.by).replace(" (website)", "")})</span></div>
+      ))}
+      <div style={{ display: "flex", gap: 6 }}>
+        <input style={inp} placeholder="Reason (they get a pop-up)" value={reason} onChange={(e) => setReason(e.target.value)} maxLength={200} />
+        <Btn small color={C.red} disabled={!reason.trim()} onClick={() => act("warn", { player: p.name, reason }, () => { setReason(""); loadWarns(); })}>Warn</Btn>
+      </div>
+      <div style={h}>Events on them</div>
+      <div style={{ display: "flex", gap: 6 }}>
+        <Btn small onClick={() => act("thunder", { player: p.name })}>Thunder</Btn>
+        <Btn small onClick={() => act("lightning", { player: p.name })}>Lightning</Btn>
+      </div>
+    </div>
+  );
+}
+
+// ── cars: every claimed car ─────────────────────────────────────────────────
+function CarsTab({ cars, act, players }) {
+  const [q, setQ] = useState("");
+  const [to, setTo] = useState({});
+  const list = cars.filter((c) => (c.owner + " " + c.model).toLowerCase().includes(q.toLowerCase())).sort((a, b) => String(a.owner).localeCompare(String(b.owner)));
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ ...mono, fontSize: 11, color: C.grey }}>Every claimed car (Zombita Vehicles) at its last known spot. Repair needs someone near the car.</div>
+      <input style={inp} placeholder="Find by owner or model" value={q} onChange={(e) => setQ(e.target.value)} />
+      <datalist id="ops-online-car">{players.map((pp) => <option key={pp.name} value={pp.name} />)}</datalist>
+      {list.length === 0 && <div style={{ ...mono, fontSize: 12, color: C.grey }}>No claimed cars.</div>}
+      {list.map((c) => (
+        <div key={c.id} style={{ ...mono, fontSize: 12, padding: "7px 9px", background: C.bg, border: `1px solid ${C.line}`, borderRadius: 3, display: "flex", flexDirection: "column", gap: 4 }}>
+          <div style={{ display: "flex", gap: 6 }}>
+            <a style={{ flex: 1, cursor: "pointer" }} onClick={() => flyTo(c.x, c.y, 1)}>{String(c.model).replace(/^Base\./, "")}</a>
+            <span style={{ color: C.grey }}>{c.owner}</span>
+          </div>
+          <div style={{ color: C.grey, fontSize: 11 }}>{c.x}, {c.y}{c.at ? ` · seen ${new Date(c.at * 1000).toLocaleString()}` : ""}</div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            <Btn small onClick={() => act("veh_repair", { vid: c.id })}>Repair</Btn>
+            <Btn small color={C.red} onClick={() => { if (confirm(`Unclaim ${c.owner}'s ${c.model}?`)) act("veh_unclaim", { vid: c.id }); }}>Unclaim</Btn>
+            <input style={{ ...inp, width: 110 }} list="ops-online-car" placeholder="new owner" value={to[c.id] || ""} onChange={(e) => setTo({ ...to, [c.id]: e.target.value })} />
+            <Btn small disabled={!(to[c.id] || "").trim()} onClick={() => { if (confirm(`Give ${c.owner}'s ${c.model} to ${to[c.id]}?`)) act("veh_transfer", { vid: c.id, player: to[c.id].trim() }); }}>Give</Btn>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── world: zombies, weather, events, who was here ──────────────────────────
+function WorldTab({ act, spot, setSpot, setPick, players, showTrail }) {
+  const [r, setR] = useState(30);
+  const [count, setCount] = useState(20);
+  const [stormH, setStormH] = useState(2);
+  const [nearR, setNearR] = useState(40);
+  const [nearH, setNearH] = useState(24);
+  const [who, setWho] = useState(null);
+  const h = { ...mono, fontSize: 10, color: C.grey, textTransform: "uppercase", letterSpacing: 1, marginTop: 8 };
+  const box = { border: `1px solid ${C.line}`, borderRadius: 3, padding: 10, display: "flex", flexDirection: "column", gap: 6, background: C.bg };
+  const row = { display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" };
+  const num = (v, set, min, max, w = 70) => <input style={{ ...inp, width: w }} type="number" min={min} max={max} value={v} onChange={(e) => set(Math.max(min, Math.min(max, Number(e.target.value) || min)))} />;
+  const pickSpot = (forWhat, radius, hint) => { setSpot((s) => ({ ...(s || {}), for: forWhat, r: radius })); setPick({ mode: "spot", for: forWhat, r: radius, hint, label: forWhat }); };
+  const findWho = async () => {
+    try { setWho((await api(`/api/admin/ops/near?x=${spot.x}&y=${spot.y}&radius=${nearR}&hours=${nearH}`)).players || []); } catch (e) { alert(e.message); }
+  };
+  const t = (ts) => new Date(ts * 1000).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={box}>
+        <b>Zombies</b>
+        <div style={{ ...mono, fontSize: 11, color: C.grey }}>Only works where a player is nearby (the game only has zombies loaded there).</div>
+        <div style={row}>
+          <Btn small onClick={() => pickSpot("zombies", r, "Click the middle of the area.")}>{spot?.for === "zombies" ? `Spot: ${spot.x}, ${spot.y}` : "Pick the spot"}</Btn>
+          <span style={{ ...mono, fontSize: 11 }}>radius</span>{num(r, (v) => { setR(v); setSpot((s) => s ? { ...s, r: v } : s); }, 1, 200)}
+        </div>
+        <div style={row}>
+          <Btn small color={C.green} disabled={spot?.for !== "zombies"} onClick={() => { if (confirm(`Remove every zombie within ${r} squares of ${spot.x}, ${spot.y}?`)) act("zombies_clear", { x: spot.x, y: spot.y, radius: r }); }}>Clear zombies here</Btn>
+          {num(count, setCount, 1, 500, 64)}
+          <Btn small color={C.red} disabled={spot?.for !== "zombies"} onClick={() => { if (confirm(`Spawn ${count} zombies around ${spot.x}, ${spot.y}?`)) act("horde", { x: spot.x, y: spot.y, radius: Math.min(r, 50), count }); }}>Spawn horde</Btn>
+        </div>
+      </div>
+      <div style={box}>
+        <b>Weather and events</b>
+        <div style={row}>
+          <Btn small onClick={() => act("rain_start", {})}>Start rain</Btn>
+          <Btn small onClick={() => act("rain_stop", {})}>Stop rain</Btn>
+          <Btn small onClick={() => act("weather_stop", {})}>Clear weather</Btn>
+        </div>
+        <div style={row}>
+          <Btn small onClick={() => act("storm_start", { hours: stormH })}>Thunderstorm</Btn>{num(stormH, setStormH, 1, 48, 56)}<span style={{ ...mono, fontSize: 11 }}>hours</span>
+        </div>
+        <div style={row}>
+          <Btn small onClick={() => { if (confirm("Send the helicopter? It draws zombies to whoever it follows.")) act("chopper", {}); }}>Helicopter</Btn>
+          <Btn small onClick={() => act("gunshot", {})}>Distant gunshot</Btn>
+        </div>
+        <div style={{ ...mono, fontSize: 11, color: C.grey }}>Thunder or lightning on one player: their card in Players.</div>
+      </div>
+      <div style={box}>
+        <b>Who was here?</b>
+        <div style={{ ...mono, fontSize: 11, color: C.grey }}>Everyone who stood near a spot (positions are kept 14 days, one a minute).</div>
+        <div style={row}>
+          <Btn small onClick={() => pickSpot("near", nearR, "Click the spot (a base, a car...).")}>{spot?.for === "near" ? `Spot: ${spot.x}, ${spot.y}` : "Pick the spot"}</Btn>
+          <span style={{ ...mono, fontSize: 11 }}>radius</span>{num(nearR, (v) => { setNearR(v); setSpot((s) => s ? { ...s, r: v } : s); }, 1, 500, 64)}
+          <select style={{ ...inp, width: 100 }} value={nearH} onChange={(e) => setNearH(Number(e.target.value))}>
+            {[1, 6, 12, 24, 48, 72, 168, 336].map((hh) => <option key={hh} value={hh}>last {hh < 24 ? `${hh} h` : `${hh / 24} d`}</option>)}
+          </select>
+          <Btn small disabled={spot?.for !== "near"} onClick={findWho}>Search</Btn>
+        </div>
+        {who && (who.length === 0 ? <div style={{ ...mono, fontSize: 12, color: C.grey }}>Nobody.</div> : who.map((w) => (
+          <div key={w.player} style={{ ...mono, fontSize: 12, display: "flex", gap: 6, alignItems: "center" }}>
+            <span style={{ flex: 1 }}><b>{w.player}</b> <span style={{ color: C.grey, fontSize: 11 }}>{t(w.first)} to {t(w.last)} · {w.minutes} min</span></span>
+            <a style={{ color: C.gold, cursor: "pointer", fontSize: 11 }} onClick={async () => {
+              try { const d = await api(`/api/admin/ops/trail/${encodeURIComponent(w.player)}?hours=${nearH}`); showTrail(w.player, d.points || []); } catch {}
+            }}>trail</a>
+          </div>
+        )))}
+      </div>
+      {spot && <Btn small color={C.grey} onClick={() => setSpot(null)}>Clear the picked spot</Btn>}
+    </div>
+  );
+}
+
+// ── shops and bus stations: move them on the map ───────────────────────────
+function PlacesTab({ kiosks, moveK, setMoveK, setPick }) {
+  const [q, setQ] = useState("");
+  const list = kiosks.filter((k) => (k.name + " " + k.id).toLowerCase().includes(q.toLowerCase())).sort((a, b) => a.kind.localeCompare(b.kind) || String(a.name).localeCompare(String(b.name)));
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ ...mono, fontSize: 11, color: C.grey }}>Shops and bus stations where they stand now. Moving one is the same as moving it from the in-game panel.</div>
+      {moveK && <div style={{ ...mono, fontSize: 12, color: C.gold }}>Moving {moveK.name}: click its new spot on the map. <a style={{ color: C.grey, cursor: "pointer" }} onClick={() => { setMoveK(null); setPick(null); }}>cancel</a></div>}
+      <input style={inp} placeholder="Find a shop or station" value={q} onChange={(e) => setQ(e.target.value)} />
+      {list.length === 0 && <div style={{ ...mono, fontSize: 12, color: C.grey }}>None reported yet (needs mod 1.7.115).</div>}
+      {list.map((k) => (
+        <div key={k.kind + k.id} style={{ ...mono, fontSize: 12, display: "flex", gap: 6, alignItems: "center", padding: "6px 8px", background: C.bg, border: `1px solid ${C.line}`, borderRadius: 3 }}>
+          <span style={{ color: k.kind === "bus" ? C.blue : C.gold }}>{k.kind === "bus" ? "BUS" : "SHOP"}</span>
+          <a style={{ flex: 1, cursor: "pointer", opacity: k.off ? 0.5 : 1 }} onClick={() => flyTo(k.x, k.y, 1)}>{k.name}{k.off ? " (destroyed)" : ""} <span style={{ color: C.grey, fontSize: 11 }}>{k.x}, {k.y}</span></a>
+          <Btn small onClick={() => { setMoveK({ kind: k.kind, id: k.id, name: k.name }); setPick({ mode: "move" }); }}>Move</Btn>
+        </div>
+      ))}
     </div>
   );
 }

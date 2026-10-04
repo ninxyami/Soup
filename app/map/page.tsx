@@ -87,8 +87,22 @@ export default function MapPage() {
     return () => { window.removeEventListener("resize", measure); clearTimeout(t); };
   }, []);
 
+  // the build-time list, then where shops and stations stand NOW (admins move them; destroyed ones drop out)
   useEffect(() => {
-    fetch("/map/places.json").then((r) => r.json()).then((d) => setPlaces(d.places || [])).catch(() => {});
+    (async () => {
+      let list = [];
+      try { list = (await (await fetch("/map/places.json")).json()).places || []; } catch {}
+      try {
+        const r = await fetch(`${API}/api/map/kiosks`);
+        const ks = r.ok ? (await r.json()).kiosks || [] : [];
+        if (ks.length) {
+          const by = {};
+          for (const k of ks) by[k.kind + ":" + k.id] = k;
+          list = list.filter((p) => !(by[p.kind + ":" + p.id]?.off)).map((p) => (by[p.kind + ":" + p.id] ? { ...p, x: by[p.kind + ":" + p.id].x, y: by[p.kind + ":" + p.id].y } : p));
+        }
+      } catch {}
+      setPlaces(list);
+    })();
   }, []);
 
   const shownDots = useMemo(() => [

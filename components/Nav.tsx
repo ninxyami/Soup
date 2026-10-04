@@ -48,6 +48,11 @@ export default function Nav() {
               Admin
             </Link>
           )}
+          {user?.is_admin && (
+            <Link href="/ops" className={`nav-link${pathname?.startsWith("/ops") ? " active" : ""}`} style={{ color: "#c8a84b" }}>
+              Ops
+            </Link>
+          )}
         </div>
 
         {/* Desktop: right side - bell + auth */}
@@ -115,6 +120,9 @@ export default function Nav() {
             <div className="px-5 py-3 border-t border-[#1a1a1a]">
               <Link href="/admin" className="nav-link text-[0.8rem]" style={{ color: "#c8a84b" }} onClick={() => setOpen(false)}>
                 ⚙ Admin Panel
+              </Link>
+              <Link href="/ops" className="nav-link text-[0.8rem] block mt-2" style={{ color: "#c8a84b" }} onClick={() => setOpen(false)}>
+                Live Ops
               </Link>
             </div>
           )}
