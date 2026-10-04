@@ -70,16 +70,16 @@ const CSS = `
 .wm-rect .rl{position:absolute;left:0;top:-16px;font:600 11px var(--mono,monospace);color:#fff;text-shadow:0 1px 2px #000,0 0 3px #000;white-space:nowrap}
 .wm-rect.iso .rl{left:50%;transform:translateX(-50%)}
 .wm-rect svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
-.wm-coords{position:absolute;left:10px;bottom:10px;font:12px var(--mono,monospace);color:#cfd3da;background:rgba(0,0,0,.6);padding:4px 8px;border-radius:3px;pointer-events:none}
+.wm-coords{position:absolute;left:10px;bottom:10px;font:12px var(--mono,monospace);color:#cfd3da;background:rgba(11,13,16,.92);padding:4px 8px;border-radius:3px;pointer-events:none}
 .wm-tip{position:absolute;pointer-events:none;background:rgba(10,13,16,.95);border:1px solid #2a2f37;padding:6px 9px;font:12px var(--mono,monospace);color:#e6e6e6;border-radius:3px;z-index:5;max-width:260px}
 .wm-tip b{color:#c8a84b}
-.wm-fs{position:absolute;left:10px;top:10px;z-index:4;font:600 11px var(--mono,monospace);letter-spacing:.5px;color:#cfd3da;background:rgba(0,0,0,.6);border:1px solid #2a2f37;border-radius:3px;padding:5px 10px;cursor:pointer;text-transform:uppercase}
+.wm-fs{position:absolute;left:10px;top:10px;z-index:4;font:600 11px var(--mono,monospace);letter-spacing:.5px;color:#cfd3da;background:rgba(11,13,16,.92);box-shadow:0 1px 6px rgba(0,0,0,.5);border:1px solid #2a2f37;border-radius:3px;padding:5px 10px;cursor:pointer;text-transform:uppercase}
 .wm-fs:hover{color:#c8a84b;border-color:#c8a84b}
 .wm-bars{position:absolute;right:10px;top:10px;display:flex;flex-direction:column;align-items:flex-end;gap:6px;z-index:4}
-.wm-style{display:flex;background:rgba(0,0,0,.6);border:1px solid #2a2f37;border-radius:3px;overflow:hidden}
+.wm-style{display:flex;background:rgba(11,13,16,.92);box-shadow:0 1px 6px rgba(0,0,0,.5);border:1px solid #2a2f37;border-radius:3px;overflow:hidden}
 .wm-style button{font:600 11px var(--mono,monospace);letter-spacing:.5px;color:#9aa;padding:5px 10px;background:none;border:0;cursor:pointer;text-transform:uppercase}
 .wm-style button.on{color:#0b0d10;background:#c8a84b}
-.wm-floor{position:absolute;left:10px;top:44px;z-index:4;display:flex;flex-direction:column;align-items:stretch;background:rgba(0,0,0,.6);border:1px solid #2a2f37;border-radius:3px;overflow:hidden;min-width:74px}
+.wm-floor{position:absolute;left:10px;top:44px;z-index:4;display:flex;flex-direction:column;align-items:stretch;background:rgba(11,13,16,.92);box-shadow:0 1px 6px rgba(0,0,0,.5);border:1px solid #2a2f37;border-radius:3px;overflow:hidden;min-width:74px}
 .wm-floor button{font:600 13px var(--mono,monospace);color:#cfd3da;padding:3px 0;background:none;border:0;cursor:pointer}
 .wm-floor button:hover:not(:disabled){color:#c8a84b}
 .wm-floor button:disabled{opacity:.3;cursor:default}
