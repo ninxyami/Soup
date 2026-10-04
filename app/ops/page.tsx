@@ -3,7 +3,8 @@
 // app/ops/page.tsx - Live Ops: the admins' live control panel (2026-10-04). The world map with everything the game
 // reports (players, safehouses, zombie heat, bandits, claimed vehicles) and the tools to fix things without logging in:
 // teleport, give, message, kick, ban, safehouse edit / owner / members / delete / create, faction members / leader /
-// claims, chat linked with the Discord in-game chat channel, broadcast, map markers players see in game (1.7.112).
+// claims, chat linked with the Discord in-game chat channel, broadcast, map markers players see in game (1.7.112),
+// a player's character: skills / levels, traits, heal, needs, god / invisible / noclip (1.7.114).
 // Backend: /api/admin/ops/* (routers/liveops.py); the game side is mod 1.7.111 ZO_Server.lua. Admins only.
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -334,12 +335,138 @@ function PlayerCard({ p, act, setPick, players, safehouses }) {
         <input style={inp} placeholder="Your car is at Valley Station" value={msg} onChange={(e) => setMsg(e.target.value)} maxLength={300} />
         <Btn small disabled={!msg.trim()} onClick={() => act("tell", { player: p.name, text: msg }, () => setMsg(""))}>Send</Btn>
       </div>
+      <CharacterPanel p={p} act={act} />
       <div style={h}>Kick / ban</div>
       <div style={row}>
         <input style={inp} placeholder="Reason (needed for a ban)" value={reason} onChange={(e) => setReason(e.target.value)} maxLength={120} />
         <Btn small color={C.red} onClick={() => { if (confirm(`Kick ${p.name}?`)) act("kick", { player: p.name, reason }); }}>Kick</Btn>
         <Btn small color={C.red} disabled={!reason.trim()} onClick={() => { if (confirm(`BAN ${p.name}? Reason: ${reason}`)) act("ban", { player: p.name, reason }); }}>Ban</Btn>
       </div>
+    </div>
+  );
+}
+
+// ── a player's character (1.7.114): the game writes a sheet on request; skills over the game's own /addxp ──────
+function CharacterPanel({ p, act }) {
+  const [open, setOpen] = useState(false);
+  const [sheet, setSheet] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [notify, setNotify] = useState(true);
+  const [q, setQ] = useState("");
+  const [addT, setAddT] = useState("");
+  const [xpPerk, setXpPerk] = useState("");
+  const [xpAmt, setXpAmt] = useState(100);
+  const h = { ...mono, fontSize: 10, color: C.grey, textTransform: "uppercase", letterSpacing: 1, marginTop: 6 };
+  const load = useCallback(async () => {
+    setBusy(true);
+    try {
+      await act("pl_sheet", { player: p.name }, async () => {
+        try { setSheet(await api(`/api/admin/ops/sheet/${encodeURIComponent(p.name)}`)); } catch {}
+      });
+    } finally { setBusy(false); }
+  }, [act, p.name]);
+  useEffect(() => { setSheet(null); setOpen(false); }, [p.name]);
+  const reload = () => setTimeout(load, 1500);
+  const groups = useMemo(() => {
+    const g = {};
+    for (const pk of sheet?.perks || []) {
+      if (q && !(pk.name + " " + pk.group).toLowerCase().includes(q.toLowerCase())) continue;
+      (g[pk.group || "Other"] = g[pk.group || "Other"] || []).push(pk);
+    }
+    return Object.entries(g).sort(([a], [b]) => a.localeCompare(b));
+  }, [sheet, q]);
+  if (!open) return <div><div style={h}>Character</div><Btn small onClick={() => { setOpen(true); load(); }}>Open character sheet</Btn></div>;
+  const labelOf = (id) => (sheet?.allTraits || []).find((t) => t.id === id)?.label || id;
+  const st = sheet?.stats || {};
+  const bar = (k, label, good = "low") => {
+    const v = Math.max(0, Math.min(1, Number(st[k] || 0)));
+    const bad = good === "low" ? v : 1 - v;
+    return (
+      <div key={k} style={{ display: "flex", gap: 6, alignItems: "center", ...mono, fontSize: 11 }}>
+        <span style={{ width: 90, color: C.grey }}>{label}</span>
+        <span style={{ flex: 1, height: 6, background: "#222", borderRadius: 3 }}>
+          <span style={{ display: "block", height: 6, width: `${Math.round(v * 100)}%`, borderRadius: 3, background: bad > 0.6 ? C.red : bad > 0.3 ? C.gold : C.green }} />
+        </span>
+        <span style={{ width: 34, textAlign: "right" }}>{Math.round(v * 100)}%</span>
+      </div>
+    );
+  };
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6, borderTop: `1px solid ${C.line}`, paddingTop: 6 }}>
+      <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+        <div style={{ ...h, marginTop: 0, flex: 1 }}>Character {sheet ? `(${sheet.age ?? 0}s old)` : ""}</div>
+        <label style={{ ...mono, fontSize: 11, color: C.grey, display: "flex", gap: 4, alignItems: "center" }}>
+          <input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} /> tell the player
+        </label>
+        <Btn small disabled={busy} onClick={load}>{busy ? "..." : "Refresh"}</Btn>
+        <Btn small color={C.grey} onClick={() => setOpen(false)}>Close</Btn>
+      </div>
+      {!sheet ? <div style={{ ...mono, fontSize: 12, color: C.grey }}>{busy ? "Asking the game..." : "No sheet (is the player online?)"}</div> : (<>
+        <div style={{ ...mono, fontSize: 12 }}>
+          {sheet.profession ? `${sheet.profession} · ` : ""}health {Math.round(sheet.health)}%
+          {sheet.infected ? <span style={{ color: C.red }}> · INFECTED</span> : null}
+        </div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          <Btn small color={C.green} onClick={() => act("pl_heal", { player: p.name, notify }, reload)}>Heal fully</Btn>
+          <Btn small color={C.green} onClick={() => act("pl_needs", { player: p.name, notify }, reload)}>Reset needs</Btn>
+          {[["god", "God mode"], ["invisible", "Invisible"], ["noclip", "Noclip"]].map(([k, l]) => (
+            <Btn key={k} small color={sheet[k] ? C.gold : C.grey} onClick={() => act(k, { player: p.name, on: !sheet[k] }, reload)}>
+              {l}: {sheet[k] ? "on" : "off"}</Btn>
+          ))}
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+          {bar("hunger", "Hunger")}{bar("thirst", "Thirst")}{bar("fatigue", "Tiredness")}{bar("stress", "Stress")}
+          {bar("panic", "Panic")}{bar("boredom", "Boredom")}{bar("unhappiness", "Unhappy")}{bar("endurance", "Endurance", "high")}
+        </div>
+        <div style={h}>Traits</div>
+        <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+          {(sheet.traits || []).length === 0 && <span style={{ ...mono, fontSize: 12, color: C.grey }}>none</span>}
+          {(sheet.traits || []).map((t) => (
+            <span key={t} style={{ ...mono, fontSize: 11, border: `1px solid ${C.line}`, padding: "2px 6px", borderRadius: 3 }}>
+              {labelOf(t)} <a style={{ color: C.red, cursor: "pointer" }} title="Remove"
+                onClick={() => { if (confirm(`Remove ${labelOf(t)} from ${p.name}?`)) act("pl_trait", { player: p.name, trait: t, on: false, notify }, reload); }}>x</a>
+            </span>
+          ))}
+        </div>
+        <div style={{ display: "flex", gap: 6 }}>
+          <select style={inp} value={addT} onChange={(e) => setAddT(e.target.value)}>
+            <option value="">Add a trait...</option>
+            {(sheet.allTraits || []).filter((t) => !(sheet.traits || []).includes(t.id)).sort((a, b) => a.label.localeCompare(b.label))
+              .map((t) => <option key={t.id} value={t.id}>{t.label} ({t.cost > 0 ? "+" : ""}{t.cost})</option>)}
+          </select>
+          <Btn small disabled={!addT} onClick={() => act("pl_trait", { player: p.name, trait: addT, on: true, notify }, () => { setAddT(""); reload(); })}>Add</Btn>
+        </div>
+        <div style={h}>Skills</div>
+        <input style={inp} placeholder="Find a skill" value={q} onChange={(e) => setQ(e.target.value)} />
+        <div style={{ maxHeight: 320, overflowY: "auto", border: `1px solid ${C.line}` }}>
+          {groups.map(([g, list]) => (
+            <div key={g}>
+              <div style={{ ...mono, fontSize: 10, color: C.gold, padding: "4px 6px", background: "#0e0f12" }}>{g}</div>
+              {list.map((pk) => (
+                <div key={pk.id} style={{ ...mono, fontSize: 12, display: "flex", gap: 6, alignItems: "center", padding: "3px 6px", borderBottom: `1px solid #16191e` }}>
+                  <span style={{ flex: 1 }}>{pk.name}</span>
+                  <button style={{ ...inp, width: 24, padding: 0, cursor: "pointer" }} disabled={pk.level <= 0}
+                    onClick={() => act("set_level", { player: p.name, perk: pk.id, level: pk.level - 1, notify }, reload)}>-</button>
+                  <select style={{ ...inp, width: 52, padding: "2px 4px" }} value={pk.level}
+                    onChange={(e) => act("set_level", { player: p.name, perk: pk.id, level: Number(e.target.value), notify }, reload)}>
+                    {Array.from({ length: 11 }, (_, i) => <option key={i} value={i}>{i}</option>)}
+                  </select>
+                  <button style={{ ...inp, width: 24, padding: 0, cursor: "pointer" }} disabled={pk.level >= 10}
+                    onClick={() => act("set_level", { player: p.name, perk: pk.id, level: pk.level + 1, notify }, reload)}>+</button>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <select style={inp} value={xpPerk} onChange={(e) => setXpPerk(e.target.value)}>
+            <option value="">Add XP to a skill...</option>
+            {(sheet.perks || []).slice().sort((a, b) => a.name.localeCompare(b.name)).map((pk) => <option key={pk.id} value={pk.id}>{pk.name}</option>)}
+          </select>
+          <input style={{ ...inp, width: 80 }} type="number" value={xpAmt} onChange={(e) => setXpAmt(Number(e.target.value) || 0)} />
+          <Btn small disabled={!xpPerk || !xpAmt} onClick={() => act("addxp", { player: p.name, perk: xpPerk, amount: xpAmt, notify }, reload)}>Add XP</Btn>
+        </div>
+      </>)}
     </div>
   );
 }
