@@ -77,7 +77,7 @@ function Dot({ on, label }) {
 }
 
 // ── the whole mode ──────────────────────────────────────────────────────────
-export default function ZombitaControl({ act, setPick, st, players, setLayer, setWide, tab, setTab }) {
+export default function ZombitaControl({ act, setPick, st, players, setLayer, setWide, tab, setTab, picked = null }) {
   const [data, setData] = useState(null);
   const [err, setErr] = useState("");
   const load = useCallback(async () => {
@@ -106,7 +106,7 @@ export default function ZombitaControl({ act, setPick, st, players, setLayer, se
 
   const b = data?.board || {};
   const mods = b.mods || {};
-  const ctx = { b, mods, data, za, bridge, sw, pickOnMap, players, st, setLayer, run };
+  const ctx = { b, mods, data, za, bridge, sw, pickOnMap, players, st, setLayer, run, picked };
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: 0, flex: 1 }}>
       <div style={{ display: "flex", flexWrap: "wrap", borderBottom: `1px solid ${C.line}` }}>
@@ -215,15 +215,18 @@ function Treasury({ b, bridge }) {
 }
 
 // ── shops: rotation, low stock, keepers, kiosks on the map ──────────────────
-function Shops({ b, mods, za, bridge, pickOnMap, st, setLayer }) {
+function Shops({ b, mods, za, bridge, pickOnMap, st, setLayer, picked }) {
   const rot = list(b.rot), keepers = list(b.keepers), ks = (st?.kiosks || []).filter((k) => k.kind === "shop");
   const [src, setSrc] = useState("treasury");
   const [sel, setSel] = useState(null);
+  useEffect(() => { if (picked?.kind === "shop") setSel(picked.id); }, [picked]);
+  // open shops already have a pin on the map (clicking it selects the shop); closed ones get a grey dot, the selected one a ring
   useEffect(() => {
-    setLayer({ dots: ks.map((k) => ({ id: "zk:" + k.id, label: k.name, x: k.x, y: k.y, size: 10, color: k.id === sel ? "#fff" : k.off ? "#666" : C.gold,
-      onClick: () => setSel(k.id) })), rects: [] });
+    setLayer({ dots: ks.filter((k) => k.off || k.id === sel).map((k) => ({ id: "zk:" + k.id, label: k.off ? `${k.name} (closed)` : "", x: k.x, y: k.y,
+      size: k.id === sel ? 22 : 10, color: k.id === sel ? "#fff" : "#666", onClick: () => setSel(k.id) })), rects: [] });
   }, [st, sel]);
-  const k = ks.find((x) => x.id === sel);
+  // the game's list (st.kiosks) knows where it stands now; a pin it doesn't list yet still works from the pin itself
+  const k = ks.find((x) => x.id === sel) || (picked?.kind === "shop" && picked.id === sel ? { id: picked.id, name: picked.name, x: picked.x, y: picked.y } : null);
   const till = (kp) => {
     const v = Math.round(Number(prompt(`Coins for ${kp.name}'s till (it has ${n(kp.bal).toLocaleString()}). A minus takes coins out.`) || 0));
     if (!v) return;
@@ -235,7 +238,7 @@ function Shops({ b, mods, za, bridge, pickOnMap, st, setLayer }) {
   };
   return (<>
     <Box title="Kiosks on the map" right={<Note>{ks.length} kiosks · click one</Note>}>
-      {!k && <Note>Click a shop on the map (gold dots) to move, reset or close it.</Note>}
+      {!k && <Note>Click a shop on the map (gold pins; grey = closed) to move, reset or close it.</Note>}
       {k && <>
         <KV k={k.name} v={`${k.x}, ${k.y}${k.off ? " · CLOSED" : ""}`} color={C.gold} />
         <Row>
@@ -270,19 +273,22 @@ function Shops({ b, mods, za, bridge, pickOnMap, st, setLayer }) {
 }
 
 // ── travel: bus stations, towns ─────────────────────────────────────────────
-function Travel({ b, mods, za, bridge, pickOnMap, st, setLayer }) {
+function Travel({ b, mods, za, bridge, pickOnMap, st, setLayer, picked }) {
   const bus = mods.bus || {}, stations = (st?.kiosks || []).filter((k) => k.kind === "bus");
   const status = bus.overrides || {};
   const [sel, setSel] = useState(null);
+  useEffect(() => { if (picked?.kind === "bus") setSel(picked.id); }, [picked]);
+  // stations have pins (clicking one selects it); closed ones get a grey dot, DANGER ones a red ring, the selected one a white ring
   useEffect(() => {
-    setLayer({ dots: stations.map((k) => ({ id: "zb:" + k.id, label: k.name, x: k.x, y: k.y, size: 10,
-      color: k.id === sel ? "#fff" : k.off ? "#666" : (status[k.id] === "danger" ? C.red : C.blue), onClick: () => setSel(k.id) })), rects: [] });
+    setLayer({ dots: stations.filter((k) => k.off || k.id === sel || status[k.id] === "danger").map((k) => ({ id: "zb:" + k.id,
+      label: k.off ? `${k.name} (closed)` : "", x: k.x, y: k.y, size: k.id === sel ? 22 : 16,
+      color: k.id === sel ? "#fff" : k.off ? "#666" : C.red, onClick: () => setSel(k.id) })), rects: [] });
   }, [st, sel, b]);
-  const k = stations.find((x) => x.id === sel);
+  const k = stations.find((x) => x.id === sel) || (picked?.kind === "bus" && picked.id === sel ? { id: picked.id, name: picked.name, x: picked.x, y: picked.y } : null);
   const towns = list(b.town);
   return (<>
     <Box title="Bus stations" right={<Note>{stations.length} · {n(bus.tripCount)} trips · {n(bus.ticketsSpent)} tickets</Note>}>
-      {!k && <Note>Click a station on the map (blue dots; red = marked DANGER).</Note>}
+      {!k && <Note>Click a station on the map (blue pins; red ring = marked DANGER, grey = closed).</Note>}
       {k && <>
         <KV k={k.name} v={`${k.x}, ${k.y}${k.off ? " · CLOSED" : ""} · ${status[k.id] || "status unknown"}`} color={C.blue} />
         <Row>

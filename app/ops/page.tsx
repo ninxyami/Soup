@@ -89,6 +89,7 @@ export default function OpsPage() {
   const [mode, setModeState] = useState("live");
   const [ztab, setZtabState] = useState("overview");
   const [zLayer, setZLayer] = useState({ dots: [], rects: [] });
+  const [zPicked, setZPicked] = useState(null);      // a shop / station pin clicked on the map while in Zombita mode
   const [wide, setWide] = useState(false);
   useEffect(() => { setModeState(remembered("soup-ops-mode", "live")); setZtabState(remembered("soup-ops-ztab", "overview")); }, []);
   const setMode = useCallback((m) => { setModeState(m); remember("soup-ops-mode", m); setPick(null); }, []);
@@ -331,7 +332,12 @@ export default function OpsPage() {
       <div style={{ flex: 1, minHeight: 0, display: "flex" }}>
         <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", cursor: pick ? "crosshair" : "default" }}>
           {err ? <div style={{ ...mono, padding: 30, color: C.red }}>{err}</div> :
-            <WorldMap places={livePlaces} hidden={hiddenKinds} dots={dots} rects={rects} onMapClick={onMapClick} />}
+            <WorldMap places={livePlaces} hidden={hiddenKinds} dots={dots} rects={rects} onMapClick={onMapClick}
+              onPlaceClick={(p) => {
+                if (mode !== "zombita" || (p.kind !== "shop" && p.kind !== "bus")) return;
+                setZPicked({ kind: p.kind, id: p.id, name: p.name, x: p.x, y: p.y, t: Date.now() });
+                setZtab(p.kind === "bus" ? "travel" : "shops");
+              }} />}
         </div>
         <aside style={{ width: mode === "zombita" && wide ? 640 : 400, maxWidth: mode === "zombita" && wide ? "62vw" : "48vw", minWidth: 0, overflowX: "hidden",
           borderLeft: `1px solid ${C.line}`, display: "flex", flexDirection: "column", background: C.panel }}>
@@ -344,7 +350,7 @@ export default function OpsPage() {
             ))}
           </div>
           {mode === "zombita" ? <ZombitaControl act={act} setPick={setPick} st={st} players={players} setLayer={setZLayer} setWide={setWide}
-            tab={ztab} setTab={setZtab} /> : <>
+            tab={ztab} setTab={setZtab} picked={zPicked} /> : <>
           <div style={{ display: "flex", flexWrap: "wrap", borderBottom: `1px solid ${C.line}` }}>
             {[["players", `Players (${players.length})`], ["safehouses", `Safehouses (${safehouses.length})`], ["factions", "Factions"], ["cars", `Cars (${(st?.vehicles || []).length})`], ["world", "World"], ["places", "Places"],
               ["markers", `Markers (${(st?.markers || []).length})`], ["chat", "Chat"], ["log", "Log"]].map(([k, l]) => (
