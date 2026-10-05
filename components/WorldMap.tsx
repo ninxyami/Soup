@@ -250,6 +250,13 @@ const carFace = (angle) => {
   const h = ((CAR_HEADING_SIGN * angle + CAR_HEADING_OFFSET) * Math.PI) / 180;
   return [Math.sin(h), -Math.cos(h)];
 };
+// Figures drawn by render version 4+ have a walk cycle: row 0 standing, rows 1..n one loop of the stance's walk clip
+// (0.667 s); older sheets have the one row. The rows come from the image height (a frame is 192 x 256).
+const WALK_LOOP_MS = 667;
+const rowsOf = (im) => Math.max(1, Math.round(im.naturalHeight / ((im.naturalWidth / 8) * 256 / 192)));
+// Zombies for the admin view (2026-10-05, /api/map/zombies): the game's own zombie skins, clothes, blood and idle pose,
+// drawn once by the map kit (figures/make_zombie_sheets.py) and kept with the site
+const ZED_SHEETS = { m: "/map/zeds/zed_m.webp", f: "/map/zeds/zed_f.webp", crawl: "/map/zeds/zed_crawl.webp" };
 const PROPS = {
   shop: { src: "/map/sprites/zombita_kiosk_0.png", ox: -64, oy: -152 },
   bus:  { src: "/map/sprites/zombita_bus_0.png",   ox: -64, oy: -111 },
@@ -857,7 +864,7 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
       seen.add(d.id);
       const to = [d.x + 0.5, d.y + 0.5, d.z || 0];
       const it = st.items.get(d.id);
-      if (!it) { st.items.set(d.id, { from: to, to, t0: now, dur: 0, last: now, face: ownFace, look: img, car: !!car, person: d.look }); }
+      if (!it) { st.items.set(d.id, { from: to, to, t0: now, dur: 0, last: now, face: ownFace, look: img, car: !!car, person: d.look, walking: false }); }
       else {
         const cur = at(it, now);
         const dx = to[0] - cur[0], dy = to[1] - cur[1], dist = Math.hypot(dx, dy);
@@ -866,7 +873,7 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
         // sends each client's real facing); standing: the reported facing
         const face = !jump && dist > 0.6 ? [dx / dist, dy / dist] : (ownFace || it.face);
         Object.assign(it, { from: jump ? to : [cur[0], cur[1]], to, t0: now, dur: jump ? 0 : Math.min(7000, Math.max(800, now - it.last)),
-          last: now, face, look: img, car: !!car, person: d.look });
+          last: now, face, look: img, car: !!car, person: d.look, walking: !jump && dist > 0.6 });
       }
       // in a car: the person's own figure is loaded too, drawn if the car can't be (a mod car the box can't draw)
       for (const key of car && d.look ? [d.look] : []) if (!st.imgs.has(key)) {
@@ -889,6 +896,49 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
     st.req && st.req();
   }, [dots]);
 
+  // Parked cars + zombies (2026-10-05, mod 1.7.124 + livemap_world_patch): admins see every parked car (with its
+  // owner) and every zombie; a logged-in player only their own claimed cars. Not logged in / no rights / an older bot:
+  // the endpoint says so once and isn't asked again. Their figures come from the same box renderer (car_<key>.webp).
+  const worldRef = useRef<any>({ cars: [], zeds: [], admin: false });
+  useEffect(() => {
+    if (view !== "3d") return;
+    const fig = figRef.current;
+    let alive = true, carsOn = true, zedsOn = true;
+    const want = (key) => {
+      if (fig.imgs.has(key)) return;
+      const im = new Image();
+      im.onload = () => fig.req && fig.req();
+      im.onerror = () => setTimeout(() => fig.imgs.delete(key), 60000);       // a parked car the box hasn't drawn yet
+      im.src = `${ISO_BASE}/figures/${key}.webp`;
+      fig.imgs.set(key, im);
+    };
+    const ask = async (path) => {
+      const r = await fetch(`${API}${path}`, { credentials: "include" });
+      if (r.status === 401 || r.status === 403 || r.status === 404) return false;
+      return r.ok ? r.json() : null;
+    };
+    const tick = async () => {
+      if (carsOn) try {
+        const d = await ask("/api/map/cars");
+        if (d === false) carsOn = false;
+        else if (d && alive) {
+          worldRef.current.cars = (d.cars || []).filter((c) => Number.isFinite(c.x) && /^\d+$/.test(String(c.car)));
+          worldRef.current.admin = !!d.admin;
+          for (const c of worldRef.current.cars) want(`car_${c.car}`);
+        }
+      } catch {}
+      if (zedsOn) try {
+        const d = await ask("/api/map/zombies");
+        if (d === false) zedsOn = false;
+        else if (d && alive) worldRef.current.zeds = Array.isArray(d.zombies) ? d.zombies : [];
+      } catch {}
+      fig.req && fig.req();
+    };
+    tick();
+    const iv = setInterval(() => { if (carsOn || zedsOn) tick(); }, 10000);
+    return () => { alive = false; clearInterval(iv); };
+  }, [view]);
+
   // kiosks, stations and player figures (3D only, close enough to see them), drawn together back to front so a player
   // in front of a kiosk covers it and one behind is covered
   useEffect(() => {
@@ -898,6 +948,8 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
     let alive = true, queued = false, OSD = null;
     const imgs = {};
     for (const [kind, p] of Object.entries(PROPS)) { const im = new Image(); im.onload = () => req(); im.src = p.src; imgs[kind] = im; }
+    const zimgs = {};
+    for (const [kind, src] of Object.entries(ZED_SHEETS)) { const im = new Image(); im.onload = () => req(); im.src = src; zimgs[kind] = im; }
     import("openseadragon").then((m) => { OSD = m.default; req(); });
     const frameOf = (face, n = 8) => {
       if (!face) return n / 2;                                   // unknown: facing the camera-ish (S)
@@ -924,6 +976,8 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
         list.push({ d: pl.x + pl.y + 1, im, sx: 0, sw: im.naturalWidth, x: ax + P.ox, y: ay + P.oy });
       }
       const t = performance.now();
+      const ok = (m) => !!(m && m.complete && m.naturalWidth);
+      const onFloor = (z) => (F >= 0 ? !(z > F || z < 0) : z === F);
       let moving = false;
       for (const [id, it] of fig.items) {
         const [x, y, z] = fig.at(it, t);
@@ -933,7 +987,6 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
         if (dotEl) try { v.updateOverlay(dotEl, item.imageToViewportCoordinates(new OSD.Point(ax, ay))); } catch {}
         // a new look (picked up a flashlight, changed shirt) takes the box a minute to draw: until it's there the player
         // keeps the last figure that was, not nothing
-        const ok = (m) => !!(m && m.complete && m.naturalWidth);
         let key = it.look, im = fig.imgs.get(key);
         if (ok(im)) it.shown = key;
         else if (it.car && it.person && ok(fig.imgs.get(it.person))) { key = it.person; im = fig.imgs.get(key); }   // no car figure: the person
@@ -945,14 +998,50 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
           list.push({ d: x + y, im, sx: frameOf(it.face, 16) * cw, sw: cw, x: ax - cw / 2, y: ay - im.naturalHeight * 200 / 320 });
           continue;
         }
-        const fw = im.naturalWidth / 8;
-        list.push({ d: x + y, im, sx: frameOf(it.face) * fw, sw: fw, x: ax - fw / 2, y: ay - (im.naturalHeight - 32) });
+        // walking (gliding to the next spot): the walk cycle's rows in turn; standing: row 0
+        const fw = im.naturalWidth / 8, rows = rowsOf(im), fh = im.naturalHeight / rows;
+        const walking = it.walking && rows > 1 && it.dur > 0 && t - it.t0 < it.dur;
+        const row = walking ? 1 + (Math.floor(t / (WALK_LOOP_MS / (rows - 1))) % (rows - 1)) : 0;
+        list.push({ d: x + y, im, sx: frameOf(it.face) * fw, sy: row * fh, sw: fw, sh: fh, x: ax - fw / 2, y: ay - (fh - 32) });
+      }
+      // parked cars (admins: all, with the owner; a player: their own)
+      const wf = worldRef.current;
+      for (const c of wf.cars) {
+        if (!onFloor(c.z)) continue;
+        const im = fig.imgs.get(`car_${c.car}`);
+        if (!ok(im)) continue;
+        const [ax, ay] = w2img(c.x + 0.5, c.y + 0.5, c.z, true);
+        const cw = im.naturalWidth / 16;
+        list.push({ d: c.x + c.y + 1, im, sx: frameOf(carFace(c.angle), 16) * cw, sw: cw, x: ax - cw / 2,
+          y: ay - im.naturalHeight * 200 / 320, label: wf.admin && c.owner ? c.owner : "", lx: ax, ly: ay - 110 });
+      }
+      // zombies (admins): standing, facing the way they face; crawlers on the ground
+      for (const zd of wf.zeds) {
+        const [zx, zy, zz, fx, fy, female, crawl] = zd;
+        if (!onFloor(zz)) continue;
+        const im = zimgs[crawl ? "crawl" : female ? "f" : "m"];
+        if (!ok(im)) continue;
+        const [ax, ay] = w2img(zx + 0.5, zy + 0.5, zz, true);
+        const sx0 = p0.x + ax * k;
+        if (sx0 < -200 || sx0 > W + 200) continue;                     // off screen: skip early (there can be thousands)
+        const fw = im.naturalWidth / 8, fh = im.naturalHeight / rowsOf(im);
+        list.push({ d: zx + zy, im, sx: frameOf(fx || fy ? [fx, fy] : null) * fw, sy: 0, sw: fw, sh: fh, x: ax - fw / 2, y: ay - (fh - 32) });
       }
       list.sort((a, b) => a.d - b.d);
       for (const o of list) {
-        const x = p0.x + o.x * k, y = p0.y + o.y * k, w = o.sw * k, h = o.im.naturalHeight * k;
+        const sh = o.sh || o.im.naturalHeight;
+        const x = p0.x + o.x * k, y = p0.y + o.y * k, w = o.sw * k, h = sh * k;
         if (x > W || y > H || x + w < 0 || y + h < 0) continue;
-        g.drawImage(o.im, o.sx, 0, o.sw, o.im.naturalHeight, x, y, w, h);
+        g.drawImage(o.im, o.sx, o.sy || 0, o.sw, sh, x, y, w, h);
+      }
+      // admins: whose parked car it is
+      g.font = "11px ui-monospace, monospace"; g.textAlign = "center"; g.lineWidth = 3;
+      g.strokeStyle = "rgba(0,0,0,0.75)"; g.fillStyle = "#f2d38a";
+      for (const o of list) {
+        if (!o.label) continue;
+        const x = p0.x + o.lx * k, y = p0.y + o.ly * k;
+        if (x < 0 || x > W || y < 0 || y > H) continue;
+        g.strokeText(o.label, x, y); g.fillText(o.label, x, y);
       }
       if (moving) req();                                           // keep gliding until everyone has arrived
     };
