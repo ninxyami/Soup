@@ -856,7 +856,7 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
       if (!st.imgs.has(d.look)) {
         const im = new Image();
         im.onload = () => st.req && st.req();
-        im.onerror = () => setTimeout(() => st.imgs.delete(d.look), 60000);      // not rendered yet: ask again in a minute
+        im.onerror = () => setTimeout(() => st.imgs.delete(d.look), 15000);      // not rendered yet: ask again soon
         im.src = `${ISO_BASE}/figures/${d.look}.webp`;
         st.imgs.set(d.look, im);
       }
@@ -908,7 +908,11 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
         const [ax, ay] = w2img(x, y, z, true);                       // the square's middle = where the feet stand
         const dotEl = dotEls.current.get(id);                         // the name dot glides with the figure
         if (dotEl) try { v.updateOverlay(dotEl, item.imageToViewportCoordinates(new OSD.Point(ax, ay))); } catch {}
-        const im = fig.imgs.get(it.look);
+        // a new look (picked up a flashlight, changed shirt) takes the box a minute to draw: until it's there the player
+        // keeps the last figure that was, not nothing
+        let im = fig.imgs.get(it.look);
+        if (im && im.complete && im.naturalWidth) it.shown = it.look;
+        else im = it.shown ? fig.imgs.get(it.shown) : null;
         if (!im || !im.complete || !im.naturalWidth) continue;
         if (F >= 0 ? z > F || z < 0 : z !== F) continue;           // above the floor looked at (cut away), or not this basement
         const fw = im.naturalWidth / 8;
