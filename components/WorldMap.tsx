@@ -17,6 +17,7 @@
 // Every world <-> image conversion goes through w2img / img2w below, so dots, boxes, pins, clicks and flyTo work in both.
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { API } from "@/lib/constants";
 
 const TILE_BASE = (process.env.NEXT_PUBLIC_MAP_TILES || "https://api.stateofundeadpurge.site/map-tiles/v1").replace(/\/$/, "");
 // The second look (Nin 2026-10-04: "keep tab to show both styles"): the same world drawn the way the game's paper map
@@ -171,6 +172,13 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
   floorRef.current = floor;
   const camRef = useRef<any>(null);                                 // world centre + zoom kept across a view switch
   const floorItems = useRef<Map<number, any>>(new Map());           // 3D: floor -> tiled image (or "loading")
+  // Seasons (map3d kit run_seasons.sh): the main render is late summer; other seasons are extra floor-0 sets in
+  // seasons/<season>/, listed in seasons.json. The set matching the in-game month is drawn as a "skin" over floor 0
+  // (the main floor 0 is hidden meanwhile, so it loads nothing). ?season=<name> shows one on purpose.
+  const [skin, setSkin] = useState<string | null>(null);            // null = the main render's own floor 0
+  const skinRef = useRef(skin);
+  skinRef.current = skin;
+  const skinItems = useRef<Map<string, any>>(new Map());
 
   useEffect(() => {
     let alive = true;
@@ -373,7 +381,7 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
       } catch {}
       try { viewer && viewer.destroy(); } catch {}
       viewerRef.current = null;
-      dotEls.current.clear(); rectEls.current.clear(); floorItems.current.clear();
+      dotEls.current.clear(); rectEls.current.clear(); floorItems.current.clear(); skinItems.current.clear();
       cartoItem.current = null;
       setReady(false);
     };
@@ -421,18 +429,75 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [look, ready, hasCarto, view]);
 
+  // What's visible and in what order, from the current floor and season: floors 0..current (basements: current..-1),
+  // the season skin in place of floor 0 once it has loaded, draw order lowest floor first with the skin just above
+  // floor 0. Every change (floor picked, a floor or skin finished loading, season switched) runs this.
+  const applyFloors = (v) => {
+    const f = floorRef.current, s = skinRef.current;
+    const ok = (n) => (f >= 0 ? n >= 0 && n <= f : n >= f && n < 0);
+    const sk = s ? skinItems.current.get(s) : null;
+    const skinReady = !!sk && sk !== "loading";
+    const items = [];
+    for (const [n, it] of floorItems.current) {
+      if (!it || it === "loading") continue;
+      it.setOpacity(ok(n) && !(n === 0 && skinReady) ? 1 : 0);
+      items.push([n, it]);
+    }
+    for (const [name, it] of skinItems.current) {
+      if (!it || it === "loading") continue;
+      it.setOpacity(name === s && ok(0) ? 1 : 0);
+      items.push([0.5, it]);
+    }
+    items.sort((a, b) => a[0] - b[0]).forEach(([, it], i) => { try { v.world.setItemIndex(it, i); } catch {} });
+  };
+
+  // which season to show: seasons.json (the sets that exist) + the in-game month from the public player feed
+  useEffect(() => {
+    if (view !== "3d") return;
+    let stop = false;
+    const seasonOf = (m) => (m === 12 || m <= 2 ? "winter" : m <= 5 ? "spring" : m <= 7 ? "summer" : m <= 9 ? "summer2" : "autumn");
+    const load = async () => {
+      try {
+        const [sj, pl] = await Promise.all([
+          fetch(`${ISO_BASE}/seasons.json?t=${Date.now()}`).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+          fetch(`${API}/api/map/players`).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+        ]);
+        if (stop || !sj || !Array.isArray(sj.sets)) return;
+        const main = sj.main || "summer2";
+        let want = null;
+        try { want = new URLSearchParams(window.location.search).get("season"); } catch {}
+        if (!want && pl && pl.game && pl.game.month) want = seasonOf(Number(pl.game.month));
+        setSkin(want && want !== main && sj.sets.includes(want) ? want : null);
+      } catch {}
+    };
+    load();
+    const t = setInterval(load, 5 * 60000);
+    return () => { stop = true; clearInterval(t); };
+  }, [view]);
+
+  // load the chosen season's floor 0 the first time it's needed
+  useEffect(() => {
+    const v = viewerRef.current; if (!ready || !v || view !== "3d") return;
+    const base = floorItems.current.get(0);
+    if (!base || base === "loading") return;
+    if (skin && !skinItems.current.has(skin)) {
+      skinItems.current.set(skin, "loading");
+      v.addTiledImage({
+        tileSource: `${ISO_BASE}/seasons/${skin}/layer0.dzi`, x: 0, width: base.getBounds().width, opacity: 0,
+        success: (e) => { if (viewerRef.current !== v) return; skinItems.current.set(skin, e.item); applyFloors(v); },
+        error: () => { skinItems.current.delete(skin); },
+      });
+    }
+    applyFloors(v);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, view, skin]);
+
   // 3D floors: ground and up to the chosen floor stacked (a basement shows itself and the basements above it, no
   // ground). Each floor is its own image, added the first time it's needed, then shown / hidden.
   useEffect(() => {
     const v = viewerRef.current; if (!ready || !v || view !== "3d") return;
     const base = floorItems.current.get(0);
     if (!base || base === "loading") return;
-    const shown = (L) => (floor >= 0 ? L >= 0 && L <= floor : L >= floor && L < 0);
-    const order = () => {                 // draw order = floor order, lowest first (item 0 stays a floor-sized image)
-      const items = [...floorItems.current.entries()].filter(([, it]) => it && it !== "loading").sort((a, b) => a[0] - b[0]);
-      items.forEach(([, it], i) => { try { v.world.setItemIndex(it, i); } catch {} });
-    };
-    for (const [L, it] of floorItems.current) if (it && it !== "loading") it.setOpacity(shown(L) ? 1 : 0);
     const lo = floor >= 0 ? 1 : floor, hi = floor >= 0 ? floor : -1;
     for (let L = lo; L <= hi; L++) {
       if (floorItems.current.has(L)) continue;
@@ -442,15 +507,13 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
         success: (e) => {
           if (viewerRef.current !== v) return;
           floorItems.current.set(L, e.item);
-          // the floor may have changed while this loaded: show / hide by the current one
-          const f = floorRef.current, ok = (n) => (f >= 0 ? n >= 0 && n <= f : n >= f && n < 0);
-          for (const [n, it] of floorItems.current) if (it && it !== "loading") it.setOpacity(ok(n) ? 1 : 0);
-          order();
+          applyFloors(v);         // the floor may have changed while this loaded: show / hide by the current one
         },
         error: () => { floorItems.current.delete(L); },
       });
     }
-    order();
+    applyFloors(v);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, view, floor]);
 
   // place pins (OSD overlays follow pan/zoom by themselves); on the ground in 3D
