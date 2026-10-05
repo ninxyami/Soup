@@ -76,6 +76,10 @@ const CSS = `
 .wm-rect svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
 .wm-bases{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);z-index:3;font:11px var(--mono,monospace);color:#cfd3da;background:rgba(11,13,16,.92);border:1px solid #2a2f37;padding:4px 10px;border-radius:3px;pointer-events:none;white-space:nowrap;max-width:calc(100% - 140px);overflow:hidden;text-overflow:ellipsis}
 .wm-bases b{color:#c8a84b;font-weight:600}
+.wm-clock{position:absolute;left:50%;top:10px;transform:translateX(-50%);z-index:4;font:600 12px var(--mono,monospace);letter-spacing:.5px;color:#e6e6e6;background:rgba(11,13,16,.92);border:1px solid #2a2f37;border-radius:3px;padding:5px 12px;cursor:pointer;box-shadow:0 1px 6px rgba(0,0,0,.5);white-space:nowrap}
+.wm-clock span{color:#9aa;font-weight:400;margin-left:6px}
+.wm-clock.off{color:#777}
+.wm-tint{position:absolute;inset:0;pointer-events:none;mix-blend-mode:multiply;transition:background-color 8s linear}
 .wm-coords{position:absolute;left:10px;bottom:10px;font:12px var(--mono,monospace);color:#cfd3da;background:rgba(11,13,16,.92);padding:4px 8px;border-radius:3px;pointer-events:none}
 .wm-tip{position:absolute;pointer-events:none;background:rgba(10,13,16,.95);border:1px solid #2a2f37;padding:6px 9px;font:12px var(--mono,monospace);color:#e6e6e6;border-radius:3px;z-index:5;max-width:260px}
 .wm-tip b{color:#c8a84b}
@@ -106,6 +110,32 @@ const basesLine = (b, now) => {
 };
 
 const floorName = (f) => (f === 0 ? "Ground" : f > 0 ? `Floor ${f}` : `Basement ${-f}`);
+
+// ── In-game light (Nin 2026-10-05, approved mock-up): the map dims and tints with the game clock. The map canvas gets
+// saturate/brightness, and a multiply layer sits between the map and the pins, so names and dots stay readable.
+// Looks: day, dawn, evening (warm), night (dark blue-grey, colours drained). Sunrise / sunset move with the month.
+const LOOKS = {
+  day:     { sat: 1,    bri: 1,    tint: [255, 255, 255], amt: 0 },
+  dawn:    { sat: 0.9,  bri: 0.85, tint: [255, 185, 130], amt: 0.35 },
+  evening: { sat: 1,    bri: 0.85, tint: [255, 150, 80],  amt: 0.55 },
+  night:   { sat: 0.55, bri: 0.55, tint: [70, 95, 170],   amt: 0.75 },
+};
+const SUN = { 1: [7.5, 17.5], 2: [7, 18], 3: [7, 19.5], 4: [6.5, 20], 5: [6, 20.5], 6: [6, 21], 7: [6, 21],
+  8: [6.5, 20.5], 9: [7, 19.5], 10: [7.5, 19], 11: [7, 17.5], 12: [7.5, 17.5] };
+const lightAt = (hour, month) => {
+  const [rise, set] = SUN[month] || [6.5, 20];
+  const K = [[rise - 1.5, "night"], [rise - 0.25, "dawn"], [rise + 1, "day"], [set - 1.5, "day"], [set, "evening"], [set + 1.25, "night"]];
+  if (hour <= K[0][0] || hour >= K[K.length - 1][0]) return LOOKS.night;
+  for (let i = 1; i < K.length; i++) {
+    if (hour <= K[i][0]) {
+      const a = LOOKS[K[i - 1][1]], b = LOOKS[K[i][1]], t = (hour - K[i - 1][0]) / (K[i][0] - K[i - 1][0]);
+      const mix = (x, y) => x + (y - x) * t;
+      return { sat: mix(a.sat, b.sat), bri: mix(a.bri, b.bri), amt: mix(a.amt, b.amt), tint: a.tint.map((c, j) => mix(c, b.tint[j])) };
+    }
+  }
+  return LOOKS.day;
+};
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const svgNS = "http://www.w3.org/2000/svg";
 // OpenSeadragon grabs the pointer on press (to drag the map), so the click then lands on its canvas and never on a
 // pin (Live Ops: shop pins in Zombita mode did nothing, 2026-10-04). A clickable overlay keeps its press to itself;
@@ -407,6 +437,68 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
     return () => { stop = true; clearInterval(t); clearInterval(tick); };
   }, [view]);
 
+  // ── game clock + light ──
+  // The public player feed carries the in-game date/time (mod 1.7.110+). Between polls the clock runs on at the
+  // rate measured from the last two samples (this server: 1 real hour = 1 game day); frozen while the feed is stale
+  // (the server pauses when empty). Clicking the clock turns the light off / on (remembered per visitor).
+  const [game, setGame] = useState<any>(null);       // { year, month, day, mins, at, rate }
+  const [clockNow, setClockNow] = useState(() => Date.now());
+  const [lightOn, setLightOn] = useState(() => { try { return localStorage.getItem("soup-map-light") !== "off"; } catch { return true; } });
+  const tintRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    let stop = false;
+    const load = () => fetch(`${API}/api/map/players`).then((r) => (r.ok ? r.json() : null)).then((d) => {
+      if (stop || !d || !d.game) return;
+      const g = d.game, mins = (Number(g.hour) || 0) * 60 + (Number(g.minute) || 0), at = Date.now();
+      setGame((prev) => {
+        let rate = prev ? prev.rate : 0.4;                       // game minutes per real second
+        if (prev && prev.day === g.day && at > prev.at) {
+          const dm = mins - prev.mins, ds = (at - prev.at) / 1000;
+          if (dm > 0 && ds > 3) rate = Math.min(4, dm / ds);
+        }
+        return { year: g.year, month: Number(g.month) || 7, day: Number(g.day) || 1, mins, at, rate: d.stale ? 0 : rate };
+      });
+    }).catch(() => {});
+    load();
+    const t = setInterval(load, 15000);
+    const tick = setInterval(() => setClockNow(Date.now()), 2500);
+    return () => { stop = true; clearInterval(t); clearInterval(tick); };
+  }, []);
+  // ?time=23:00 (and optional &month=12) previews the light at that hour
+  const timeOverride = useMemo(() => {
+    try {
+      const p = new URLSearchParams(window.location.search), t = p.get("time");
+      if (!t) return null;
+      const [h, m] = t.split(":").map(Number);
+      return { month: Number(p.get("month")) || null, mins: (h || 0) * 60 + (m || 0) };
+    } catch { return null; }
+  }, []);
+  const gameNow = useMemo(() => {
+    if (timeOverride) return { month: timeOverride.month || game?.month || 7, day: game?.day || 1, mins: timeOverride.mins };
+    if (!game) return null;
+    let m = game.mins + ((clockNow - game.at) / 1000) * game.rate, day = game.day;
+    if (m >= 1440) { m -= 1440; day += 1; }                  // a poll catches the month change
+    return { month: game.month, day, mins: m };
+  }, [game, clockNow]);
+
+  // paint the light: canvas filter (colour, brightness) + the multiply layer between the map and the pins
+  useEffect(() => {
+    const v = viewerRef.current; if (!ready || !v || !v.drawer || !v.drawer.canvas) return;
+    const canvas = v.drawer.canvas;
+    if (!tintRef.current || !tintRef.current.isConnected) {
+      const div = document.createElement("div");
+      div.className = "wm-tint";
+      v.overlaysContainer.parentNode.insertBefore(div, v.overlaysContainer);
+      tintRef.current = div;
+      canvas.style.transition = "filter 8s linear";
+    }
+    const L = lightOn && gameNow ? lightAt(gameNow.mins / 60, gameNow.month) : LOOKS.day;
+    canvas.style.filter = L.amt > 0.001 || L.bri < 0.999 ? `saturate(${L.sat.toFixed(3)}) brightness(${L.bri.toFixed(3)})` : "";
+    const c = L.tint.map((x) => Math.round(255 - L.amt * (255 - x)));
+    tintRef.current.style.backgroundColor = `rgb(${c[0]},${c[1]},${c[2]})`;
+  }, [ready, lightOn, gameNow]);
+  useEffect(() => { try { localStorage.setItem("soup-map-light", lightOn ? "on" : "off"); } catch {} }, [lightOn]);
+
   // is the second look on the server yet?
   useEffect(() => {
     fetch(`${CARTO_BASE}/map.dzi`, { method: "HEAD" }).then((r) => setHasCarto(r.ok)).catch(() => setHasCarto(false));
@@ -690,6 +782,13 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
         </div>
       )}
       {view === "3d" && bases && <div className="wm-bases">{basesLine(bases, nowS)}</div>}
+      {ready && gameNow && (
+        <button className={`wm-clock${lightOn ? "" : " off"}`} onClick={() => setLightOn((x) => !x)}
+          title={lightOn ? "In-game time. The map follows day and night; click to keep it in daylight." : "In-game time. Click to show day and night on the map."}>
+          {gameNow.day} {MONTHS[(gameNow.month - 1 + 12) % 12]}, {String(Math.floor(gameNow.mins / 60)).padStart(2, "0")}:{String(Math.floor(gameNow.mins % 60)).padStart(2, "0")}
+          <span>{lightOn ? "" : "daylight"}</span>
+        </button>
+      )}
       {coords && <div className="wm-coords">x {coords.x} &middot; y {coords.y}{view === "3d" ? <> &middot; {floorName(floor).toLowerCase()}</> : null}</div>}
       {tip && (
         <div className="wm-tip" style={{ left: tip.left, top: tip.top }}>
