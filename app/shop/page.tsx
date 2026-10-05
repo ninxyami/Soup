@@ -37,6 +37,45 @@ const OWN_ICONS: Record<string, string> = {
   "Zombita.DawnieCoin": "/shop/items/DawnieCoin.png", "Zombita.PinkSlip": "/shop/items/PinkSlip.png",
 };
 
+// Where keepers actually stand (Nin 2026-10-05: a kiosk's town "by which town its placed"): admins move kiosks, so
+// the lists above are only the fallback. The live kiosk list (/api/map/kiosks) + the map's town labels give each
+// keeper's towns now, with the same rule as the mod (ZS_Towns.lua): the nearest town centre within 1500 squares.
+type LiveTowns = { byNpc: Record<string, string[]>; count: Record<string, number>; stores: number; towns: number };
+const TOWN_FIX: Record<string, string> = { "Westpoint": "West Point", "HavenFall": "Havenfall" };
+function townAt(x: number, y: number, towns: { name: string; x: number; y: number }[]): string | null {
+  let best: string | null = null, bestD = 1500 * 1500;
+  for (const t of towns) {
+    const d = (x - t.x) ** 2 + (y - t.y) ** 2;
+    if (d <= bestD) { best = t.name; bestD = d; }
+  }
+  return best;
+}
+async function loadLiveTowns(): Promise<LiveTowns | null> {
+  try {
+    const [k, pl] = await Promise.all([
+      fetch(`${API}/api/map/kiosks`).then((r) => (r.ok ? r.json() : null)),
+      fetch("/map/places.json").then((r) => (r.ok ? r.json() : null)),
+    ]);
+    const towns = ((pl && pl.places) || []).filter((p: any) => p.kind === "town")
+      .map((p: any) => ({ name: TOWN_FIX[p.name] || p.name, x: Number(p.x), y: Number(p.y) }));
+    const kiosks = ((k && k.kiosks) || []).filter((q: any) => q.kind === "shop" && !q.off && Number.isFinite(Number(q.x)));
+    if (!towns.length || !kiosks.length) return null;
+    const byNpc: Record<string, string[]> = {};
+    const count: Record<string, number> = {};
+    const all = new Set<string>();
+    for (const q of kiosks) {
+      count[q.name] = (count[q.name] || 0) + 1;
+      const t = townAt(Number(q.x), Number(q.y), towns) || "the wilds";
+      const list = (byNpc[q.name] = byNpc[q.name] || []);
+      if (!list.includes(t)) list.push(t);
+      all.add(t);
+    }
+    return { byNpc, count, stores: kiosks.length, towns: all.size };
+  } catch {
+    return null;
+  }
+}
+
 const ALL = "__all__";
 
 const TIER_COLOR: Record<string,string> = {
@@ -224,6 +263,19 @@ export default function ShopPage() {
   const [treasury,  setTreasury]  = useState<Treasury|null>(null);
   const [active,    setActive]    = useState<string>("weapons");
   const [loading,   setLoading]   = useState(true);
+  const [live,      setLive]      = useState<LiveTowns | null>(null);
+  useEffect(() => { loadLiveTowns().then(setLive); }, []);
+  const where = (npc: string, fallback: string) => {
+    if (!live) return fallback;
+    if (npc === "Six keepers") {                     // the General Stores card: count the six keepers' live kiosks
+      const towns = new Set<string>();
+      let stores = 0;
+      for (const k of GENERAL_KEEPERS) { for (const t of live.byNpc[k.npc] || []) towns.add(t); stores += live.count[k.npc] || 0; }
+      return towns.size ? `${stores} stores in ${towns.size} towns` : fallback;
+    }
+    const list = live.byNpc[npc];
+    return list && list.length ? list.join(", ") : fallback;
+  };
   const [search,    setSearch]    = useState("");
   const [page,      setPage]      = useState(1);
 
@@ -393,7 +445,7 @@ export default function ShopPage() {
                 {isAll ? "Search the whole network - each result shows its keeper" : `${shop!.npc} · ${shop!.role}`}
               </div>
               <div className="font-mono text-[0.6rem] text-[#3a3a3a]">
-                {isAll ? "🗺️ Items are only sold by their own keeper" : `📍 ${shop!.location}`}
+                {isAll ? "🗺️ Items are only sold by their own keeper" : `📍 ${where(shop!.npc, shop!.location)}`}
               </div>
             </div>
             {!isAll && (
@@ -414,7 +466,7 @@ export default function ShopPage() {
                 {GENERAL_KEEPERS.map(k => (
                   <div key={k.npc} className="font-mono text-[0.62rem] leading-relaxed">
                     <span className="text-[#c8cdd6]">{k.npc}</span>
-                    <span className="text-[#444]"> · {k.towns.join(", ")}</span>
+                    <span className="text-[#444]"> · {where(k.npc, k.towns.join(", "))}</span>
                   </div>
                 ))}
               </div>
@@ -492,7 +544,7 @@ export default function ShopPage() {
                 ? "💡 Every item is sold by its own keeper - the card tells you whose shop to visit."
                 : active === "global"
                   ? <>💡 Every general store shows its <strong style={{color:"#555"}}>own part</strong> of this list (it changes with each rotation) - the ★ items are in all of them. Stand at the kiosk and right-click it.</>
-                  : <>💡 Go to <strong style={{color:"#555"}}>{shop!.npc}</strong>&apos;s kiosk in {shop!.location} and right-click it. Prices shown include dynamic adjustments.</>}
+                  : <>💡 Go to <strong style={{color:"#555"}}>{shop!.npc}</strong>&apos;s kiosk in {where(shop!.npc, shop!.location)} and right-click it. Prices shown include dynamic adjustments.</>}
             </p>
           </div>
         </div>
