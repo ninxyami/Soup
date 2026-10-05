@@ -100,6 +100,12 @@ function OpsInner() {
   const [trailPts, setTrailPts] = useState(null);       // { player, points } drawn on the map
   const [spot, setSpot] = useState(null);               // { x, y, for } a spot picked for the World tools
   const [moveK, setMoveK] = useState(null);             // { kind, id, name } a shop / station being moved
+  const [carT, setCarT] = useState(null);               // the car being inspected: { player | vid | sid, label } (mod 1.7.133)
+  useEffect(() => {
+    const on = (e) => { setCarT(e.detail); setMode("live"); };
+    window.addEventListener("ops-inspect-car", on);
+    return () => window.removeEventListener("ops-inspect-car", on);
+  }, []);
   const [admins, setAdmins] = useState([]);             // other admins on /ops right now
   const [meId, setMeId] = useState("");
   // places on/off per kind, like /map (the map hides them with CSS; one object per switch so it doesn't redraw)
@@ -302,7 +308,10 @@ function OpsInner() {
 
   // map clicks: pick a teleport spot, or two corners of a safehouse box
   const onMapClick = useCallback((w) => {
-    if (!pick) return;
+    if (!pick) {
+      if (w.car) setCarT({ sid: w.car.id, label: `${String(w.car.owner || "").trim() ? w.car.owner + "'s car" : "Car"} at ${w.car.x}, ${w.car.y}` });
+      return;
+    }
     if (pick.mode === "z") {                 // a Zombita mode tool asked for a spot (it may ask for the next one)
       const cb = pick.cb;
       setPick(null);
@@ -447,6 +456,7 @@ function OpsInner() {
             ))}
           </div>
           <div style={{ flex: 1, overflowY: "auto", padding: 12 }}>
+            {carT && <CarInspect key={JSON.stringify(carT)} t={carT} act={act} players={players} onClose={() => setCarT(null)} />}
             {tab === "players" && <PlayersTab players={players} selP={selP} setSelP={setSelP} selPlayer={selPlayer} act={act} setPick={setPick} safehouses={safehouses}
               cars={st?.vehicles || []} trailPts={trailPts} setTrailPts={setTrailPts} />}
             {tab === "safehouses" && <SafehousesTab safehouses={safehouses} selected={selected} setSelS={setSelS} shKey={shKey} draft={draft} setDraft={setDraft}
@@ -766,11 +776,15 @@ function PlayerExtras({ p, act, cars, trailPts, setTrailPts }) {
         <div key={c.id} style={{ ...mono, fontSize: 12, display: "flex", gap: 6, alignItems: "center" }}>
           <a style={{ flex: 1, cursor: "pointer" }} onClick={() => flyTo(c.x, c.y, 1)}>{String(c.model).replace(/^Base\./, "")} <span style={{ color: C.grey }}>{c.x}, {c.y}</span></a>
           <Btn small onClick={() => act("teleport", { player: p.name, tx: c.x, ty: c.y, tz: 0 })}>Go to it</Btn>
+          <Btn small onClick={() => inspectCar({ vid: c.id, label: `${p.name}'s ${String(c.model).replace(/^Base\./, "")}` })}>Inspect</Btn>
           <Btn small onClick={() => act("veh_repair", { vid: c.id })}>Repair</Btn>
           <Btn small onClick={() => act("veh_flip", { vid: c.id })}>Flip</Btn>
         </div>
       ))}
-      <Btn small onClick={() => act("veh_flip", { player: p.name })}>Flip the car next to them</Btn>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        <Btn small onClick={() => inspectCar({ player: p.name, label: `The car next to ${p.name}` })}>Inspect the car next to them</Btn>
+        <Btn small onClick={() => act("veh_flip", { player: p.name })}>Flip the car next to them</Btn>
+      </div>
       <div style={{ display: "flex", gap: 6 }}>
         <input style={inp} list="ops-veh" placeholder="Spawn a car next to them: Base.CarNormal" value={veh}
           onFocus={async () => { if (!scripts.length) try { setScripts((await api("/api/admin/ops/vehicle-scripts")).scripts || []); } catch {} }}
@@ -795,6 +809,109 @@ function PlayerExtras({ p, act, cars, trailPts, setTrailPts }) {
   );
 }
 
+// ── inspect a car (mod 1.7.133 ZO_Cars + the bot's GET /api/admin/ops/car) ─────────────────────────────
+// Kybo, 2026-10-05: "why i cant use the vehicle eventho i already hotwire". The game reads the car (it has to be loaded:
+// someone near it), says why it won't go, and every fix rewrites the report, so this card re-reads it after each one.
+function inspectCar(t) { window.dispatchEvent(new CustomEvent("ops-inspect-car", { detail: t })); }
+
+function carQuery(t) {
+  if (t.player) return `player=${encodeURIComponent(t.player)}`;
+  if (t.vid != null) return `vid=${encodeURIComponent(t.vid)}`;
+  return `sid=${encodeURIComponent(t.sid)}`;
+}
+
+function CarInspect({ t, act, players, onClose }) {
+  const [rep, setRep] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState("");
+  const [keyTo, setKeyTo] = useState(t.player || "");
+  const target = useMemo(() => (t.player ? { player: t.player } : t.vid != null ? { vid: t.vid } : { sid: t.sid }), [t]);
+  const read = useCallback(async () => {
+    try { setRep(await api(`/api/admin/ops/car?${carQuery(t)}`)); setNote(""); }
+    catch (e) { setNote(e.status === 404 ? "No report yet." : e.message); }
+  }, [t]);
+  const inspect = useCallback(async () => {
+    setBusy(true);
+    try { await act("car_inspect", target, read); } finally { setBusy(false); }
+  }, [act, target, read]);
+  useEffect(() => { inspect(); }, [inspect]);
+  const fix = (cmd, extra = {}, ask = "") => { if (ask && !confirm(ask)) return; act(cmd, { ...target, ...extra }, read); };
+  const h = { ...mono, fontSize: 10, color: C.grey, textTransform: "uppercase", letterSpacing: 1, marginTop: 6 };
+  const bar = (label, v, right = null) => {
+    const n = Math.max(0, Math.min(100, Math.round(Number(v) || 0)));
+    return (
+      <div style={{ display: "flex", gap: 6, alignItems: "center", ...mono, fontSize: 11 }}>
+        <span style={{ width: 92, color: C.grey }}>{label}</span>
+        <span style={{ flex: 1, height: 6, background: "#222", borderRadius: 3 }}>
+          <span style={{ display: "block", height: 6, width: `${n}%`, borderRadius: 3, background: n < 25 ? C.red : n < 60 ? C.gold : C.green }} />
+        </span>
+        <span style={{ width: 34, textAlign: "right" }}>{n}%</span>
+        {right}
+      </div>
+    );
+  };
+  const r = rep;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: "9px 10px", marginBottom: 12, background: C.bg, border: `1px solid ${C.blue}`, borderRadius: 3 }}>
+      <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+        <div style={{ ...mono, fontSize: 12, color: C.blue, flex: 1 }}>INSPECT · {t.label || "car"}</div>
+        <Btn small disabled={busy} onClick={inspect}>{busy ? "..." : "Refresh"}</Btn>
+        <Btn small color={C.red} onClick={onClose}>× Close</Btn>
+      </div>
+      {!r ? <div style={{ ...mono, fontSize: 12, color: C.grey }}>{busy ? "Asking the game..." : note || "No report."} The car has to be loaded (someone near it).</div> : (<>
+        <div style={{ ...mono, fontSize: 12 }}>
+          <a style={{ cursor: "pointer" }} onClick={() => flyTo(r.x, r.y, 1)}>{String(r.script || "").replace(/^Base\./, "")}</a>
+          <span style={{ color: C.grey }}> · {r.x}, {r.y}{r.owner ? ` · claimed by ${r.owner}` : " · not claimed"}{r.driver ? ` · ${r.driver} driving` : ""}{r.age != null ? ` · ${r.age}s old` : ""}</span>
+        </div>
+        {(r.problems || []).length ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <div style={{ ...h, color: C.red, marginTop: 0 }}>Why it won't go</div>
+            {r.problems.map((x, i) => <div key={i} style={{ ...mono, fontSize: 12, color: "#f3b0b0" }}>• {x}</div>)}
+          </div>
+        ) : <div style={{ ...mono, fontSize: 12, color: C.green }}>Nothing wrong found: it should start and drive.</div>}
+        <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+          {bar("Engine", r.engine?.cond)}
+          {bar("Fuel", r.fuel?.pct, <><Btn small onClick={() => fix("car_fuel", { pct: 50 })}>50%</Btn><Btn small onClick={() => fix("car_fuel", { pct: 100 })}>Fill</Btn></>)}
+          {r.battery?.present ? bar("Battery", r.battery.pct, <Btn small onClick={() => fix("car_battery", { pct: 100 })}>Charge</Btn>)
+            : <div style={{ ...mono, fontSize: 11, color: C.red }}>No battery <Btn small onClick={() => fix("car_install", { part: "Battery" })}>Install one</Btn></div>}
+        </div>
+        <div style={{ ...mono, fontSize: 11, color: C.grey }}>
+          engine quality {r.engine?.quality ?? "?"} · power {r.engine?.power ?? "?"} · {r.engine?.running ? "running" : "off"} ·
+          {r.keyIn ? " key in the ignition" : r.hotwired ? " hotwired" : " no key, not hotwired"}{r.hotwireBroken ? " (hotwire broken)" : ""} ·
+          {r.locked ? ` ${r.locked} locked door(s)` : " no locked doors"}
+        </div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          <Btn small color={C.green} onClick={() => fix("car_repair", {}, "Repair everything on this car (all parts to new)?")}>Repair all</Btn>
+          <Btn small onClick={() => fix("car_hotwire")}>Hotwire</Btn>
+          <Btn small disabled={!r.locked} onClick={() => fix("car_unlock")}>Unlock doors</Btn>
+        </div>
+        <div style={{ display: "flex", gap: 6 }}>
+          <input style={inp} list="ops-car-key" placeholder="Give a key to (online player)" value={keyTo} onChange={(e) => setKeyTo(e.target.value)} />
+          <datalist id="ops-car-key">{players.map((pp) => <option key={pp.name} value={pp.name} />)}</datalist>
+          <Btn small disabled={!keyTo.trim()} onClick={() => fix("car_key", { to: keyTo.trim() })}>Give key</Btn>
+        </div>
+        <div style={h}>Parts ({(r.parts || []).length})</div>
+        {(r.parts || []).slice().sort((a, b) => (b.missing - a.missing) || (a.cond - b.cond)).map((pt) => (
+          <div key={pt.id} style={{ display: "flex", gap: 6, alignItems: "center", ...mono, fontSize: 11 }}>
+            <span style={{ width: 130, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: pt.missing ? C.red : C.text }} title={pt.id}>
+              {pt.name}{pt.locked ? " 🔒" : ""}</span>
+            {pt.missing ? <>
+              <span style={{ flex: 1, color: C.red }}>missing</span>
+              <Btn small onClick={() => fix("car_install", { part: pt.id })}>Install</Btn>
+            </> : <>
+              <span style={{ flex: 1, height: 6, background: "#222", borderRadius: 3 }}>
+                <span style={{ display: "block", height: 6, width: `${Math.max(0, Math.min(100, pt.cond))}%`, borderRadius: 3, background: pt.cond < 25 ? C.red : pt.cond < 60 ? C.gold : C.green }} />
+              </span>
+              <span style={{ width: 34, textAlign: "right" }}>{pt.cond}%</span>
+              <Btn small disabled={pt.cond >= 100} onClick={() => fix("car_part", { part: pt.id, cond: 100 })}>Fix</Btn>
+            </>}
+          </div>
+        ))}
+      </>)}
+    </div>
+  );
+}
+
 // ── cars: every claimed car ─────────────────────────────────────────────────
 function CarsTab({ cars, act, players }) {
   const [q, setQ] = useState("");
@@ -814,6 +931,7 @@ function CarsTab({ cars, act, players }) {
           </div>
           <div style={{ color: C.grey, fontSize: 11 }}>{c.x}, {c.y}{c.at ? ` · seen ${new Date(c.at * 1000).toLocaleString()}` : ""}</div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            <Btn small onClick={() => inspectCar({ vid: c.id, label: `${c.owner}'s ${String(c.model).replace(/^Base\./, "")}` })}>Inspect</Btn>
             <Btn small onClick={() => act("veh_repair", { vid: c.id })}>Repair</Btn>
             <Btn small onClick={() => act("veh_flip", { vid: c.id })}>Flip</Btn>
             <Btn small color={C.red} onClick={() => { if (confirm(`Unclaim ${c.owner}'s ${c.model}?`)) act("veh_unclaim", { vid: c.id }); }}>Unclaim</Btn>

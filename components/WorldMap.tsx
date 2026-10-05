@@ -308,7 +308,7 @@ const keepPress = (el, when = () => true) => {
 
 export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hidden = NO_HIDDEN, focus = null, onPlaceClick = null, onMapClick = null }:
   { places?: Place[]; dots?: Dot[]; rects?: Rect[]; hidden?: Record<string, boolean>; focus?: { x: number; y: number; z?: number } | null;
-    onPlaceClick?: ((p: Place) => void) | null; onMapClick?: ((w: { x: number; y: number; z?: number }) => void) | null }) {
+    onPlaceClick?: ((p: Place) => void) | null; onMapClick?: ((w: { x: number; y: number; z?: number; car?: any }) => void) | null }) {
   const host = useRef<HTMLDivElement>(null);
   const wrap = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<any>(null);
@@ -542,7 +542,15 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
         const item = viewer.world.getItemAt(0); if (!item) return;
         const img = item.viewerElementToImageCoordinates(e.position);
         const [x, y] = img2w(img.x, img.y);
-        clickRef.current({ x: Math.floor(x), y: Math.floor(y), z: is3d() ? floorRef.current : 0 });
+        // a parked car under the click (admins' car layer; Live Ops opens it): the nearest within 3 squares on this floor
+        const z = is3d() ? floorRef.current : 0;
+        let car = null, best = 9;
+        for (const c of worldRef.current?.cars || []) {
+          if ((Number(c.z) || 0) !== z) continue;
+          const d = (c.x + 0.5 - x) ** 2 + (c.y + 0.5 - y) ** 2;
+          if (d < best) { best = d; car = c; }
+        }
+        clickRef.current({ x: Math.floor(x), y: Math.floor(y), z, car });
       });
       // shareable view: ?x=&y=&z= (+ v=3d&f=floor) kept in the address bar
       viewer.addHandler("animation-finish", () => {
