@@ -85,6 +85,7 @@ const CSS = `
 .wm-tint{position:absolute;inset:0;pointer-events:none;mix-blend-mode:multiply;transition:background-color 8s linear}
 .wm-fog{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity 6s linear;background:radial-gradient(ellipse at center,rgba(205,210,215,.55) 0%,rgba(205,210,215,.8) 55%,rgba(210,214,218,.95) 100%)}
 .wm-fx{position:absolute;inset:0;pointer-events:none;width:100%;height:100%}
+.wm-props{position:absolute;inset:0;pointer-events:none;width:100%;height:100%}
 .wm-glow{position:absolute;inset:0;pointer-events:none;width:100%;height:100%;mix-blend-mode:color-dodge}
 .wm-bulb{position:absolute;inset:0;pointer-events:none;width:100%;height:100%;mix-blend-mode:screen}
 .wm-flash{position:absolute;inset:0;pointer-events:none;background:#dfe8ff;opacity:0;mix-blend-mode:screen}
@@ -234,6 +235,14 @@ const seasonFromName = (name) => {
   if (s.includes("late") && s.includes("summer")) return "summer2";
   if (s.includes("summer")) return "summer";
   return null;
+};
+// ── Shop kiosks and bus stations in 3D (2026-10-05): the mod puts these down client-side (IsoObject.new near a player),
+// so they are never in the map or the save and the render can't draw them. The site draws the mod's own sprites
+// (unpacked from zombitakiosk.pack / zombitabus.pack) at each place's live position, anchored like the render does:
+// the frame's bottom centre on the square's bottom vertex, offsets from the pack. Under the night tint, over the map.
+const PROPS = {
+  shop: { src: "/map/sprites/zombita_kiosk_0.png", ox: -64, oy: -152 },
+  bus:  { src: "/map/sprites/zombita_bus_0.png",   ox: -64, oy: -111 },
 };
 const svgNS = "http://www.w3.org/2000/svg";
 // OpenSeadragon grabs the pointer on press (to drag the map), so the click then lands on its canvas and never on a
@@ -549,6 +558,7 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
   const [weather, setWeather] = useState<any>(null);  // the feed's "weather" (1.7.119+), null before / older mods
   const fxRef = useRef<any>({ canvas: null, fog: null, flash: null, w: null, raf: 0 });
   // night lights: canvases, darkness 0-1, share of rooms lit, power, index + loaded cells, and the redraw
+  const propsRef = useRef<any>({ canvas: null });
   const litRef = useRef<any>({ glow: null, bulb: null, s: 0, share: 50, power: true, idx: null, cells: new Map(), draw: null });
   useEffect(() => {
     let stop = false;
@@ -602,6 +612,10 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
     const v = viewerRef.current; if (!ready || !v || !v.drawer || !v.drawer.canvas) return;
     const canvas = v.drawer.canvas;
     if (!tintRef.current || !tintRef.current.isConnected) {
+      // kiosks and stations first (under the tint, so night falls on them too)
+      const props = document.createElement("canvas"); props.className = "wm-props";
+      v.overlaysContainer.parentNode.insertBefore(props, v.overlaysContainer);
+      propsRef.current.canvas = props;
       const div = document.createElement("div");
       div.className = "wm-tint";
       v.overlaysContainer.parentNode.insertBefore(div, v.overlaysContainer);
@@ -633,6 +647,7 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
     if (fxRef.current.fog) fxRef.current.fog.style.opacity = String(Math.min(0.7, num(w?.fog) * 0.8));
     fxRef.current.w = w;
     canvas.style.filter = L.amt > 0.001 || L.bri < 0.999 ? `saturate(${L.sat.toFixed(3)}) brightness(${L.bri.toFixed(3)})` : "";
+    if (propsRef.current.canvas) { propsRef.current.canvas.style.transition = canvas.style.transition; propsRef.current.canvas.style.filter = canvas.style.filter; }
     const c = L.tint.map((x) => Math.round(255 - L.amt * (255 - x)));
     tintRef.current.style.backgroundColor = `rgb(${c[0]},${c[1]},${c[2]})`;
   }, [ready, lightOn, gameNow, wxNow]);
@@ -810,6 +825,41 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, view, floor, lightOn]);
+  // kiosks and stations (3D only, ground floor and above, close enough to see them)
+  useEffect(() => {
+    if (!ready || view !== "3d") { const c = propsRef.current.canvas; if (c) c.getContext("2d").clearRect(0, 0, c.width, c.height); return; }
+    const v = viewerRef.current;
+    let alive = true, queued = false, OSD = null;
+    const imgs = {};
+    for (const [kind, p] of Object.entries(PROPS)) { const im = new Image(); im.onload = () => req(); im.src = p.src; imgs[kind] = im; }
+    import("openseadragon").then((m) => { OSD = m.default; req(); });
+    const draw = () => {
+      queued = false;
+      const c = propsRef.current.canvas, item = v && v.world && v.world.getItemAt(0);
+      if (!alive || !c || !item || !OSD) return;
+      const W = c.clientWidth, H = c.clientHeight;
+      if (c.width !== W || c.height !== H) { c.width = W; c.height = H; }
+      const g = c.getContext("2d");
+      g.clearRect(0, 0, W, H);
+      if (floorRef.current < 0) return;                            // a basement view: they stand on the ground
+      const p0 = item.imageToViewerElementCoordinates(new OSD.Point(0, 0));
+      const k = (item.imageToViewerElementCoordinates(new OSD.Point(10000, 0)).x - p0.x) / 10000;
+      if (k * ISO_SQ < 1.2) return;                                // too far out to make one out
+      for (const pl of places) {
+        const P = PROPS[pl.kind], im = imgs[pl.kind];
+        if (!P || !im || !im.complete || !im.naturalWidth || !Number.isFinite(pl.x)) continue;
+        const [ax, ay] = w2img(pl.x + 1, pl.y + 1, 0, true);         // the square's bottom vertex
+        const x = p0.x + (ax + P.ox) * k, y = p0.y + (ay + P.oy) * k, w = im.naturalWidth * k, h = im.naturalHeight * k;
+        if (x > W || y > H || x + w < 0 || y + h < 0) continue;
+        g.drawImage(im, x, y, w, h);
+      }
+    };
+    const req = () => { if (!queued && alive) { queued = true; requestAnimationFrame(() => { try { draw(); } catch { queued = false; } }); } };
+    for (const ev of ["animation", "animation-finish", "resize", "update-viewport"]) v.addHandler(ev, req);
+    req();
+    return () => { alive = false; for (const ev of ["animation", "animation-finish", "resize", "update-viewport"]) try { v.removeHandler(ev, req); } catch {} };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, view, floor, places]);
   useEffect(() => { try { localStorage.setItem("soup-map-light", lightOn ? "on" : "off"); } catch {} }, [lightOn]);
 
   // is the second look on the server yet?
