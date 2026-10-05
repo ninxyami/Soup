@@ -7,6 +7,7 @@
 // Game actions wait while the server is paused (nobody online); bridge ones work any time.
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { API } from "@/lib/constants";
+import PantherTab from "./PantherTab";
 
 const C = { gold: "#c8a84b", blue: "#4a8fc4", green: "#4caf7d", red: "#e05555", purple: "#9775cc", grey: "#9aa", text: "#e6e6e6", bg: "#0b0d10", panel: "#111418", line: "#2a2f37", teal: "#4ab0a8" };
 const mono = { fontFamily: "var(--mono, monospace)" };
@@ -14,7 +15,7 @@ const inp = { ...mono, fontSize: 12, padding: "5px 7px", background: C.bg, color
 
 export const ZTABS = [
   ["overview", "Overview"], ["treasury", "Treasury"], ["shops", "Shops"], ["travel", "Travel"], ["quests", "Quests"],
-  ["events", "Events"], ["areas", "Areas"], ["players", "Players"], ["games", "Games"], ["system", "System"],
+  ["events", "Events"], ["areas", "Areas"], ["players", "Players"], ["games", "Games"], ["system", "System"], ["panther", "Panther"],
 ];
 const WIDE = { treasury: true, players: true, games: true, system: true, overview: true };   // no map work: give the panel room
 
@@ -93,7 +94,8 @@ export default function ZombitaControl({ act, setPick, st, players, setLayer, se
     tick();
     return () => { stop = true; clearTimeout(t); };
   }, [load]);
-  useEffect(() => { setWide(!!WIDE[tab]); }, [tab, setWide]);
+  const [pantherWide, setPantherWide] = useState(true);       // the Panther tab says: wide, except its map tools
+  useEffect(() => { setWide(tab === "panther" ? pantherWide : !!WIDE[tab]); }, [tab, setWide, pantherWide]);
   useEffect(() => () => { setLayer({ dots: [], rects: [] }); setWide(false); }, [setLayer, setWide]);
 
   // every button: run it, then read the board again so the panel shows the result
@@ -130,6 +132,7 @@ export default function ZombitaControl({ act, setPick, st, players, setLayer, se
         {tab === "players" && <PlayersZ {...ctx} />}
         {tab === "games" && <Games {...ctx} />}
         {tab === "system" && <System {...ctx} />}
+        {tab === "panther" && <PantherTab setPick={setPick} setLayer={setLayer} onWide={setPantherWide} />}
       </div>
     </div>
   );
