@@ -81,6 +81,12 @@ const CSS = `
 .wm-clock > div:first-child{box-shadow:0 1px 6px rgba(0,0,0,.6)!important}
 .wm-clock span{font:600 9px var(--mono,monospace);letter-spacing:1px;color:#9aa;background:rgba(11,13,16,.92);border:1px solid #2a2f37;border-radius:3px;padding:1px 6px;text-transform:uppercase}
 .wm-tint{position:absolute;inset:0;pointer-events:none;mix-blend-mode:multiply;transition:background-color 8s linear}
+.wm-fog{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity 6s linear;background:radial-gradient(ellipse at center,rgba(205,210,215,.55) 0%,rgba(205,210,215,.8) 55%,rgba(210,214,218,.95) 100%)}
+.wm-fx{position:absolute;inset:0;pointer-events:none;width:100%;height:100%}
+.wm-flash{position:absolute;inset:0;pointer-events:none;background:#dfe8ff;opacity:0;mix-blend-mode:screen}
+.wm-wx{display:flex;align-items:center;gap:5px;padding:4px 8px;background:#0a0e0f;border:1px solid #1a3335;border-radius:3px;box-shadow:0 1px 6px rgba(0,0,0,.6),inset 0 0 12px rgba(79,195,200,.15);color:#4fc3c8;font:600 11px 'DSEG7 Classic','DSEG7Classic',monospace;text-shadow:0 0 6px #4fc3c8}
+.wm-wx svg{width:20px;height:20px;filter:drop-shadow(0 0 3px #4fc3c8)}
+.wm-clockrow{display:flex;align-items:stretch;gap:4px}
 .wm-coords{position:absolute;left:10px;bottom:10px;font:12px var(--mono,monospace);color:#cfd3da;background:rgba(11,13,16,.92);padding:4px 8px;border-radius:3px;pointer-events:none}
 .wm-tip{position:absolute;pointer-events:none;background:rgba(10,13,16,.95);border:1px solid #2a2f37;padding:6px 9px;font:12px var(--mono,monospace);color:#e6e6e6;border-radius:3px;z-index:5;max-width:260px}
 .wm-tip b{color:#c8a84b}
@@ -137,6 +143,51 @@ const lightAt = (hour, month) => {
   return LOOKS.day;
 };
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+// ── Weather (mod 1.7.119 writes it, /api/map/players returns it): rain / snow particles, fog haze, lightning flashes,
+// a grey overcast look, and a badge by the clock. ?weather=rain|storm|fog|snow|cloud previews one.
+const OVERCAST = { sat: 0.7, bri: 0.78, tint: [150, 165, 185], amt: 0.5 };
+const mixLook = (a, b, t) => ({ sat: a.sat + (b.sat - a.sat) * t, bri: a.bri * (1 - t * (1 - b.bri)), amt: Math.max(a.amt, b.amt * t),
+  tint: a.amt >= b.amt * t ? a.tint : a.tint.map((c, j) => c + (b.tint[j] - c) * t) });
+const WX_PREVIEW = {
+  rain:  { rain: 0.7, fog: 0.1, snow: 0, wind: 0.4, cloud: 0.9, temp: 17, thunder: false, snowing: false },
+  storm: { rain: 0.95, fog: 0.15, snow: 0, wind: 0.8, cloud: 1, temp: 21, thunder: true, snowing: false },
+  fog:   { rain: 0, fog: 0.85, snow: 0, wind: 0.05, cloud: 0.5, temp: 12, thunder: false, snowing: false },
+  snow:  { rain: 0, fog: 0.15, snow: 0.7, wind: 0.3, cloud: 0.9, temp: -3, thunder: false, snowing: true },
+  cloud: { rain: 0, fog: 0, snow: 0, wind: 0.3, cloud: 0.85, temp: 19, thunder: false, snowing: false },
+};
+// what the badge shows
+const wxKind = (w, mins) => {
+  if (!w) return null;
+  const n = (v) => (typeof v === "number" ? v : 0);
+  if (w.blizzard || (w.snowing && n(w.snow) > 0.05) || n(w.snow) > 0.2) return "snow";
+  if (w.thunder) return "storm";
+  if (n(w.rain) > 0.05) return "rain";
+  if (n(w.fog) > 0.35) return "fog";
+  if (n(w.cloud) > 0.6) return "cloud";
+  return mins != null && (mins < 6 * 60 || mins >= 20 * 60) ? "moon" : "sun";
+};
+const WX_TITLE = { sun: "Clear", moon: "Clear night", cloud: "Cloudy", rain: "Rain", storm: "Thunderstorm", fog: "Fog", snow: "Snow" };
+const WX_ICON = {
+  sun: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="12" cy="12" r="4.2" /><path d="M12 2.5v2.6M12 18.9v2.6M2.5 12h2.6M18.9 12h2.6M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8" /></svg>,
+  moon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M19.5 14.6A7.8 7.8 0 1 1 9.4 4.5a6.2 6.2 0 0 0 10.1 10.1z" /></svg>,
+  cloud: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"><path d="M7 18.5h10.2a4 4 0 0 0 .5-8 5.6 5.6 0 0 0-10.8 1.4A3.4 3.4 0 0 0 7 18.5z" /></svg>,
+  rain: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M7 14.5h10.2a4 4 0 0 0 .5-8 5.6 5.6 0 0 0-10.8 1.4A3.4 3.4 0 0 0 7 14.5z" /><path d="M8.5 17.5l-1 3M12.5 17.5l-1 3M16.5 17.5l-1 3" /></svg>,
+  storm: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M7 14h10.2a4 4 0 0 0 .5-8 5.6 5.6 0 0 0-10.8 1.4A3.4 3.4 0 0 0 7 14z" /><path d="M12.5 15l-2.5 4h3l-2 3.5" /></svg>,
+  fog: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M4 8h16M3 12h14M6 16h15M4 20h12" /></svg>,
+  snow: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9M9.5 4.5L12 7l2.5-2.5M9.5 19.5L12 17l2.5 2.5" /></svg>,
+};
+// the game's own season name ("Early Summer", "Late Summer"...) -> our season set
+const seasonFromName = (name) => {
+  const s = String(name || "").toLowerCase();
+  if (!s) return null;
+  if (s.includes("winter")) return "winter";
+  if (s.includes("spring")) return "spring";
+  if (s.includes("autumn") || s.includes("fall")) return "autumn";
+  if (s.includes("late") && s.includes("summer")) return "summer2";
+  if (s.includes("summer")) return "summer";
+  return null;
+};
 const svgNS = "http://www.w3.org/2000/svg";
 // OpenSeadragon grabs the pointer on press (to drag the map), so the click then lands on its canvas and never on a
 // pin (Live Ops: shop pins in Zombita mode did nothing, 2026-10-04). A clickable overlay keeps its press to itself;
@@ -448,10 +499,14 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
   const tintRef = useRef<HTMLDivElement | null>(null);
   // the nav bar's PZ clock (live websocket) is shown on the map too; its time drives the light when it has one
   const [wsTime, setWsTime] = useState<any>(null);
+  const [weather, setWeather] = useState<any>(null);  // the feed's "weather" (1.7.119+), null before / older mods
+  const fxRef = useRef<any>({ canvas: null, fog: null, flash: null, w: null, raf: 0 });
   useEffect(() => {
     let stop = false;
     const load = () => fetch(`${API}/api/map/players`).then((r) => (r.ok ? r.json() : null)).then((d) => {
-      if (stop || !d || !d.game) return;
+      if (stop || !d) return;
+      setWeather(d.weather || null);
+      if (!d.game) return;
       const g = d.game, mins = (Number(g.hour) || 0) * 60 + (Number(g.minute) || 0), at = Date.now();
       setGame((prev) => {
         let rate = prev ? prev.rate : 0.4;                       // game minutes per real second
@@ -476,6 +531,10 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
       return { month: Number(p.get("month")) || null, mins: (h || 0) * 60 + (m || 0) };
     } catch { return null; }
   }, []);
+  const wxOverride = useMemo(() => {
+    try { const k = new URLSearchParams(window.location.search).get("weather"); return k && WX_PREVIEW[k] ? WX_PREVIEW[k] : null; } catch { return null; }
+  }, []);
+  const wxNow = wxOverride || weather;
   const gameNow = useMemo(() => {
     if (timeOverride) return { month: timeOverride.month || game?.month || 7, day: game?.day || 1, mins: timeOverride.mins };
     if (wsTime && wsTime.hour !== undefined) {
@@ -498,12 +557,73 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
       v.overlaysContainer.parentNode.insertBefore(div, v.overlaysContainer);
       tintRef.current = div;
       canvas.style.transition = "filter 8s linear";
+      // weather layers, also under the pins: fog haze, rain / snow particles, lightning
+      const fog = document.createElement("div"); fog.className = "wm-fog";
+      const fx = document.createElement("canvas"); fx.className = "wm-fx";
+      const flash = document.createElement("div"); flash.className = "wm-flash";
+      for (const el of [fog, fx, flash]) v.overlaysContainer.parentNode.insertBefore(el, v.overlaysContainer);
+      fxRef.current.canvas = fx; fxRef.current.fog = fog; fxRef.current.flash = flash;
     }
-    const L = lightOn && gameNow ? lightAt(gameNow.mins / 60, gameNow.month) : LOOKS.day;
+    let L = lightOn && gameNow ? lightAt(gameNow.mins / 60, gameNow.month) : LOOKS.day;
+    const w = lightOn ? wxNow : null;
+    const num = (x) => (typeof x === "number" ? x : 0);
+    const over = w ? Math.min(1, Math.max(num(w.rain), num(w.snow) * 0.8, num(w.cloud) * 0.5, w.thunder ? 1 : 0)) : 0;
+    if (over > 0.02) L = mixLook(L, OVERCAST, over);
+    if (fxRef.current.fog) fxRef.current.fog.style.opacity = String(Math.min(0.7, num(w?.fog) * 0.8));
+    fxRef.current.w = w;
     canvas.style.filter = L.amt > 0.001 || L.bri < 0.999 ? `saturate(${L.sat.toFixed(3)}) brightness(${L.bri.toFixed(3)})` : "";
     const c = L.tint.map((x) => Math.round(255 - L.amt * (255 - x)));
     tintRef.current.style.backgroundColor = `rgb(${c[0]},${c[1]},${c[2]})`;
-  }, [ready, lightOn, gameNow]);
+  }, [ready, lightOn, gameNow, wxNow]);
+
+  // rain / snow particles and lightning, drawn only while there is some (pauses in a background tab)
+  useEffect(() => {
+    if (!ready) return;
+    const st = fxRef.current;
+    let drops = [], last = 0, nextFlash = performance.now() + 4000 + Math.random() * 8000;
+    const frame = (t) => {
+      st.raf = requestAnimationFrame(frame);
+      const c = st.canvas, w = st.w;
+      if (!c) return;
+      const num = (x) => (typeof x === "number" ? x : 0);
+      const rain = num(w?.rain), snow = Math.max(num(w?.snow), w?.blizzard ? 0.9 : 0), wind = num(w?.wind);
+      const W = c.clientWidth, H = c.clientHeight;
+      if (c.width !== W || c.height !== H) { c.width = W; c.height = H; }
+      const ctx = c.getContext("2d");
+      ctx.clearRect(0, 0, W, H);
+      if (st.flash) {
+        if (w && w.thunder && t > nextFlash) {
+          st.flash.style.opacity = "0.45";
+          setTimeout(() => { if (st.flash) st.flash.style.opacity = "0"; }, 90);
+          setTimeout(() => { if (st.flash) st.flash.style.opacity = "0.3"; }, 160);
+          setTimeout(() => { if (st.flash) st.flash.style.opacity = "0"; }, 230);
+          nextFlash = t + 5000 + Math.random() * 14000;
+        }
+      }
+      const want = Math.round((rain > 0.03 ? rain * 0.0009 : 0) * W * H + (snow > 0.03 ? snow * 0.00035 : 0) * W * H);
+      if (!want) { drops = []; return; }
+      const dt = last ? Math.min(0.05, (t - last) / 1000) : 0.016; last = t;
+      while (drops.length < want) drops.push({ x: Math.random() * W, y: Math.random() * H, snow: snow > rain ? true : Math.random() < snow / Math.max(0.01, rain + snow), r: Math.random() });
+      if (drops.length > want) drops.length = want;
+      const slant = 60 + wind * 220;
+      ctx.lineCap = "round";
+      for (const d of drops) {
+        if (d.snow) {
+          d.x += (slant * 0.25 + Math.sin(t / 600 + d.r * 9) * 20) * dt; d.y += (40 + d.r * 40) * dt;
+          ctx.fillStyle = `rgba(245,248,255,${0.55 + d.r * 0.35})`;
+          ctx.beginPath(); ctx.arc(d.x, d.y, 1 + d.r * 1.6, 0, Math.PI * 2); ctx.fill();
+        } else {
+          const vy = 700 + d.r * 300, vx = slant;
+          d.x += vx * dt; d.y += vy * dt;
+          ctx.strokeStyle = `rgba(205,215,235,${0.25 + d.r * 0.3})`; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.moveTo(d.x, d.y); ctx.lineTo(d.x - vx * 0.018, d.y - vy * 0.018); ctx.stroke();
+        }
+        if (d.y > H + 20 || d.x > W + 40 || d.x < -40) { d.y = -10 - Math.random() * 40; d.x = Math.random() * (W + 80) - 80; }
+      }
+    };
+    st.raf = requestAnimationFrame(frame);
+    return () => cancelAnimationFrame(st.raf);
+  }, [ready]);
   useEffect(() => { try { localStorage.setItem("soup-map-light", lightOn ? "on" : "off"); } catch {} }, [lightOn]);
 
   // is the second look on the server yet?
@@ -565,6 +685,7 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
         const main = sj.main || "summer2";
         let want = null;
         try { want = new URLSearchParams(window.location.search).get("season"); } catch {}
+        if (!want && pl && pl.weather && pl.weather.season) want = seasonFromName(pl.weather.season);
         if (!want && pl && pl.game && pl.game.month) want = seasonOf(Number(pl.game.month));
         setSkin(want && want !== main && sj.sets.includes(want) ? want : null);
       } catch {}
@@ -791,8 +912,18 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
       {view === "3d" && bases && <div className="wm-bases">{basesLine(bases, nowS)}</div>}
       {ready && (
         <button className="wm-clock" onClick={() => setLightOn((x) => !x)}>
-          <GameTimeWidget onTime={setWsTime}
-            title={lightOn ? "In-game time. The map follows day and night; click to keep it in daylight." : "In-game time. Click to show day and night on the map."} />
+          <div className="wm-clockrow">
+            <GameTimeWidget onTime={setWsTime}
+              title={lightOn ? "In-game time. The map follows day, night and weather; click to keep it in daylight." : "In-game time. Click to show day, night and weather on the map."} />
+            {wxNow && (() => {
+              const k = wxKind(wxNow, gameNow ? gameNow.mins : null);
+              return k ? (
+                <div className="wm-wx" title={`${WX_TITLE[k]}${typeof wxNow.temp === "number" ? `, ${Math.round(wxNow.temp)} C` : ""}${wxNow.power === false ? ". The power is out." : ""}`}>
+                  {WX_ICON[k]}{typeof wxNow.temp === "number" ? <>{Math.round(wxNow.temp)}&deg;</> : null}
+                </div>
+              ) : null;
+            })()}
+          </div>
           {!lightOn && <span>daylight</span>}
         </button>
       )}
