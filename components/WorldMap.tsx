@@ -73,6 +73,8 @@ const CSS = `
 .wm-rect .rl{position:absolute;left:0;top:-16px;font:600 11px var(--mono,monospace);color:#fff;text-shadow:0 1px 2px #000,0 0 3px #000;white-space:nowrap}
 .wm-rect.iso .rl{left:50%;transform:translateX(-50%)}
 .wm-rect svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
+.wm-bases{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);z-index:3;font:11px var(--mono,monospace);color:#cfd3da;background:rgba(11,13,16,.92);border:1px solid #2a2f37;padding:4px 10px;border-radius:3px;pointer-events:none;white-space:nowrap;max-width:calc(100% - 140px);overflow:hidden;text-overflow:ellipsis}
+.wm-bases b{color:#c8a84b;font-weight:600}
 .wm-coords{position:absolute;left:10px;bottom:10px;font:12px var(--mono,monospace);color:#cfd3da;background:rgba(11,13,16,.92);padding:4px 8px;border-radius:3px;pointer-events:none}
 .wm-tip{position:absolute;pointer-events:none;background:rgba(10,13,16,.95);border:1px solid #2a2f37;padding:6px 9px;font:12px var(--mono,monospace);color:#e6e6e6;border-radius:3px;z-index:5;max-width:260px}
 .wm-tip b{color:#c8a84b}
@@ -92,6 +94,15 @@ const CSS = `
 // Defaults made once: a fresh [] on every render would look like new places each time and wipe the overlays.
 const NONE = [];
 const NO_HIDDEN = {};
+
+// "Bases updated 2 h ago · next update in 40 min" (or "Updating player bases now...")
+const span = (s) => (s < 90 ? "a minute" : s < 5400 ? `${Math.round(s / 60)} min` : s < 129600 ? `${Math.round(s / 3600)} h` : `${Math.round(s / 86400)} days`);
+const basesLine = (b, now) => {
+  if (b.running) return <><b>Updating player bases now</b>, new builds appear as each area finishes</>;
+  const ago = b.updated ? `Bases updated ${span(Math.max(0, now - b.updated))} ago` : "Bases not drawn yet";
+  const next = b.next ? (b.next > now ? `next update in ${span(b.next - now)}` : "next update soon") : "";
+  return <><b>{ago}</b>{next ? <> &middot; {next}</> : null}</>;
+};
 
 const floorName = (f) => (f === 0 ? "Ground" : f > 0 ? `Floor ${f}` : `Basement ${-f}`);
 const svgNS = "http://www.w3.org/2000/svg";
@@ -123,6 +134,10 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
   const [coords, setCoords] = useState<{ x: number; y: number } | null>(null);
   const [tip, setTip] = useState<{ p: Place; left: number; top: number } | null>(null);
   const [hasCarto, setHasCarto] = useState(false);
+  // player bases on the 3D map (map3d_kit run_bases.sh writes bases_status.json next to the 3D tiles every few hours):
+  // "Bases updated 2 h ago, next update in 40 min". Hidden until the file exists. ?t= skips the tiles' 1 h cache.
+  const [bases, setBases] = useState<any>(null);
+  const [nowS, setNowS] = useState(() => Math.floor(Date.now() / 1000));
   // fullscreen (Nin: "full screen option for maps"): the page root marked data-fs-root, else the map itself
   const [isFs, setIsFs] = useState(false);
   useEffect(() => {
@@ -373,6 +388,17 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
     setView(v);
   };
 
+  useEffect(() => {
+    if (view !== "3d") return;
+    let stop = false, t = null;
+    const load = () => fetch(`${ISO_BASE}/bases_status.json?t=${Date.now()}`).then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (!stop) setBases(d && (d.updated || d.running) ? d : null); }).catch(() => {});
+    load();
+    t = setInterval(load, 60000);
+    const tick = setInterval(() => setNowS(Math.floor(Date.now() / 1000)), 30000);
+    return () => { stop = true; clearInterval(t); clearInterval(tick); };
+  }, [view]);
+
   // is the second look on the server yet?
   useEffect(() => {
     fetch(`${CARTO_BASE}/map.dzi`, { method: "HEAD" }).then((r) => setHasCarto(r.ok)).catch(() => setHasCarto(false));
@@ -600,6 +626,7 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
           <button disabled={floor <= fl.min} onClick={() => setFloor((f) => Math.max(fl.min, f - 1))} title="Go down a floor">&#9660;</button>
         </div>
       )}
+      {view === "3d" && bases && <div className="wm-bases">{basesLine(bases, nowS)}</div>}
       {coords && <div className="wm-coords">x {coords.x} &middot; y {coords.y}{view === "3d" ? <> &middot; {floorName(floor).toLowerCase()}</> : null}</div>}
       {tip && (
         <div className="wm-tip" style={{ left: tip.left, top: tip.top }}>
