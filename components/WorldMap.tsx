@@ -18,6 +18,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { API } from "@/lib/constants";
+import GameTimeWidget from "@/components/GameTimeWidget";
 
 const TILE_BASE = (process.env.NEXT_PUBLIC_MAP_TILES || "https://api.stateofundeadpurge.site/map-tiles/v1").replace(/\/$/, "");
 // The second look (Nin 2026-10-04: "keep tab to show both styles"): the same world drawn the way the game's paper map
@@ -76,9 +77,9 @@ const CSS = `
 .wm-rect svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
 .wm-bases{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);z-index:3;font:11px var(--mono,monospace);color:#cfd3da;background:rgba(11,13,16,.92);border:1px solid #2a2f37;padding:4px 10px;border-radius:3px;pointer-events:none;white-space:nowrap;max-width:calc(100% - 140px);overflow:hidden;text-overflow:ellipsis}
 .wm-bases b{color:#c8a84b;font-weight:600}
-.wm-clock{position:absolute;left:50%;top:10px;transform:translateX(-50%);z-index:4;font:600 12px var(--mono,monospace);letter-spacing:.5px;color:#e6e6e6;background:rgba(11,13,16,.92);border:1px solid #2a2f37;border-radius:3px;padding:5px 12px;cursor:pointer;box-shadow:0 1px 6px rgba(0,0,0,.5);white-space:nowrap}
-.wm-clock span{color:#9aa;font-weight:400;margin-left:6px}
-.wm-clock.off{color:#777}
+.wm-clock{position:absolute;left:50%;top:10px;transform:translateX(-50%);z-index:4;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;background:none;border:0;padding:0;box-shadow:none}
+.wm-clock > div:first-child{box-shadow:0 1px 6px rgba(0,0,0,.6)!important}
+.wm-clock span{font:600 9px var(--mono,monospace);letter-spacing:1px;color:#9aa;background:rgba(11,13,16,.92);border:1px solid #2a2f37;border-radius:3px;padding:1px 6px;text-transform:uppercase}
 .wm-tint{position:absolute;inset:0;pointer-events:none;mix-blend-mode:multiply;transition:background-color 8s linear}
 .wm-coords{position:absolute;left:10px;bottom:10px;font:12px var(--mono,monospace);color:#cfd3da;background:rgba(11,13,16,.92);padding:4px 8px;border-radius:3px;pointer-events:none}
 .wm-tip{position:absolute;pointer-events:none;background:rgba(10,13,16,.95);border:1px solid #2a2f37;padding:6px 9px;font:12px var(--mono,monospace);color:#e6e6e6;border-radius:3px;z-index:5;max-width:260px}
@@ -445,6 +446,8 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
   const [clockNow, setClockNow] = useState(() => Date.now());
   const [lightOn, setLightOn] = useState(() => { try { return localStorage.getItem("soup-map-light") !== "off"; } catch { return true; } });
   const tintRef = useRef<HTMLDivElement | null>(null);
+  // the nav bar's PZ clock (live websocket) is shown on the map too; its time drives the light when it has one
+  const [wsTime, setWsTime] = useState<any>(null);
   useEffect(() => {
     let stop = false;
     const load = () => fetch(`${API}/api/map/players`).then((r) => (r.ok ? r.json() : null)).then((d) => {
@@ -475,11 +478,15 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
   }, []);
   const gameNow = useMemo(() => {
     if (timeOverride) return { month: timeOverride.month || game?.month || 7, day: game?.day || 1, mins: timeOverride.mins };
+    if (wsTime && wsTime.hour !== undefined) {
+      const mi = MONTHS.findIndex((m) => String(wsTime.month || "").toLowerCase().startsWith(m.toLowerCase()));
+      return { month: mi >= 0 ? mi + 1 : (game?.month || 7), day: wsTime.day, mins: Number(wsTime.hour) * 60 + Number(wsTime.minute || 0) };
+    }
     if (!game) return null;
     let m = game.mins + ((clockNow - game.at) / 1000) * game.rate, day = game.day;
     if (m >= 1440) { m -= 1440; day += 1; }                  // a poll catches the month change
     return { month: game.month, day, mins: m };
-  }, [game, clockNow]);
+  }, [game, clockNow, wsTime, timeOverride]);
 
   // paint the light: canvas filter (colour, brightness) + the multiply layer between the map and the pins
   useEffect(() => {
@@ -782,11 +789,11 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
         </div>
       )}
       {view === "3d" && bases && <div className="wm-bases">{basesLine(bases, nowS)}</div>}
-      {ready && gameNow && (
-        <button className={`wm-clock${lightOn ? "" : " off"}`} onClick={() => setLightOn((x) => !x)}
-          title={lightOn ? "In-game time. The map follows day and night; click to keep it in daylight." : "In-game time. Click to show day and night on the map."}>
-          {gameNow.day} {MONTHS[(gameNow.month - 1 + 12) % 12]}, {String(Math.floor(gameNow.mins / 60)).padStart(2, "0")}:{String(Math.floor(gameNow.mins % 60)).padStart(2, "0")}
-          <span>{lightOn ? "" : "daylight"}</span>
+      {ready && (
+        <button className="wm-clock" onClick={() => setLightOn((x) => !x)}>
+          <GameTimeWidget onTime={setWsTime}
+            title={lightOn ? "In-game time. The map follows day and night; click to keep it in daylight." : "In-game time. Click to show day and night on the map."} />
+          {!lightOn && <span>daylight</span>}
         </button>
       )}
       {coords && <div className="wm-coords">x {coords.x} &middot; y {coords.y}{view === "3d" ? <> &middot; {floorName(floor).toLowerCase()}</> : null}</div>}

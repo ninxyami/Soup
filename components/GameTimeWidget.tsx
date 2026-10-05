@@ -14,7 +14,9 @@ interface GameTime {
   year: number;
 }
 
-export default function GameTimeWidget() {
+// onTime: the map uses the same time for its day / night light (Nin 2026-10-05: the map's clock = this clock).
+// title: hover text (defaults to the day and date).
+export default function GameTimeWidget({ onTime, title }: { onTime?: (t: GameTime) => void; title?: string } = {}) {
   const [time, setTime]   = useState<GameTime | null>(null);
   const [live, setLive]   = useState(false);
   const wsRef             = useRef<WebSocket | null>(null);
@@ -53,6 +55,8 @@ export default function GameTimeWidget() {
     };
   }, []);
 
+  useEffect(() => { if (time && onTime) onTime(time); }, [time, onTime]);
+
   if (!time) return null;
 
   const h12    = time.hour % 12 || 12;
@@ -67,7 +71,7 @@ export default function GameTimeWidget() {
 
   return (
     <div
-      title={`Knox County - Day ${time.day}, ${time.month} ${time.year}`}
+      title={title || `Knox County - Day ${time.day}, ${time.month} ${time.year}`}
       style={{
         display: "inline-flex",
         flexDirection: "column",
