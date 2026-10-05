@@ -860,7 +860,9 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
       const car = d.inCar ? d.car : null;
       if (d.inCar ? !car : !d.look) continue;                    // in a car with no car figure (older mod): just the dot
       const img = car ? `car_${car}` : d.look;
-      const ownFace = car ? carFace(d.carAngle) : d.face;
+      // in a car: the driver's own facing IS the car's heading (the game turns them with it); getAngleY alone can't tell
+      // north from south (Euler XYZ, -90..90: Nin's parked van pointed backwards), so it's only the fallback
+      const ownFace = car ? (d.face || carFace(d.carAngle)) : d.face;
       seen.add(d.id);
       const to = [d.x + 0.5, d.y + 0.5, d.z || 0];
       const it = st.items.get(d.id);
