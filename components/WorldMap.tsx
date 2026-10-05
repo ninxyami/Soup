@@ -42,7 +42,8 @@ const ISO_SQ = 90;
 export type Place = { kind: "shop" | "bus" | "diner" | "town"; id: string; name: string; role?: string; town?: string; x: number; y: number };
 // z = floor (3D view puts the dot on that floor and fades it when it's above the floor being looked at)
 export type Dot = { id: string; label: string; x: number; y: number; z?: number; color?: string; size?: number; onClick?: () => void;
-  look?: string; face?: [number, number] | null; inCar?: boolean; dead?: boolean };   // look/face: a player's figure in 3D
+  look?: string; face?: [number, number] | null; inCar?: boolean; dead?: boolean;   // look/face: a player's figure in 3D
+  car?: string; carAngle?: number | null };                                         // their car's figure + heading
 // Boxes in world squares (Live Ops: safehouses, zombie heat). They scale with the map; in 3D they're diamonds on the
 // ground. onClick makes one clickable.
 export type Rect = { id: string; x: number; y: number; w: number; h: number; color?: string; fill?: string; label?: string;
@@ -241,6 +242,14 @@ const seasonFromName = (name) => {
 // so they are never in the map or the save and the render can't draw them. The site draws the mod's own sprites
 // (unpacked from zombitakiosk.pack / zombitabus.pack) at each place's live position, anchored like the render does:
 // the frame's bottom centre on the square's bottom vertex, offsets from the pack. Under the night tint, over the map.
+// a parked car's heading from BaseVehicle.getAngleY (degrees) -> a facing vector (x east, y south). The offset / sign
+// are calibrated against a live drive (a moving car uses the way it goes, so this only matters when it's parked).
+const CAR_HEADING_OFFSET = 0, CAR_HEADING_SIGN = 1;
+const carFace = (angle) => {
+  if (typeof angle !== "number" || !Number.isFinite(angle)) return null;
+  const h = ((CAR_HEADING_SIGN * angle + CAR_HEADING_OFFSET) * Math.PI) / 180;
+  return [Math.sin(h), -Math.cos(h)];
+};
 const PROPS = {
   shop: { src: "/map/sprites/zombita_kiosk_0.png", ox: -64, oy: -152 },
   bus:  { src: "/map/sprites/zombita_bus_0.png",   ox: -64, oy: -111 },
@@ -829,7 +838,9 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
   // Player figures (2026-10-05): each online player drawn the way the game draws them (map3d kit figures/render_figures.py
   // renders <ISO_BASE>/figures/<look>.webp from mod 1.7.121's zombita_looks.txt: 8 frames of 192 x 256, N NE E SE S SW
   // W NW, feet at 96,224). A new position glides in over the time since the last one (the feed is every ~5 s), a jump
-  // of 40+ squares (teleport, bus) snaps. Not drawn in a car or dead (the dot still shows); no figure yet = just the dot.
+  // of 40+ squares (teleport, bus) snaps. Dead: not drawn (the dot still shows); no figure yet = just the dot.
+  // In a car (mod 1.7.123): their car instead - figures/car_<car>.webp, 16 headings of 448 x 320, ground centre at
+  // 224,200 (map3d kit vehicles.py); heading from the way it's going when it moves, else the car's own angle.
   const figRef = useRef<any>({ items: new Map(), imgs: new Map(), req: null });
   useEffect(() => {
     const st = figRef.current, now = performance.now(), seen = new Set();
@@ -838,27 +849,39 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
       return [it.from[0] + (it.to[0] - it.from[0]) * u, it.from[1] + (it.to[1] - it.from[1]) * u, it.to[2]];
     };
     for (const d of dots) {
-      if (!d.look || d.inCar || d.dead || !Number.isFinite(d.x)) continue;
+      if (d.dead || !Number.isFinite(d.x)) continue;
+      const car = d.inCar ? d.car : null;
+      if (d.inCar ? !car : !d.look) continue;                    // in a car with no car figure (older mod): just the dot
+      const img = car ? `car_${car}` : d.look;
+      const ownFace = car ? carFace(d.carAngle) : d.face;
       seen.add(d.id);
       const to = [d.x + 0.5, d.y + 0.5, d.z || 0];
       const it = st.items.get(d.id);
-      if (!it) { st.items.set(d.id, { from: to, to, t0: now, dur: 0, last: now, face: d.face, look: d.look }); }
+      if (!it) { st.items.set(d.id, { from: to, to, t0: now, dur: 0, last: now, face: ownFace, look: img, car: !!car, person: d.look }); }
       else {
         const cur = at(it, now);
         const dx = to[0] - cur[0], dy = to[1] - cur[1], dist = Math.hypot(dx, dy);
-        const jump = dist > 40 || to[2] !== it.to[2];
+        const jump = dist > (car ? 120 : 40) || to[2] !== it.to[2];  // a car covers more ground between updates
         // walking: face the way they're going (the server's own facing for other players goes stale; mod 1.7.122
         // sends each client's real facing); standing: the reported facing
-        const face = !jump && dist > 0.6 ? [dx / dist, dy / dist] : (d.face || it.face);
+        const face = !jump && dist > 0.6 ? [dx / dist, dy / dist] : (ownFace || it.face);
         Object.assign(it, { from: jump ? to : [cur[0], cur[1]], to, t0: now, dur: jump ? 0 : Math.min(7000, Math.max(800, now - it.last)),
-          last: now, face, look: d.look });
+          last: now, face, look: img, car: !!car, person: d.look });
       }
-      if (!st.imgs.has(d.look)) {
+      // in a car: the person's own figure is loaded too, drawn if the car can't be (a mod car the box can't draw)
+      for (const key of car && d.look ? [d.look] : []) if (!st.imgs.has(key)) {
+        const pim = new Image();
+        pim.onload = () => st.req && st.req();
+        pim.onerror = () => setTimeout(() => st.imgs.delete(key), 15000);
+        pim.src = `${ISO_BASE}/figures/${key}.webp`;
+        st.imgs.set(key, pim);
+      }
+      if (!st.imgs.has(img)) {
         const im = new Image();
         im.onload = () => st.req && st.req();
-        im.onerror = () => setTimeout(() => st.imgs.delete(d.look), 15000);      // not rendered yet: ask again soon
-        im.src = `${ISO_BASE}/figures/${d.look}.webp`;
-        st.imgs.set(d.look, im);
+        im.onerror = () => setTimeout(() => st.imgs.delete(img), 15000);         // not rendered yet: ask again soon
+        im.src = `${ISO_BASE}/figures/${img}.webp`;
+        st.imgs.set(img, im);
       }
     }
     for (const id of Array.from(st.items.keys())) if (!seen.has(id)) st.items.delete(id);
@@ -876,10 +899,10 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
     const imgs = {};
     for (const [kind, p] of Object.entries(PROPS)) { const im = new Image(); im.onload = () => req(); im.src = p.src; imgs[kind] = im; }
     import("openseadragon").then((m) => { OSD = m.default; req(); });
-    const frameOf = (face) => {
-      if (!face) return 4;                                       // unknown: facing the camera-ish (S)
+    const frameOf = (face, n = 8) => {
+      if (!face) return n / 2;                                   // unknown: facing the camera-ish (S)
       const a = Math.atan2(face[0], -face[1]);                   // clockwise from north (x east, y south)
-      return ((Math.round(a / (Math.PI / 4)) % 8) + 8) % 8;
+      return ((Math.round(a / (2 * Math.PI / n)) % n) + n) % n;
     };
     const draw = () => {
       queued = false;
@@ -910,11 +933,18 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
         if (dotEl) try { v.updateOverlay(dotEl, item.imageToViewportCoordinates(new OSD.Point(ax, ay))); } catch {}
         // a new look (picked up a flashlight, changed shirt) takes the box a minute to draw: until it's there the player
         // keeps the last figure that was, not nothing
-        let im = fig.imgs.get(it.look);
-        if (im && im.complete && im.naturalWidth) it.shown = it.look;
-        else im = it.shown ? fig.imgs.get(it.shown) : null;
+        const ok = (m) => !!(m && m.complete && m.naturalWidth);
+        let key = it.look, im = fig.imgs.get(key);
+        if (ok(im)) it.shown = key;
+        else if (it.car && it.person && ok(fig.imgs.get(it.person))) { key = it.person; im = fig.imgs.get(key); }   // no car figure: the person
+        else { key = it.shown; im = key ? fig.imgs.get(key) : null; }
         if (!im || !im.complete || !im.naturalWidth) continue;
         if (F >= 0 ? z > F || z < 0 : z !== F) continue;           // above the floor looked at (cut away), or not this basement
+        if (String(key).startsWith("car_")) {                   // 16 headings, ground centre at (224, 200) of 448 x 320
+          const cw = im.naturalWidth / 16;
+          list.push({ d: x + y, im, sx: frameOf(it.face, 16) * cw, sw: cw, x: ax - cw / 2, y: ay - im.naturalHeight * 200 / 320 });
+          continue;
+        }
         const fw = im.naturalWidth / 8;
         list.push({ d: x + y, im, sx: frameOf(it.face) * fw, sw: fw, x: ax - fw / 2, y: ay - (im.naturalHeight - 32) });
       }

@@ -245,7 +245,7 @@ function OpsInner() {
   // ── what the map draws ──
   const dots = useMemo(() => {
     const out = [];
-    if (layers.players) for (const p of players) out.push({ id: "p:" + p.name, label: p.name, x: p.x, y: p.y, z: p.z, look: p.look, face: p.face, inCar: !!p.in_vehicle, dead: !!p.dead,
+    if (layers.players) for (const p of players) out.push({ id: "p:" + p.name, label: p.name, x: p.x, y: p.y, z: p.z, look: p.look, face: p.face, inCar: !!p.in_vehicle, dead: !!p.dead, car: p.car, carAngle: p.car_angle,
       color: p.name === selP ? C.gold : p.dead ? C.red : p.in_vehicle ? C.blue : C.green, onClick: () => { setSelP(p.name); setTab("players"); } });
     if (layers.bandits) (st?.bandits || []).forEach((b, i) => out.push({ id: "b:" + i, label: "", x: b.x, y: b.y, size: 7, color: b.hostile ? "#e0904a" : "#d8c36a" }));
     if (layers.markers) (st?.markers || []).forEach((m) => out.push({ id: "m:" + m.id, label: m.title, x: m.x, y: m.y, size: 12,
