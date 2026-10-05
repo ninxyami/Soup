@@ -465,6 +465,7 @@ function Lottery({ run }) {
 function Areas({ b, mods, za, bridge, pickOnMap, setLayer }) {
   const st = b.areast || {}, areas = list(b.area), jobs = list(b.areajob), bks = list(b.areabk), tiles = mods.tiles || {};
   const [box, setBox] = useState(null);
+  const [withSafe, setWithSafe] = useState(false);
   useEffect(() => {
     const rects = areas.filter((a) => n(a.x2)).map((a) => ({ id: "za:" + a.id, x: n(a.x1), y: n(a.y1), w: n(a.x2) - n(a.x1) + 1, h: n(a.y2) - n(a.y1) + 1,
       color: C.teal, fill: "rgba(74,176,168,.08)", label: a.name }));
@@ -486,6 +487,14 @@ function Areas({ b, mods, za, bridge, pickOnMap, setLayer }) {
         }}>Clear tiles</Btn>
       </Row>
       <Note>Copy / paste / clear need someone near the area (the server only has loaded ground there).</Note>
+      <Row>
+        <Btn disabled={!box} color={C.red} onClick={() => {
+          const name = prompt("Reset this area to fresh at the next restart? Original buildings and loot come back; player builds and dropped items are deleted. It's saved first (undo = RESTORE the \"before restore\" snapshot).\n\nName for it:", "fresh area");
+          if (name) bridge("area_reset", { name, ...box, safehouses: withSafe });
+        }}>Reset to fresh</Btn>
+        <label style={{ ...mono, fontSize: 11, color: C.grey }}><input type="checkbox" checked={withSafe} onChange={(e) => setWithSafe(e.target.checked)} /> include safehouses</label>
+      </Row>
+      <Note>Reset to fresh = the map regenerates there at the next restart (queued below; cancel it there, or "Restart now"). Refused over a safehouse unless ticked. Cars aren't touched.</Note>
     </Box>
     <Box title="Copied tiles" right={tiles.has ? <Btn color={C.grey} onClick={() => za("tiles", "forget")}>Forget</Btn> : null}>
       {yes(tiles.has) ? <>
