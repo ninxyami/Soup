@@ -705,8 +705,8 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
   // Far out: the index's per-cell summary (a 16-square grid of glow). Closer: each lamp's pool, lit rooms (floor +
   // the back walls they light), and close up the bulbs, window panes and the light falling out of windows.
   useEffect(() => {
-    if (!ready) return;
     const v = viewerRef.current, lit = litRef.current;
+    if (!ready || !v) return;                 // a view switch tears the viewer down a moment before `ready` drops
     if (process.env.NODE_ENV !== "production") (window as any).__soupLights = lit;   // dev-only debugging handle
     let alive = true, queued = false, OSD = null, inflight = 0;
     import("openseadragon").then((m) => { OSD = m.default; req(); });
@@ -871,6 +871,7 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
   useEffect(() => {
     if (!ready || view !== "3d") { const c = propsRef.current.canvas; if (c) c.getContext("2d").clearRect(0, 0, c.width, c.height); return; }
     const v = viewerRef.current, fig = figRef.current;
+    if (!v) return;                           // a view switch tears the viewer down a moment before `ready` drops
     let alive = true, queued = false, OSD = null;
     const imgs = {};
     for (const [kind, p] of Object.entries(PROPS)) { const im = new Image(); im.onload = () => req(); im.src = p.src; imgs[kind] = im; }
