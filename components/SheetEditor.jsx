@@ -1178,11 +1178,22 @@ export default function SheetEditor({ docId, me, docTitle }) {
     const paste = (e) => { if (owns()) pasteRef.current(e); };
     document.addEventListener("beforecopy", claim);
     document.addEventListener("beforepaste", claim);
+    // Shift+click on a cell also stretches the PAGE's text selection from the last place clicked (Nin 2026-10-05:
+    // a project's ▶ in the sidebar). The grid's text can't be selected, so only that stray bit stays selected,
+    // owns() sees "other text is selected" and Ctrl+C copied "▶". A click in the grid drops a stray selection.
+    const dropStray = (e) => {
+      const el = gridWrapRef.current;
+      if (!el || !el.contains(e.target) || isTyping(e.target)) return;
+      const s = window.getSelection && window.getSelection();
+      if (s && s.type === "Range" && !el.contains(s.anchorNode)) s.removeAllRanges();
+    };
+    document.addEventListener("mouseup", dropStray, true);   // capture: the grid can't swallow it
     document.addEventListener("copy", copy);
     document.addEventListener("paste", paste);
     return () => {
       document.removeEventListener("beforecopy", claim);
       document.removeEventListener("beforepaste", claim);
+      document.removeEventListener("mouseup", dropStray, true);
       document.removeEventListener("copy", copy);
       document.removeEventListener("paste", paste);
     };
