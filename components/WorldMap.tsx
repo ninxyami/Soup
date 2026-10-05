@@ -257,6 +257,42 @@ const rowsOf = (im) => Math.max(1, Math.round(im.naturalHeight / ((im.naturalWid
 // Zombies for the admin view (2026-10-05, /api/map/zombies): the game's own zombie skins, clothes, blood and idle pose,
 // drawn once by the map kit (figures/make_zombie_sheets.py) and kept with the site
 const ZED_SHEETS = { m: "/map/zeds/zed_m.webp", f: "/map/zeds/zed_f.webp", crawl: "/map/zeds/zed_crawl.webp" };
+// The feed has no zombie ids, so each update is matched to the nearest zombie of the same kind from the last one (up to
+// ZED_MATCH squares away): a match glides over to its new spot playing the walk, the rest just appear / go.
+const ZED_MATCH = 6, ZED_GLIDE_MS = 9000;
+const zedAt = (it, t) => {
+  const u = it.dur > 0 ? Math.min(1, (t - it.t0) / it.dur) : 1;
+  return [it.from[0] + (it.to[0] - it.from[0]) * u, it.from[1] + (it.to[1] - it.from[1]) * u];
+};
+const matchZeds = (old, zeds, now) => {
+  const cell = (x, y) => `${Math.floor(x / ZED_MATCH)},${Math.floor(y / ZED_MATCH)}`;
+  const grid = new Map();
+  for (const it of old) {
+    const [cx, cy] = zedAt(it, now), key = cell(cx, cy);
+    if (!grid.has(key)) grid.set(key, []);
+    grid.get(key).push(it);
+  }
+  const used = new Set(), next = [];
+  for (const zd of zeds) {
+    const [x, y, z, fx, fy, female, crawl] = zd;
+    if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+    const to = [x + 0.5, y + 0.5], own = fx || fy ? [fx, fy] : null;
+    let best = null, bd = ZED_MATCH + 0.01;
+    const gx = Math.floor(to[0] / ZED_MATCH), gy = Math.floor(to[1] / ZED_MATCH);
+    for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) for (const it of grid.get(`${gx + i},${gy + j}`) || []) {
+      if (used.has(it) || it.z !== z || it.female !== female || it.crawl !== crawl) continue;
+      const [cx, cy] = zedAt(it, now), dd = Math.hypot(cx - to[0], cy - to[1]);
+      if (dd < bd) { bd = dd; best = it; }
+    }
+    if (best) {
+      used.add(best);
+      const from = zedAt(best, now), moved = bd > 0.6;
+      next.push({ from, to, t0: now, dur: moved ? ZED_GLIDE_MS : 0, z, female, crawl, walking: moved,
+        face: moved ? [(to[0] - from[0]) / bd, (to[1] - from[1]) / bd] : (own || best.face) });
+    } else next.push({ from: to, to, t0: now, dur: 0, z, female, crawl, walking: false, face: own });
+  }
+  return next;
+};
 const PROPS = {
   shop: { src: "/map/sprites/zombita_kiosk_0.png", ox: -64, oy: -152 },
   bus:  { src: "/map/sprites/zombita_bus_0.png",   ox: -64, oy: -111 },
@@ -932,7 +968,10 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
       if (zedsOn) try {
         const d = await ask("/api/map/zombies");
         if (d === false) zedsOn = false;
-        else if (d && alive) worldRef.current.zeds = Array.isArray(d.zombies) ? d.zombies : [];
+        else if (d && alive) {
+          const zeds = Array.isArray(d.zombies) ? d.zombies : [];
+          worldRef.current.zeds = matchZeds(worldRef.current.zeds || [], zeds, performance.now());
+        }
       } catch {}
       fig.req && fig.req();
     };
@@ -969,7 +1008,21 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
       const F = floorRef.current;
       const p0 = item.imageToViewerElementCoordinates(new OSD.Point(0, 0));
       const k = (item.imageToViewerElementCoordinates(new OSD.Point(10000, 0)).x - p0.x) / 10000;
-      if (k * ISO_SQ < 1.2) return;                                // too far out to make one out
+      if (k * ISO_SQ < 1.2) {                                      // too far out to make one out
+        const zs = worldRef.current.zeds || [];
+        if (zs.length) {                                           // admins: zombies as dots instead
+          const t0 = performance.now(), r = Math.max(1.5, Math.min(3, k * ISO_SQ * 2.5));
+          g.fillStyle = "rgba(205, 45, 40, 0.85)";
+          for (const it of zs) {
+            if (F >= 0 ? it.z > F || it.z < 0 : it.z !== F) continue;
+            const [x, y] = zedAt(it, t0), [ax, ay] = w2img(x, y, it.z, true);
+            const sx = p0.x + ax * k, sy = p0.y + ay * k;
+            if (sx < 0 || sy < 0 || sx > W || sy > H) continue;
+            g.fillRect(sx - r / 2, sy - r / 2, r, r);
+          }
+        }
+        return;
+      }
       const list = [];
       if (F >= 0) for (const pl of places) {                       // kiosks / stations stand on the ground floor
         const P = PROPS[pl.kind], im = imgs[pl.kind];
@@ -1017,17 +1070,20 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
         list.push({ d: c.x + c.y + 1, im, sx: frameOf(carFace(c.angle), 16) * cw, sw: cw, x: ax - cw / 2,
           y: ay - im.naturalHeight * 200 / 320, label: wf.admin && c.owner ? c.owner : "", lx: ax, ly: ay - 110 });
       }
-      // zombies (admins): standing, facing the way they face; crawlers on the ground
-      for (const zd of wf.zeds) {
-        const [zx, zy, zz, fx, fy, female, crawl] = zd;
-        if (!onFloor(zz)) continue;
-        const im = zimgs[crawl ? "crawl" : female ? "f" : "m"];
+      // zombies (admins): gliding to their next spot with the walk cycle, else standing the way they face; crawlers low
+      for (const it of wf.zeds) {
+        if (!onFloor(it.z)) continue;
+        const im = zimgs[it.crawl ? "crawl" : it.female ? "f" : "m"];
         if (!ok(im)) continue;
-        const [ax, ay] = w2img(zx + 0.5, zy + 0.5, zz, true);
+        const [zx, zy] = zedAt(it, t);
+        const [ax, ay] = w2img(zx, zy, it.z, true);
         const sx0 = p0.x + ax * k;
         if (sx0 < -200 || sx0 > W + 200) continue;                     // off screen: skip early (there can be thousands)
-        const fw = im.naturalWidth / 8, fh = im.naturalHeight / rowsOf(im);
-        list.push({ d: zx + zy, im, sx: frameOf(fx || fy ? [fx, fy] : null) * fw, sy: 0, sw: fw, sh: fh, x: ax - fw / 2, y: ay - (fh - 32) });
+        const fw = im.naturalWidth / 8, rows = rowsOf(im), fh = im.naturalHeight / rows;
+        const walking = it.walking && rows > 1 && t - it.t0 < it.dur;
+        if (walking) moving = true;
+        const row = walking ? 1 + (Math.floor((t + (zx * 97) % 600) / (WALK_LOOP_MS * 1.6 / (rows - 1))) % (rows - 1)) : 0;
+        list.push({ d: zx + zy, im, sx: frameOf(it.face) * fw, sy: row * fh, sw: fw, sh: fh, x: ax - fw / 2, y: ay - (fh - 32) });
       }
       list.sort((a, b) => a.d - b.d);
       for (const o of list) {
