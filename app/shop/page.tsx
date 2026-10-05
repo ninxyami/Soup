@@ -10,7 +10,7 @@ const SHOPS = [
   { id: "medical",   label: "Dr. Voss's Clinic", npc: "Dr. Emil Voss",  role: "Medical Supplies",   icon: "🏥", location: "Oakshire",                       portrait: "/shop/emil.png"    },
   { id: "gardener",  label: "Maya's Greenhouse", npc: "Maya Chen",      role: "Gardener & Produce", icon: "🌱", location: "Raccoon City",                   portrait: "/shop/maya.png"    },
   { id: "tailor",    label: "Colette's Atelier", npc: "Colette Vance",  role: "Tailor & Apparel",   icon: "🧵", location: "March Ridge",                    portrait: "/shop/colette.png" },
-  { id: "librarian", label: "Miles's Library",   npc: "Miles Ashford",  role: "Books & Skills",     icon: "📚", location: "Grapeseed",                      portrait: "/shop/miles.png"   },
+  { id: "librarian", label: "Miles's Library",   npc: "Miles Ashford",  role: "Books & Skills",     icon: "📚", location: "Greenleaf",                      portrait: "/shop/miles.png"   },
   { id: "melee",     label: "Bruno's Workshop",  npc: "Bruno Kessler",  role: "Melee & Tools",      icon: "🔨", location: "Constown",                       portrait: "/shop/bruno.png"   },
   { id: "music",     label: "Scarlett's Records", npc: "Scarlett Vance", role: "Community Tapes",    icon: "🎵", location: "See the map: the cassette sign", portrait: "/shop/scarlett.png" },
   { id: "global",    label: "General Stores",    npc: "Six keepers",    role: "Everyday Goods",     icon: "⛽", location: "39 stores in 26 towns",          portrait: null                },
@@ -20,8 +20,8 @@ const SHOPS = [
 // Each store shows its own slice of the general rotation (zombita_assortments.py); the ★ items are in all of them.
 const GENERAL_KEEPERS = [
   { npc: "Lena Vasquez", towns: ["West Point", "Muldraugh", "Echo Creek", "Valley Station", "Raccoon City", "Daisy County", "Havenfall"] },
-  { npc: "Dex Malone",   towns: ["West Point", "Muldraugh", "Ekron", "Grapeseed", "Raccoon City", "Daisy County", "Nettle Township"] },
-  { npc: "Roxy",         towns: ["Rosewood", "Fallas Lake", "Irvington", "Grapeseed", "Oakshire", "Safeharbor Garrison", "Nettle Township"] },
+  { npc: "Dex Malone",   towns: ["West Point", "Muldraugh", "Ekron", "Greenleaf", "Raccoon City", "Daisy County", "Nettle Township"] },
+  { npc: "Roxy",         towns: ["Rosewood", "Fallas Lake", "Irvington", "Greenleaf", "Oakshire", "Safeharbor Garrison", "Nettle Township"] },
   { npc: "Cal Briggs",   towns: ["Rosewood", "March Ridge", "Irvington", "Frogtown", "Oakshire", "Safeharbor Garrison"] },
   { npc: "Nadia",        towns: ["Riverside", "Bradenburg", "Dixie", "Constown", "Blackstone", "Anruisi Town"] },
   { npc: "Eli Marsh",    towns: ["Riverside", "Bradenburg", "Dixie", "Constown", "Daisy County", "Willowbrook"] },
