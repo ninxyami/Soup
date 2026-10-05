@@ -845,9 +845,13 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
       if (!it) { st.items.set(d.id, { from: to, to, t0: now, dur: 0, last: now, face: d.face, look: d.look }); }
       else {
         const cur = at(it, now);
-        const jump = Math.hypot(to[0] - cur[0], to[1] - cur[1]) > 40 || to[2] !== it.to[2];
+        const dx = to[0] - cur[0], dy = to[1] - cur[1], dist = Math.hypot(dx, dy);
+        const jump = dist > 40 || to[2] !== it.to[2];
+        // walking: face the way they're going (the server's own facing for other players goes stale; mod 1.7.122
+        // sends each client's real facing); standing: the reported facing
+        const face = !jump && dist > 0.6 ? [dx / dist, dy / dist] : (d.face || it.face);
         Object.assign(it, { from: jump ? to : [cur[0], cur[1]], to, t0: now, dur: jump ? 0 : Math.min(7000, Math.max(800, now - it.last)),
-          last: now, face: d.face || it.face, look: d.look });
+          last: now, face, look: d.look });
       }
       if (!st.imgs.has(d.look)) {
         const im = new Image();
@@ -897,13 +901,15 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
       }
       const t = performance.now();
       let moving = false;
-      for (const it of fig.items.values()) {
-        const im = fig.imgs.get(it.look);
-        if (!im || !im.complete || !im.naturalWidth) continue;
+      for (const [id, it] of fig.items) {
         const [x, y, z] = fig.at(it, t);
         if (it.dur > 0 && t - it.t0 < it.dur) moving = true;
-        if (F >= 0 ? z > F || z < 0 : z !== F) continue;           // above the floor looked at (cut away), or not this basement
         const [ax, ay] = w2img(x, y, z, true);                       // the square's middle = where the feet stand
+        const dotEl = dotEls.current.get(id);                         // the name dot glides with the figure
+        if (dotEl) try { v.updateOverlay(dotEl, item.imageToViewportCoordinates(new OSD.Point(ax, ay))); } catch {}
+        const im = fig.imgs.get(it.look);
+        if (!im || !im.complete || !im.naturalWidth) continue;
+        if (F >= 0 ? z > F || z < 0 : z !== F) continue;           // above the floor looked at (cut away), or not this basement
         const fw = im.naturalWidth / 8;
         list.push({ d: x + y, im, sx: frameOf(it.face) * fw, sw: fw, x: ax - fw / 2, y: ay - (im.naturalHeight - 32) });
       }
@@ -1087,7 +1093,7 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
           el.innerHTML = `<span class="me"></span><span class="lbl" style="font:600 12px var(--mono,monospace);color:#fff;text-shadow:0 1px 2px #000"></span>`;
           v.addOverlay({ element: el, location: vp, checkResize: false });
           dotEls.current.set(d.id, el);
-        } else {
+        } else if (!(iso && figRef.current.items.has(d.id))) {        // a player with a figure: its dot glides with it
           v.updateOverlay(el, vp);
         }
         const me = el.querySelector(".me");
