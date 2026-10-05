@@ -41,7 +41,8 @@ const ISO_SQ = 90;
 
 export type Place = { kind: "shop" | "bus" | "diner" | "town"; id: string; name: string; role?: string; town?: string; x: number; y: number };
 // z = floor (3D view puts the dot on that floor and fades it when it's above the floor being looked at)
-export type Dot = { id: string; label: string; x: number; y: number; z?: number; color?: string; size?: number; onClick?: () => void };
+export type Dot = { id: string; label: string; x: number; y: number; z?: number; color?: string; size?: number; onClick?: () => void;
+  look?: string; face?: [number, number] | null; inCar?: boolean; dead?: boolean };   // look/face: a player's figure in 3D
 // Boxes in world squares (Live Ops: safehouses, zombie heat). They scale with the map; in 3D they're diamonds on the
 // ground. onClick makes one clickable.
 export type Rect = { id: string; x: number; y: number; w: number; h: number; color?: string; fill?: string; label?: string;
@@ -825,14 +826,56 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, view, floor, lightOn]);
-  // kiosks and stations (3D only, ground floor and above, close enough to see them)
+  // Player figures (2026-10-05): each online player drawn the way the game draws them (map3d kit figures/render_figures.py
+  // renders <ISO_BASE>/figures/<look>.webp from mod 1.7.121's zombita_looks.txt: 8 frames of 192 x 256, N NE E SE S SW
+  // W NW, feet at 96,224). A new position glides in over the time since the last one (the feed is every ~5 s), a jump
+  // of 40+ squares (teleport, bus) snaps. Not drawn in a car or dead (the dot still shows); no figure yet = just the dot.
+  const figRef = useRef<any>({ items: new Map(), imgs: new Map(), req: null });
+  useEffect(() => {
+    const st = figRef.current, now = performance.now(), seen = new Set();
+    const at = (it, t) => {
+      const u = it.dur > 0 ? Math.min(1, (t - it.t0) / it.dur) : 1;
+      return [it.from[0] + (it.to[0] - it.from[0]) * u, it.from[1] + (it.to[1] - it.from[1]) * u, it.to[2]];
+    };
+    for (const d of dots) {
+      if (!d.look || d.inCar || d.dead || !Number.isFinite(d.x)) continue;
+      seen.add(d.id);
+      const to = [d.x + 0.5, d.y + 0.5, d.z || 0];
+      const it = st.items.get(d.id);
+      if (!it) { st.items.set(d.id, { from: to, to, t0: now, dur: 0, last: now, face: d.face, look: d.look }); }
+      else {
+        const cur = at(it, now);
+        const jump = Math.hypot(to[0] - cur[0], to[1] - cur[1]) > 40 || to[2] !== it.to[2];
+        Object.assign(it, { from: jump ? to : [cur[0], cur[1]], to, t0: now, dur: jump ? 0 : Math.min(7000, Math.max(800, now - it.last)),
+          last: now, face: d.face || it.face, look: d.look });
+      }
+      if (!st.imgs.has(d.look)) {
+        const im = new Image();
+        im.onload = () => st.req && st.req();
+        im.onerror = () => setTimeout(() => st.imgs.delete(d.look), 60000);      // not rendered yet: ask again in a minute
+        im.src = `${ISO_BASE}/figures/${d.look}.webp`;
+        st.imgs.set(d.look, im);
+      }
+    }
+    for (const id of Array.from(st.items.keys())) if (!seen.has(id)) st.items.delete(id);
+    st.at = at;
+    st.req && st.req();
+  }, [dots]);
+
+  // kiosks, stations and player figures (3D only, close enough to see them), drawn together back to front so a player
+  // in front of a kiosk covers it and one behind is covered
   useEffect(() => {
     if (!ready || view !== "3d") { const c = propsRef.current.canvas; if (c) c.getContext("2d").clearRect(0, 0, c.width, c.height); return; }
-    const v = viewerRef.current;
+    const v = viewerRef.current, fig = figRef.current;
     let alive = true, queued = false, OSD = null;
     const imgs = {};
     for (const [kind, p] of Object.entries(PROPS)) { const im = new Image(); im.onload = () => req(); im.src = p.src; imgs[kind] = im; }
     import("openseadragon").then((m) => { OSD = m.default; req(); });
+    const frameOf = (face) => {
+      if (!face) return 4;                                       // unknown: facing the camera-ish (S)
+      const a = Math.atan2(face[0], -face[1]);                   // clockwise from north (x east, y south)
+      return ((Math.round(a / (Math.PI / 4)) % 8) + 8) % 8;
+    };
     const draw = () => {
       queued = false;
       const c = propsRef.current.canvas, item = v && v.world && v.world.getItemAt(0);
@@ -841,23 +884,45 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
       if (c.width !== W || c.height !== H) { c.width = W; c.height = H; }
       const g = c.getContext("2d");
       g.clearRect(0, 0, W, H);
-      if (floorRef.current < 0) return;                            // a basement view: they stand on the ground
+      const F = floorRef.current;
       const p0 = item.imageToViewerElementCoordinates(new OSD.Point(0, 0));
       const k = (item.imageToViewerElementCoordinates(new OSD.Point(10000, 0)).x - p0.x) / 10000;
       if (k * ISO_SQ < 1.2) return;                                // too far out to make one out
-      for (const pl of places) {
+      const list = [];
+      if (F >= 0) for (const pl of places) {                       // kiosks / stations stand on the ground floor
         const P = PROPS[pl.kind], im = imgs[pl.kind];
         if (!P || !im || !im.complete || !im.naturalWidth || !Number.isFinite(pl.x)) continue;
         const [ax, ay] = w2img(pl.x + 1, pl.y + 1, 0, true);         // the square's bottom vertex
-        const x = p0.x + (ax + P.ox) * k, y = p0.y + (ay + P.oy) * k, w = im.naturalWidth * k, h = im.naturalHeight * k;
-        if (x > W || y > H || x + w < 0 || y + h < 0) continue;
-        g.drawImage(im, x, y, w, h);
+        list.push({ d: pl.x + pl.y + 1, im, sx: 0, sw: im.naturalWidth, x: ax + P.ox, y: ay + P.oy });
       }
+      const t = performance.now();
+      let moving = false;
+      for (const it of fig.items.values()) {
+        const im = fig.imgs.get(it.look);
+        if (!im || !im.complete || !im.naturalWidth) continue;
+        const [x, y, z] = fig.at(it, t);
+        if (it.dur > 0 && t - it.t0 < it.dur) moving = true;
+        if (F >= 0 ? z > F || z < 0 : z !== F) continue;           // above the floor looked at (cut away), or not this basement
+        const [ax, ay] = w2img(x, y, z, true);                       // the square's middle = where the feet stand
+        const fw = im.naturalWidth / 8;
+        list.push({ d: x + y, im, sx: frameOf(it.face) * fw, sw: fw, x: ax - fw / 2, y: ay - (im.naturalHeight - 32) });
+      }
+      list.sort((a, b) => a.d - b.d);
+      for (const o of list) {
+        const x = p0.x + o.x * k, y = p0.y + o.y * k, w = o.sw * k, h = o.im.naturalHeight * k;
+        if (x > W || y > H || x + w < 0 || y + h < 0) continue;
+        g.drawImage(o.im, o.sx, 0, o.sw, o.im.naturalHeight, x, y, w, h);
+      }
+      if (moving) req();                                           // keep gliding until everyone has arrived
     };
     const req = () => { if (!queued && alive) { queued = true; requestAnimationFrame(() => { try { draw(); } catch { queued = false; } }); } };
+    fig.req = req;
     for (const ev of ["animation", "animation-finish", "resize", "update-viewport"]) v.addHandler(ev, req);
     req();
-    return () => { alive = false; for (const ev of ["animation", "animation-finish", "resize", "update-viewport"]) try { v.removeHandler(ev, req); } catch {} };
+    return () => {
+      alive = false; if (fig.req === req) fig.req = null;
+      for (const ev of ["animation", "animation-finish", "resize", "update-viewport"]) try { v.removeHandler(ev, req); } catch {}
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, view, floor, places]);
   useEffect(() => { try { localStorage.setItem("soup-map-light", lightOn ? "on" : "off"); } catch {} }, [lightOn]);
