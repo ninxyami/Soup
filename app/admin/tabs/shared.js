@@ -29,7 +29,7 @@ export function useStickyState(defaultValue, key) {
 export const API = "https://api.stateofundeadpurge.site:8443";
 
 export const HUNT_TYPES = ["food","medic","ammo","weapons","military","misc","beginner","horde"];
-export const HUNT_REGIONS = ["Irvington","Echo Creek","Ekron","Brandenburg","Riverside","Fallas Lake","Rosewood","March Ridge","Muldraugh","Westpoint","Valley Station","Louisville","Grapeseed","Maplewood","Near Foxtrot","Frog Town","Raccoon City"];
+export const HUNT_REGIONS = ["Irvington","Echo Creek","Ekron","Brandenburg","Riverside","Fallas Lake","Rosewood","March Ridge","Muldraugh","Westpoint","Valley Station","Louisville","Greenleaf","Maplewood","Near Foxtrot","Frog Town","Raccoon City"];
 
 export const ADMINS = {
   228533264174940160: { name: "Nin Nin",   color: "#c8a84b", initials: "NN" },
