@@ -27,6 +27,8 @@ const TILE_BASE = (process.env.NEXT_PUBLIC_MAP_TILES || "https://api.stateofunde
 const CARTO_BASE = (process.env.NEXT_PUBLIC_MAP_TILES_CARTO || "https://api.stateofundeadpurge.site/map-tiles/carto1").replace(/\/$/, "");
 // The 3D (isometric) world. The Top / 3D switch only appears once its map_info.json answers.
 const ISO_BASE = (process.env.NEXT_PUBLIC_MAP_TILES_3D || "https://api.stateofundeadpurge.site/map-tiles/3d").replace(/\/$/, "");
+// Night lights (map3d kit tools/extract_lights.py): every lamp, sign, street light and switch room in the world
+const LIGHTS_BASE = (process.env.NEXT_PUBLIC_MAP_LIGHTS || `${ISO_BASE}/lights`).replace(/\/$/, "");
 const STYLES = [{ id: "normal", label: "Normal" }, { id: "carto", label: "Floor plans" }];
 const VIEWS = [{ id: "top", label: "Top" }, { id: "3d", label: "3D" }];
 // the remembered Top / 3D choice. A new key on 2026-10-04 when 3D became the default, so a "Top" picked before
@@ -83,6 +85,8 @@ const CSS = `
 .wm-tint{position:absolute;inset:0;pointer-events:none;mix-blend-mode:multiply;transition:background-color 8s linear}
 .wm-fog{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity 6s linear;background:radial-gradient(ellipse at center,rgba(205,210,215,.55) 0%,rgba(205,210,215,.8) 55%,rgba(210,214,218,.95) 100%)}
 .wm-fx{position:absolute;inset:0;pointer-events:none;width:100%;height:100%}
+.wm-glow{position:absolute;inset:0;pointer-events:none;width:100%;height:100%;mix-blend-mode:color-dodge}
+.wm-bulb{position:absolute;inset:0;pointer-events:none;width:100%;height:100%;mix-blend-mode:screen}
 .wm-flash{position:absolute;inset:0;pointer-events:none;background:#dfe8ff;opacity:0;mix-blend-mode:screen}
 .wm-wx{display:flex;align-items:center;gap:5px;padding:4px 8px;background:#0a0e0f;border:1px solid #1a3335;border-radius:3px;box-shadow:0 1px 6px rgba(0,0,0,.6),inset 0 0 12px rgba(79,195,200,.15);color:#4fc3c8;font:600 11px 'DSEG7 Classic','DSEG7Classic',monospace;text-shadow:0 0 6px #4fc3c8}
 .wm-wx svg{width:20px;height:20px;filter:drop-shadow(0 0 3px #4fc3c8)}
@@ -143,6 +147,49 @@ const lightAt = (hour, month) => {
   return LOOKS.day;
 };
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+// ── Night lights (L2, 2026-10-05): lamps, signs and street lights glow, rooms with a light switch light up, and lit
+// windows spill onto the ground, at night while the game's power is on. Data = <LIGHTS_BASE>/index.json + one file
+// per 256-square cell (extract_lights.py). The glow layer is colour-dodge, so a lit spot gets the map's own colours
+// back, warm-tinted, rather than a flat wash; bulbs and window panes are a small "screen" layer on top.
+// Which rooms have the light on: each room has a fixed number 0-99 and is on below the share for the hour, so
+// houses go dark one by one through the night and the same ones come back on the next evening.
+const LIT_SHARE = [[0, 35], [2, 20], [5, 22], [7, 30], [17, 55], [20, 65], [22, 55], [24, 35]];
+const litShare = (mins) => {
+  const h = (mins / 60) % 24;
+  for (let i = 1; i < LIT_SHARE.length; i++) {
+    const [h0, a] = LIT_SHARE[i - 1], [h1, b] = LIT_SHARE[i];
+    if (h <= h1) return a + ((b - a) * (h - h0)) / (h1 - h0);
+  }
+  return 35;
+};
+// light colour -> colour-dodge colour. The game's colours are very saturated (street lamps 255,80,20), and dodged
+// over the blue night they turn pink, so each is mixed 55% toward a warm white first; never 1 (that would blow the
+// channel out to white).
+// The night underneath is blue-grey, and dodge multiplies per channel, so blue is held back and green given room:
+// otherwise warm light over blue asphalt comes out magenta.
+const WARM = [255, 205, 150];
+const dodgeOf = (r, g, b) => {
+  const m = [r, g, b].map((c, i) => (0.45 * c + 0.55 * WARM[i]) / 255);
+  return [0.3 + 0.56 * m[0], 0.35 + 0.6 * m[1], 0.08 + 0.3 * m[2]].map((x) => Math.round(255 * x));
+};
+const ROOM_RGB = [205, 178, 95];
+const ROOM_DODGE = `rgb(${ROOM_RGB.join(",")})`;      // a warm ceiling light
+const WALL_UP = 0.85 * ISO_FLOOR;            // how high a lit room's back walls catch the light, image px
+// soft round glow sprites, one per colour (quantised), drawn stretched into ellipses
+const glowSprites = new Map();
+const glowSprite = (rgb) => {
+  const key = rgb.map((c) => c & 0xf8).join(",");
+  let s = glowSprites.get(key);
+  if (!s) {
+    s = document.createElement("canvas"); s.width = s.height = 64;
+    const g = s.getContext("2d"), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    gr.addColorStop(0, `rgba(${key},1)`); gr.addColorStop(0.35, `rgba(${key},0.75)`); gr.addColorStop(1, `rgba(${key},0)`);
+    g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+    glowSprites.set(key, s);
+  }
+  return s;
+};
 
 // ── Weather (mod 1.7.119 writes it, /api/map/players returns it): rain / snow particles, fog haze, lightning flashes,
 // a grey overcast look, and a badge by the clock. ?weather=rain|storm|fog|snow|cloud previews one.
@@ -501,6 +548,8 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
   const [wsTime, setWsTime] = useState<any>(null);
   const [weather, setWeather] = useState<any>(null);  // the feed's "weather" (1.7.119+), null before / older mods
   const fxRef = useRef<any>({ canvas: null, fog: null, flash: null, w: null, raf: 0 });
+  // night lights: canvases, darkness 0-1, share of rooms lit, power, index + loaded cells, and the redraw
+  const litRef = useRef<any>({ glow: null, bulb: null, s: 0, share: 50, power: true, idx: null, cells: new Map(), draw: null });
   useEffect(() => {
     let stop = false;
     const load = () => fetch(`${API}/api/map/players`).then((r) => (r.ok ? r.json() : null)).then((d) => {
@@ -535,6 +584,7 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
     try { const k = new URLSearchParams(window.location.search).get("weather"); return k && WX_PREVIEW[k] ? WX_PREVIEW[k] : null; } catch { return null; }
   }, []);
   const wxNow = wxOverride || weather;
+  const powerOff = useMemo(() => { try { return new URLSearchParams(window.location.search).get("power") === "off"; } catch { return false; } }, []);
   const gameNow = useMemo(() => {
     if (timeOverride) return { month: timeOverride.month || game?.month || 7, day: game?.day || 1, mins: timeOverride.mins };
     if (wsTime && wsTime.hour !== undefined) {
@@ -561,10 +611,21 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
       const fog = document.createElement("div"); fog.className = "wm-fog";
       const fx = document.createElement("canvas"); fx.className = "wm-fx";
       const flash = document.createElement("div"); flash.className = "wm-flash";
-      for (const el of [fog, fx, flash]) v.overlaysContainer.parentNode.insertBefore(el, v.overlaysContainer);
+      // night lights right above the tint (so they light up the darkened map), under the weather
+      const glow = document.createElement("canvas"); glow.className = "wm-glow";
+      const bulb = document.createElement("canvas"); bulb.className = "wm-bulb";
+      for (const el of [glow, bulb, fog, fx, flash]) v.overlaysContainer.parentNode.insertBefore(el, v.overlaysContainer);
       fxRef.current.canvas = fx; fxRef.current.fog = fog; fxRef.current.flash = flash;
+      litRef.current.glow = glow; litRef.current.bulb = bulb;
     }
     let L = lightOn && gameNow ? lightAt(gameNow.mins / 60, gameNow.month) : LOOKS.day;
+    // lights: how dark it is from the clock alone (a stormy afternoon doesn't switch the street lights on), the
+    // share of rooms lit at this hour, and the power (weather line; unknown = on). ?power=off previews a blackout.
+    const lit = litRef.current;
+    lit.s = Math.max(0, Math.min(1, (1 - L.bri) / 0.45));
+    lit.share = gameNow ? litShare(gameNow.mins) : 50;
+    lit.power = !(wxNow && wxNow.power === false) && !powerOff;
+    lit.draw && lit.draw();
     const w = lightOn ? wxNow : null;
     const num = (x) => (typeof x === "number" ? x : 0);
     const over = w ? Math.min(1, Math.max(num(w.rain), num(w.snow) * 0.8, num(w.cloud) * 0.5, w.thunder ? 1 : 0)) : 0;
@@ -624,6 +685,131 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
     st.raf = requestAnimationFrame(frame);
     return () => cancelAnimationFrame(st.raf);
   }, [ready]);
+  // night lights: index once, cell files as they come into view (close enough), redrawn on every camera move.
+  // Far out: the index's per-cell summary (a 16-square grid of glow). Closer: each lamp's pool, lit rooms (floor +
+  // the back walls they light), and close up the bulbs, window panes and the light falling out of windows.
+  useEffect(() => {
+    if (!ready) return;
+    const v = viewerRef.current, lit = litRef.current;
+    if (process.env.NODE_ENV !== "production") (window as any).__soupLights = lit;   // dev-only debugging handle
+    let alive = true, queued = false, OSD = null, inflight = 0;
+    import("openseadragon").then((m) => { OSD = m.default; req(); });
+    if (!lit.idx) fetch(`${LIGHTS_BASE}/index.json`).then((r) => (r.ok ? r.json() : null)).then((j) => { if (j && j.cells) { lit.idx = j; req(); } }).catch(() => {});
+    const load = (key) => {
+      lit.cells.set(key, "loading"); inflight++;
+      fetch(`${LIGHTS_BASE}/${key.replace(",", "_")}.json`).then((r) => (r.ok ? r.json() : null))
+        .then((d) => { lit.cells.set(key, d || null); }).catch(() => lit.cells.delete(key))
+        .finally(() => { inflight--; req(); });
+    };
+    const clear = (c) => { if (c) { const g = c.getContext("2d"); g.clearRect(0, 0, c.width, c.height); } };
+    const draw = () => {
+      queued = false;
+      const G = lit.glow, Bc = lit.bulb, item = v && v.world && v.world.getItemAt(0);
+      if (!alive || !G || !Bc || !item || !OSD) return;
+      const W = G.clientWidth, H = G.clientHeight;
+      for (const c of [G, Bc]) if (c.width !== W || c.height !== H) { c.width = W; c.height = H; }
+      clear(G); clear(Bc);
+      const s = lit.s;
+      if (!lightOn || s < 0.03 || !lit.power || !lit.idx) return;
+      const iso = is3d(), F = iso ? floorRef.current : 0, share = lit.share;
+      // image px -> screen px is a plain scale + offset
+      const p0 = item.imageToViewerElementCoordinates(new OSD.Point(0, 0));
+      const p1 = item.imageToViewerElementCoordinates(new OSD.Point(10000, 0));
+      const k = (p1.x - p0.x) / 10000;
+      const scr = (x, y, z) => { const [px, py] = w2img(x, y, z, iso); return [p0.x + px * k, p0.y + py * k]; };
+      const pps = k * sqPx(iso);                                  // screen px per square
+      // world squares on screen (any floor up to ~6 above, which sit higher on the image)
+      const corners = [[0, 0], [W, 0], [0, H + ISO_FLOOR * 6 * k], [W, H + ISO_FLOOR * 6 * k]].map(([sx, sy]) => {
+        const im = item.viewerElementToImageCoordinates(new OSD.Point(sx, sy));
+        return iso ? (() => { const g = isoRef.current, u = (im.x - g.x0) / ISO_GW, w = (im.y - g.y0) / ISO_GH; return [(w + u) / 2, (w - u) / 2]; })()
+          : img2w(im.x, im.y, false);
+      });
+      const xs = corners.map((c) => c[0]), ys = corners.map((c) => c[1]);
+      const cx0 = Math.floor(Math.min(...xs) / 256) - 1, cx1 = Math.floor(Math.max(...xs) / 256) + 1;
+      const cy0 = Math.floor(Math.min(...ys) / 256) - 1, cy1 = Math.floor(Math.max(...ys) / 256) + 1;
+      const ell = (g, sprite, x, y, rx, ry, a) => {
+        if (x + rx < 0 || x - rx > W || y + ry < 0 || y - ry > H) return;
+        g.globalAlpha = a; g.drawImage(sprite, x - rx, y - ry, rx * 2, ry * 2);
+      };
+      // a circle of R squares on the ground: iso = 2:1 ellipse, top view = circle
+      const rxy = (R) => (iso ? [R * 90.5 * k, R * 45.25 * k] : [R * pps, R * pps]);
+      const g = G.getContext("2d"), b = Bc.getContext("2d");
+      const far = pps < 0.45;
+      if (far) {
+        for (let cx = cx0; cx <= cx1; cx++) for (let cy = cy0; cy <= cy1; cy++) {
+          const sm = lit.idx.sum && lit.idx.sum[`${cx},${cy}`];
+          if (!sm) continue;
+          for (const [bx, by, w, r, gg, bb] of sm) {
+            const [x, y] = scr(cx * 256 + (bx + 0.5) * 16, cy * 256 + (by + 0.5) * 16, 0);
+            const [rx, ry] = rxy(16 * (0.75 + Math.min(1.25, Math.sqrt(w) / 4)));
+            ell(g, glowSprite(dodgeOf(r, gg, bb)), x, y, rx, ry, s * Math.min(0.9, 0.1 + 0.12 * Math.sqrt(w)));
+          }
+        }
+        return;
+      }
+      const near = pps >= 1.6;
+      const rooms = new Path2D();
+      let anyRoom = false;
+      const onFloor = (z) => z === F;
+      const upTo = (z) => (F >= 0 ? z >= 0 && z <= F : z === F);
+      for (let cx = cx0; cx <= cx1; cx++) for (let cy = cy0; cy <= cy1; cy++) {
+        const key = `${cx},${cy}`;
+        if (!lit.idx.cells[key]) continue;
+        const d = lit.cells.get(key);
+        if (d === undefined) { if (inflight < 6) load(key); continue; }
+        if (!d || d === "loading") continue;
+        // lit rooms: the floor diamond and its back walls, as one shape (overlaps don't double up)
+        if (iso) for (const [z, h, rects] of d.r) {
+          if (h >= share || !onFloor(z)) continue;
+          for (const [x, y, w, hh] of rects) {
+            const A = scr(x, y, z), B = scr(x + w, y, z), C = scr(x + w, y + hh, z), D = scr(x, y + hh, z), up = WALL_UP * k;
+            if (Math.max(A[0], B[0], C[0], D[0]) < 0 || Math.min(A[0], B[0], C[0], D[0]) > W || C[1] < 0 || A[1] - up > H) continue;
+            rooms.moveTo(A[0], A[1] - up); rooms.lineTo(B[0], B[1] - up); rooms.lineTo(B[0], B[1]); rooms.lineTo(C[0], C[1]);
+            rooms.lineTo(D[0], D[1]); rooms.lineTo(D[0], D[1] - up); rooms.closePath();
+            anyRoom = true;
+          }
+        }
+        // lamps, signs, street lights: a pool on the ground (street lamp heads sit one floor up), the bulb close up
+        for (const [x, y, z, r, gg, bb, rad, street, room] of d.l) {
+          if (room >= 0 && room >= share) continue;                 // an indoor lamp in a room that's dark
+          const zg = room < 0 && street && z > 0 ? z - 1 : z;
+          if (room >= 0 ? !onFloor(z) || !iso : !upTo(zg)) continue;
+          const R = street ? Math.min(rad, 9) : Math.min(rad, 6);
+          const [px, py] = scr(x + 0.5, y + 0.5, zg), [rx, ry] = rxy(R);
+          ell(g, glowSprite(dodgeOf(r, gg, bb)), px, py, rx, ry, s * (street ? 0.85 : 0.7));
+          if (near && iso) {
+            const [qx, qy] = scr(x + 0.5, y + 0.5, z), q = Math.max(2, 0.22 * 90 * k);
+            ell(b, glowSprite([Math.min(255, r + 60), Math.min(255, gg + 60), Math.min(255, bb + 60)]), qx, qy - (street ? 0.5 * ISO_FLOOR * k : 0.25 * ISO_FLOOR * k), q, q, s);
+          }
+        }
+        // windows of lit rooms: the light falling out onto the ground, and the pane itself
+        if (pps >= 0.9) for (const [x, y, z, dir, out, h] of d.w) {
+          if (h >= share || !upTo(z) || (!iso && z !== 0)) continue;
+          if (out !== 0 && z === (F >= 0 ? 0 : F)) {                  // spill: ground floor (or the basement looked at)
+            const ox = dir === 1 ? (out < 0 ? -0.9 : 0.9) : 0.5, oy = dir === 0 ? (out < 0 ? -0.9 : 0.9) : 0.5;
+            const [px, py] = scr(dir === 1 ? x + ox : x + 0.5, dir === 0 ? y + oy : y + 0.5, z), [rx, ry] = rxy(1.7);
+            ell(g, glowSprite(ROOM_RGB), px, py, rx, ry, s * 0.55);
+          }
+          if (near && iso) {
+            const [px, py] = scr(dir === 1 ? x : x + 0.5, dir === 0 ? y : y + 0.5, z);
+            ell(b, glowSprite([255, 214, 150]), px, py - 0.45 * ISO_FLOOR * k, Math.max(1.5, 14 * k), Math.max(2.5, 30 * k), s * 0.8);
+          }
+        }
+      }
+      if (anyRoom) { g.globalAlpha = s * 0.85; g.fillStyle = ROOM_DODGE; g.fill(rooms); }
+      g.globalAlpha = 1; b.globalAlpha = 1;
+    };
+    const safeDraw = () => { try { draw(); } catch { queued = false; } };   // a bad cell file must never break the map
+    const req = () => { if (!queued && alive) { queued = true; requestAnimationFrame(safeDraw); } };
+    lit.draw = req;
+    for (const ev of ["animation", "animation-finish", "resize", "update-viewport"]) v.addHandler(ev, req);
+    req();
+    return () => {
+      alive = false; lit.draw = null;
+      for (const ev of ["animation", "animation-finish", "resize", "update-viewport"]) try { v.removeHandler(ev, req); } catch {}
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, view, floor, lightOn]);
   useEffect(() => { try { localStorage.setItem("soup-map-light", lightOn ? "on" : "off"); } catch {} }, [lightOn]);
 
   // is the second look on the server yet?
