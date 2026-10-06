@@ -7,6 +7,18 @@ import { useEffect, useMemo, useState } from "react";
 import { flyTo, KIND } from "@/components/WorldMap";
 
 const MARK = { go: "#e8be4a", event: "#ec8c3c", info: "#60a0dc", danger: "#e05246" };
+// Credits (Nin 2026-10-06: "give credit where its due"): the game and every map mod / tile pack whose art is on the map,
+// in the server's Map= order (map3d kit soup_conf/soup_maps.txt). The tools that draw it are not named, on purpose.
+const WS = "https://steamcommunity.com/sharedfiles/filedetails/?id=";
+const MAP_MODS = [
+  ["Anruisi Town", "3659676359"], ["Safeharbor Garrison", "3522517059"], ["HavenFall", "3728357493"], ["Blackstone", "3666566299"],
+  ["Nettle Township", "3391349130"], ["Willowbrook Bastion! 2026", "3479667649"], ["Oakshire", "3535422434"], ["Daisy County", "3390753141"],
+  ["Constown, KY", "3480990544"], ["Frogtown", "3449473111"], ["Foxtrot Warehouse", "3600377019"], ["Maplewood", "3644794945"],
+  ["Greenleaf", "3602388131"], ["Clover Lake", "3759558202"], ["WILDSTEEL", "3691773420"],
+];
+const TILE_PACKS = [
+  ["Rocco's Tiles", "3666137359"], ["Newburbs", "3520263838"], ["Oujinjin Tiles", "3694705423"], ["Unofficial Mappers Community Tile Pack", "3628736763"],
+];
 const mono = { fontFamily: "var(--mono, monospace)" };
 
 function load(key, fallback) { try { const v = localStorage.getItem(key); return v === null ? fallback : JSON.parse(v); } catch { return fallback; } }
@@ -39,7 +51,7 @@ function Section({ id, title, count, open, toggle, children }) {
 
 export default function MapSidebar({ players = [], markers = [], places = [], live = null }) {
   const [shown, setShown] = useState(true);
-  const [open, setOpen] = useState({ players: true, events: true, shop: false, bus: false, town: false, diner: false });
+  const [open, setOpen] = useState({ players: true, events: true, shop: false, bus: false, town: false, diner: false, credits: false });
   const [q, setQ] = useState("");
   const [narrow, setNarrow] = useState(false);
   useEffect(() => {
@@ -116,6 +128,17 @@ export default function MapSidebar({ players = [], markers = [], places = [], li
         <Section id="bus" title="Bus stations" count={byKind.bus.length} open={open.bus} toggle={toggle}>{list("bus", 1.4)}</Section>
         <Section id="town" title="Towns" count={byKind.town.length} open={open.town} toggle={toggle}>{list("town", 0.35)}</Section>
         {byKind.diner.length > 0 && <Section id="diner" title="Zombita's diner" count={byKind.diner.length} open={open.diner} toggle={toggle}>{list("diner", 1.6)}</Section>}
+        <Section id="credits" title="Credits" count="" open={open.credits} toggle={toggle}>
+          <div style={{ ...mono, fontSize: 11, color: "#8a929b", padding: "2px 12px 6px", lineHeight: 1.6 }}>
+            <p style={{ margin: "0 0 8px", color: "#c8a84b" }}>Map rendered and hosted on our own server by State of Undead Purge.</p>
+            <p style={{ margin: "0 0 8px" }}>Project Zomboid and its map by <a href="https://projectzomboid.com" target="_blank" rel="noreferrer" style={{ color: "#c9cdd2" }}>The Indie Stone</a>.</p>
+            <p style={{ margin: "0 0 4px" }}>Map mods by their authors:</p>
+            {MAP_MODS.map(([name, id]) => <a key={id} href={WS + id} target="_blank" rel="noreferrer" style={{ display: "block", color: "#c9cdd2" }}>{name}</a>)}
+            <p style={{ margin: "8px 0 4px" }}>Tile packs by their authors:</p>
+            {TILE_PACKS.map(([name, id]) => <a key={id} href={WS + id} target="_blank" rel="noreferrer" style={{ display: "block", color: "#c9cdd2" }}>{name}</a>)}
+            <p style={{ margin: "8px 0 0" }}>Thank you for making the world we play in.</p>
+          </div>
+        </Section>
       </div>
     </aside>
   );
