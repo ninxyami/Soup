@@ -13,6 +13,7 @@ import { flyTo } from "@/components/WorldMap";
 import { API } from "@/lib/constants";
 import ZombitaControl from "@/components/ops/ZombitaControl";
 import PantherTab from "@/components/ops/PantherTab";
+import TigerTab from "@/components/ops/TigerTab";
 import PanelGate from "@/components/PanelGate";
 
 // the mode (Live / Zombita) and Zombita's last tab survive a reload (per browser)
@@ -272,7 +273,7 @@ function OpsInner() {
     for (const a of admins) if (a.id !== meId && a.x && a.y) out.push({ id: "adm:" + a.id, label: `${a.name} is looking here`, x: a.x, y: a.y, size: 9, color: "#00d2ff" });
     if (layers.vehicles) (st?.vehicles || []).forEach((v) => out.push({ id: "v:" + v.id, label: "", x: v.x, y: v.y, size: 8, color: "#cfd3da",
       onClick: () => toast(true, `${v.owner}'s ${String(v.model).replace(/^Base\./, "")} at ${v.x}, ${v.y}`) }));
-    if (mode === "zombita" || mode === "panther") out.push(...zLayer.dots);
+    if (mode === "zombita" || mode === "panther" || mode === "tiger") out.push(...zLayer.dots);
     return out;
   }, [st, layers, selP, toast, markDraft, trailPts, spot, admins, meId, mode, zLayer]);
   const rects = useMemo(() => {
@@ -303,7 +304,7 @@ function OpsInner() {
       out.push({ id: "claimdraft", x: claimDraft.cx - r, y: claimDraft.cy - r, w: 2 * r + 1, h: 2 * r + 1, color: C.purple, dashed: true,
         fill: "rgba(151,117,204,.12)", label: `new claim ${2 * r + 1} x ${2 * r + 1}` });
     }
-    if (mode === "zombita" || mode === "panther") out.push(...zLayer.rects);
+    if (mode === "zombita" || mode === "panther" || mode === "tiger") out.push(...zLayer.rects);
     return out;
   }, [st, layers, safehouses, selS, draft, claimDraft, facs, spot, mode, zLayer]);
 
@@ -347,6 +348,7 @@ function OpsInner() {
   const doing = useMemo(() => {
     if (mode === "zombita") return `Zombita Control: ${ztab}`;
     if (mode === "panther") return "Panther (loot rules)";
+    if (mode === "tiger") return "Reclamation (Tiger)";
     if (tab === "players" && selP) return `Looking at ${selP}`;
     if (tab === "safehouses" && selS) return `Safehouse ${selS.split(",").slice(2).join(",")}'s`;
     if (tab === "factions" && selF) return `Faction ${(facs.factions.find((f) => f.fid === selF) || {}).name || ""}`;
@@ -442,13 +444,15 @@ function OpsInner() {
           borderLeft: `1px solid ${C.line}`, display: "flex", flexDirection: "column", background: C.panel }}>
           {/* the mode switch sits on top of the panel it changes (Nin: people don't look at the top left) */}
           <div style={{ display: "flex", borderBottom: `1px solid ${C.line}` }}>
-            {[["live", "Live", C.gold, "#1a1e24"], ["zombita", "Zombita Control", "#c9a8f0", "#2a1f33"], ["panther", "Panther", "#e8a35c", "#2e2316"]].map(([m, l, fg, bg]) => (
+            {[["live", "Live", C.gold, "#1a1e24"], ["zombita", "Zombita Control", "#c9a8f0", "#2a1f33"], ["panther", "Panther", "#e8a35c", "#2e2316"], ["tiger", "Reclamation", "#5cc8b8", "#132a28"]].map(([m, l, fg, bg]) => (
               <button key={m} onClick={() => setMode(m)} style={{ ...mono, flex: 1, fontSize: 12, fontWeight: 700, padding: "10px 6px", border: 0, cursor: "pointer",
                 textTransform: "uppercase", letterSpacing: 1, background: mode === m ? bg : "transparent", color: mode === m ? fg : "#777",
                 borderBottom: mode === m ? `2px solid ${fg}` : "2px solid transparent" }}>{l}</button>
             ))}
           </div>
-          {mode === "panther" ? <div style={{ flex: 1, overflowY: "auto", padding: 12, minHeight: 0 }}>
+          {mode === "tiger" ? <div style={{ flex: 1, overflowY: "auto", padding: 12, minHeight: 0 }}>
+            <TigerTab setPick={setPick} setLayer={setZLayer} onWide={setWide} players={players} /></div>
+          : mode === "panther" ? <div style={{ flex: 1, overflowY: "auto", padding: 12, minHeight: 0 }}>
             <PantherTab setPick={setPick} setLayer={setZLayer} onWide={setWide} /></div>
           : mode === "zombita" ? <ZombitaControl act={act} setPick={setPick} st={zSt} players={players} setLayer={setZLayer} setWide={setWide}
             tab={ztab} setTab={setZtab} picked={zPicked} /> : <>
