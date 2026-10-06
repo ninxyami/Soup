@@ -459,6 +459,8 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
     if (!boot) return;
     let destroyed = false;
     let viewer = null;
+    const retryTries = new Map<string, number>();
+    const retryTimers = new Set<ReturnType<typeof setTimeout>>();
     const builtIso = view === "3d" && !!isoRef.current;
     (async () => {
       const OSD = (await import("openseadragon")).default;
@@ -486,6 +488,29 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
       viewerRef.current = viewer;
       if (process.env.NODE_ENV !== "production") (window as any).__soupMap = viewer;   // dev-only debugging handle
       viewer.addHandler("open-failed", () => setError("The map couldn't load. Try again in a minute."));
+      // A tile that fails once is marked exists=false and OpenSeadragon never asks for it again until a reload, so
+      // tiles the box redraws while the page is open (bases updates, pyramid rebuilds) stayed blurry until F5. Ask
+      // again later: 30 s, then doubling up to 2 min, 10 tries (~15 min), only while the tab is visible.
+      viewer.addHandler("tile-load-failed", (e: any) => {
+        const tile = e.tile, ti = e.tiledImage;
+        if (!tile || !ti || destroyed) return;
+        const key = tile.getUrl ? tile.getUrl() : tile.cacheKey;
+        const tries = (retryTries.get(key) || 0) + 1;
+        if (tries > 10) return;
+        retryTries.set(key, tries);
+        const wait = Math.min(30000 * 2 ** (tries - 1), 120000);
+        const fire = () => {
+          retryTimers.delete(t);
+          if (destroyed) return;
+          if (document.hidden) { t = setTimeout(fire, 30000); retryTimers.add(t); return; }
+          tile.exists = true;                // let the next update request it again
+          tile.loading = false;
+          ti._needsUpdate = true;
+          viewer.forceRedraw();
+        };
+        let t = setTimeout(fire, wait);
+        retryTimers.add(t);
+      });
       viewer.addHandler("open", () => {
         if (destroyed) return;
         if (iso) floorItems.current.set(0, viewer.world.getItemAt(0));
@@ -569,6 +594,8 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
     })().catch((e) => setError(String(e?.message || e)));
     return () => {
       destroyed = true;
+      retryTimers.forEach(clearTimeout);
+      retryTimers.clear();
       // remember where we were (world centre + screen px per square) for the other view
       try {
         const item = viewer && viewer.world.getItemAt(0);
