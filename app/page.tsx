@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { API, CURRENT_SEASON } from "@/lib/constants";
 import { timeAgo } from "@/lib/utils";
+import ServerGoalBar from "@/components/ServerGoalBar";
 
 interface Post {
   id: string; display_name: string; avatar_url: string; content: string;
@@ -369,6 +370,7 @@ export default function HomePage() {
         {/* ── LIVE SERVER STATUS ── */}
         <section className="pt-10 pb-4">
           <LiveStatus />
+          <div className="mt-3"><ServerGoalBar /></div>
           <JoinServer />
         </section>
 
