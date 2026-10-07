@@ -310,8 +310,14 @@ export default function JobsPage() {
             </table>
           </div>
           <p className="text-[0.72rem] text-[#555] font-mono mt-2">
-            A crew splits the pot evenly. S pays {(data?.sSplit || [10000, 5000, 3000, 2500]).map((b, i) => `${money(b)} each for ${i + 1}`).join(", ")} -
-            and a rare big S (two hordes of 200) pays 2-3 gold. Only crew who stayed close and fought get a share.
+            A crew splits the pot evenly. S pays {(data?.sSplit || [10000, 5000, 3000, 2500]).map((b, i) => `${money(b)} each for ${i + 1}`).join(", ")},
+            and S quests come in four classes: S, SS (x1.5), SSS (x2.5) and SSS+ (x5), each with bigger fights, more bandits and tougher tasks.
+            Only crew who stayed close and fought get a share.
+          </p>
+          <p className="text-[0.72rem] text-[#555] font-mono mt-2">
+            B, A and S fights come in waves from different sides, with sprinters. The better your crew&apos;s Job Rank, the harder it gets:
+            bandits, a giant infected animal or a sprinter ambush can join in. Every fight has a zone drawn on the ground: leave it and the horde
+            pulls back, come back and they return. Only real kills count.
           </p>
         </div>
 
@@ -330,6 +336,7 @@ export default function JobsPage() {
           <p className="text-[0.72rem] text-[#555] font-mono mt-2">
             Hard to earn, easy to lose. Your score comes from kills, your longest life, Dawn of the Dead nights survived and quest points, minus deaths.
             Giving up (or dying) costs veterans rank and a little of Zombita&apos;s trust - Rookies lose nothing. Below zero you&apos;re Disgraced: D and C only.
+            Zombita keeps a small tax on quest coins by rank: Rookie 0%, Runner 5%, Merc 10%, Legend 15%. It stays in the treasury.
           </p>
         </div>
 

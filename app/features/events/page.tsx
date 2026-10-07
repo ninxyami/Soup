@@ -163,7 +163,8 @@ export default function EventsPage() {
                       "Bring me - hand in supplies at any kiosk",
                       "Treasure - a bag with her note, in the middle of a horde",
                       "Fetch the bag - bring back what she left",
-                      "Horde hunt - 10 to 200 zombies in hazard suits; the code bag drops when most are down",
+                      "Horde hunt - waves of zombies in hazard suits, with sprinters; the code bag drops when most are down",
+                      "Field laptop - fix the machine at the spot while they keep coming",
                       "Bandit camp - a crew of bandits to wipe out",
                     ].map((f, i) => (
                       <li key={i} className="flex items-start gap-2 text-[0.75rem] text-[#555]" style={{ paddingLeft: 0 }}>
