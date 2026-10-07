@@ -167,8 +167,8 @@ export default function MarketplacePage() {
           <a href="/shop" className="font-mono text-[0.65rem] px-3 py-1.5 border border-[#1e2530] text-[#555] no-underline hover:border-accent hover:text-accent transition-all">
             🏪 Shops
           </a>
-          <a href="/news" className="font-mono text-[0.65rem] px-3 py-1.5 border border-[#1e2530] text-[#555] no-underline hover:border-accent hover:text-accent transition-all">
-            📰 News
+          <a href="/intel" className="font-mono text-[0.65rem] px-3 py-1.5 border border-[#1e2530] text-[#555] no-underline hover:border-accent hover:text-accent transition-all">
+            📰 Intel
           </a>
         </div>
       </header>

@@ -9,7 +9,7 @@ export const NAV_LINKS = [
   { href: "/features", label: "Features" },
   { href: "/shop", label: "Shop" },
   { href: "/marketplace", label: "Market" },
-  { href: "/news", label: "Intel" },
+  { href: "/news", label: "News" },
   { href: "/newspaper", label: "Paper" },
   { href: "/mods", label: "Mods" },
   { href: "/seasons", label: "Season" },

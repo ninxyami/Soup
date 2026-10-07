@@ -34,6 +34,7 @@ import SystemResourcesTab from "./tabs/SystemResourcesTab";
 import FilesTab           from "./tabs/FilesTab";
 import LeaderboardsTab    from "./tabs/LeaderboardsTab";
 import NewspaperTab       from "./tabs/NewspaperTab";
+import NewsTab            from "./tabs/NewsTab";
 import FactionsTab        from "./tabs/FactionsTab";
 import PlayerStatsTab     from "./tabs/PlayerStatsTab";
 import JobsTab            from "./tabs/JobsTab";
@@ -81,6 +82,7 @@ const NAV_SECTIONS = [
     { key: "factions",       icon: "🏴", label: "Factions" },
   ]},
   { label: "CONTENT", items: [
+    { key: "news",    icon: "📣", label: "Server News" },
     { key: "content", icon: "📝", label: "Page Content" },
   ]},
   { label: "PLANNER", items: [
@@ -124,6 +126,7 @@ const PANELS = {
   jobs:        JobsTab,
   jobrewards:  QuestRewardsTab,
   newspaper:    NewspaperTab,
+  news:         NewsTab,
   factions:     FactionsTab,
   player_stats: PlayerStatsTab,
   system:      SystemTab,

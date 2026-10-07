@@ -358,7 +358,7 @@ export default function ShopPage() {
           <a href="/marketplace" className="font-mono text-[0.65rem] px-3 py-1.5 border border-[#4a8fc4] text-[#4a8fc4] no-underline hover:bg-[#4a8fc4] hover:text-black transition-all">
             🏪 Marketplace
           </a>
-          <a href="/news" className="font-mono text-[0.65rem] px-3 py-1.5 border border-[#1e2530] text-[#555] no-underline hover:border-accent hover:text-accent transition-all">
+          <a href="/intel" className="font-mono text-[0.65rem] px-3 py-1.5 border border-[#1e2530] text-[#555] no-underline hover:border-accent hover:text-accent transition-all">
             📰 Intel
           </a>
         </div>
@@ -381,7 +381,7 @@ export default function ShopPage() {
           </h1>
           <p className="font-mono text-[0.72rem] text-[#555]">
             Eight specialist keepers plus 39 general stores across Kentucky. Scarlett sells only the songs players share in #song-submissions. Stock rotates every three days;{" "}
-            <a href="/news" className="text-accent no-underline hover:underline">Zombita drops hints</a> before it happens.
+            <a href="/intel" className="text-accent no-underline hover:underline">Zombita drops hints</a> before it happens.
             Player listings live in the phone&apos;s <strong className="text-[#888]">Marketplace</strong> app and on every kiosk&apos;s Marketplace tab.
           </p>
         </div>
@@ -480,7 +480,7 @@ export default function ShopPage() {
             ) : allItems.length===0 ? (
               <div className="py-8 text-center">
                 <p className="font-mono text-[0.75rem] text-[#333]">No stock data available.</p>
-                <p className="font-mono text-[0.65rem] text-[#2a2a2a] mt-1">Check the <a href="/news" className="text-accent no-underline hover:underline">intel channel</a> for hints.</p>
+                <p className="font-mono text-[0.65rem] text-[#2a2a2a] mt-1">Check the <a href="/intel" className="text-accent no-underline hover:underline">intel channel</a> for hints.</p>
               </div>
             ) : (
               <>
