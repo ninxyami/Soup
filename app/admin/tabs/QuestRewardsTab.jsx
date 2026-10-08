@@ -33,6 +33,7 @@ const TYPES = [
   { id: "cook", name: "Cook it" },
   { id: "beast", name: "Beast hunt" },
   { id: "laptop", name: "Field laptop" },
+  { id: "escort", name: "Escort" },
   { id: "trap", name: "Queen Dusk's trap" },
 ];
 const TIER_ORDER = ["", "D", "C", "B", "A", "S", "A+", "SS", "SSS", "SSS+"];
