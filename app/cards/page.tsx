@@ -129,6 +129,9 @@ function CardBlock({ c, st }) {
           </span>
         </div>
         <p className="text-[0.85rem] text-[#aab1bc] m-0 mt-1">{c.blurb}</p>
+        {c.needs && (
+          <div className="font-mono text-[0.66rem] text-[#c8a84b] mt-2"><span className="text-[#555]">NEEDS </span>{c.needs}</div>
+        )}
         <div className="font-mono text-[0.66rem] text-[#777] mt-2"><span className="text-[#555]">POINTS FROM </span>{c.from}</div>
         {(c.jobs || []).length > 0 && (
           <div className="font-mono text-[0.66rem] text-[#777] mt-1"><span className="text-[#555]">CARD JOBS </span>{c.jobs.map((j) => JOB_WORD[j] || j).join(", ")}</div>
