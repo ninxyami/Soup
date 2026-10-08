@@ -1,7 +1,7 @@
 "use client";
 // @ts-nocheck
 // Zombita's Cards (mod 1.7.146): a switch per card, the numbers (price, days, slots, card job pay, jobs a day, points to be
-// offered), who holds what, give / take a card, add / take points, every player with points. The game owns the cards, so
+// offered), who holds what, give / take a card, add / take points, send a card job, every player with points. The game owns the cards, so
 // every change is a REQUEST it runs within a few seconds (routers/cards.py -> Zomboid/Lua/zombita_cards_web_cmd.txt); the
 // answer shows as a toast. The whole system's switch is in game: Zombita Control > MODS > Zombita's Cards.
 import { useState, useEffect, useCallback } from "react";
@@ -25,6 +25,7 @@ export default function CardsTab({ toast }) {
   const [vals, setVals] = useState({});
   const [grant, setGrant] = useState({ player: "", card: "medic" });
   const [pts, setPts] = useState({ player: "", card: "medic", points: "" });
+  const [job, setJob] = useState({ player: "", card: "medic", kind: "random" });
   const [filter, setFilter] = useState("");
 
   const load = useCallback(async () => {
@@ -61,6 +62,7 @@ export default function CardsTab({ toast }) {
     if (!g) { g = [row.group || "Other", []]; groups.push(g); }
     g[1].push(row);
   }
+  const jobKinds = cards.find((c) => c.id === job.card)?.kinds || [];     // mod 1.7.154 lists each card's job kinds
   const players = (s.players || []).filter((p) => !filter || p.name.toLowerCase().includes(filter.toLowerCase()));
 
   return (
@@ -138,7 +140,7 @@ export default function CardsTab({ toast }) {
           ))}
           {groups.length === 0 && <div className="ap-note danger">The game hasn't sent its settings list yet (an older 1.7.146 build?). Upload the latest mod.</div>}
 
-          <TW title="GIVE A CARD / POINTS">
+          <TW title="GIVE A CARD / POINTS / A CARD JOB">
             <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 10 }}>
               <span style={dim}>Give</span>
               <input className="ap-search" style={{ width: 160 }} placeholder="in-game name" value={grant.player} onChange={(e) => setGrant({ ...grant, player: e.target.value })} />
@@ -157,6 +159,19 @@ export default function CardsTab({ toast }) {
               <input className="ap-search" style={{ width: 90 }} placeholder="+20 / -20" value={pts.points} onChange={(e) => setPts({ ...pts, points: e.target.value })} />
               <B sm disabled={waiting > 0 || !pts.player.trim() || !Number(pts.points)} onClick={() => send("points", { ...pts, points: Number(pts.points) })}>ADD</B>
               <span style={dim}>Plus adds to lifetime and recent points; minus takes from lifetime only.</span>
+            </div>
+            <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginTop: 10 }}>
+              <span style={dim}>Send a card job</span>
+              <input className="ap-search" style={{ width: 160 }} placeholder="in-game name" value={job.player} onChange={(e) => setJob({ ...job, player: e.target.value })} />
+              <select className="ap-sel" style={{ width: 150 }} value={job.card} onChange={(e) => setJob({ ...job, card: e.target.value, kind: "random" })}>
+                {cards.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+              <select className="ap-sel" style={{ width: 160 }} value={job.kind} onChange={(e) => setJob({ ...job, kind: e.target.value })}>
+                <option value="random">Any kind</option>
+                {jobKinds.map((k) => <option key={k.id} value={k.id}>{k.name}</option>)}
+              </select>
+              <B sm disabled={waiting > 0 || !job.player.trim()} onClick={() => send("job", job)}>SEND</B>
+              <span style={dim}>Now, to a player who is online. Gives them the card first if they don't hold it. Not counted in their jobs a day.</span>
             </div>
           </TW>
 
