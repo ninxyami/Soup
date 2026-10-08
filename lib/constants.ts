@@ -15,6 +15,7 @@ export const NAV_LINKS = [
   { href: "/seasons", label: "Season" },
   { href: "/leaderboard", label: "Leaderboard" },
   { href: "/jobs", label: "Jobs" },
+  { href: "/cards", label: "Cards" },
   { href: "/factions", label: "Factions" },
   { href: "/players", label: "Players" },
   { href: "/archive", label: "Archive" },
