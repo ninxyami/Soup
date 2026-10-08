@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { API } from "@/lib/constants";
+import LocalGoods from "./LocalGoods";
 
 // id MUST equal the backend shop_type string (see zombita_shop_catalog).
 // NPC names / roles / locations mirror the in-game ZS_NPCData.lua keepers.
@@ -548,6 +549,9 @@ export default function ShopPage() {
             </p>
           </div>
         </div>
+
+        {/* Wholesale (only while it's switched on) */}
+        <LocalGoods />
 
         {/* How it works */}
         <div className="mt-8 grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
