@@ -8,7 +8,8 @@ import { API } from "@/lib/constants";
 import { timeAgo } from "@/lib/utils";
 
 const JOB_WORD = { order: "Orders", Scout: "Scouting", Delivery: "Deliveries", Treasure: "Treasure", "Fetch the bag": "Fetch the bag",
-  "Horde hunt": "Hordes", "Smith it": "Smithing", Glassblowing: "Glassblowing", "Cook it": "Cooking", "Bring me": "Bring me" };
+  "Horde hunt": "Hordes", "Smith it": "Smithing", Glassblowing: "Glassblowing", "Cook it": "Cooking", "Bring me": "Bring me",
+  supply: "Outbreak supplies", Contract: "Contracts (from Expert)", "Roadside repair": "Roadside repairs" };
 
 function money(b) {
   b = Math.floor(b || 0);
