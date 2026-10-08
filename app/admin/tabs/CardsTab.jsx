@@ -16,15 +16,7 @@ const left = (until) => {
   return `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`;
 };
 
-const NUMS = [
-  { key: "price", label: "Price (bronze)", help: "1000 = 1 silver. The bot charges its own number (ZOMBITA_CARD_PRICE in the bot's .env): change both." },
-  { key: "days", label: "Days a card lasts", help: "Real days." },
-  { key: "bought", label: "Bought slots per card", help: "How many can buy each card at a time." },
-  { key: "earned", label: "Earned slots per card", help: "How many Zombita picks by their work." },
-  { key: "payMult", label: "Card job pay x", help: "1.25 = card jobs pay 25% more than the same job on the board." },
-  { key: "offersPerDay", label: "Card jobs a day", help: "Offers one holder gets a day." },
-  { key: "earnMin", label: "Points to be offered", help: "Recent points (last 5 days) before Zombita offers the earned slot." },
-];
+// the settings list comes from the game itself (state.settingRows) - see `groups` below
 
 export default function CardsTab({ toast }) {
   const [d, setD] = useState(null);
@@ -62,7 +54,13 @@ export default function CardsTab({ toast }) {
   if (loading) return <Load />;
   const s = d?.state || {};
   const cards = s.cards || [];
-  const cur = (k) => ({ bought: s.boughtSlots, earned: s.earnedSlots }[k] ?? s[k]);
+  // every setting the game keeps, in its groups, in the game's order (ZCards_Server.lua S.SETTING_ROWS)
+  const groups = [];
+  for (const row of s.settingRows || []) {
+    let g = groups.find((x) => x[0] === (row.group || "Other"));
+    if (!g) { g = [row.group || "Other", []]; groups.push(g); }
+    g[1].push(row);
+  }
   const players = (s.players || []).filter((p) => !filter || p.name.toLowerCase().includes(filter.toLowerCase()));
 
   return (
@@ -70,11 +68,20 @@ export default function CardsTab({ toast }) {
       <Title t="ZOMBITA'S CARDS" s="Role cards: a switch per card, the numbers, who holds what. Every change is a request the game runs within a few seconds." />
       {!d?.ready && <div className="ap-note danger">No word from the game yet. Cards need mod 1.7.146 on the server and the cards bot zips.</div>}
       {d?.ready && s.stale && <div className="ap-note danger">The game last reported {relTime(s.at)}. The server may be down or restarting; requests wait until it's back.</div>}
-      {d?.ready && !s.on && <div className="ap-note info">The whole system is OFF. Turn it on in game: Zombita Control &gt; MODS &gt; Zombita's Cards. The switches below are per card.</div>}
       {waiting > 0 && <div className="ap-note info">Waiting for the game to answer...</div>}
 
       {d?.ready && (
         <>
+          <TW title="THE WHOLE SYSTEM" right={
+            <B c={s.on ? "red" : "green"} disabled={waiting > 0}
+               onClick={() => { if (confirm(s.on ? "Turn Zombita's Cards OFF for everyone? Held cards run out as normal; no new cards, jobs or shop." : "Turn Zombita's Cards ON? Only the cards switched ON below can be bought, earned or worked.")) send("system", { value: !s.on }); }}>
+              {s.on ? "TURN OFF" : "TURN ON"}
+            </B>}>
+            <div style={{ ...mono, fontSize: 14 }}>
+              Zombita's Cards are <b style={{ color: s.on ? "var(--green, #4caf7d)" : "var(--red, #e05555)" }}>{s.on ? "ON" : "OFF"}</b>
+              <span style={dim}> (the same switch as Zombita Control &gt; MODS in game)</span>
+            </div>
+          </TW>
           <TW title="THE CARDS">
             <table className="ap-t">
               <thead><tr><th>Card</th><th>Switch</th><th>Slots in use</th><th>Held by</th><th>Lately</th></tr></thead>
@@ -105,25 +112,31 @@ export default function CardsTab({ toast }) {
             </div>
           </TW>
 
-          <TW title="THE NUMBERS">
-            <table className="ap-t">
-              <tbody>
-                {NUMS.map((n) => (
-                  <tr key={n.key}>
-                    <td style={{ width: 220 }}>{n.label}</td>
-                    <td style={{ ...mono, width: 140, color: "var(--accent)" }}>{n.key === "price" ? bronzeToCoins(cur(n.key)) : String(cur(n.key) ?? "-")}</td>
-                    <td style={{ width: 170 }}>
-                      <input className="ap-search" style={{ width: 90 }} value={vals[n.key] ?? ""} placeholder="new"
-                             onChange={(e) => setVals((v) => ({ ...v, [n.key]: e.target.value }))} />
-                      <B sm disabled={waiting > 0 || vals[n.key] === undefined || vals[n.key] === ""}
-                         onClick={() => { send("setting", { key: n.key, value: vals[n.key] }); setVals((v) => ({ ...v, [n.key]: "" })); }}>SET</B>
-                    </td>
-                    <td style={dim}>{n.help}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </TW>
+          {groups.map(([group, rows]) => (
+            <TW key={group} title={"SETTINGS: " + group.toUpperCase()}>
+              <table className="ap-t">
+                <tbody>
+                  {rows.map((n) => {
+                    const money = ["price", "deliveryMin", "deliveryMax"].includes(n.key);
+                    return (
+                      <tr key={n.key}>
+                        <td style={{ width: 280 }}>{n.label}</td>
+                        <td style={{ ...mono, width: 120, color: "var(--accent)" }}>{money ? bronzeToCoins(n.value) : String(n.value ?? "-")}</td>
+                        <td style={{ width: 170 }}>
+                          <input className="ap-search" style={{ width: 90 }} value={vals[n.key] ?? ""} placeholder={String(n.min) + "-" + String(n.max)}
+                                 onChange={(e) => setVals((v) => ({ ...v, [n.key]: e.target.value }))} />
+                          <B sm disabled={waiting > 0 || vals[n.key] === undefined || vals[n.key] === ""}
+                             onClick={() => { send("setting", { key: n.key, value: vals[n.key] }); setVals((v) => ({ ...v, [n.key]: "" })); }}>SET</B>
+                        </td>
+                        <td style={dim}>{n.help}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </TW>
+          ))}
+          {groups.length === 0 && <div className="ap-note danger">The game hasn't sent its settings list yet (an older 1.7.146 build?). Upload the latest mod.</div>}
 
           <TW title="GIVE A CARD / POINTS">
             <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 10 }}>
