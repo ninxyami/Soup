@@ -48,7 +48,7 @@ function CardFace({ card, size = "w-[120px]" }) {
     );
   }
   // eslint-disable-next-line @next/next/no-img-element
-  return <img src={`/cards/${card.id}.png`} alt={card.name} className={`${size} aspect-[2/3] object-cover`} style={{ borderRadius: 8, opacity: card.on ? 1 : 0.55 }}
+  return <img src={`/cards/${card.id}.webp`} alt={card.name} className={`${size} aspect-[2/3] object-cover`} style={{ borderRadius: 8, opacity: card.on ? 1 : 0.55 }}
               onError={() => setBroken(true)} />;
 }
 
@@ -197,6 +197,9 @@ export default function CardsPage() {
   const ready = st && st.ready && Array.isArray(st.cards);
   return (
     <main className="max-w-[1100px] mx-auto px-4 py-8">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/cards/banner.webp" alt="Zombita's Cards: eight role cards fanned out, Zombita holding one up"
+        className="w-full aspect-[3/2] sm:aspect-[12/5] object-cover object-top mb-6" style={{ borderRadius: 10 }} />
       <div className="font-mono text-[0.62rem] uppercase tracking-[0.25em] text-[#555]">Roles on the server</div>
       <h1 className="text-[2rem] font-semibold text-[#e6e8ec] m-0 mt-1">Zombita's Cards</h1>
       <p className="text-[0.92rem] text-[#aab1bc] max-w-[760px] mt-2">
