@@ -34,6 +34,10 @@ const TYPES = [
   { id: "beast", name: "Beast hunt" },
   { id: "laptop", name: "Field laptop" },
   { id: "escort", name: "Escort" },
+  { id: "collect", name: "Collection" },
+  { id: "donate", name: "Donation" },
+  { id: "skill", name: "Practice" },
+  { id: "route", name: "Route" },
   { id: "trap", name: "Queen Dusk's trap" },
 ];
 const TIER_ORDER = ["", "D", "C", "B", "A", "S", "A+", "SS", "SSS", "SSS+"];
