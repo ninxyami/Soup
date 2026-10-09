@@ -40,6 +40,12 @@ const TYPES = [
   { id: "route", name: "Route" },
   { id: "zboss", name: "Boss fight (Zombita Bosses)" },
   { id: "clues", name: "Clue hunt" },
+  { id: "camping", name: "Camping trip" },
+  { id: "fixup", name: "Fix-up job (build / plumb / power)" },
+  { id: "carcollect", name: "Car collection" },
+  { id: "bingo", name: "Crafting bingo" },
+  { id: "trade", name: "Trade run" },
+  { id: "radio", name: "Radio puzzle" },
   { id: "trap", name: "Queen Dusk's trap" },
 ];
 const TIER_ORDER = ["", "D", "C", "B", "A", "S", "A+", "SS", "SSS", "SSS+"];

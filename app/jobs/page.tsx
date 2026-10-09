@@ -31,6 +31,12 @@ const TYPE: Record<string, { icon: string; word: string }> = {
   route: { icon: "🗺️", word: "Route" },
   zboss: { icon: "💀", word: "Boss fight" },
   clues: { icon: "🔍", word: "Clue hunt" },
+  camping: { icon: "⛺", word: "Camping trip" },
+  fixup: { icon: "🔨", word: "Fix-up job" },
+  carcollect: { icon: "🚗", word: "Car collection" },
+  bingo: { icon: "⭐", word: "Crafting bingo" },
+  trade: { icon: "💰", word: "Trade run" },
+  radio: { icon: "📻", word: "Radio puzzle" },
 };
 const MOOD: Record<string, string> = { warm: "warm 🙂", amused: "amused 😏", smug: "smug 😌", tired: "tired 😴", irritated: "irritated 😤", restless: "restless 🌀", neutral: "calm" };
 
