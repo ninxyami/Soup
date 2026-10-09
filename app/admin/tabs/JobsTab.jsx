@@ -271,7 +271,7 @@ export default function JobsTab({ toast }) {
           </span>
         </div>
         <div className="ap-note" style={{ marginTop: 14, marginBottom: 0 }}>
-          The board keeps itself full: a slot refills 5-15 minutes after its quest is won or runs out. S rolls every 12 hours (25%, never within a day of the last), and every S quest can only be taken for a short time after it is posted (20 minutes, beast hunts 10 to 30).
+          The board keeps itself full: a slot refills 5-15 minutes after its quest is won or runs out. S rolls every 12 hours (25%, never within a day of the last), and every S quest can only be taken for an hour after it is posted.
         </div>
       </FB>}
 
