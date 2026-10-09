@@ -37,6 +37,7 @@ const TYPE: Record<string, { icon: string; word: string }> = {
   bingo: { icon: "⭐", word: "Crafting bingo" },
   trade: { icon: "💰", word: "Trade run" },
   radio: { icon: "📻", word: "Radio puzzle" },
+  island: { icon: "🏝️", word: "Island job" },
 };
 const MOOD: Record<string, string> = { warm: "warm 🙂", amused: "amused 😏", smug: "smug 😌", tired: "tired 😴", irritated: "irritated 😤", restless: "restless 🌀", neutral: "calm" };
 

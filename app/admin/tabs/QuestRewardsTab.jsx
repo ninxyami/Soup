@@ -46,6 +46,7 @@ const TYPES = [
   { id: "bingo", name: "Crafting bingo" },
   { id: "trade", name: "Trade run" },
   { id: "radio", name: "Radio puzzle" },
+  { id: "island", name: "Island job (Zombita Raft)" },
   { id: "trap", name: "Queen Dusk's trap" },
 ];
 const TIER_ORDER = ["", "D", "C", "B", "A", "S", "A+", "SS", "SSS", "SSS+"];
