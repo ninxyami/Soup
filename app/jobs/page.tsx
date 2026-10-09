@@ -205,7 +205,7 @@ export default function JobsPage() {
       <div className="divider" />
 
       <section>
-        {sq.length > 0 && <Section title="S tier - pinned" color={COLOR.S} note="Rare. Take it within 20 minutes of it going up - then there are 24 hours to finish. Paid in fresh gold, not from the treasury. Don't go alone.">
+        {sq.length > 0 && <Section title="S tier - pinned" color={COLOR.S} note="Rare. Take it within an hour of it going up, then there are 24 hours to finish. Paid in fresh gold, not from the treasury. Don't go alone.">
           <div className="grid gap-3">{sq.map(card)}</div>
         </Section>}
         <Section title="Big jobs (B / A)" color={COLOR.big} note="Two slots, each a B or an A by chance. A tier is nasty - bring friends.">
