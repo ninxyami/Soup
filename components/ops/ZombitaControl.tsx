@@ -327,14 +327,15 @@ function Travel({ b, mods, za, bridge, pickOnMap, st, setLayer, picked }) {
 function Quests({ mods, za, pickOnMap, players }) {
   const q = mods.quests || {};
   const active = list(q.active), rows = list(q.rows);
-  const [g, setG] = useState({ player: "", type: "", tier: "C", coins: "", x: null, y: null });
+  const [g, setG] = useState({ player: "", type: "", tier: "C", coins: "", twist: "", x: null, y: null });
   const types = useMemo(() => Array.from(new Set([...active.map((a) => a.type), ...rows.map((r) => r.type)].filter(Boolean))), [q]);
   const give = () => {
     if (!g.player || !g.type) return alert("Pick a player and a quest type.");
     const args = { player: g.player, type: g.type, tier: g.tier };
     if (g.coins) args.coins = Math.round(Number(g.coins));
+    if (g.twist) args.twist = g.twist;            // 1.7.158: the game refuses a twist the type can't have
     if (g.x) { args.x = g.x; args.y = g.y; }
-    if (confirm(`Give ${g.player} a ${g.tier} ${g.type} quest${g.x ? ` at ${g.x}, ${g.y}` : ""}?`)) za("quests", "give", args);
+    if (confirm(`Give ${g.player} a ${g.tier} ${g.type} quest${g.twist ? ` with the ${g.twist} twist` : ""}${g.x ? ` at ${g.x}, ${g.y}` : ""}?`)) za("quests", "give", args);
   };
   return (<>
     <Box title={`Open quests (${active.length})`} right={<>
@@ -353,6 +354,8 @@ function Quests({ mods, za, pickOnMap, players }) {
         <datalist id="zq-types">{types.map((t) => <option key={t} value={t} />)}</datalist>
         <select style={{ ...inp, width: 60 }} value={g.tier} onChange={(e) => setG({ ...g, tier: e.target.value })}>{TIERS.map((t) => <option key={t}>{t}</option>)}</select>
         <input style={{ ...inp, width: 90 }} placeholder="coins (opt.)" value={g.coins} onChange={(e) => setG({ ...g, coins: e.target.value })} />
+        <select style={{ ...inp, width: 110 }} value={g.twist} onChange={(e) => setG({ ...g, twist: e.target.value })} title="Twists: deliver / scout / donate / route / clue hunt, treasure and fetch-the-bag at D-C. Bandits B-A only, bait = fetch the bag.">
+          <option value="">no twist</option>{["ambush", "road", "moved", "bandits", "bait"].map((t) => <option key={t} value={t}>{t}</option>)}</select>
       </Row>
       <Row>
         <Btn color={C.grey} onClick={() => pickOnMap("Click where the quest happens.", (w) => setG((x) => ({ ...x, x: w.x, y: w.y })))}>{g.x ? `At ${g.x}, ${g.y}` : "Spot on the map (optional)"}</Btn>

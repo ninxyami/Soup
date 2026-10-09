@@ -6,6 +6,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { API } from "@/lib/constants";
 import { timeAgo } from "@/lib/utils";
+import CommunityCentreBar from "@/components/CommunityCentreBar";
+import DerbyBoard from "@/components/DerbyBoard";
 
 // the game's colours (ZQ_Shared.lua Q.COLORS): D / C yellow, B / A blue, S gold, personal red, exclusive violet, yours green
 const COLOR = { small: "#edc740", big: "#599ef2", S: "#ffcc2e", personal: "#e64d4d", exclusive: "#ad73f5", active: "#4dd173" };
@@ -18,6 +20,17 @@ const TYPE: Record<string, { icon: string; word: string }> = {
   bag: { icon: "💰", word: "Fetch the bag" },
   horde: { icon: "🧟", word: "Horde hunt" },
   camp: { icon: "🔫", word: "Bandit camp" },
+  beast: { icon: "🐾", word: "Beast hunt" },
+  smith: { icon: "⚒️", word: "Smith it" },
+  glass: { icon: "🔮", word: "Glassblowing" },
+  cook: { icon: "🍲", word: "Cook it" },
+  escort: { icon: "🚶", word: "Escort" },
+  collect: { icon: "📚", word: "Community" },
+  donate: { icon: "🎁", word: "Donation" },
+  skill: { icon: "🎓", word: "Practice" },
+  route: { icon: "🗺️", word: "Route" },
+  zboss: { icon: "💀", word: "Boss fight" },
+  clues: { icon: "🔍", word: "Clue hunt" },
 };
 const MOOD: Record<string, string> = { warm: "warm 🙂", amused: "amused 😏", smug: "smug 😌", tired: "tired 😴", irritated: "irritated 😤", restless: "restless 🌀", neutral: "calm" };
 
@@ -273,6 +286,13 @@ export default function JobsPage() {
 
       <div className="divider" />
 
+      <div className="flex flex-col gap-10">
+        <CommunityCentreBar />
+        <DerbyBoard />
+      </div>
+
+      <div className="divider" />
+
       <section className="flex flex-col gap-8">
         <h2 className="text-[0.8rem] tracking-[0.15em] uppercase text-[#aaa]">How it works</h2>
 
@@ -318,6 +338,10 @@ export default function JobsPage() {
             B, A and S fights come in waves from different sides, with sprinters. The better your crew&apos;s Job Rank, the harder it gets:
             bandits, a giant infected animal or a sprinter ambush can join in. Every fight has a zone drawn on the ground: leave it and the horde
             pulls back, come back and they return. Only real kills count.
+          </p>
+          <p className="text-[0.72rem] text-[#555] font-mono mt-2">
+            Now and then a plain job goes wrong on the way: an ambush as you get close, a horde on the road, the drop moving to another
+            spot, bandits who got there first, or a bag that was bait. Most jobs stay plain. The pay is the same either way.
           </p>
         </div>
 

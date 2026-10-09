@@ -201,7 +201,7 @@ export default function JobsTab({ toast }) {
   const [waiting, setWaiting] = useState([]);       // our request ids still unanswered
   const [cap, setCap] = useState("");
   const [bigS, setBigS] = useState(false);
-  const [give, setGive] = useState({ player: "", type: "horde", tier: "B", coins: "", hours: "", title: "", text: "" });
+  const [give, setGive] = useState({ player: "", type: "horde", tier: "B", coins: "", hours: "", title: "", text: "", twist: "" });
   const [giveItems, setGiveItems] = useState([]);
   const [now, setNow] = useState(Math.floor(Date.now() / 1000));
 
@@ -319,6 +319,8 @@ export default function JobsTab({ toast }) {
             {["D", "C", "B", "A", "S"].map((t) => <option key={t}>{t}</option>)}</select></label>
           <label style={dim}>COINS (blank = tier pot)<input className="ap-search" style={{ width: "100%" }} type="number" value={give.coins} onChange={(e) => setGive({ ...give, coins: e.target.value })} /></label>
           <label style={dim}>HOURS (blank = 8)<input className="ap-search" style={{ width: "100%" }} type="number" value={give.hours} onChange={(e) => setGive({ ...give, hours: e.target.value })} /></label>
+          <label style={dim} title="Deliver / scout / donate / route / clue hunt, and treasure / fetch the bag at D or C. Bandits: B and A only. Bait: fetch the bag. The game says no if the type can't have it.">TWIST (mod 1.7.158)<select className="ap-search" style={{ width: "100%" }} value={give.twist} onChange={(e) => setGive({ ...give, twist: e.target.value })}>
+            <option value="">none</option>{["ambush", "road", "moved", "bandits", "bait"].map((t) => <option key={t} value={t}>{t}</option>)}</select></label>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: 12, marginTop: 12 }}>
           <label style={dim}>TITLE (optional)<input className="ap-search" style={{ width: "100%" }} maxLength={60} value={give.title} onChange={(e) => setGive({ ...give, title: e.target.value })} /></label>
