@@ -38,6 +38,7 @@ const TYPES = [
   { id: "donate", name: "Donation" },
   { id: "skill", name: "Practice" },
   { id: "route", name: "Route" },
+  { id: "zboss", name: "Boss fight (Zombita Bosses)" },
   { id: "trap", name: "Queen Dusk's trap" },
 ];
 const TIER_ORDER = ["", "D", "C", "B", "A", "S", "A+", "SS", "SSS", "SSS+"];
