@@ -38,6 +38,7 @@ import NewsTab            from "./tabs/NewsTab";
 import FactionsTab        from "./tabs/FactionsTab";
 import PlayerStatsTab     from "./tabs/PlayerStatsTab";
 import JobsTab            from "./tabs/JobsTab";
+import QuestControlTab    from "./tabs/QuestControlTab";
 import QuestRewardsTab    from "./tabs/QuestRewardsTab";
 import CardsTab           from "./tabs/CardsTab";
 
@@ -70,6 +71,7 @@ const NAV_SECTIONS = [
     { key: "dotd",           icon: "💀", label: "Dawn of Dead" },
     { key: "mira",           icon: "🛰️", label: "Project MIRA" },
     { key: "hunt",           icon: "🗺️", label: "Treasure Hunt" },
+    { key: "questcontrol",   icon: "🎛️", label: "Quest Control" },
     { key: "jobs",           icon: "📋", label: "Zombita's Jobs" },
     { key: "jobrewards",     icon: "🎁", label: "Quest Rewards" },
     { key: "cards",          icon: "🃏", label: "Zombita's Cards" },
@@ -125,6 +127,7 @@ const PANELS = {
   games:       GamesTab,
   reputation:  ReputationTab,
   leaderboards: LeaderboardsTab,
+  questcontrol: QuestControlTab,
   jobs:        JobsTab,
   jobrewards:  QuestRewardsTab,
   cards:       CardsTab,
