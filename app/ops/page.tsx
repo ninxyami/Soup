@@ -15,6 +15,7 @@ import ZombitaControl from "@/components/ops/ZombitaControl";
 import PantherTab from "@/components/ops/PantherTab";
 import TigerTab from "@/components/ops/TigerTab";
 import PanelGate from "@/components/PanelGate";
+import ServerControls from "@/components/ops/ServerControls";
 
 // the mode (Live / Zombita) and Zombita's last tab survive a reload (per browser)
 function remembered(key, fallback) { try { return localStorage.getItem(key) || fallback; } catch { return fallback; } }
@@ -391,6 +392,7 @@ function OpsInner() {
     <div data-fs-root style={{ position: "fixed", top, left: 0, right: 0, bottom: 0, display: "flex", flexDirection: "column", background: C.bg, color: C.text }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "16px 14px 8px", borderBottom: `1px solid ${C.line}`, flexWrap: "wrap" }}>
         <a href="/" title="Back to the website" style={{ ...mono, fontSize: 11, color: C.grey, textDecoration: "none" }}>← site</a>
+        <a href="/admin?tab=overview" title="Back to the admin panel" style={{ ...mono, fontSize: 11, color: C.gold, textDecoration: "none", border: `1px solid ${C.line}`, borderRadius: 3, padding: "3px 8px" }}>← admin panel</a>
         <span style={{ font: "400 22px 'Bebas Neue',sans-serif", letterSpacing: 2 }}>LIVE OPS</span>
         <a href="/workspace" style={{ ...mono, fontSize: 11, color: C.grey, textDecoration: "none" }}>workspace</a>
         {LAYERS.map((l) => (
@@ -400,7 +402,8 @@ function OpsInner() {
             <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 4, background: l.color, marginRight: 6, opacity: layers[l.id] ? 1 : 0.3 }} />{l.label}
           </button>
         ))}
-        <span style={{ display: "flex", gap: 4, marginLeft: "auto", alignItems: "center" }}>
+        <span style={{ display: "flex", gap: 8, marginLeft: "auto", alignItems: "center" }}>
+          <ServerControls />
           {admins.map((a) => (
             <span key={a.id} title={`${a.name}${a.id === meId ? " (you)" : ""}: ${a.doing}`} style={{ position: "relative", width: 24, height: 24 }}>
               <img src={a.avatar} alt="" width={24} height={24} style={{ borderRadius: 12, border: `2px solid ${a.id === meId ? C.gold : "#00d2ff"}` }} />
