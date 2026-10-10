@@ -4,8 +4,9 @@
 // Panther (Workshop mod SOUPLootBalancer) sets the server's loot rules. Everything here goes through the game: the bot's
 // /api/admin/ops/panther queues a pa_* request in Live Ops' request file, the game runs it (Panther's own code for
 // profiles, ZO_Panther for area jobs) and writes the full answer, which /api/admin/ops/panther/reply/<id> returns.
-// Pages: Overview, Profiles (edit / copy / delete / import / export, preview + apply live, item search), Area tools
-// (refill / clear / refresh / reconcile on a map pick), History (Panther's own log) and Diagnostics.
+// Pages: Overview, Profiles (edit / copy / delete / import / export, preview + apply live, item search), Loot zones (1.7.161,
+// Panther 0.10: every saved zone on the map, filter / open / edit / draw / delete), Maze (Panther's TME event tiles on the
+// map), Area tools (refill / clear / refresh / reconcile on a map pick), History (Panther's own log) and Diagnostics.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { API } from "@/lib/constants";
 
@@ -13,7 +14,7 @@ const C = { gold: "#c8a84b", blue: "#4a8fc4", green: "#4caf7d", red: "#e05555", 
 const mono = { fontFamily: "var(--mono, monospace)" };
 const inp = { ...mono, fontSize: 12, padding: "5px 7px", background: C.bg, color: C.text, border: `1px solid ${C.line}`, borderRadius: 3, boxSizing: "border-box" };
 
-const PAGES = [["overview", "Overview"], ["profiles", "Profiles"], ["area", "Area tools"], ["history", "History"], ["diag", "Diagnostics"]];
+const PAGES = [["overview", "Overview"], ["profiles", "Profiles"], ["zones", "Loot zones"], ["maze", "Maze"], ["area", "Area tools"], ["history", "History"], ["diag", "Diagnostics"]];
 const CATEGORIES = [
   ["Food", "Food"], ["CannedFood", "Canned Food"], ["Medical", "Medical"], ["Weapon", "Weapons"], ["RangedWeapon", "Ranged Weapons"], ["Ammo", "Ammo"],
   ["SurvivalGears", "Survival Gear"], ["ProtectiveGear", "Protective Gear"], ["Mechanics", "Mechanics"], ["Container", "Containers / Bags"], ["Material", "Materials"],
@@ -118,7 +119,7 @@ export default function PantherTab({ setPick, setLayer, onWide }) {
   const [prof, setProf] = useState(null);             // Panther's ProfilesState
   const [busy, setBusy] = useState("");
   const [msg, setMsg] = useState(null);
-  useEffect(() => { onWide(page !== "area"); }, [page, onWide]);
+  useEffect(() => { onWide(page !== "area" && page !== "zones" && page !== "maze"); }, [page, onWide]);   // map pages keep the map wide
   useEffect(() => () => onWide(false), [onWide]);
 
   const note = (ok, text) => setMsg({ ok, text, at: Date.now() });
@@ -173,6 +174,8 @@ export default function PantherTab({ setPick, setLayer, onWide }) {
       {!st && <Note>Waiting for the game's Panther overview (mod 1.7.134; the server answers only while someone is online).</Note>}
       {page === "overview" && <Overview {...ctx} />}
       {page === "profiles" && <Profiles {...ctx} />}
+      {page === "zones" && <Zones {...ctx} />}
+      {page === "maze" && <Maze {...ctx} />}
       {page === "area" && <Area {...ctx} />}
       {page === "history" && <History {...ctx} />}
       {page === "diag" && <Diag {...ctx} />}
@@ -193,6 +196,7 @@ function Overview({ st, snap, prof }) {
       <KV k="Applied by" v={(snap.savedBy || prof?.active?.appliedBy) ? `${snap.savedBy || prof?.active?.appliedBy}${snap.savedAt ? " · " + when(snap.savedAt) : ""}` : "nobody yet (Panther's own default)"} />
       <KV k="Saved settings" v={snap.storageStatus || "?"} color={snap.storageError ? C.red : C.text} />
       <KV k="Panther" v={`${st?.version || "?"}${st?.ts ? ` · overview ${new Date(st.ts * 1000).toLocaleTimeString()}` : ""}`} />
+      {st?.zones && <KV k="Loot zones" v={`${st.zones.count} (${st.zones.enabled} on, ${st.zones.highRisk} High Risk)`} />}
     </Box>
     <Box title="Area job">
       {j ? <>
@@ -486,6 +490,164 @@ function Area({ pa, st, busy, setPick, setLayer, readState }) {
     </Box>}
     {st?.lastResult && !j && <Note color={C.text}>Last job: {st.lastResult}</Note>}
   </>);
+}
+
+// ── loot zones (Panther 0.10, mod 1.7.161) ────────────────────────────────────
+// Panther's saved loot zones: rectangles (one floor each) where its loot rules get extra multipliers per category. Normal /
+// Balance / High Risk, a priority (the highest wins where zones overlap), on / off. 4,583 come built in (every store, garage,
+// arms room... on the server's maps). Shown on the map with the filters below (at most ZONE_DRAW at once).
+const ZONE_DRAW = 1200;
+const ZCOL = { Normal: C.blue, Balance: C.gold, "High Risk": C.red };
+const zoneOf = (z) => ({ id: z.id, name: z.n, type: z.t, on: z.on !== false, priority: n(z.p), revision: n(z.r) || 1,
+  x1: n(z.a?.[0]), y1: n(z.a?.[1]), x2: n(z.a?.[2]), y2: n(z.a?.[3]), z: n(z.a?.[4]), tags: list(z.g), mods: z.m || {}, exact: n(z.x) });
+
+function Zones({ pa, busy, note, setPick, setLayer, st }) {
+  const [rev, setRev] = useState(null), [zones, setZones] = useState(null);
+  const [q, setQ] = useState(""), [type, setType] = useState(""), [onOff, setOnOff] = useState(""), [floor, setFloor] = useState("0"), [show, setShow] = useState(true);
+  const [sel, setSel] = useState(null), [draft, setDraft] = useState(null);
+  const take = (r) => {
+    const s = list(r?.replies).find((x) => x.command === "LootZonesState")?.args;
+    if (s) { setRev(n(s.catalogRevision)); setZones(list(s.zones).map(zoneOf)); }
+    return s;
+  };
+  const load = async () => take(await pa("pa_call", { pc: "GetLootZones" }, true));
+  useEffect(() => { load(); }, []);
+  useEffect(() => () => setLayer({ dots: [], rects: [] }), []);
+  const shown = useMemo(() => {
+    const s = q.trim().toLowerCase();
+    return list(zones).filter((z) => (!type || z.type === type) && (!onOff || (onOff === "on") === z.on) && (floor === "" || z.z === Number(floor))
+      && (!s || z.name.toLowerCase().includes(s) || z.tags.some((t) => t.toLowerCase().includes(s))));
+  }, [zones, q, type, onOff, floor]);
+  const open = (z) => { setSel(z); setDraft({ ...z, mods: { ...z.mods }, tagText: z.tags.join(", ") }); };
+  useEffect(() => {
+    const rects = [];
+    if (show) for (const z of shown.slice(0, ZONE_DRAW)) {
+      const mine = sel && z.id === sel.id;
+      rects.push({ id: "pz:" + z.id, x: z.x1, y: z.y1, w: z.x2 - z.x1 + 1, h: z.y2 - z.y1 + 1, color: mine ? "#fff" : ZCOL[z.type] || C.blue, dashed: !z.on,
+        fill: mine ? "rgba(255,255,255,.18)" : z.type === "High Risk" ? "rgba(224,85,85,.10)" : "rgba(74,143,196,.07)", label: mine ? z.name : "", onClick: () => open(z) });
+    }
+    if (draft && !draft.id && draft.x1 != null) rects.push({ id: "pz:new", x: draft.x1, y: draft.y1, w: draft.x2 - draft.x1 + 1, h: draft.y2 - draft.y1 + 1, color: "#fff", dashed: true,
+      fill: "rgba(255,255,255,.12)", label: draft.name || "new zone" });
+    if (draft && draft.id && (draft.x1 !== sel?.x1 || draft.y1 !== sel?.y1 || draft.x2 !== sel?.x2 || draft.y2 !== sel?.y2))
+      rects.push({ id: "pz:moved", x: draft.x1, y: draft.y1, w: draft.x2 - draft.x1 + 1, h: draft.y2 - draft.y1 + 1, color: "#fff", dashed: true, fill: "rgba(255,255,255,.12)", label: "new rectangle" });
+    setLayer({ dots: [], rects });
+  }, [shown, show, sel, draft]);
+  const pickRect = (then) => setPick({ mode: "z", hint: "Click one corner of the zone.", cb: (a) => setPick({ mode: "z", hint: "Now click the opposite corner.",
+    cb: (b) => then({ x1: Math.min(a.x, b.x), y1: Math.min(a.y, b.y), x2: Math.max(a.x, b.x), y2: Math.max(a.y, b.y) }) }) });
+  const findAt = () => setPick({ mode: "z", hint: "Click a spot: the zones over it open.", cb: (w) => {
+    const hits = list(zones).filter((z) => w.x >= z.x1 && w.x <= z.x2 && w.y >= z.y1 && w.y <= z.y2 && (floor === "" || z.z === Number(floor)))
+      .sort((a, b) => b.priority - a.priority || (a.x2 - a.x1) * (a.y2 - a.y1) - (b.x2 - b.x1) * (b.y2 - b.y1));
+    if (hits.length) open(hits[0]); else note(false, `No zone at ${w.x}, ${w.y}${floor === "" ? "" : ` on floor ${floor}`}.`);
+  } });
+  const startNew = () => pickRect((r) => { setSel(null); setDraft({ name: "", type: "Normal", priority: 10, on: true, z: Number(floor || 0), mods: {}, tagText: "", ...r }); });
+  const args = (d) => ({ name: d.name.trim(), zoneType: d.type, priority: Math.round(n(d.priority)), enabled: !!d.on, x1: d.x1, y1: d.y1, x2: d.x2, y2: d.y2, z1: Math.round(n(d.z)),
+    tags: String(d.tagText || "").replace(/[^A-Za-z0-9 ,_\-&/]/g, ""), modifiers: Object.fromEntries(CATEGORIES.map(([k]) => [k, d.mods[k] ?? 1])) });
+  const save = async () => {
+    if (!draft.name.trim()) return note(false, "A zone needs a name.");
+    const r = draft.id
+      ? await pa("pa_call", { pc: "UpdateLootZone", catalogRevision: rev, zoneId: draft.id, zoneRevision: draft.revision, ...args(draft) })
+      : await pa("pa_call", { pc: "CreateLootZone", catalogRevision: rev, ...args(draft) });
+    const s = take(r);
+    if (r?.ok && s) {
+      const id = s.selectedZoneId || draft.id;
+      const z = list(s.zones).map(zoneOf).find((x) => x.id === id);
+      if (z) open(z); else { setSel(null); setDraft(null); }
+    }
+  };
+  const del = async () => {
+    if (!confirm(`Delete the loot zone "${sel.name}"? Panther stops using it straight away.`)) return;
+    const r = await pa("pa_call", { pc: "DeleteLootZone", catalogRevision: rev, zoneId: sel.id, zoneRevision: sel.revision });
+    if (take(r) && r?.ok) { setSel(null); setDraft(null); }
+  };
+  const counts = useMemo(() => { const c = { all: list(zones).length, on: 0, high: 0 }; for (const z of list(zones)) { if (z.on) c.on++; if (z.type === "High Risk") c.high++; } return c; }, [zones]);
+  const d = draft;
+  return (<>
+    <Box title={`Loot zones${zones ? ` (${counts.all})` : ""}`} right={<>
+      <Btn color={C.grey} disabled={!!busy} onClick={load}>Reload</Btn>
+      <Btn disabled={!!busy || !zones} onClick={findAt}>Find at a spot</Btn>
+      <Btn color={C.green} disabled={!!busy || !zones} onClick={startNew}>Draw a new zone</Btn></>}>
+      {!zones && <Note>{busy ? "Loading Panther's zones..." : "No zones yet. Panther 0.10 or newer is needed (it brings 4,583 built in); the server answers while someone is online."}</Note>}
+      {zones && <>
+        <Note color={C.text}>{counts.on} switched on · {counts.high} High Risk · list revision {rev}. Colours: <span style={{ color: C.blue }}>Normal</span>, <span style={{ color: C.gold }}>Balance</span>, <span style={{ color: C.red }}>High Risk</span>; dashed = off. Click a zone on the map to open it.</Note>
+        <Row>
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="search a name or a tag (WestPoint, Ammo...)" style={{ ...inp, flex: 1, minWidth: 180 }} />
+          <select value={type} onChange={(e) => setType(e.target.value)} style={inp}><option value="">every type</option>{["Normal", "Balance", "High Risk"].map((t) => <option key={t}>{t}</option>)}</select>
+          <select value={onOff} onChange={(e) => setOnOff(e.target.value)} style={inp}><option value="">on + off</option><option value="on">on</option><option value="off">off</option></select>
+          <span style={{ ...mono, fontSize: 12 }}>floor</span>
+          <select value={floor} onChange={(e) => setFloor(e.target.value)} style={inp}><option value="">all</option>{[-3, -2, -1, 0, 1, 2, 3, 4].map((f) => <option key={f} value={String(f)}>{f}</option>)}</select>
+          <label style={{ ...mono, fontSize: 12 }}><input type="checkbox" checked={show} onChange={(e) => setShow(e.target.checked)} /> on the map</label>
+        </Row>
+        <Note>{shown.length} match{shown.length > ZONE_DRAW && show ? ` (the map draws the first ${ZONE_DRAW}: narrow the search)` : ""}.</Note>
+        <div style={{ maxHeight: 220, overflowY: "auto", display: "flex", flexDirection: "column", gap: 2 }}>
+          {shown.slice(0, 200).map((z) => (
+            <a key={z.id} onClick={() => open(z)} style={{ ...mono, fontSize: 12, cursor: "pointer", padding: "3px 6px", borderRadius: 3, color: z.on ? C.text : C.grey,
+              background: sel?.id === z.id ? C.panel : "transparent", borderLeft: `3px solid ${ZCOL[z.type] || C.blue}` }}>
+              {z.name} <span style={{ color: C.grey }}>· p{z.priority} · {z.x2 - z.x1 + 1}x{z.y2 - z.y1 + 1} · z{z.z}{Object.keys(z.mods).length ? ` · ${Object.keys(z.mods).length} multiplier(s)` : ""}</span></a>))}
+          {shown.length > 200 && <Note>... and {shown.length - 200} more (search to narrow).</Note>}
+        </div>
+      </>}
+    </Box>
+    {d && <Box title={d.id ? `Zone: ${sel?.name}` : "New loot zone"} right={<>
+      {d.id && <Btn color={C.red} disabled={!!busy} onClick={del}>Delete</Btn>}
+      <Btn color={C.grey} onClick={() => { setSel(null); setDraft(null); }}>Close</Btn>
+      <Btn color={C.green} disabled={!!busy} onClick={save}>{d.id ? "Save" : "Create"}</Btn></>}>
+      <Row><span style={{ ...mono, fontSize: 12, minWidth: 70 }}>name</span><input value={d.name} maxLength={64} onChange={(e) => setDraft({ ...d, name: e.target.value })} style={{ ...inp, flex: 1 }} /></Row>
+      <Row>
+        <select value={d.type} onChange={(e) => setDraft({ ...d, type: e.target.value })} style={inp}>{["Normal", "Balance", "High Risk"].map((t) => <option key={t}>{t}</option>)}</select>
+        <span style={{ ...mono, fontSize: 12 }}>priority</span><input type="number" min={0} max={1000} value={d.priority} onChange={(e) => setDraft({ ...d, priority: e.target.value })} style={{ ...inp, width: 70 }} />
+        <label style={{ ...mono, fontSize: 12 }}><input type="checkbox" checked={!!d.on} onChange={(e) => setDraft({ ...d, on: e.target.checked })} /> switched on</label>
+      </Row>
+      <Row>
+        <span style={{ ...mono, fontSize: 12 }}>{d.x1},{d.y1} to {d.x2},{d.y2} ({d.x2 - d.x1 + 1} x {d.y2 - d.y1 + 1}) floor</span>
+        <input type="number" min={-32} max={32} value={d.z} onChange={(e) => setDraft({ ...d, z: Math.round(n(e.target.value)) })} style={{ ...inp, width: 55 }} />
+        <Btn onClick={() => pickRect((r) => setDraft((x) => ({ ...x, ...r })))}>Redraw on the map</Btn>
+      </Row>
+      <Row><span style={{ ...mono, fontSize: 12, minWidth: 70 }}>tags</span><input value={d.tagText} onChange={(e) => setDraft({ ...d, tagText: e.target.value })} placeholder="up to 8, separated by commas" style={{ ...inp, flex: 1 }} /></Row>
+      <Note color={C.text}>Multipliers in this zone (100% = the profile's own rule, 0% = nothing of it spawns here, up to 500%):</Note>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(190px, 1fr))", gap: 4 }}>
+        {CATEGORIES.map(([k, l]) => {
+          const v = d.mods[k] ?? 1;
+          return <label key={k} style={{ ...mono, fontSize: 12, display: "flex", gap: 6, alignItems: "center", color: v === 1 ? C.grey : C.gold }}>
+            <input type="number" min={0} max={500} step={5} value={Math.round(v * 100)} style={{ ...inp, width: 66 }}
+              onChange={(e) => setDraft({ ...d, mods: { ...d.mods, [k]: Math.max(0, Math.min(5, n(e.target.value) / 100)) } })} />% {l}</label>;
+        })}
+      </div>
+      {d.id && d.exact > 0 && <Note>{d.exact} exact-item rule(s) in this zone are kept as they are (edit those in game with F2).</Note>}
+      {d.id && <Note>Saving needs the list to be current: if someone changed zones meanwhile, Panther says so; press Reload and try again.</Note>}
+    </Box>}
+  </>);
+}
+
+// ── the maze (Panther's TME event) ───────────────────────────────────────────
+const MAZE_COL = { START: "#1a40ff", RESET: "#ff7300", CHECKPOINT: "#00e5ff", HEALTH_DRAIN: "#ff2020", HEALTH_RESTORE: "#00f033", FINISH: "#a60dff" };
+const MAZE_WORD = { START: "Start", RESET: "Reset", CHECKPOINT: "Checkpoint", HEALTH_DRAIN: "Health drain", HEALTH_RESTORE: "Health restore", FINISH: "Finish" };
+function Maze({ st, setLayer }) {
+  const m = st?.maze;
+  const tiles = list(m?.tiles);
+  const [show, setShow] = useState(true);
+  useEffect(() => {
+    setLayer({ dots: [], rects: show ? tiles.slice(0, 3000).map((t, i) => ({ id: `mz:${t.x},${t.y},${t.z}:${i}`, x: n(t.x), y: n(t.y), w: 1, h: 1, color: MAZE_COL[t.t] || C.grey,
+      fill: (MAZE_COL[t.t] || "#999999") + "99", label: t.t === "START" || t.t === "FINISH" ? MAZE_WORD[t.t] : "" })) : [] });
+  }, [m, show]);
+  useEffect(() => () => setLayer({ dots: [], rects: [] }), []);
+  const byType = {};
+  for (const t of tiles) byType[t.t] = (byType[t.t] || 0) + 1;
+  const ms = (v) => { const s = Math.floor(n(v) / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
+  return (
+    <Box title={`Maze${m?.title ? `: ${m.title}` : ""}`} right={<label style={{ ...mono, fontSize: 12 }}><input type="checkbox" checked={show} onChange={(e) => setShow(e.target.checked)} /> on the map</label>}>
+      {!m && <Note>No maze on the server (Panther 0.10 brings it; the overview updates while someone is online).</Note>}
+      {m && <>
+        <KV k="State" v={m.enabled === false ? "switched off" : "on"} color={m.enabled === false ? C.red : C.green} />
+        <KV k="Tiles" v={tiles.length ? Object.entries(byType).map(([k, v]) => `${MAZE_WORD[k] || k} ${v}`).join(" · ") : "none placed yet"} />
+        {m.start && <KV k="Start" v={`${m.start.x}, ${m.start.y}, floor ${m.start.z}`} />}
+        {m.finish && <KV k="Finish" v={`${m.finish.x}, ${m.finish.y}, floor ${m.finish.z}`} />}
+        <KV k="Players who ran it" v={String(n(m.players))} />
+        <KV k="Best times" v={list(m.top).length ? list(m.top).map((e, i) => `${i + 1}. ${e.name} ${ms(e.ms)}`).join(" · ") : "nobody has finished yet"} color={C.gold} />
+        <Row>{Object.keys(MAZE_COL).map((k) => <span key={k} style={{ ...mono, fontSize: 11, color: MAZE_COL[k] }}>■ {MAZE_WORD[k]}</span>)}</Row>
+        <Note>The maze is built and run in game (its own admin panel). Here you see where its tiles are; tiles show at street zoom.</Note>
+      </>}
+    </Box>
+  );
 }
 
 // ── history ─────────────────────────────────────────────────────────────────
