@@ -240,7 +240,7 @@ function OpsInner() {
     for (const k of ks) by[k.kind + ":" + k.id] = k;
     return places.filter((pl) => !(by[pl.kind + ":" + pl.id]?.off)).map((pl) => {
       const k = by[pl.kind + ":" + pl.id];
-      return k ? { ...pl, x: k.x, y: k.y } : pl;
+      return k ? { ...pl, x: k.x, y: k.y, name: pl.kind === "bus" && k.name ? k.name : pl.name } : pl;   // mod 1.7.160: a moved station takes its town's name
     });
   }, [places, kiosks]);
   const players = st?.players || [];
@@ -1200,15 +1200,17 @@ function PlacesTab({ kiosks, moveK, setMoveK, setPick }) {
   const list = kiosks.filter((k) => (k.name + " " + k.id).toLowerCase().includes(q.toLowerCase())).sort((a, b) => a.kind.localeCompare(b.kind) || String(a.name).localeCompare(String(b.name)));
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-      <div style={{ ...mono, fontSize: 11, color: C.grey }}>Shops and bus stations where they stand now. Moving one is the same as moving it from the in-game panel.</div>
+      <div style={{ ...mono, fontSize: 11, color: C.grey }}>Shops, bus stations and the diner where they stand now. Moving one is the same as moving it from the in-game panel.</div>
       {moveK && <div style={{ ...mono, fontSize: 12, color: C.gold }}>Moving {moveK.name}: click its new spot on the map. <a style={{ color: C.grey, cursor: "pointer" }} onClick={() => { setMoveK(null); setPick(null); }}>cancel</a></div>}
       <input style={inp} placeholder="Find a shop or station" value={q} onChange={(e) => setQ(e.target.value)} />
       {list.length === 0 && <div style={{ ...mono, fontSize: 12, color: C.grey }}>None reported yet (needs mod 1.7.115).</div>}
       {list.map((k) => (
         <div key={k.kind + k.id} style={{ ...mono, fontSize: 12, display: "flex", gap: 6, alignItems: "center", padding: "6px 8px", background: C.bg, border: `1px solid ${C.line}`, borderRadius: 3 }}>
-          <span style={{ color: k.kind === "bus" ? C.blue : C.gold }}>{k.kind === "bus" ? "BUS" : "SHOP"}</span>
+          <span style={{ color: k.kind === "bus" ? C.blue : k.kind === "diner" ? C.purple : C.gold }}>{k.kind === "bus" ? "BUS" : k.kind === "diner" ? "DINER" : "SHOP"}</span>
           <a style={{ flex: 1, cursor: "pointer", opacity: k.off ? 0.5 : 1 }} onClick={() => flyTo(k.x, k.y, 1)}>{k.name}{k.off ? " (destroyed)" : ""} <span style={{ color: C.grey, fontSize: 11 }}>{k.x}, {k.y}</span></a>
-          <Btn small onClick={() => { setMoveK({ kind: k.kind, id: k.id, name: k.name }); setPick({ mode: "move" }); }}>Move</Btn>
+          {k.kind === "diner"
+            ? <span style={{ color: C.grey, fontSize: 11 }} title="Stand in the new diner in game: Zombita Control > ZOMBITA > SET DINER HERE">move it in game</span>
+            : <Btn small onClick={() => { setMoveK({ kind: k.kind, id: k.id, name: k.name }); setPick({ mode: "move" }); }}>Move</Btn>}
         </div>
       ))}
     </div>

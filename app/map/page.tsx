@@ -102,7 +102,10 @@ export default function MapPage() {
         if (ks.length) {
           const by = {};
           for (const k of ks) by[k.kind + ":" + k.id] = k;
-          list = list.filter((p) => !(by[p.kind + ":" + p.id]?.off)).map((p) => (by[p.kind + ":" + p.id] ? { ...p, x: by[p.kind + ":" + p.id].x, y: by[p.kind + ":" + p.id].y } : p));
+          list = list.filter((p) => !(by[p.kind + ":" + p.id]?.off)).map((p) => {
+            const live = by[p.kind + ":" + p.id];          // where it stands now; a moved bus station is named after its town (mod 1.7.160)
+            return live ? { ...p, x: live.x, y: live.y, name: p.kind === "bus" && live.name ? live.name : p.name } : p;
+          });
         }
       } catch {}
       setPlaces(list);
