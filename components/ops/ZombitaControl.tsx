@@ -363,6 +363,20 @@ function Quests({ mods, za, pickOnMap, players }) {
         <span style={{ marginLeft: "auto" }}><Btn color={C.green} onClick={give}>Give</Btn></span>
       </Row>
     </Box>
+    <Box title="Job types (off = never posted for players; you can still give it)">
+      {list(q.types).length === 0 && <Note>Needs mod 1.7.158.</Note>}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+        {list(q.types).map((t) => {
+          const on = yes(t.on);
+          const flip = () => {
+            const off = list(q.types).filter((x) => (x.id === t.id ? on : !yes(x.on))).map((x) => x.id);
+            if (confirm(`Switch ${t.name} ${on ? "OFF" : "ON"}?`)) za("quests", "types", { off: off.join(",") });
+          };
+          return <Btn key={t.id} color={on ? C.green : C.grey} onClick={flip}>{on ? "✓ " : "✕ "}{t.name}{yes(t.live) ? "" : " (not running)"}</Btn>;
+        })}
+      </div>
+      <Note>New types start off until they are tested. Jobs already up stay until they end.</Note>
+    </Box>
     <Box title="Pay and rest per tier" right={<Btn color={C.grey} onClick={() => { const v = prompt("Daily limit for quest pay (bronze):", q.cap ?? ""); if (v) za("quests", "cap", { coins: Math.round(Number(v)) }); }}>Daily limit {q.cap ? `(${n(q.cap).toLocaleString()})` : ""}</Btn>}>
       {TIERS.map((t) => <Row key={t}>
         <span style={{ ...mono, fontSize: 12, width: 30 }}>{t}</span>
