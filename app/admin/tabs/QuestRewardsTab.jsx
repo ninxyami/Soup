@@ -52,7 +52,7 @@ const TYPES = [
 const TIER_ORDER = ["", "D", "C", "B", "A", "S", "A+", "SS", "SSS", "SSS+"];
 const tierRank = (t) => { const i = TIER_ORDER.indexOf(t || ""); return i < 0 ? 99 : i; };
 const TIER_LABEL = { "": "Any tier (fallback)" };
-const MAX_TEMPLATES = 12;
+const MAX_TEMPLATES = 100; // the game's S.MAX_VARIANTS (mod 1.7.171, was 12) and the bot's slot check (quest_variants_100_patch)
 const REWARD_CMDS = ["set_reward", "del_variant", "default"];
 const DRAFTS_KEY = "soup:quest-reward-drafts";
 
@@ -144,7 +144,7 @@ function RewardCard({ row, label, siblings, eff, draft, setDraft, send }) {
         {eff.pending > 0 && <span style={warn} title="Saved and queued. The game applies it as soon as it is running (someone in game).">⏳ {eff.pending} waiting for the game</span>}
         {anyDirty && <span style={{ ...mono, color: "var(--red)" }}>unsaved</span>}
       </div>
-      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", ...(list.length > 20 ? { maxHeight: 132, overflowY: "auto", paddingRight: 4 } : {}) }}>
         {list.map((x, i) => (
           <button key={i} onClick={() => put(list, i)} title={x.items.length ? x.items.map((it) => `${it[0]} x${it[1]}`).join(", ") : "empty"}
             style={{ padding: "3px 10px", ...mono, cursor: "pointer", background: i === sel ? "var(--accent)" : "var(--surface)", color: i === sel ? "#0e0e0e" : "var(--text)", border: `1px solid ${isDirty(i) ? "var(--red)" : "var(--border)"}` }}>
