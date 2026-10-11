@@ -24,6 +24,7 @@ const money = (b) => { try { return bronzeToCoins(b); } catch { return `${fmt(b)
 const Pill = ({ c, children, title }) => <span className="ap-pill" title={title} style={{ border: `1px solid ${c}`, color: c, marginRight: 4 }}>{children}</span>;
 const TierPill = ({ t }) => <span className="ap-pill" style={{ background: TIER[t] || TIER.B, color: "#0e0e0e", fontWeight: 700, minWidth: 18, textAlign: "center" }}>{t}</span>;
 const TWISTS = ["ambush", "road", "moved", "bandits", "bait"];
+const UNLOCKS = [["A", "A tier"], ["S", "S tier (class S)"], ["SS", "SS class"], ["SSS", "SSS class"], ["SSS+", "SSS+ class"]];   // mod 1.7.173
 const KIND = { S: "S", big: "board", small: "board", personal: "personal", exclusive: "exclusive", admin: "admin", card: "card", rescue: "rescue" };
 
 export default function QuestControlTab({ toast }) {
@@ -38,6 +39,7 @@ export default function QuestControlTab({ toast }) {
   const [sCls, setSCls] = useState("S");
   const [winner, setWinner] = useState({});
   const [more, setMore] = useState(false);
+  const [unl, setUnl] = useState(null);
 
   const load = useCallback(async () => {
     try { setD(await fetchApi("/api/admin/jobs")); } catch (e) { toast?.("Quest Control: " + e.message, "error"); }
@@ -70,6 +72,7 @@ export default function QuestControlTab({ toast }) {
   const quests = useMemo(() => [...(s?.quests || [])].sort((a, b) => "SABCD".indexOf(a.tier) - "SABCD".indexOf(b.tier)), [s]);
   useEffect(() => { if (c && chance === null) setChance({ ...c.twists.chance }); }, [c, chance]);
   useEffect(() => { if (c?.derby && prizes === null) setPrizes(c.derby.prizes.map((p) => ({ ...p }))); }, [c, prizes]);
+  useEffect(() => { if (s?.tierUnlocks && unl === null) setUnl({ ...s.tierUnlocks }); }, [s, unl]);
 
   if (loading) return <Load />;
   const busy = waiting.length > 0;
@@ -131,6 +134,24 @@ export default function QuestControlTab({ toast }) {
           · B42 Tiger {c.mods.tiger ? "running" : "not running"} (beasts) · Zombita Bosses {c.mods.bosses ? "running" : "not running"} (boss fights)
         </div>
       </FB>}
+
+      {c && s.tierUnlocks && unl && <FB title="TIER UNLOCKS">
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center" }}>
+          {UNLOCKS.map(([k, name]) => (
+            <label key={k} style={dim} title={`Default ${fmt(s.tierUnlocksDefault?.[k])}`}>
+              <Pill c={s.tierOpen?.[k] ? "var(--green)" : "var(--textdim)"}>{s.tierOpen?.[k] ? "OPEN" : "LOCKED"}</Pill>{name}{" "}
+              <input style={{ ...inp, width: 90 }} type="number" min={0} value={unl[k]} onChange={(e) => setUnl({ ...unl, [k]: e.target.value })} /></label>))}
+          <B c="gold" disabled={busy} onClick={() => send("tier_unlocks", { A: Number(unl.A) || 0, S: Number(unl.S) || 0, SS: Number(unl.SS) || 0, SSS: Number(unl.SSS) || 0, SSSP: Number(unl["SSS+"]) || 0 })
+            .then(() => setUnl(null))}>Save</B>
+          <B c="ghost" disabled={busy || !s.tierUnlocksCustom} onClick={() => confirm("Back to the default numbers (A 25,000, S 30,000, SS 35,000, SSS 40,000, SSS+ 45,000)?") && send("tier_unlocks", { at: "default" }).then(() => setUnl(null))}>Defaults</B>
+        </div>
+        <div style={{ ...dim, marginTop: 6 }}>
+          Server kills at which each tier / S class starts being posted (now {fmt(s.totalKills || 0)} kills{s.tierUnlocksCustom ? ", your numbers" : ", the defaults"}). 0 = open now.
+          D, C and B are always open. A locked one never comes up: the next one down is posted instead (an A slot posts B, an SSS roll posts S), and the S slot waits.
+          Quests already up stay until they end. Giving a quest (the tier buttons below) works for every tier.
+        </div>
+      </FB>}
+      {c && s && !s.tierUnlocks && <div className="ap-note info">Tier unlocks need mod 1.7.173 on the server.</div>}
 
       {c && <FB title="TEST CONSOLE">
         <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
