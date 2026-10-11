@@ -108,7 +108,7 @@ function TicketPage({ token }) {
   const settings = data?.settings;
   const yours = data?.yours;
   const admin = data?.admin;
-  const editable = yours && tk && ["new", "open", "submitted"].includes(tk.state);
+  const editable = yours && tk && ["new", "open", "returned", "submitted"].includes(tk.state);   // "returned": an admin sent it back to redraw
   const old = useMemo(() => {
     if (!data) return null;
     if (tk?.old && tk.state !== "new" && tk.state !== "open") return tk.old;
@@ -119,7 +119,7 @@ function TicketPage({ token }) {
   // start from what they sent before, or from their safehouse
   useEffect(() => {
     if (!data || !old) return;
-    if (tk?.new && ["submitted", "applying", "done", "stuck", "failed", "rejected"].includes(tk.state) && !draft) setDraft(tk.new);
+    if (tk?.new && ["returned", "submitted", "applying", "done", "stuck", "failed", "rejected"].includes(tk.state) && !draft) setDraft(tk.new);
     else if (!draft || (tk && ["new", "open"].includes(tk.state) && !same(draft, old) && !contains(draft, old))) setDraft({ ...old });
   }, [data, old]);               // eslint-disable-line
 
@@ -167,7 +167,7 @@ function TicketPage({ token }) {
     else setMsg(r.data?.reason || r.data?.detail || "Couldn't send it.");
   };
   const cancel = async () => {
-    if (!confirm("Cancel this ticket? You'll need a new Admin Ticket to try again.")) return;
+    if (!confirm("Close this ticket? It ends here and the expansion price isn't charged. You'll need a new Admin Ticket to try again.")) return;
     const r = await call("/api/sh/cancel", { t: token });
     setMsg(r.data?.msg || ""); load();
   };
@@ -199,9 +199,10 @@ function TicketPage({ token }) {
   const stateText = {
     new: "Your ticket is open. Draw the new box below.", open: "Your ticket is open. Draw the new box below.",
     submitted: yours ? "Sent. The admins will look at it in your ticket channel. You can still change the box and send it again until they decide." : "Waiting for an admin.",
-    applying: "Approved. The new boundary is being applied in the game…", done: "Done. Your safehouse has its new size.",
+    returned: `Sent back${tk.decided_by ? " by " + tk.decided_by : ""}${tk.note ? ": " + tk.note : ""}. Change the box and send it again. Nothing was charged.`,
+    applying: "Approved. The new boundary is being applied in the game…", done: "Done. Your safehouse has its new size. Log out and back in (restart the game) to see your new zone.",
     failed: "The game couldn't apply it. Anything that was taken was given back.", stuck: "The game hasn't confirmed yet. An admin is checking.",
-    rejected: `Rejected${tk.decided_by ? " by " + tk.decided_by : ""}${tk.note ? ": " + tk.note : ""}. The expansion price was not charged.`, cancelled: "Cancelled. The expansion price was not charged.",
+    rejected: `Rejected${tk.decided_by ? " by " + tk.decided_by : ""}${tk.note ? ": " + tk.note : ""}. The expansion price was not charged.`, cancelled: `Closed${tk.note ? " (" + tk.note + ")" : ""}. The expansion price was not charged.`,
   }[state] || state;
 
   return (
@@ -215,7 +216,7 @@ function TicketPage({ token }) {
       </div>
       <aside style={{ width: 380, maxWidth: "46vw", overflowY: "auto", borderLeft: `1px solid ${C.line}`, background: C.panel, padding: 14, display: "flex", flexDirection: "column", gap: 12 }}>
         <div style={{ fontSize: 12, color: C.grey }}>Ticket #{tk.id} for <b style={{ color: C.text }}>{data.owner}</b></div>
-        <div style={{ fontSize: 13, lineHeight: 1.5, color: state === "rejected" || state === "failed" ? C.red : state === "done" ? C.green : C.text }}>{stateText}</div>
+        <div style={{ fontSize: 13, lineHeight: 1.5, color: state === "rejected" || state === "failed" ? C.red : state === "returned" ? C.gold : state === "done" ? C.green : C.text }}>{stateText}</div>
         {!admin || yours ? null : <div style={{ fontSize: 11, color: C.purple }}>You're looking at this as an admin.</div>}
 
         {!old && data.world_ok && <div style={{ color: C.red, fontSize: 13 }}>The game doesn't list a safehouse for {data.owner}. You need a safehouse before you can grow one.</div>}
@@ -263,10 +264,11 @@ function TicketPage({ token }) {
 
           {editable && <Btn disabled={busy || !q?.ok} color={C.green} onClick={send} wide>{state === "submitted" ? "Send the new box to the admins" : "Send to the admins"}</Btn>}
           {msg && <div style={{ fontSize: 12, color: C.gold }}>{msg}</div>}
-          {editable && <Btn small color={C.grey} onClick={cancel}>Cancel this ticket</Btn>}
+          {editable && <Btn small color={C.grey} onClick={cancel}>Close this ticket</Btn>}
         </>)}
 
         {admin && !yours && ["submitted", "stuck"].includes(state) && <AdminDecision tk={tk} done={load} />}
+        {admin && !yours && !["approving", "applying", "stuck"].includes(state) && <AdminClose tk={tk} done={load} />}
 
         <div style={{ fontSize: 11, color: C.grey, lineHeight: 1.6, borderTop: `1px solid ${C.line}`, paddingTop: 10 }}>
           <b style={{ color: C.text }}>How it works.</b> A new tile next to your safehouse costs {settings.base + settings.step} bronze, and every row further out costs {settings.step} bronze more per tile.
@@ -302,13 +304,30 @@ function AdminDecision({ tk, done }) {
           <Btn small onClick={() => cmd("price", { price: String(price).trim() === "" ? "" : Number(price) })}>Set price</Btn>
         </div>
         <Btn color={C.green} onClick={() => { if (confirm(`Take ${money(tk.price)} from ${tk.username} and resize the safehouse?`)) cmd("approve", { submitted_at: tk.submitted_at }); }} wide>Approve and take {money(tk.price)}</Btn>
-        <Btn color={C.red} onClick={() => { const why = prompt("Why? (the player sees this)", ""); if (why !== null) cmd("reject", { reason: why }); }} wide>Reject</Btn>
+        <Btn color={C.red} onClick={() => { const why = prompt("What should they change? (the player sees this; they redraw and send again)", ""); if (why !== null) cmd("reject", { reason: why }); }} wide>Send back to redraw</Btn>
       </>)}
       {tk.state === "stuck" && (<>
         <div style={{ fontSize: 11, color: C.grey }}>The game hasn't confirmed. Check Live Ops: did the safehouse change?</div>
         <Btn color={C.red} onClick={() => cmd("refund")} wide>It did NOT change: refund</Btn>
         <Btn color={C.green} onClick={() => cmd("done")} wide>It DID change: mark done</Btn>
       </>)}
+      {out && <div style={{ fontSize: 12, color: C.gold }}>{out}</div>}
+    </div>
+  );
+}
+
+// ── an admin's Close: the ticket ends and its Discord channel is deleted (a player's close keeps the channel) ─────────────────
+function AdminClose({ tk, done }) {
+  const [out, setOut] = useState("");
+  const go = async () => {
+    if (!confirm(`Close ticket #${tk.id} for ${tk.username}? It ends here and its Discord channel is deleted.`)) return;
+    const r = await call("/api/admin/sh/cmd", { cmd: "close", id: tk.id });
+    setOut(r.data?.msg || r.data?.detail || "");
+    done();
+  };
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <Btn small color={C.grey} onClick={go}>Close ticket (deletes its channel)</Btn>
       {out && <div style={{ fontSize: 12, color: C.gold }}>{out}</div>}
     </div>
   );
@@ -322,7 +341,7 @@ function AdminList() {
   const [form, setForm] = useState({});
   const [msg, setMsg] = useState("");
   const load = useCallback(async () => {
-    const states = filter === "open" ? "new,open,submitted,applying,stuck" : "";
+    const states = filter === "open" ? "new,open,returned,submitted,approving,applying,stuck" : "";
     const r = await call(`/api/admin/sh/tickets${states ? `?state=${states}` : ""}`);
     if (r.status === 200 && r.data?.ok) { setD(r.data); setForm(r.data.settings); setErr(null); }
     else setErr(r.status);
