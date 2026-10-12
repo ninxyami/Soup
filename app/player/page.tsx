@@ -8,6 +8,7 @@ interface PlayerStats {
   discord_id: number;
   display_name: string;
   username?: string;
+  avatar_url?: string | null;
   ingame_name?: string;
   bio?: string;
   first_seen: number;
@@ -156,9 +157,14 @@ export default function PlayerPage() {
 
       {/* Header */}
       <div className="mt-6 mb-8 flex items-start gap-4">
-        <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-[#1a1a1a] border border-[#2a2a2a] flex items-center justify-center text-xl sm:text-2xl flex-shrink-0">
-          🧟
-        </div>
+        {stats.avatar_url ? (
+          <img src={stats.avatar_url} alt="" width={64} height={64}
+            className="w-12 h-12 sm:w-16 sm:h-16 rounded-full border border-[#2a2a2a] object-cover flex-shrink-0" />
+        ) : (
+          <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-[#1a1a1a] border border-[#2a2a2a] flex items-center justify-center text-xl sm:text-2xl flex-shrink-0">
+            🧟
+          </div>
+        )}
         <div className="flex-1 min-w-0">
           <h1 className="text-xl sm:text-2xl tracking-[0.15em] uppercase truncate">{stats.display_name}</h1>
           {stats.username && (

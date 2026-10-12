@@ -16,7 +16,10 @@ interface Player {
   games_played: number;
   games_won: number;
   message_count: number;
+  avatar_url?: string | null;
 }
+
+const PAGE_SIZE = 20;
 
 export default function PlayersPage() {
   const [players, setPlayers] = useState<Player[]>([]);
@@ -24,6 +27,7 @@ export default function PlayersPage() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "active" | "veterans">("all");
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     fetch(`${API}/api/players`)
@@ -51,7 +55,15 @@ export default function PlayersPage() {
       );
     }
     setFiltered(list);
+    setPage(1);
   }, [search, filter, players]);
+
+  const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const shown = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const goTo = (n: number) => {
+    setPage(Math.min(pages, Math.max(1, n)));
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   return (
     <main className="max-w-[900px] mx-auto px-4 sm:px-6 py-10 sm:py-16">
@@ -86,13 +98,18 @@ export default function PlayersPage() {
         <p className="text-[#555] font-mono text-sm italic">no survivors found.</p>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
-          {filtered.map(p => (
+          {shown.map(p => (
             <a key={p.discord_id} href={`/player?id=${encodeURIComponent(p.display_name)}`}
               className="block bg-[#0a0a0a] border border-[#1a1a1a] p-3 sm:p-4 hover:border-[#4a7c59] transition-all no-underline group">
               <div className="flex items-start gap-3">
-                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-[#111] border border-[#222] flex items-center justify-center text-sm font-bold text-[#4a7c59] flex-shrink-0 group-hover:border-[#4a7c59] transition-colors">
-                  {p.display_name[0]?.toUpperCase()}
-                </div>
+                {p.avatar_url ? (
+                  <img src={p.avatar_url} alt="" width={40} height={40} loading="lazy"
+                    className="w-9 h-9 sm:w-10 sm:h-10 rounded-full border border-[#222] object-cover flex-shrink-0 group-hover:border-[#4a7c59] transition-colors" />
+                ) : (
+                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-[#111] border border-[#222] flex items-center justify-center text-sm font-bold text-[#4a7c59] flex-shrink-0 group-hover:border-[#4a7c59] transition-colors">
+                    {p.display_name[0]?.toUpperCase()}
+                  </div>
+                )}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-baseline gap-2 flex-wrap">
                     <span className="text-[#e6e6e6] text-[0.88rem] tracking-wide truncate max-w-[160px]">{p.display_name}</span>
@@ -127,6 +144,25 @@ export default function PlayersPage() {
               </div>
             </a>
           ))}
+        </div>
+      )}
+
+      {!loading && pages > 1 && (
+        <div className="flex flex-wrap items-center justify-center gap-1.5 mt-6 sm:mt-8">
+          <button onClick={() => goTo(page - 1)} disabled={page === 1}
+            className="px-3 py-1.5 text-[0.72rem] font-mono border border-[#1a1a1a] text-[#777] hover:border-[#4a7c59] hover:text-[#e6e6e6] disabled:opacity-30 disabled:cursor-default cursor-pointer bg-transparent transition-all">
+            &lsaquo;
+          </button>
+          {Array.from({ length: pages }, (_, i) => i + 1).map(n => (
+            <button key={n} onClick={() => goTo(n)}
+              className={`min-w-[34px] px-2.5 py-1.5 text-[0.72rem] font-mono border cursor-pointer bg-transparent transition-all ${n === page ? "border-[#4a7c59] text-[#4a7c59]" : "border-[#1a1a1a] text-[#777] hover:border-[#333] hover:text-[#e6e6e6]"}`}>
+              {n}
+            </button>
+          ))}
+          <button onClick={() => goTo(page + 1)} disabled={page === pages}
+            className="px-3 py-1.5 text-[0.72rem] font-mono border border-[#1a1a1a] text-[#777] hover:border-[#4a7c59] hover:text-[#e6e6e6] disabled:opacity-30 disabled:cursor-default cursor-pointer bg-transparent transition-all">
+            &rsaquo;
+          </button>
         </div>
       )}
     </main>
