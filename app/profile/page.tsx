@@ -30,17 +30,20 @@ export default function ProfilePage() {
             fetch(`${API}/api/rankings`),
             fetch(`${API}/api/players`),
           ]);
+          let ingameName = "";
           if (sr.ok) {
             const sd = await sr.json();
             setGameStats(sd);
             if (sd.reputation) setRep(sd.reputation);
+            ingameName = String(sd.ingame_name || "").trim().toLowerCase();
           }
           if (ir.ok) {
             const rankings = await ir.json();
-            // FIX: Match strictly by discord_id only to avoid false username matches
-            const p = (rankings.players || []).find((p: any) =>
-              String(p.discord_id) === String(me.discord_id)
-            );
+            // Match by discord_id, else by the linked in-game name from /api/stats/player (the rankings come from the game
+            // and carry no discord_id; the name is the account the whitelist linked, never a guess from the Discord name)
+            const list = rankings.players || [];
+            const p = list.find((p: any) => p.discord_id && String(p.discord_id) === String(me.discord_id))
+              || (ingameName ? list.find((p: any) => String(p.name || "").trim().toLowerCase() === ingameName) : undefined);
             if (p) setIngameStats(p);
           }
           if (pr.ok) {
