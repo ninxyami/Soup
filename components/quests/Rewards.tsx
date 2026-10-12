@@ -18,12 +18,14 @@ import { C, MONO, BODY, DISPLAY, TIER, TIERS, Btn, Card, Note, Pill, TierPill, I
 const MAX = 100;
 const ROW_CMDS = { set_reward: 1, del_variant: 1, default: 1 };
 
-/** "horde_d" -> { type: "horde", tier: "D" }; rows like "trap_kill" or "beast_sssp" keep their own words */
+/** "horde_d" -> { type: "horde", tier: "D" }; "horde_sssp" -> SSS+ (every S class has rows of its own since mod 1.7.178);
+ *  rows like "trap_kill" keep their own words */
 function splitRow(id) {
-  const m = /^(.*)_(d|c|b|a|s)$/.exec(id || "");
-  if (m) return { type: m[1], tier: m[2].toUpperCase() };
+  const m = /^(.*)_(d|c|b|a|s|ss|sss|sssp)$/.exec(id || "");
+  if (m) return { type: m[1], tier: m[2] === "sssp" ? "SSS+" : m[2].toUpperCase() };
   return { type: id, tier: "" };
 }
+const ROW_TIERS = ["D", "C", "B", "A", "A+", "S", "SS", "SSS", "SSS+"];
 const titleCase = (s) => String(s || "").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
 /** Build the row list the view works with, from either source. */
@@ -43,7 +45,7 @@ function rowsFrom(source, state, preview) {
     for (const r of state?.rows || []) names[r.id] = r;
     for (const [id, list] of Object.entries(preview.rows || {})) {
       const g = names[id], sp = splitRow(id);
-      out.push({ id, name: g?.name || titleCase(id), type: g?.type || sp.type, tier: g?.tier || sp.tier,
+      out.push({ id, name: g?.name || (sp.tier ? `${titleCase(sp.type)} ${sp.tier}` : titleCase(id)), type: g?.type || sp.type, tier: g?.tier || sp.tier,
         templates: list.map((t, i) => ({ slot: i + 1, rep: t.r || 0, items: t.i || [], cat: t.c, lore: t.l, value: t.v, kit: t.k })) });
     }
   }
@@ -57,7 +59,7 @@ function groupByType(rows) {
     if (!by.has(r.type)) by.set(r.type, []);
     by.get(r.type).push(r);
   }
-  const order = (t) => { const i = TIERS.indexOf(t); return i < 0 ? 99 : i; };
+  const order = (t) => { const i = ROW_TIERS.indexOf(t); return i < 0 ? 99 : i; };
   return [...by.entries()].map(([type, list]) => ({ type, rows: list.sort((a, b) => order(a.tier) - order(b.tier) || a.id.localeCompare(b.id)) }))
     .sort((a, b) => a.type.localeCompare(b.type));
 }
