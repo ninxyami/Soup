@@ -15,6 +15,9 @@ export function demoData(preview) {
     rows.push({ id, name: `${names[t]} ${tier}`, type: t, tier, rep: 0, items: variants[0]?.items || [], custom: variants.length > 0,
       text: "", default: "", variants });
   }
+  // an old per-type row with no templates: the game reports its built-in reward in `items` (2026-10-12 live case)
+  rows.push({ id: "code", name: "Treasure", type: "code", tier: "", rep: 0, items: [["Base.TinnedBeans", 2], ["Base.Bandage", 2]], custom: false,
+    text: "", default: "", variants: [] });
   const now = Math.floor(Date.now() / 1000);
   const quests = [
     { id: "q27", title: "The Riverside horde", type: "horde", tier: "C", kind: "personal", town: "Riverside", left: 16260, pay: 1500, racers: [] },

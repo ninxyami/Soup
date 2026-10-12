@@ -31,9 +31,12 @@ function rowsFrom(source, state, preview) {
   const out = [];
   if (source === "game") {
     for (const r of state?.rows || []) {
-      const t = r.variants && r.variants.length ? r.variants : (r.items && r.items.length ? [{ rep: r.rep || 0, items: r.items }] : []);
+      // Only `variants` are templates. A row without any still reports `items`: that is the game's BUILT-IN reward for
+      // the row (S.rewardFor falls back to it), not something an admin made, and it can't be deleted.
+      const t = r.variants && r.variants.length ? r.variants : [];
       out.push({ id: r.id, name: r.name || titleCase(r.id), type: r.type || splitRow(r.id).type, tier: r.tier || splitRow(r.id).tier,
-        text: r.text, def: r.default, custom: r.custom, templates: t.map((v, i) => ({ slot: i + 1, rep: v.rep || 0, items: v.items || [] })) });
+        text: r.text, def: r.default, custom: r.custom, builtIn: t.length ? null : { rep: r.rep || 0, items: r.items || [] },
+        templates: t.map((v, i) => ({ slot: i + 1, rep: v.rep || 0, items: v.items || [] })) });
     }
   } else if (preview) {
     const names = {};
@@ -288,7 +291,17 @@ export default function Rewards({ state, waiting, send, apiGet, preview, preview
                 )}
               </div>
 
-              {shown.length === 0 ? <Empty>{row.templates.length === 0 ? "This row has no templates yet: wins give the built-in reward." : "No template matches."}</Empty> : (
+              {row.templates.length === 0 && source === "game" && (
+                <div style={{ background: C.bg, border: `1px dashed ${C.line}`, padding: 12, marginBottom: 12 }}>
+                  <div style={{ fontFamily: BODY, fontSize: 13, color: C.dim, marginBottom: 6 }}>
+                    No templates yet, so a win gives the game's <b>built-in reward</b> for this row{row.builtIn?.items?.length ? ":" : " (coins only)."}
+                    {" "}It isn't a template and can't be deleted; adding a template replaces it.
+                  </div>
+                  {(row.builtIn?.items || []).map(([id, n]) => <ItemLine key={id} id={id} n={n} />)}
+                  {row.builtIn?.rep > 0 && <div style={{ fontFamily: MONO, fontSize: 12, color: C.purple }}>+{row.builtIn.rep} rep</div>}
+                </div>
+              )}
+              {shown.length === 0 ? (row.templates.length ? <Empty>No template matches.</Empty> : null) : (
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: 10 }}>
                   {pageItems.map((t) => {
                     const label = labelOf(t);
