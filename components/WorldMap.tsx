@@ -477,6 +477,7 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
         showNavigationControl: false,
         gestureSettingsMouse: { clickToZoom: false, dblClickToZoom: true },
         maxZoomPixelRatio: iso ? 2 : 3,
+        minPixelRatio: 1,                  // sharp on dpr-1 screens: never stretch a tile level up to 2x (default 0.5)
         minZoomImageRatio: 0.6,
         visibilityRatio: 0.4,
         animationTime: 0.6,
