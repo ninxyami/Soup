@@ -20,11 +20,11 @@ export function demoData(preview) {
     text: "", default: "", variants: [] });
   const now = Math.floor(Date.now() / 1000);
   const quests = [
-    { id: "q27", title: "The Riverside horde", type: "horde", tier: "C", kind: "personal", town: "Riverside", left: 16260, pay: 1500, racers: [] },
-    { id: "q33", title: "Iron for the watchtower", type: "smith", tier: "B", kind: "big", big: true, town: "Muldraugh", left: 16860, pay: 2500, racers: [{ name: "Warrior" }] },
-    { id: "q34", title: "Clear the hunting trail", type: "horde", tier: "D", kind: "small", town: "Rosewood", left: 2940, pay: 500, racers: [] },
-    { id: "q35", title: "Duct tape run", type: "deliver", tier: "D", kind: "small", town: "West Point", left: 3000, pay: 500, racers: [{ name: "tuquyy" }, { name: "Kise" }] },
-    { id: "q37", title: "Treasure near Fallas Lake", type: "code", tier: "B", kind: "exclusive", town: "Fallas Lake", left: 9060, pay: 3120, racers: [] },
+    { id: "q27", title: "The Riverside horde", type: "horde", tier: "C", kind: "personal", town: "Riverside", left: 16260, pay: "1 silver", racers: [] },
+    { id: "q33", title: "Iron for the watchtower", type: "smith", tier: "B", kind: "big", big: true, town: "Muldraugh", left: 16860, pay: "2.5 silver", racers: [{ name: "Warrior" }] },
+    { id: "q34", title: "Clear the hunting trail", type: "horde", tier: "D", kind: "small", town: "Rosewood", left: 2940, pay: "500 bronze", racers: [] },
+    { id: "q35", title: "Duct tape run", type: "deliver", tier: "D", kind: "small", town: "West Point", left: 3000, pay: "500 bronze", racers: [{ name: "tuquyy" }, { name: "Kise" }] },
+    { id: "q37", title: "Treasure near Fallas Lake", type: "code", tier: "B", kind: "exclusive", town: "Fallas Lake", left: 9060, pay: "3.12 silver", racers: [] },
   ];
   const ctlTypes = types.map((t, i) => ({ id: t, name: names[t], tiers: t === "beast" ? "AS" : "DCBA", board: t !== "escort", on: i < 10, live: t !== "escort",
     new: i > 9, tested: i < 8, testedBy: "Nin", testedAt: now - 86400 * (i + 1), note: i < 8 ? "Works" : "", twists: i < 5 ? "ambush,road" : "" }));

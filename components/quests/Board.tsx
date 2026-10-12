@@ -123,7 +123,7 @@ function OpenJobs({ state, send }) {
                   <td style={td}>{q.kind}{q.big && q.kind !== "big" ? " / big" : ""}</td>
                   <td style={td}>{q.town || q.place || ""}</td>
                   <td style={{ ...td, fontFamily: MONO }}>{dur(q.left)}</td>
-                  <td style={{ ...td, fontFamily: MONO, color: C.gold }}>{q.pay ? money(q.pay) : ""}</td>
+                  <td style={{ ...td, fontFamily: MONO, color: C.gold }}>{typeof q.pay === "number" ? money(q.pay) : (q.pay || "")}</td>{/* the game sends its own words ("2.5 silver"); numbers only in the demo */}
                   <td style={td}>{(q.racers || []).map((r) => r.name).join(", ") || <span style={{ color: C.faint }}>nobody</span>}</td>
                   <td style={{ ...td, whiteSpace: "nowrap", textAlign: "right" }}>
                     <Btn sm c="green" onClick={() => setWin(q)}>Win</Btn>{" "}
