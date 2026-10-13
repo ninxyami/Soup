@@ -10,8 +10,8 @@ import { API } from "@/lib/constants";
 const mono = { fontFamily: "var(--mono)", fontSize: 12 };
 const fmt = (b) => {
   b = Math.max(0, Math.floor(b || 0));
-  const g = Math.floor(b / 10000), s = Math.floor((b % 10000) / 1000), br = b % 1000, out = [];
-  if (g) out.push(`${g} gold`); if (s) out.push(`${s} silver`); if (br || !out.length) out.push(`${br} bronze`);
+  const s = Math.floor(b / 1000), br = b % 1000, out = [];      // no gold (Nin 2026-10-13): silver + bronze
+  if (s) out.push(`${s.toLocaleString("en-US")} silver`); if (br || !out.length) out.push(`${br} bronze`);
   return out.join(" ");
 };
 const day = (ts) => (ts ? new Date(ts * 1000).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "-");

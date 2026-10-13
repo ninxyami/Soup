@@ -258,7 +258,7 @@ export default function JobsTab({ toast }) {
       {v2 && <FB title="THE BOARD">
         <div style={{ display: "flex", gap: 24, flexWrap: "wrap", alignItems: "flex-end" }}>
           <div>
-            <div style={dim}>DAILY LIMIT PER PLAYER (BRONZE, S ASIDE)</div>
+            <div style={dim}>DAILY LIMIT PER PLAYER (BRONZE, S INCLUDED)</div>
             <input className="ap-search" style={{ width: 110 }} type="number" min={0} value={cap} onChange={(e) => setCap(e.target.value)} />{" "}
             <B sm disabled={busy} onClick={() => send("cap", { coins: Number(cap) })}>SAVE</B>
             <span style={{ ...dim, marginLeft: 8 }}>{money(Number(cap) || 0)}</span>
@@ -266,7 +266,7 @@ export default function JobsTab({ toast }) {
           <div style={{ flex: 1 }} />
           <B c="green" disabled={busy} onClick={() => confirm("Fill every empty slot now (3 small D/C + 2 big B/A)?") && send("post_now")}>FILL THE BOARD</B>
           <span style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
-            <label style={{ ...dim, display: "inline-flex", gap: 4, alignItems: "center" }}><input type="checkbox" checked={bigS} onChange={(e) => setBigS(e.target.checked)} /> big (2 hordes, 2-3 gold)</label>
+            <label style={{ ...dim, display: "inline-flex", gap: 4, alignItems: "center" }}><input type="checkbox" checked={bigS} onChange={(e) => setBigS(e.target.checked)} /> big (2 hordes, 20-30 silver)</label>
             <B c="gold" disabled={busy} onClick={() => confirm(`Put ${bigS ? "a BIG" : "an"} S tier quest up now? Everyone online hears about it; its pay is minted (not the treasury).`) && send("post_s", { big: bigS })}>POST S</B>
           </span>
         </div>
@@ -278,7 +278,7 @@ export default function JobsTab({ toast }) {
       {v2 && <TW title="TIERS" right={<span style={dim}>pot = a solo win, split evenly by a crew · rest = cooldown after one</span>}>
         <div style={{ overflowX: "auto" }}><table className="ap-t"><thead><tr><th>Tier</th><th>Pot (bronze)</th><th>Rest</th><th>On board</th><th>Horde</th><th>Rank pts</th><th>Give-up cost</th></tr></thead>
           <tbody>{(s.tiers || []).slice().reverse().map((t) => <TierRow key={t.id} t={t} send={send} busy={busy} />)}</tbody></table></div>
-        <div className="ap-note" style={{ margin: "8px 16px 14px" }}>S splits by Nin&apos;s table (1 gold / 5s / 3s / 2.5s each), scaled by S&apos;s pot, and beast hunts multiply it by class (SS 1.5x, SSS 2.5x, SSS+ 5x). S pays out of the treasury. Personal quests pay 1.5x, exclusive 1.25x.</div>
+        <div className="ap-note" style={{ margin: "8px 16px 14px" }}>S splits by Nin&apos;s table (10s / 5s / 3s / 2.5s each), scaled by S&apos;s pot, and beast hunts multiply it by class (SS 1.5x, SSS 2.5x, SSS+ 5x). S pays out of the treasury. Personal and exclusive jobs pay normal, card jobs 1.25x.</div>
       </TW>}
 
       {v2 && <FB title="JOB RANK">

@@ -13,8 +13,7 @@ const JOB_WORD = { order: "Orders", Scout: "Scouting", Delivery: "Deliveries", T
 
 function money(b) {
   b = Math.floor(b || 0);
-  if (b >= 10000 && b % 10000 === 0) return `${b / 10000} gold`;
-  if (b >= 1000) return `${String(+(b / 1000).toFixed(2))} silver`;
+  if (b >= 1000) return `${(+(b / 1000).toFixed(2)).toLocaleString("en-US")} silver`;   // no gold (Nin 2026-10-13)
   return `${b} bronze`;
 }
 

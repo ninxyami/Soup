@@ -8,10 +8,9 @@ type Good = { id: string; name: string; qty: number; price: number; by: string; 
 type Data = { on: boolean; items: Good[]; merchantsFirstHours: number; dayCap: number };
 
 function money(b: number): string {
-  const g = Math.floor(b / 10000), s = Math.floor((b % 10000) / 1000), r = b % 1000;
+  const s = Math.floor(b / 1000), r = b % 1000;                    // no gold (Nin 2026-10-13)
   const parts: string[] = [];
-  if (g) parts.push(`${g}g`);
-  if (s) parts.push(`${s}s`);
+  if (s) parts.push(`${s.toLocaleString("en-US")}s`);
   if (r || !parts.length) parts.push(`${r}b`);
   return parts.join(" ");
 }

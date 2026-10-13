@@ -14,10 +14,9 @@ const GROUPS = [["poultry", "Poultry"], ["rabbits", "Rabbits"], ["pigs", "Pigs"]
 const n = (v) => Number(v) || 0;
 function money(b) {
   const v = Math.round(n(b));
-  const g = Math.floor(v / 10000), s = Math.floor((v % 10000) / 1000), r = v % 1000;
+  const s = Math.floor(v / 1000), r = v % 1000;                    // no gold (Nin 2026-10-13)
   const parts = [];
-  if (g) parts.push(`${g}g`);
-  if (s) parts.push(`${s}s`);
+  if (s) parts.push(`${s.toLocaleString("en-US")}s`);
   if (r || !parts.length) parts.push(`${r}b`);
   return parts.join(" ");
 }

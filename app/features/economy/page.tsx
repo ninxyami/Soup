@@ -37,8 +37,8 @@ const HEALTH_ROWS = [
 
 const COINS = [
   { name: "SOUP Coin", value: "1 silver", where: "About 1 zombie in 100. New players get extra luck in their first two hours.", color: "#9ec27a" },
-  { name: "Zombita Coin", value: "1 gold", where: "About 1 zombie in 1,000 - as rare as her own phone.", color: "#7ec04a" },
-  { name: "Dawnie's Coin", value: "10 gold", where: "1 zombie in 10,000. A keeper buys it - or the treasury, when the till is short. Dawnie says don't sell.", color: "#e0a090" },
+  { name: "Zombita Coin", value: "10 silver", where: "About 1 zombie in 1,000 - as rare as her own phone.", color: "#7ec04a" },
+  { name: "Dawnie's Coin", value: "100 silver", where: "1 zombie in 10,000. A keeper buys it - or the treasury, when the till is short. Dawnie says don't sell.", color: "#e0a090" },
 ];
 
 const GENERAL = ["Cal", "Dex", "Eli", "Lena", "Nadia", "Roxy"];
@@ -53,9 +53,9 @@ const SPECIALISTS = [
   { name: "Scarlett", what: "music - only the community tapes players share in #song-submissions" },
 ];
 
-/** 288900 -> "28.9 gold"; 4500 -> "4.5 silver"; 250 -> "250 bronze". */
+/** 288900 -> "289 silver"; 4500 -> "4.5 silver"; 250 -> "250 bronze" (no gold, Nin 2026-10-13). */
 function money(b: number): string {
-  if (b >= 10000) return `${(b / 10000).toFixed(b >= 100000 ? 0 : 1)} gold`;
+  if (b >= 100000) return `${Math.round(b / 1000).toLocaleString("en-US")} silver`;
   if (b >= 1000) return `${(b / 1000).toFixed(1)} silver`;
   return `${b} bronze`;
 }
@@ -217,7 +217,7 @@ export default function EconomyPage() {
           <p className="text-[#666] text-[0.88rem] max-w-[620px] leading-relaxed">
             Money on S.O.U.P is limited. It isn&apos;t printed when you sell a carrot - it moves between the
             treasury, the shopkeepers&apos; tills and your wallet, and Zombita keeps the books. That&apos;s why a
-            gold is worth a gold here, all season long.
+            silver is worth a silver here, all season long.
           </p>
         </div>
 
@@ -259,7 +259,7 @@ export default function EconomyPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Card title="New money - only two ways" color="#4caf7d">
               <p className="mb-2">1. <b className="text-[#aaa]">The season seed.</b> Every player who joins a season adds their seed to the town
-                (5 silver to 4 gold, depending on how Zombita feels about them). That sets how much money the whole town can hold.</p>
+                (5 to 40 silver, depending on how Zombita feels about them). That sets how much money the whole town can hold.</p>
               <p>2. <b className="text-[#aaa]">A lean-month injection.</b> If the treasury can&apos;t pay what it owes for three in-game months in a row,
                 Zombita tops it up - how much depends on her mood. One good month resets the count.</p>
             </Card>
@@ -340,7 +340,7 @@ export default function EconomyPage() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <Card title="Lottery" color="#9775cc">
               100 numbered tickets a batch, 3 silver each - pick your number on the Lottery tab at any shop. 15 of them win:
-              gold, a pink slip, a vaccine, a pistol kit, ammo, a vehicle orb or pocket money. Cash prizes come out of the treasury.
+              a 50 silver jackpot, a pink slip, a vaccine, a pistol kit, ammo, a vehicle orb or pocket money. Cash prizes come out of the treasury.
             </Card>
             <Card title="Marketplace" color="#4a8fc4">
               Sell to other players from any kiosk. A small listing fee and a daily fee while unsold; buyers pay a tax and a delivery

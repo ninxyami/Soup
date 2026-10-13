@@ -15,15 +15,11 @@ export async function apiFetch(path: string, options?: RequestInit) {
 }
 
 export function bronzeToDisplay(b: number): string {
-  if (b >= 10000) {
-    const g = Math.floor(b / 10000);
-    const s = Math.floor((b % 10000) / 1000);
-    const r = b % 1000;
-    return `${g} ⚪ ${s} ⚫ ${r} 🟤`;
-  } else if (b >= 1000) {
+  // no gold (Nin 2026-10-13): silver + bronze. (It used to show gold with the silver icon.)
+  if (b >= 1000) {
     const s = Math.floor(b / 1000);
     const r = b % 1000;
-    return `${s} ⚫ ${r} 🟤`;
+    return r ? `${s.toLocaleString("en-US")} ⚪ ${r} 🟤` : `${s.toLocaleString("en-US")} ⚪`;
   }
   return `${b} 🟤`;
 }

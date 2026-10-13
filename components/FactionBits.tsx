@@ -13,10 +13,9 @@ function hue(name: string) {
 
 export function fmtBronze(b: number) {
   b = Math.max(0, Math.floor(b || 0));
-  const gold = Math.floor(b / 10000), silver = Math.floor((b % 10000) / 1000), bronze = b % 1000;
+  const silver = Math.floor(b / 1000), bronze = b % 1000;         // no gold (Nin 2026-10-13)
   const parts = [];
-  if (gold) parts.push(`${gold} gold`);
-  if (silver) parts.push(`${silver} silver`);
+  if (silver) parts.push(`${silver.toLocaleString("en-US")} silver`);
   if (bronze || !parts.length) parts.push(`${bronze} bronze`);
   return parts.join(" ");
 }

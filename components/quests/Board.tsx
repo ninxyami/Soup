@@ -184,7 +184,7 @@ export default function Board({ state, send }) {
         <Stat label="Server kills" value={fmt(state.totalKills)} sub="all players together" />
         <Stat label="Jobs open at" value={fmt(state.unlockAt)} sub="kills (set in game: Zombita Control > QUESTS)" />
         <Stat label="On the board" value={quests.length} sub={`${quests.filter((q) => (q.racers || []).length).length} being raced`} />
-        <Stat label="Daily limit" value={money(state.cap)} sub="pay per player a day (S aside)" c={C.gold} />
+        <Stat label="Daily limit" value={money(state.cap)} sub="pay per player a day (S included)" c={C.gold} />
       </div>
       <OpenJobs state={state} send={send} />
       <TierUnlocks state={state} send={send} />

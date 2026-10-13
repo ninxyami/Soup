@@ -21,10 +21,9 @@ const mono = { fontFamily: "var(--mono, monospace)" };
 
 const money = (b) => {
   b = Math.max(0, Math.round(Number(b) || 0));
-  const g = Math.floor(b / 10000), s = Math.floor((b % 10000) / 1000), r = b % 1000;
+  const s = Math.floor(b / 1000), r = b % 1000;                    // no gold (Nin 2026-10-13)
   const parts = [];
-  if (g) parts.push(`${g} gold`);
-  if (s) parts.push(`${s} silver`);
+  if (s) parts.push(`${s.toLocaleString("en-US")} silver`);
   if (r || !parts.length) parts.push(`${r} bronze`);
   return parts.join(" ");
 };

@@ -46,9 +46,8 @@ export const ADMINS = {
 export const fmt = (n) => (n != null ? Number(n).toLocaleString() : "-");
 export const bronzeToCoins = (b) => {
   if (b == null) return "-";
-  const G=10000,S=1000,p=[]; let r=Math.abs(b);
-  if(r>=G){p.push(`${Math.floor(r/G)}🟡`);r%=G}
-  if(r>=S){p.push(`${Math.floor(r/S)}⚪`);r%=S}
+  const S=1000,p=[]; let r=Math.abs(b);                       // no gold (Nin 2026-10-13)
+  if(r>=S){p.push(`${Math.floor(r/S).toLocaleString("en-US")}⚪`);r%=S}
   if(r>0||!p.length)p.push(`${r}🟤`);
   return (b<0?"−":"")+p.join(" ");
 };

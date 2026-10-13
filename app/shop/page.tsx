@@ -134,13 +134,10 @@ function timeUntil(ts:number):string {
 
 function formatPrice(bronze: number): string {
   if (bronze <= 0) return "0 🟤";
-  const gold   = Math.floor(bronze / 10000);
-  const rem    = bronze % 10000;
-  const silver = Math.floor(rem / 1000);
-  const coins  = rem % 1000;
+  const silver = Math.floor(bronze / 1000);        // no gold (Nin 2026-10-13)
+  const coins  = bronze % 1000;
   const parts: string[] = [];
-  if (gold)   parts.push(`${gold} 🟡`);
-  if (silver) parts.push(`${silver} ⚪`);
+  if (silver) parts.push(`${silver.toLocaleString("en-US")} ⚪`);
   if (coins)  parts.push(`${coins} 🟤`);
   return parts.join(" ") || "0 🟤";
 }

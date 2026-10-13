@@ -50,11 +50,10 @@ function dur(s: number) {
   return "under a minute";
 }
 
-// 1 gold = 10 silver = 10,000 bronze (as the game says it)
+// 1 silver = 1,000 bronze, no gold (as the game says it, Nin 2026-10-13)
 function money(b: number) {
   b = Math.floor(b || 0);
-  if (b >= 10000 && b % 10000 === 0) return `${b / 10000} gold`;
-  if (b >= 1000) return `${String(+(b / 1000).toFixed(2))} silver`;
+  if (b >= 1000) return `${(+(b / 1000).toFixed(2)).toLocaleString("en-US")} silver`;   // no gold (Nin 2026-10-13)
   return `${b} bronze`;
 }
 
