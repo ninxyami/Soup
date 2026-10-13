@@ -37,6 +37,7 @@ import NewspaperTab       from "./tabs/NewspaperTab";
 import NewsTab            from "./tabs/NewsTab";
 import FactionsTab        from "./tabs/FactionsTab";
 import PlayerStatsTab     from "./tabs/PlayerStatsTab";
+import DeathsTab          from "./tabs/DeathsTab";
 import JobsTab            from "./tabs/JobsTab";
 import QuestControlTab    from "./tabs/QuestControlTab";
 import QuestRewardsTab    from "./tabs/QuestRewardsTab";
@@ -82,6 +83,7 @@ const NAV_SECTIONS = [
     { key: "reputation",     icon: "🎭", label: "Reputation" },
     { key: "leaderboards",   icon: "🏆", label: "Leaderboards" },
     { key: "player_stats",   icon: "📈", label: "Player Stats" },
+    { key: "deaths",         icon: "⚰️", label: "Deaths" },
     { key: "newspaper",      icon: "📰", label: "Newspaper" },
     { key: "factions",       icon: "🏴", label: "Factions" },
   ]},
@@ -135,6 +137,7 @@ const PANELS = {
   news:         NewsTab,
   factions:     FactionsTab,
   player_stats: PlayerStatsTab,
+  deaths:       DeathsTab,
   system:      SystemTab,
   content:     ContentTab,
   sc_mods:     (props) => <ServerConfigTab {...props} initialTab="mods" />,
