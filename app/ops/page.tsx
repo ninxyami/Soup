@@ -100,6 +100,7 @@ function OpsInner() {
   const [layers, setLayers] = useState({ town: true, shop: true, bus: true, diner: true, markers: true, players: true, safehouses: true, zombies: true, bandits: true, vehicles: false });
   const [places, setPlaces] = useState([]);
   const [markDraft, setMarkDraft] = useState(null);     // { x, y } where a new marker goes
+  const [markFor, setMarkFor] = useState("");          // a private marker: only this player sees it ("" = everyone)
   const [trailPts, setTrailPts] = useState(null);       // { player, points } drawn on the map
   const [spot, setSpot] = useState(null);               // { x, y, for } a spot picked for the World tools
   const [moveK, setMoveK] = useState(null);             // { kind, id, name } a shop / station being moved
@@ -469,7 +470,8 @@ function OpsInner() {
           <div style={{ flex: 1, overflowY: "auto", padding: 12 }}>
             {carT && <CarInspect key={JSON.stringify(carT)} t={carT} act={act} players={players} onClose={() => setCarT(null)} />}
             {tab === "players" && <PlayersTab players={players} selP={selP} setSelP={setSelP} selPlayer={selPlayer} act={act} setPick={setPick} safehouses={safehouses}
-              cars={st?.vehicles || []} trailPts={trailPts} setTrailPts={setTrailPts} />}
+              cars={st?.vehicles || []} trailPts={trailPts} setTrailPts={setTrailPts}
+              markFor={(name) => { setMarkFor(name); setTab("markers"); setPick({ mode: "marker" }); }} />}
             {tab === "safehouses" && <SafehousesTab safehouses={safehouses} selected={selected} setSelS={setSelS} shKey={shKey} draft={draft} setDraft={setDraft}
               setPick={setPick} act={act} players={players} />}
             {tab === "factions" && <FactionsTab facs={facs} selF={selF} setSelF={setSelF} act={act} players={players} refresh={refreshFactions}
@@ -478,7 +480,8 @@ function OpsInner() {
             {tab === "world" && <WorldTab act={act} spot={spot} setSpot={setSpot} setPick={setPick} players={players} places={livePlaces}
               showTrail={(player, points) => setTrailPts({ player, points })} />}
             {tab === "places" && <PlacesTab kiosks={kiosks} moveK={moveK} setMoveK={setMoveK} setPick={setPick} />}
-            {tab === "markers" && <MarkersTab markers={st?.markers || []} draft={markDraft} setDraft={setMarkDraft} setPick={setPick} act={act} />}
+            {tab === "markers" && <MarkersTab markers={st?.markers || []} draft={markDraft} setDraft={setMarkDraft} setPick={setPick} act={act}
+              players={players} forWho={markFor} setForWho={setMarkFor} />}
             {tab === "chat" && <ChatTab chat={chat} meta={chatMeta} mine={mine} setMine={setMine} act={act} />}
             {tab === "log" && <LogTab log={log} />}
             {tab === "rcon" && <RconTab />}
@@ -496,13 +499,13 @@ function OpsInner() {
 }
 
 // ── players ──────────────────────────────────────────────────────────────────
-function PlayersTab({ players, selP, setSelP, selPlayer, act, setPick, safehouses, cars, trailPts, setTrailPts }) {
+function PlayersTab({ players, selP, setSelP, selPlayer, act, setPick, safehouses, cars, trailPts, setTrailPts, markFor }) {
   const [q, setQ] = useState("");
   const list = players.filter((p) => p.name.toLowerCase().includes(q.toLowerCase())).sort((a, b) => a.name.localeCompare(b.name));
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
       {selPlayer && <PlayerCard onClose={() => setSelP(null)} p={selPlayer} act={act} setPick={setPick} players={players} safehouses={safehouses} cars={cars}
-        trailPts={trailPts} setTrailPts={setTrailPts} />}
+        trailPts={trailPts} setTrailPts={setTrailPts} markFor={markFor} />}
       <input style={inp} placeholder="Find a player" value={q} onChange={(e) => setQ(e.target.value)} />
       {list.length === 0 && <div style={{ ...mono, fontSize: 12, color: C.grey }}>Nobody online.</div>}
       {list.map((p) => (
@@ -518,7 +521,7 @@ function PlayersTab({ players, selP, setSelP, selPlayer, act, setPick, safehouse
   );
 }
 
-function PlayerCard({ p, act, setPick, players, safehouses, cars, trailPts, setTrailPts, onClose }) {
+function PlayerCard({ p, act, setPick, players, safehouses, cars, trailPts, setTrailPts, onClose, markFor }) {
   const [to, setTo] = useState("");
   const [item, setItem] = useState("");
   const [n, setN] = useState(1);
@@ -549,7 +552,7 @@ function PlayerCard({ p, act, setPick, players, safehouses, cars, trailPts, setT
         <button onClick={onClose} title="Close" style={{ marginLeft: "auto", background: "transparent", border: `1px solid ${C.red}`, color: C.red, borderRadius: 3, cursor: "pointer", fontSize: 12, padding: "1px 8px", fontFamily: "var(--mono, monospace)" }}>× Close</button>
       </div>
       {homes.length > 0 && <div style={{ ...mono, fontSize: 11, color: C.grey }}>Safehouse: {homes.map((s) => `${s.owner === p.name ? "owns" : "member of"} ${s.owner}'s at ${s.x},${s.y}`).join("; ")}</div>}
-      <div style={row}><Btn small onClick={() => flyTo(p.x, p.y, 2)}>Show</Btn><Btn small onClick={() => setPick({ mode: "teleport" })}>Teleport to a spot</Btn></div>
+      <div style={row}><Btn small onClick={() => flyTo(p.x, p.y, 2)}>Show</Btn><Btn small onClick={() => setPick({ mode: "teleport" })}>Teleport to a spot</Btn>{markFor && <Btn small onClick={() => markFor(p.name)}>Mark a spot for them</Btn>}</div>
       <div style={h}>Teleport to coordinates</div>
       <div style={row}>
         <input style={inp} placeholder="x, y  or  x, y, floor  (12010, 2142)" value={xyz} onChange={(e) => setXyz(e.target.value)}
@@ -1404,11 +1407,16 @@ function ChatTab({ chat, meta, mine, setMine, act }) {
 }
 
 // ── map markers (players see them on their map + minimap in game) ─────────────
-function MarkersTab({ markers, draft, setDraft, setPick, act }) {
+function MarkersTab({ markers, draft, setDraft, setPick, act, players = [], forWho = "", setForWho = (_v) => {} }) {
   const [kind, setKind] = useState("go");
   const [title, setTitle] = useState("");
   const [text, setText] = useState("");
   const [hours, setHours] = useState(0);
+  const [typed, setTyped] = useState("");             // the spot typed instead of clicked: "12010, 2142"
+  const typedXY = (() => {
+    const m = typed.trim().match(/^(\d+)\s*[, ]\s*(\d+)$/);
+    return m ? { x: Number(m[1]), y: Number(m[2]) } : null;
+  })();
   const h = { ...mono, fontSize: 10, color: C.grey, textTransform: "uppercase", letterSpacing: 1, marginTop: 4 };
   const left = (m) => {
     if (!m.expires) return "until removed";
@@ -1419,10 +1427,24 @@ function MarkersTab({ markers, draft, setDraft, setPick, act }) {
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
       <div style={{ border: `1px solid ${C.gold}`, borderRadius: 3, padding: 10, display: "flex", flexDirection: "column", gap: 8, background: "#15130c" }}>
         <b>New marker</b>
-        <div style={{ ...mono, fontSize: 11, color: C.grey }}>Every player sees it on their map (M) and minimap, with the title next to it. A note pops over their head when it goes up.</div>
+        <div style={{ ...mono, fontSize: 11, color: C.grey }}>{forWho
+          ? `Only ${forWho} sees it on their map (M) and minimap, with the title next to it. A note pops over their head when it goes up. Nobody else sees it.`
+          : "Every player sees it on their map (M) and minimap, with the title next to it. A note pops over their head when it goes up."}</div>
+        <label style={{ ...mono, fontSize: 11, color: C.grey, display: "flex", gap: 6, alignItems: "center" }}>Who sees it
+          <select style={inp} value={forWho} onChange={(e) => setForWho(e.target.value)}>
+            <option value="">Everyone</option>
+            {forWho && !players.some((o) => o.name === forWho) && <option value={forWho}>Only {forWho}</option>}
+            {players.map((o) => <option key={o.name} value={o.name}>Only {o.name}</option>)}
+          </select>
+        </label>
         <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
           <Btn small onClick={() => setPick({ mode: "marker" })}>{draft ? "Move the spot" : "Pick the spot on the map"}</Btn>
           {draft && <span style={{ ...mono, fontSize: 12 }}>{draft.x}, {draft.y}</span>}
+        </div>
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <input style={inp} placeholder="or type the spot: x, y  (12010, 2142)" value={typed} onChange={(e) => setTyped(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && typedXY) { setDraft(typedXY); flyTo(typedXY.x, typedXY.y, 1); } }} />
+          <Btn small disabled={!typedXY} onClick={() => { if (typedXY) { setDraft(typedXY); flyTo(typedXY.x, typedXY.y, 1); } }}>Use</Btn>
         </div>
         <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
           {Object.entries(MARK).map(([k, v]) => (
@@ -1437,8 +1459,9 @@ function MarkersTab({ markers, draft, setDraft, setPick, act }) {
           <span>{hours ? "" : "0 = until removed"}</span>
         </label>
         <div style={{ display: "flex", gap: 6 }}>
-          <Btn small disabled={!draft || !title.trim()} onClick={() => act("mk_add", { x: draft.x, y: draft.y, kind, title: title.trim(), text: text.trim(), hours },
-            () => { setDraft(null); setTitle(""); setText(""); })}>Place marker</Btn>
+          <Btn small disabled={!draft || !title.trim()} onClick={() => act("mk_add", { x: draft.x, y: draft.y, kind, title: title.trim(), text: text.trim(), hours,
+            ...(forWho ? { player: forWho } : {}) },
+            () => { setDraft(null); setTitle(""); setText(""); setTyped(""); setForWho(""); })}>{forWho ? `Place it for ${forWho}` : "Place marker"}</Btn>
           {draft && <Btn small color={C.grey} onClick={() => setDraft(null)}>Cancel</Btn>}
         </div>
       </div>
@@ -1450,7 +1473,8 @@ function MarkersTab({ markers, draft, setDraft, setPick, act }) {
             <a style={{ flex: 1, cursor: "pointer", color: C.text }} onClick={() => flyTo(m.x, m.y, 1)}>{m.title}</a>
             <Btn small color={C.red} onClick={() => { if (confirm(`Remove the marker "${m.title}"?`)) act("mk_remove", { mid: m.id }); }}>Remove</Btn>
           </div>
-          <div style={{ color: C.grey, fontSize: 11 }}>{(MARK[m.kind] || MARK.go).label} · {m.x}, {m.y} · {left(m)}{m.by ? ` · by ${String(m.by).replace(" (website)", "")}` : ""}</div>
+          <div style={{ color: C.grey, fontSize: 11 }}>{(MARK[m.kind] || MARK.go).label} · {m.x}, {m.y} · {left(m)}{m.by ? ` · by ${String(m.by).replace(" (website)", "")}` : ""}
+            {m.owner ? <b style={{ color: C.gold }}> · only {m.owner}</b> : null}</div>
           {m.text ? <div style={{ fontSize: 11 }}>{m.text}</div> : null}
         </div>
       ))}
