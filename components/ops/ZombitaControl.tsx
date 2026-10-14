@@ -9,6 +9,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { API } from "@/lib/constants";
 import GoalTab from "./GoalTab";
 import LotTab from "./LotTab";
+import NotorietyTab from "./NotorietyTab";
 
 const C = { gold: "#c8a84b", blue: "#4a8fc4", green: "#4caf7d", red: "#e05555", purple: "#9775cc", grey: "#9aa", text: "#e6e6e6", bg: "#0b0d10", panel: "#111418", line: "#2a2f37", teal: "#4ab0a8" };
 const mono = { fontFamily: "var(--mono, monospace)" };
@@ -16,9 +17,9 @@ const inp = { ...mono, fontSize: 12, padding: "5px 7px", background: C.bg, color
 
 export const ZTABS = [
   ["overview", "Overview"], ["treasury", "Treasury"], ["shops", "Shops"], ["travel", "Travel"], ["quests", "Quests"],
-  ["events", "Events"], ["areas", "Areas"], ["players", "Players"], ["games", "Games"], ["goal", "Goal"], ["lot", "Lot & Pen"], ["system", "System"],
+  ["events", "Events"], ["areas", "Areas"], ["players", "Players"], ["games", "Games"], ["goal", "Goal"], ["noto", "Notoriety"], ["lot", "Lot & Pen"], ["system", "System"],
 ];
-const WIDE = { treasury: true, players: true, games: true, system: true, overview: true, goal: true };   // no map work: give the panel room
+const WIDE = { treasury: true, players: true, games: true, system: true, overview: true, goal: true, noto: true };   // no map work: give the panel room
 
 const SHOP_TYPES = ["global", "weapons", "mechanic", "medical", "gardener", "melee", "tailor", "librarian", "music"];
 const SWITCHES = [
@@ -29,6 +30,7 @@ const SWITCHES = [
   ["factions", "Faction spaces", "The faction window, ranks, recruitment, claims."], ["hub", "Server Hub", "News, events, links, profiles, the newspaper."],
   ["map_shops", "Shops on the map", "A cart at every kiosk on players' maps."], ["map_bus", "Bus stations on the map", "A bus at every station with its SAFE / DANGER mark."],
   ["quests", "Zombita's Jobs", "Quests on the phone, traps, reward codes."], ["treasury", "Treasury, in public", "The town's balance on kiosks, the Hub and the board."],
+  ["notoriety", "Notoriety + bounties", "Queen Dusk's notice: warnings, Marked players, raids, posters, the tab."],
 ];
 const DOTD_FIELDS = [
   ["interval_hours", "Every (hours)", "interval_hours"], ["waves", "Waves", "waves"], ["zombies_per_wave", "Zombies per wave", "zombies"],
@@ -133,6 +135,7 @@ export default function ZombitaControl({ act, setPick, st, players, setLayer, se
         {tab === "players" && <PlayersZ {...ctx} />}
         {tab === "games" && <Games {...ctx} />}
         {tab === "goal" && <GoalTab />}
+        {tab === "noto" && <NotorietyTab />}
         {tab === "lot" && <LotTab />}
         {tab === "system" && <System {...ctx} />}
       </div>

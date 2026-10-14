@@ -18,6 +18,7 @@ const MODULES = [
   ["map_shops", "Shops on the map"], ["map_bus", "Bus stations on the map"], ["quests", "Zombita's Jobs"], ["treasury", "Treasury, in public"],
   ["statue", "Zombita at the diner"], ["map_players", "Players on the map"], ["cards", "Zombita's Cards"], ["wholesale", "Wholesale"],
   ["derby", "Fishing Derby"], ["escort", "Escort jobs"], ["car_shop", "Car shop (Duke)"], ["animal_shop", "Animal shop (Hattie)"],
+  ["notoriety", "Notoriety + bounties"],
 ];
 const n = (v) => Number(v) || 0;
 const clean = (s, max = 60) => String(s || "").replace(/[|\r\n]/g, " ").trim().slice(0, max);
