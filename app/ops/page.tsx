@@ -461,7 +461,7 @@ function OpsInner() {
             tab={ztab} setTab={setZtab} picked={zPicked} /> : <>
           <div style={{ display: "flex", flexWrap: "wrap", borderBottom: `1px solid ${C.line}` }}>
             {[["players", `Players (${players.length})`], ["safehouses", `Safehouses (${safehouses.length})`], ["factions", "Factions"], ["cars", `Cars (${(st?.vehicles || []).length})`], ["world", "World"], ["places", "Places"],
-              ["markers", `Markers (${(st?.markers || []).length})`], ["chat", "Chat"], ["log", "Log"]].map(([k, l]) => (
+              ["markers", `Markers (${(st?.markers || []).length})`], ["chat", "Chat"], ["log", "Log"], ["rcon", "RCON"]].map(([k, l]) => (
               <button key={k} onClick={() => setTab(k)} style={{ ...mono, flex: "1 0 22%", fontSize: 11, padding: "8px 4px", background: tab === k ? C.bg : "transparent",
                 color: tab === k ? C.gold : C.grey, border: 0, borderBottom: tab === k ? `2px solid ${C.gold}` : "2px solid transparent", cursor: "pointer", textTransform: "uppercase" }}>{l}</button>
             ))}
@@ -481,6 +481,7 @@ function OpsInner() {
             {tab === "markers" && <MarkersTab markers={st?.markers || []} draft={markDraft} setDraft={setMarkDraft} setPick={setPick} act={act} />}
             {tab === "chat" && <ChatTab chat={chat} meta={chatMeta} mine={mine} setMine={setMine} act={act} />}
             {tab === "log" && <LogTab log={log} />}
+            {tab === "rcon" && <RconTab />}
           </div>
           </>}
         </aside>
@@ -524,7 +525,12 @@ function PlayerCard({ p, act, setPick, players, safehouses, cars, trailPts, setT
   const [res, setRes] = useState([]);
   const [msg, setMsg] = useState("");
   const [reason, setReason] = useState("");
+  const [xyz, setXyz] = useState("");                 // teleport to typed coordinates: "12010, 2142" or "12010,2142,0"
   const tRef = useRef(null);
+  const coords = (() => {
+    const m = xyz.trim().match(/^(-?\d+)\s*[, ]\s*(-?\d+)(?:\s*[, ]\s*(-?\d+))?$/);
+    return m ? { x: Number(m[1]), y: Number(m[2]), z: m[3] ? Number(m[3]) : 0 } : null;
+  })();
   useEffect(() => {
     clearTimeout(tRef.current);
     if (item.trim().length < 2 || /^\w+\.\w/.test(item.trim())) { setRes([]); return; }
@@ -544,6 +550,12 @@ function PlayerCard({ p, act, setPick, players, safehouses, cars, trailPts, setT
       </div>
       {homes.length > 0 && <div style={{ ...mono, fontSize: 11, color: C.grey }}>Safehouse: {homes.map((s) => `${s.owner === p.name ? "owns" : "member of"} ${s.owner}'s at ${s.x},${s.y}`).join("; ")}</div>}
       <div style={row}><Btn small onClick={() => flyTo(p.x, p.y, 2)}>Show</Btn><Btn small onClick={() => setPick({ mode: "teleport" })}>Teleport to a spot</Btn></div>
+      <div style={h}>Teleport to coordinates</div>
+      <div style={row}>
+        <input style={inp} placeholder="x, y  or  x, y, floor  (12010, 2142)" value={xyz} onChange={(e) => setXyz(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter" && coords && confirm(`Teleport ${p.name} to ${coords.x}, ${coords.y}, floor ${coords.z}?`)) act("teleport", { player: p.name, tx: coords.x, ty: coords.y, tz: coords.z }); }} />
+        <Btn small disabled={!coords} onClick={() => { if (coords && confirm(`Teleport ${p.name} to ${coords.x}, ${coords.y}, floor ${coords.z}?`)) act("teleport", { player: p.name, tx: coords.x, ty: coords.y, tz: coords.z }); }}>Go</Btn>
+      </div>
       <div style={h}>Teleport to a player</div>
       <div style={row}>
         <select style={inp} value={to} onChange={(e) => setTo(e.target.value)}>
@@ -1514,6 +1526,58 @@ function FactionCard({ f, facs, act, players, refresh, claimDraft, setClaimDraft
         {c.x ? <Btn small color={C.red} onClick={() => { if (confirm(`Remove ${f.name}'s claim? Its safehouse goes within a minute.`)) act("fa_claim_remove", { fid: f.fid }, done); }}>Remove</Btn> : null}
       </div>
       <div style={{ ...mono, fontSize: 11, color: C.grey }}>Admin claims are free. The game makes the safehouse within a minute and refuses one that overlaps another safehouse.</div>
+    </div>
+  );
+}
+
+// RCON (Nin 2026-10-14: "add rcon option at live ops ... so i dont need to manually find at map"): any server command,
+// straight to the game's RCON (the admin console's /api/admin/console/rcon). Up / down arrows walk the history; commands
+// that stop the server or remove someone ask first.
+const RCON_ASK = /^(quit|stopserver|ban|banid|banuser|kick|kickuser|removeuserfromwhitelist|resetid|reloadoptions|changeoption)\b/i;
+function RconTab() {
+  const [cmd, setCmd] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [out, setOut] = useState([]);
+  const [hist, setHist] = useState([]);
+  const [hi, setHi] = useState(-1);
+  const send = async () => {
+    const c = cmd.trim();
+    if (!c || busy) return;
+    if (RCON_ASK.test(c) && !confirm(`Send "${c}" to the server?`)) return;
+    setBusy(true);
+    setHist((h) => [c, ...h.filter((x) => x !== c)].slice(0, 50));
+    setHi(-1);
+    try {
+      const d = await api("/api/admin/console/rcon", { command: c });
+      setOut((o) => [{ c, ok: d.ok !== false, text: (d.response || d.error || "(no reply)").trim(), at: Date.now() }, ...o].slice(0, 100));
+      setCmd("");
+    } catch (e) {
+      setOut((o) => [{ c, ok: false, text: String(e.message || e), at: Date.now() }, ...o].slice(0, 100));
+    }
+    setBusy(false);
+  };
+  const key = (e) => {
+    if (e.key === "Enter") { e.preventDefault(); send(); }
+    else if (e.key === "ArrowUp" && hist.length) { e.preventDefault(); const i = Math.min(hi + 1, hist.length - 1); setHi(i); setCmd(hist[i]); }
+    else if (e.key === "ArrowDown") { e.preventDefault(); const i = hi - 1; setHi(i); setCmd(i >= 0 ? hist[i] : ""); }
+  };
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ ...mono, fontSize: 11, color: C.grey }}>
+        Any server command, as in the game's admin console (without the slash). Examples: <b style={{ color: C.text }}>teleportto "Kise" 12010,2142,0</b> ·
+        {" "}<b style={{ color: C.text }}>players</b> · <b style={{ color: C.text }}>servermsg "Restart in 5 minutes"</b> · <b style={{ color: C.text }}>help</b>
+      </div>
+      <div style={{ display: "flex", gap: 6 }}>
+        <input style={inp} autoFocus placeholder='teleportto "Name" x,y,z' value={cmd} onChange={(e) => setCmd(e.target.value)} onKeyDown={key} disabled={busy} />
+        <Btn small disabled={busy || !cmd.trim()} onClick={send}>{busy ? "..." : "Send"}</Btn>
+      </div>
+      {out.length === 0 && <div style={{ ...mono, fontSize: 12, color: C.grey }}>Nothing sent yet.</div>}
+      {out.map((r, i) => (
+        <div key={r.at + "-" + i} style={{ ...mono, fontSize: 11, borderLeft: `3px solid ${r.ok ? C.green : C.red}`, padding: "4px 8px", background: C.bg }}>
+          <div><b style={{ cursor: "pointer" }} title="Use again" onClick={() => setCmd(r.c)}>&gt; {r.c}</b> <span style={{ color: C.grey }}>{new Date(r.at).toLocaleTimeString()}</span></div>
+          <pre style={{ margin: "4px 0 0", whiteSpace: "pre-wrap", wordBreak: "break-word", color: r.ok ? C.text : C.red, fontFamily: "inherit" }}>{r.text}</pre>
+        </div>
+      ))}
     </div>
   );
 }
