@@ -242,7 +242,8 @@ export default function GoalTab() {
           })}
           <Row>
             <Btn onClick={() => edit((c) => {
-              let k = 1; while (c.goals.some((g) => g.id === `g${k}`)) k++;
+              // never reuse an id the game already knows (a removed goal's "reached" record stays: 10-16 g3 showed REACHED at once)
+              let k = 1; while (c.goals.some((g) => g.id === `g${k}`) || reached[`g${k}`]) k++;
               const top = c.goals.reduce((m, g) => Math.max(m, n(g.target)), 0);
               c.goals.push({ id: `g${k}`, target: top ? top * 2 : 50000, name: `Goal ${k}`, coins: 0, items: [], say: "", dotd: false, switches: [], actions: [] });
             })}>+ Add goal</Btn>
