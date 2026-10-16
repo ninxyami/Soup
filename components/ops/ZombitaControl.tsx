@@ -10,6 +10,7 @@ import { API } from "@/lib/constants";
 import GoalTab from "./GoalTab";
 import LotTab from "./LotTab";
 import NotorietyTab from "./NotorietyTab";
+import SecurityTab from "./SecurityTab";
 
 const C = { gold: "#c8a84b", blue: "#4a8fc4", green: "#4caf7d", red: "#e05555", purple: "#9775cc", grey: "#9aa", text: "#e6e6e6", bg: "#0b0d10", panel: "#111418", line: "#2a2f37", teal: "#4ab0a8" };
 const mono = { fontFamily: "var(--mono, monospace)" };
@@ -17,9 +18,9 @@ const inp = { ...mono, fontSize: 12, padding: "5px 7px", background: C.bg, color
 
 export const ZTABS = [
   ["overview", "Overview"], ["treasury", "Treasury"], ["shops", "Shops"], ["travel", "Travel"], ["quests", "Quests"],
-  ["events", "Events"], ["areas", "Areas"], ["players", "Players"], ["games", "Games"], ["goal", "Goal"], ["noto", "Notoriety"], ["lot", "Lot & Pen"], ["system", "System"],
+  ["events", "Events"], ["areas", "Areas"], ["players", "Players"], ["games", "Games"], ["goal", "Goal"], ["noto", "Notoriety"], ["sec", "Security"], ["lot", "Lot & Pen"], ["system", "System"],
 ];
-const WIDE = { treasury: true, players: true, games: true, system: true, overview: true, goal: true, noto: true };   // no map work: give the panel room
+const WIDE = { treasury: true, players: true, games: true, system: true, overview: true, goal: true, noto: true, sec: true };   // no map work: give the panel room
 
 const SHOP_TYPES = ["global", "weapons", "mechanic", "medical", "gardener", "melee", "tailor", "librarian", "music"];
 const SWITCHES = [
@@ -136,6 +137,7 @@ export default function ZombitaControl({ act, setPick, st, players, setLayer, se
         {tab === "games" && <Games {...ctx} />}
         {tab === "goal" && <GoalTab />}
         {tab === "noto" && <NotorietyTab />}
+        {tab === "sec" && <SecurityTab />}
         {tab === "lot" && <LotTab />}
         {tab === "system" && <System {...ctx} />}
       </div>
