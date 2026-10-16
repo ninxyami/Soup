@@ -182,7 +182,7 @@ function Btn({ children, onClick, color = C.muted, disabled = false }) {
 }
 
 // st = the whole report (controls, pairs, rules); mark(a, b, kind, question) asks first, then saves
-export default function CaseCard({ p, st, share = false, watchMark = null, busy = false, mark = null, onShare = null }) {
+export default function CaseCard({ p, st, share = false, watchMark = null, busy = false, mark = null, onShare = null, onReport = null }) {
   const m = p.m || {};
   const cc = st.controls || {};
   const nc = n(cc.n_couple), nf = n(cc.n_friends);
@@ -212,7 +212,12 @@ export default function CaseCard({ p, st, share = false, watchMark = null, busy 
             {p.outside_controls && <span className="font-mono text-[0.65rem] uppercase tracking-[0.1em]" style={{ color: C.red }}>below every couple and friend pair</span>}
           </div>
         </div>
-        {!share && onShare && <Btn color={C.gold} onClick={onShare}>Share view</Btn>}
+        {!share && (onShare || onReport) && (
+          <div className="flex flex-wrap gap-2">
+            {onReport && <Btn color={C.gold} onClick={onReport}>Write case report</Btn>}
+            {onShare && <Btn onClick={onShare}>Share view</Btn>}
+          </div>
+        )}
       </div>
 
       {/* Zombita's line */}
