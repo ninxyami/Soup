@@ -242,10 +242,12 @@ export default function GoalTab() {
           })}
           <Row>
             <Btn onClick={() => edit((c) => {
-              // never reuse an id the game already knows (a removed goal's "reached" record stays: 10-16 g3 showed REACHED at once)
-              let k = 1; while (c.goals.some((g) => g.id === `g${k}`) || reached[`g${k}`]) k++;
+              // a NEW, never-used id every time: the game keeps a removed goal's "reached" record, so reusing g3/g4 made a new goal
+              // show REACHED at once (10-16). Time-based, letters/digits only, <= 24 chars (ZGoal_Shared validId).
+              let id = "g" + Date.now().toString(36);
+              while (c.goals.some((g) => g.id === id) || reached[id]) id += "x";
               const top = c.goals.reduce((m, g) => Math.max(m, n(g.target)), 0);
-              c.goals.push({ id: `g${k}`, target: top ? top * 2 : 50000, name: `Goal ${k}`, coins: 0, items: [], say: "", dotd: false, switches: [], actions: [] });
+              c.goals.push({ id, target: top ? top * 2 : 50000, name: `Goal ${c.goals.length + 1}`, coins: 0, items: [], say: "", dotd: false, switches: [], actions: [] });
             })}>+ Add goal</Btn>
             <span style={{ marginLeft: "auto" }} />
             {dirty && <Btn color={C.grey} onClick={() => load(true)}>Undo changes</Btn>}
