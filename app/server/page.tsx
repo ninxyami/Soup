@@ -99,6 +99,21 @@ export default function ServerPage() {
         </div>
       </div>
 
+      {/* Nin 2026-10-16: Steam-networking joins drop ~95% of sessions on this server, direct IP ~13% (server logs) */}
+      <div className="border border-[#c8a84b33] bg-[#c8a84b08] p-5 mb-4 relative overflow-hidden">
+        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#c8a84b66] to-transparent" />
+        <p className="font-mono text-[0.58rem] tracking-[0.25em] text-[#c8a84b] uppercase mb-3">Lag or getting disconnected?</p>
+        <p className="text-[0.85rem] text-[#aaa] leading-relaxed mb-3">
+          Join by direct IP, not through Steam. Joining from your Steam friends list or the server browser goes through
+          Steam&apos;s network, and on our server those connections drop after a few minutes far more often.
+        </p>
+        <ol className="text-[0.82rem] text-[#999] leading-relaxed list-decimal pl-5 m-0">
+          <li className="pl-1 before:content-none">In Project Zomboid, open <b className="text-[#c8c8c8]">Join</b>, then <b className="text-[#c8c8c8]">Add server</b>.</li>
+          <li className="pl-1 before:content-none">IP <b className="font-mono text-[#c8a84b]">{loading ? "-" : data.ip}</b>, port <b className="font-mono text-[#c8a84b]">{loading ? "-" : data.port}</b>, then save it and join from that entry.</li>
+          <li className="pl-1 before:content-none">Still lagging? Try a cable instead of Wi-Fi, then tell us in Discord.</li>
+        </ol>
+      </div>
+
       <div className="border border-[#1a1a1a] bg-[#0a0d10] p-5 mb-4 relative overflow-hidden">
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#4a8fc433] to-transparent" />
         <p className="font-mono text-[0.58rem] tracking-[0.25em] text-[#4a8fc4] uppercase mb-3">Game Version</p>
