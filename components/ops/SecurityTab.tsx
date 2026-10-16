@@ -89,6 +89,80 @@ function Bar({ label, unit, hint, value, couple, friends, coupleLabel, friendsLa
   );
 }
 
+const utc = (ts) => (ts ? new Date(ts * 1000).toISOString().slice(0, 16).replace("T", " ") + " UTC" : "?");
+const utcFull = (ts) => (ts ? new Date(ts * 1000).toISOString().slice(0, 19).replace("T", " ") : "?");
+const acct = (s) => (s ? `...${String(s).slice(-4)}` : "?");
+function gapText(sec) {
+  const s = n(sec);
+  if (s < 0) return "overlap";
+  if (s < 120) return `${s} s`;
+  return `${Math.round(s / 60)} min`;
+}
+
+// facts, not guesses: what they said, and how the two names took turns. They come before the heartbeat numbers.
+function Facts({ p }) {
+  const words = Array.isArray(p.own_words) ? p.own_words : [];
+  const sw = p.switches || null;
+  const list = sw && Array.isArray(sw.list) ? sw.list : [];
+  if (!words.length && !sw) return null;
+  const th = { textAlign: "left", padding: "2px 6px", color: C.grey, fontWeight: "normal" };
+  const td = { padding: "2px 6px", whiteSpace: "nowrap" };
+  return (
+    <div style={{ marginBottom: 14 }}>
+      {words.length > 0 && (
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ color: C.gold, marginBottom: 4 }}>In their own words</div>
+          {words.map((h, i) => (
+            <div key={i} style={{ marginBottom: 6, lineHeight: 1.5 }}>
+              <span style={{ color: C.grey }}>{utc(h.ts)} · {h.channel} chat · </span>
+              <span style={{ color: C.text }}>{h.name}: "{h.text}"</span>
+              {h.first_join_after && (
+                <div style={{ color: C.red }}>
+                  {h.first_join_after.name} joined for the first time {n(h.first_join_after.minutes_after)} minute{n(h.first_join_after.minutes_after) === 1 ? "" : "s"} later ({utc(h.first_join_after.ts)}).
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      {sw && (
+        <div>
+          <div style={{ color: C.gold, marginBottom: 4 }}>Account switches</div>
+          <div style={{ color: C.grey, marginBottom: 4, lineHeight: 1.5 }}>
+            {n(sw.n)} time{n(sw.n) === 1 ? "" : "s"} one name left and the other came in within 10 minutes.
+            {" "}{n(sw.same_account)} on the same Steam account{n(sw.quick_same) ? `, ${sw.quick_same} of them within 2 minutes` : ""}.
+            {n(sw.both_in_same_home_min) > 0
+              ? ` Both were in game at the same time on different Steam accounts from the same home ${n(sw.both_in_same_home_times)} time${n(sw.both_in_same_home_times) === 1 ? "" : "s"} (${n(sw.both_in_same_home_min)} min).`
+              : " Never in game at the same time on different Steam accounts from the same home."}
+          </div>
+          {list.length > 0 && (
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ borderCollapse: "collapse", fontSize: 11 }}>
+                <thead>
+                  <tr style={{ borderBottom: `1px solid ${C.line}` }}>
+                    <th style={th}>Out (UTC)</th><th style={th}>In (UTC)</th><th style={th}>Gap</th><th style={th}>Same Steam account</th><th style={th}>Distance</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {list.map((r, i) => (
+                    <tr key={i} style={{ borderBottom: `1px solid ${C.line}`, color: r.quick_same ? C.red : C.text }}>
+                      <td style={td}>{r.out} <span style={{ color: C.grey }}>{utcFull(r.out_ts)} on {acct(r.steam_out)}</span></td>
+                      <td style={td}>{r.in} <span style={{ color: C.grey }}>{utcFull(r.in_ts)} on {acct(r.steam_in)}</span></td>
+                      <td style={td}>{gapText(r.gap_sec)}</td>
+                      <td style={td}>{r.same_account ? "yes" : "no"}</td>
+                      <td style={td}>{has(r.dist) ? (n(r.dist) === 0 ? "same tile" : `${r.dist} tiles`) : "?"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Detail({ p, controls, share, names }) {
   const m = p.m || {};
   const cc = controls || {};
@@ -106,7 +180,8 @@ function Detail({ p, controls, share, names }) {
   );
   return (
     <div style={{ ...mono, fontSize: 12 }}>
-      <div style={{ color: col, marginBottom: 10, lineHeight: 1.5 }}>"{p.line}"</div>
+      <Facts p={p} />
+      <div style={{ color: col, marginBottom: 10, lineHeight: 1.5 }}>{p.line}</div>
       <div style={{ color: C.grey, marginBottom: 10, lineHeight: 1.5 }}>
         {n(m.shared_min)} minutes online together. Of the minutes Zombita could measure: both moved {n(m.both_min)},
         only {p.a} moved {n(m.only_a)}, only {p.b} moved {n(m.only_b)}, neither moved {n(m.neither)}.
@@ -222,7 +297,9 @@ export default function SecurityTab() {
         last {st.window_days || 14} days. When two accounts look like one home (one joined on the other's Steam account, or
         they share a home address and keep swapping logins, or one sits still next to the other), she checks every minute
         both were online: did both characters actually move, fight, drive, talk? She puts those numbers next to real couples
-        and friend pairs on this server. These are facts, not proof: a couple sharing one PC can also only play one at a
+        and friend pairs on this server. Each pair's card starts with the plain facts: anything either name said about an alt
+        or a second account, and every time one name left and the other came in (how fast, on which Steam account, how far
+        apart). The numbers are not proof: a couple sharing one PC can also only play one at a
         time. If you know they are two people, mark them cleared. Home addresses are never stored, only a scrambled code.
       </p>
 
@@ -247,6 +324,9 @@ export default function SecurityTab() {
                       <span style={{ color: C.grey, fontSize: 11 }}>{whyLinked(p)}</span>
                       {w && <span style={{ color: C.gold, fontSize: 11 }}>marked {KIND_LABEL[w.kind] || w.kind}{w.by ? ` by ${w.by}` : ""}</span>}
                       {p.outside_controls && <span style={{ color: C.red, fontSize: 11 }}>below every couple and friend pair</span>}
+                      {Array.isArray(p.own_words) && p.own_words.length > 0 && <span style={{ color: C.red, fontSize: 11 }}>{p.own_words.length} line{p.own_words.length === 1 ? "" : "s"} in their own words</span>}
+                      {p.switches && n(p.switches.n) > 0 && <span style={{ color: n(p.switches.same_account) ? C.red : C.grey, fontSize: 11 }}>
+                        {p.switches.n} switch{n(p.switches.n) === 1 ? "" : "es"}{n(p.switches.same_account) ? `, ${p.switches.same_account} on one Steam account` : ""}</span>}
                     </div>
                     <div style={{ color: C.text, marginTop: 3, display: "flex", gap: 14, flexWrap: "wrap" }}>
                       <span>{n(m.shared_min)} min together</span>
@@ -259,7 +339,7 @@ export default function SecurityTab() {
                       {p.style && Array.isArray(p.style.rare_shared) && p.style.rare_shared.length > 0 &&
                         <span style={{ color: C.grey }}>rare shared words: {p.style.rare_shared.slice(0, 5).join(", ")}</span>}
                     </div>
-                    <div style={{ color, marginTop: 3 }}>"{p.line}"</div>
+                    <div style={{ color, marginTop: 3 }}>{p.line}</div>
                   </div>
                   {isOpen && (
                     <div style={{ marginTop: 8, padding: 10, background: C.bg, border: `1px solid ${C.line}`, borderRadius: 3 }}>
