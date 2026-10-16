@@ -12,7 +12,7 @@ export const NAV_LINKS = [
   { href: "/news", label: "News" },
   { href: "/newspaper", label: "Paper" },
   { href: "/mods", label: "Mods" },
-  { href: "/seasons", label: "Season" },
+  { href: "/quiz", label: "Quiz" },
   { href: "/leaderboard", label: "Leaderboard" },
   { href: "/jobs", label: "Jobs" },
   { href: "/wanted", label: "Wanted" },
