@@ -269,6 +269,7 @@ export default function LeaderboardPage() {
           : <p className="text-[#555] font-mono text-sm italic">No games recorded yet.</p>
         )}
 
+        {board==="quiz" && <p className="text-[0.72rem] text-[#555] mb-4">Season totals from Quizarium on Discord. Play on the website too: <Link href="/quiz" className="text-[#4a8fc4] hover:text-[#e6e6e6]">Daily Challenge, Survival, Blitz and duels →</Link></p>}
         {board==="quiz" && (quiz.length
           ? <div className="overflow-x-auto -mx-2 px-2"><table className="lb-table min-w-full"><thead><tr><th/><th>Player</th><th className="text-right">Pts</th><th className="text-right hidden sm:table-cell">Wins</th><th className="text-right hidden sm:table-cell">Accuracy</th></tr></thead>
               <tbody>{quiz.map((p:any,i:number)=>(

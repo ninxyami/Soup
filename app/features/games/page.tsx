@@ -31,9 +31,11 @@ const GAMES = [
       "Global leaderboard tracking wins, correct answers, and games played",
       "Perfect game achievements tracked separately",
       "Weekly winner earns 300 bronze from treasury",
+      "On the website too: a Daily Challenge, Survival runs, 60-second Blitz and duels, with daily and weekly boards",
     ],
     rewards: "300 bronze (weekly win) · counts toward your reputation",
     command: "/quiz",
+    playHref: "/quiz",
   },
   {
     icon: "🃏",
@@ -153,6 +155,13 @@ export default function GamesPage() {
                       <div className="mt-3 font-mono text-[0.6rem] tracking-widest text-[#333] uppercase">
                         Command: <span style={{ color: game.color }}>{game.command}</span>
                       </div>
+                      {"playHref" in game && (game as typeof game & { playHref?: string }).playHref && (
+                        <div className="mt-3">
+                          <Link href={(game as typeof game & { playHref?: string }).playHref!} className="font-mono text-[0.6rem] tracking-widest no-underline transition-colors uppercase" style={{ color: game.color }}>
+                            Play on the website →
+                          </Link>
+                        </div>
+                      )}
                       {"detailHref" in game && (game as typeof game & { detailHref?: string }).detailHref && (
                         <div className="mt-3">
                           <Link href={(game as typeof game & { detailHref?: string }).detailHref!} className="font-mono text-[0.6rem] tracking-widest no-underline transition-colors uppercase" style={{ color: game.color }}>

@@ -34,7 +34,7 @@ const FEATURE_SECTIONS = [
     color: "#4a8fc4",
     items: [
       { href: "/features/werewolf", icon: "🐺", title: "Werewolf", desc: "Full social deduction with over 20 roles - Cupid, Gunner, Detective, Blacksmith, Mayor, Serial Killer, and more. Night actions in DMs. Zombita narrates.", tags: ["20+ Roles", "DM Night Actions", "AI Narrated"] },
-      { href: "/features/games", icon: "🧠", title: "Quizarium", desc: "Speed-scored trivia across five categories. Fastest correct answer earns the most points. Global leaderboard tracks performance across the season.", tags: ["5 Categories", "Speed Scoring", "Leaderboard"] },
+      { href: "/quiz", icon: "🧠", title: "Quizarium", desc: "Speed-scored trivia on Discord and right here on the site: a Daily Challenge, Survival runs, Blitz and duels. Fastest correct answer earns the most points.", tags: ["Play on the site", "Speed Scoring", "Leaderboard"] },
       { href: "/features/games", icon: "🃏", title: "Cards Against Zombita", desc: "On Discord, Zombita judges every submission in character. On your in-game phone the players vote and she reacts. Also a public Workshop mod.", tags: ["Zombita Judges", "Phone Version", "Workshop Mod"] },
       { href: "/features/games", icon: "✊", title: "Rock Paper Scissors", desc: "Play vs another player or directly against Zombita. Optional coin bets with a 5% rake to the treasury. Stats are kept all season.", tags: ["vs Zombita", "Coin Bets", "Stats"] },
       { href: "/features/games", icon: "🔵", title: "Connect Four", desc: "Connect Four inside a Discord message: tap a column to drop your piece. 60 seconds a turn, optional bets.", tags: ["Discord Buttons", "6×7 Board", "Live Board"] },
