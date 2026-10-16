@@ -86,62 +86,6 @@ export async function getReport() {
   return r.json();
 }
 
-// ---- the full watch (bot zombita_threats.py): GET/POST {API}/api/admin/security/threats ----
-
-// [key, title, colour, plain meaning]
-export const RISKS = [
-  ["serious", "Serious", C.red, "Needs the admins today."],
-  ["suspicious", "Suspicious", C.amber, "Normal play doesn't explain something."],
-  ["watch", "Watch", C.gold, "Worth a look, or an admin is watching."],
-  ["clean", "Clean", C.green, "Nothing odd."],
-];
-export const risk = (k) => RISKS.find((r) => r[0] === k) || [k, k || "?", C.muted, ""];
-export const SEVS = { critical: ["Critical", C.red], serious: ["Serious", "#e0794f"], watch: ["Watch", C.gold], info: ["Info", C.muted] };
-export const SEV_ORDER = { critical: 3, serious: 2, watch: 1, info: 0 };
-export const KINDS = {
-  character: "Skills", kills: "Kills", anticheat: "Anti-cheat", moves: "Movement", admin: "Admin powers", money: "Money",
-  items: "Items", ban_evasion: "Ban evasion", access: "Access", bites: "Zombita Bites", household: "Household",
-};
-
-export async function getThreats() {
-  const r = await fetch(`${API}/api/admin/security/threats`, { credentials: "include", cache: "no-store" });
-  if (!r.ok) {
-    const e = new Error((await r.json().catch(() => ({}))).detail || `HTTP ${r.status}`);
-    e.status = r.status;
-    throw e;
-  }
-  return r.json();
-}
-
-export async function postThreats(body) {
-  const r = await fetch(`${API}/api/admin/security/threats`, {
-    method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
-  });
-  const d = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(d.detail || `HTTP ${r.status}`);
-  return d;
-}
-
-// bronze as silver + bronze (never gold)
-export function money(b) {
-  const v = Math.round(n(b));
-  const s = Math.floor(Math.abs(v) / 1000), r = Math.abs(v) % 1000;
-  return `${v < 0 ? "-" : ""}${s ? `${s}s ${r}b` : `${r}b`}`;
-}
-export const day = (ts) => (ts ? new Date(ts * 1000).toISOString().slice(0, 10) : "?");
-
-// share mode: every player name but the ones on the case becomes "another player"
-export function hideNames(text, keep, all) {
-  let t = String(text ?? "");
-  const k = new Set((keep || []).map((x) => String(x).toLowerCase()));
-  const names = [...new Set((all || []).map(String))].filter((x) => x.length >= 3 && !k.has(x.toLowerCase())).sort((a, b) => b.length - a.length);
-  for (const name of names) {
-    const esc = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    t = t.replace(new RegExp(`(^|[^A-Za-z0-9_])${esc}(?=$|[^A-Za-z0-9_])`, "gi"), "$1another player");
-  }
-  return t;
-}
-
 export async function postSecurity(body) {
   const r = await fetch(`${API}/api/admin/security`, {
     method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),

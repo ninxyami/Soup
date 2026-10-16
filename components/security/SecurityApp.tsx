@@ -1,21 +1,14 @@
 // @ts-nocheck
 "use client";
-// components/security/SecurityApp.tsx - Zombita's Security, the full watch (/security, 2026-10-16). Every night the bot
-// (zombita_threats.py, which runs zombita_security.py's households first) checks every player: skills, kills, the game's
-// anti-cheat, movement, admin powers, money, items, ban evasion, access, Zombita Bites and households, plus the server's
-// own troubles. Top: Zombita's status line, the count per risk level and Listen now. Tabs: Players (risk list + threat
-// card), Households (the pairs view), Bites, Access, Server, Staff actions. "Write case report" opens a printable case file.
-// Zombita states facts; admins decide.
-import { useCallback, useEffect, useState } from "react";
+// components/security/SecurityApp.tsx - Zombita's Security as its own page (/security, 2026-10-16; it used to be a tab in
+// Live Ops > Zombita). Every night the bot (zombita_security.py) checks every pair of accounts: who joins on whose Steam
+// account, who plays when, what they say. Left: the pairs. Right: one pair's case card. Share view: one pair, no other
+// names, made for a screenshot. Zombita states facts; admins decide (a couple on ONE PC also plays one at a time).
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { API } from "@/lib/constants";
-import Households from "./Households";
-import CaseReport from "./CaseReport";
-import Confirm from "./Confirm";
-import { PlayersTab, BitesTab, AccessTab, ServerTab, StaffTab } from "./Panels";
-import { C, DISPLAY, BODY, PORTRAIT, RISKS, n, when, getReport, postSecurity, getThreats, postThreats } from "./lib";
-
-const TABS = [["players", "Players"], ["households", "Households"], ["bites", "Bites"], ["access", "Access"], ["server", "Server"], ["staff", "Staff actions"]];
+import CaseCard, { Chip } from "./CaseCard";
+import { C, DISPLAY, BODY, PORTRAIT, GROUPS, KIND_LABEL, n, has, plural, when, pairKey, samePair, getReport, postSecurity } from "./lib";
 
 function Gate({ text, link = null }) {
   return (
@@ -28,55 +21,131 @@ function Gate({ text, link = null }) {
   );
 }
 
-// the exact words of every confirm box: what happens, to whom, and how to undo it
-function askFor(cmd, name, extra) {
-  const bites = [
-    `${name} goes on Zombita Bites' list (zombita_bite.txt).`,
-    `The next time ${name} is online: god mode, invisibility and noclip are switched off, a pop-up tells them "You cheated. This is what you get for cheating.", everyone online reads "${name} cheated. Zombita bites back.", and a horde spawns right around the character.`,
-    "Still alive after 10 seconds: Zombita kills the character. Still alive after 20 seconds: the bot kicks them. The mark stays until that character dies, and the 3rd kick is a ban (account and Steam id).",
-    "Unmark stops the hunt within seconds. A character that already died is not given back automatically (restore it on the Deaths tab).",
-  ];
-  switch (cmd) {
-    case "watch": return { title: `Watch ${name}`, color: C.gold, yes: "Watch", lines: [`${name} goes on the watch list and shows as "watch" at least. Nothing happens to the player.`],
-      note: { label: "Why (optional, admins only)", placeholder: "e.g. reported in a ticket" } };
-    case "unwatch": return { title: `Stop watching ${name}`, yes: "Stop watching", lines: ["The risk goes back to what the findings say."] };
-    case "mark": return { title: `Mark ${name} for Zombita Bites`, color: C.red, yes: "Mark and hunt", lines: bites };
-    case "unmark": return { title: `Unmark ${name}`, color: C.green, yes: "Unmark", lines: [`${name} comes off Zombita Bites' list. A hunt going on stops within seconds, and the next login is normal.`] };
-    case "kick": return { title: `Kick ${name}`, color: C.amber, yes: "Kick", lines: [
-      `The bot kicks ${name} within a few seconds if they are online (a line in zombita_autokick.txt, source "security").`,
-      "If they are not online in the next 15 minutes, nothing happens. They can join again right away. The admin channel gets a line."],
-      note: { label: "Reason the player sees (optional)", placeholder: "Zombita's Security: removed by the admin team." } };
-    case "ban": return { title: `Ban ${name}`, color: C.red, yes: "Ban", lines: [
-      `The bot bans ${name}'s account and their Steam id (banuser and banid) within a few seconds, online or not.`,
-      `Undo: unbanuser "${name}" and unbanid with the Steam id; the admin channel line shows both.`],
-      note: { label: "Reason the player sees (optional)", placeholder: "Zombita's Security: banned by the admin team." } };
-    case "note": return { title: `Note on ${name}`, yes: "Save note", lines: ["Admins only. It shows under Who did what on the card."],
-      note: { label: "Note", placeholder: "", required: true } };
-    case "clear": return { title: "Clear this finding", color: C.blue, yes: "Clear", lines: [`"${extra.title}"`, "It stays on the card, crossed out with your name, and stops counting toward the risk. Tonight's check keeps it cleared."],
-      note: { label: "Why it's fine (admins only)", placeholder: "e.g. crafting the vaccine all evening" } };
-    case "unclear": return { title: "Count this finding again", yes: "Count it", lines: [`"${extra.title}"`] };
-    default: return { title: cmd, lines: [] };
-  }
+function Header({ st, busy, onListen, share = false }) {
+  return (
+    <header className="flex items-center gap-4 sm:gap-5">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={PORTRAIT} alt="Zombita" className="w-16 h-16 sm:w-24 sm:h-24 rounded-full object-cover shrink-0"
+           style={{ border: `2px solid ${C.gold}55`, boxShadow: `0 0 24px ${C.gold}22` }} />
+      <div className="flex-1 min-w-0">
+        <h1 className="m-0 leading-none" style={{ fontFamily: DISPLAY, fontSize: "clamp(30px, 6vw, 48px)", letterSpacing: 3, color: C.gold, fontWeight: "normal", textTransform: "none" }}>
+          ZOMBITA&apos;S SECURITY
+        </h1>
+        <p className="m-0 mt-1.5 text-[0.88rem] leading-relaxed" style={{ color: C.text }}>
+          {share
+            ? "I check every pair of accounts every night: who joins on whose Steam account, who plays when, and what they say."
+            : "Every night I check every pair of accounts: who joins on whose Steam account, who plays when, and what they say."}
+        </p>
+        {!share && st && (
+          <div className="flex items-center gap-x-4 gap-y-2 flex-wrap mt-2.5">
+            <span className="font-mono text-[0.7rem] uppercase tracking-[0.1em]" style={{ color: C.muted }}>
+              Last check <span style={{ color: C.text }}>{when(st.at)}</span>
+            </span>
+            <span className="font-mono text-[0.7rem] uppercase tracking-[0.1em]" style={{ color: C.muted }}>
+              Players seen <span style={{ color: C.text }}>{n(st.players_seen)}</span>
+            </span>
+            <span className="font-mono text-[0.7rem] uppercase tracking-[0.1em]" style={{ color: C.muted }}>
+              Window <span style={{ color: C.text }}>{st.window_days || 14} days</span>
+            </span>
+            <button onClick={onListen} disabled={busy || st.running}
+              className="font-mono text-[0.72rem] uppercase tracking-[0.12em] px-3 py-1.5 cursor-pointer disabled:cursor-default"
+              style={{ color: C.gold, border: `1px solid ${C.gold}`, background: st.running ? `${C.gold}22` : `${C.gold}12`, borderRadius: 2, opacity: busy && !st.running ? 0.5 : 1 }}>
+              {st.running ? "Listening..." : "Listen now"}
+            </button>
+          </div>
+        )}
+      </div>
+    </header>
+  );
+}
+
+function PairRow({ p, active, onPick, mark }) {
+  const m = p.m || {};
+  const words = Array.isArray(p.own_words) ? p.own_words.length : 0;
+  const sameAcct = n(p.switches?.same_account);
+  return (
+    <button onClick={onPick} className="w-full text-left block px-3 py-2.5 cursor-pointer transition-colors"
+      style={{ background: active ? "#141a22" : "transparent", borderLeft: `3px solid ${active ? C.gold : "transparent"}`, borderBottom: `1px solid ${C.line}` }}>
+      <div className="flex items-center gap-2">
+        <span className="flex-1 min-w-0 truncate text-[0.92rem]" style={{ color: C.bright }}>{p.a} <span style={{ color: C.muted }}>+</span> {p.b}</span>
+        <Chip verdict={p.verdict} small />
+      </div>
+      <div className="flex items-center gap-x-3 gap-y-1 flex-wrap mt-1 font-mono text-[0.68rem]" style={{ color: C.muted }}>
+        <span>both moving <span style={{ color: C.text }}>{has(m.both_pct) ? `${m.both_pct}%` : "?"}</span></span>
+        <span><span style={{ color: C.text }}>{n(m.shared_min)}</span> min together</span>
+        {words > 0 && <span className="px-1" style={{ color: C.red, border: `1px solid ${C.red}66` }}>own words</span>}
+        {sameAcct > 0 && <span className="px-1" style={{ color: C.red, border: `1px solid ${C.red}66` }}>same-account switches {sameAcct}</span>}
+        {mark && <span style={{ color: C.gold }}>{KIND_LABEL[mark.kind] || mark.kind}</span>}
+      </div>
+    </button>
+  );
+}
+
+const inp = "font-mono text-[0.8rem] px-2.5 py-2 outline-none w-full";
+const inpStyle = { background: "#080a0c", color: C.bright, border: `1px solid ${C.line}`, borderRadius: 2 };
+
+function Fold({ title, children, open = false }) {
+  return (
+    <details open={open} className="mt-4 border" style={{ borderColor: C.line, background: C.card }}>
+      <summary className="cursor-pointer px-3 py-2.5 font-mono text-[0.72rem] uppercase tracking-[0.14em] select-none" style={{ color: C.gold }}>{title}</summary>
+      <div className="px-3 pb-3">{children}</div>
+    </details>
+  );
+}
+
+function Explain({ st }) {
+  const R = st.rules || {};
+  return (
+    <details className="mt-10 border" style={{ borderColor: C.line, background: C.card }}>
+      <summary className="cursor-pointer px-4 py-3 font-mono text-[0.75rem] uppercase tracking-[0.14em] select-none" style={{ color: C.gold }}>How Zombita checks, in plain words</summary>
+      <div className="px-4 pb-5 text-[0.88rem] leading-relaxed max-w-[860px]" style={{ color: C.text }}>
+        <p>
+          One person can&apos;t really play two characters at the same time. Two people can. Every night Zombita looks at the last
+          {" "}{st.window_days || 14} days. When two accounts look like one home, she checks every minute both were online: did both
+          characters actually move, fight, drive and talk? Then she puts those numbers next to real couples and friend pairs on this server.
+        </p>
+        <p>Two accounts look like one home when one joined on the other&apos;s Steam account, or when they share a home address and keep
+          swapping logins ({R.handovers ?? 3} or more handovers within {R.handover_min ?? 10} minutes), or one sits still next to the other
+          ({R.parked ?? 2} or more times, {R.parked_min ?? 10} minutes or longer). A shared address alone never links anyone: cafes, dorms and
+          phone networks share addresses. Home addresses are never stored, only a scrambled code.</p>
+        <div className="grid gap-2 sm:grid-cols-2 my-4">
+          {GROUPS.map(([k, title, color, hint]) => (
+            <div key={k} className="p-3 border" style={{ borderColor: C.line, background: C.inner }}>
+              <div className="font-mono text-[0.72rem] uppercase tracking-[0.12em]" style={{ color }}>{title}</div>
+              <div className="text-[0.82rem] mt-1" style={{ color: C.text }}>{hint}</div>
+            </div>
+          ))}
+        </div>
+        <p>
+          The sorting, after {R.min_shared ?? 60} minutes online together: both moving in at least {R.two_beat_both ?? 30}% of the minutes,
+          or {R.two_beat_run ?? 15} minutes in a row, is two heartbeats. Under {R.one_beat_both ?? 15}% and never more than
+          {" "}{R.one_beat_run ?? 5} minutes in a row is one heartbeat. Anything between is unclear.
+        </p>
+        <p className="mb-0" style={{ color: C.bright }}>
+          The numbers are not proof. A couple sharing ONE PC can look exactly like one person, because they also play one character
+          at a time. So Zombita only states facts: what they said, how the names took turns, and how they play next to real people.
+          Admins decide. If you know they are two people, mark them cleared and Zombita stops flagging them.
+        </p>
+      </div>
+    </details>
+  );
 }
 
 export default function SecurityApp() {
-  const [thr, setThr] = useState(null);
-  const [sec, setSec] = useState(null);
+  const [st, setSt] = useState(null);
   const [authErr, setAuthErr] = useState(0);
   const [err, setErr] = useState("");
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
-  const [tab, setTab] = useState("players");
-  const [filter, setFilter] = useState("");
   const [sel, setSel] = useState("");
-  const [report, setReport] = useState(null);
-  const [confirm, setConfirm] = useState(null);       // {ask, resolve}
+  const [share, setShare] = useState(false);
+  const [filter, setFilter] = useState("");
+  const [q, setQ] = useState("");
+  const [form, setForm] = useState({ a: "", b: "", kind: "suspect", note: "" });
 
   const load = useCallback(async () => {
     try {
-      const [t, s] = await Promise.all([getThreats(), getReport()]);
-      setThr(t);
-      setSec(s);
+      setSt(await getReport());
       setErr("");
     } catch (e) {
       if (e.status === 401 || e.status === 403) setAuthErr(e.status);
@@ -84,29 +153,39 @@ export default function SecurityApp() {
     }
   }, []);
   useEffect(() => { load(); }, [load]);
+  // while Zombita is listening, read again every 5 s
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const h = window.location.hash.replace("#", "");
-    if (TABS.some(([k]) => k === h)) setTab(h);
-  }, []);
-  useEffect(() => {
-    if (!(thr?.running || sec?.running)) return;
+    if (!st?.running) return;
     const t = setTimeout(load, 5000);
     return () => clearTimeout(t);
-  }, [thr, sec, load]);
+  }, [st, load]);
 
-  const go = (t) => {
-    setTab(t);
-    if (typeof window !== "undefined") window.history.replaceState(null, "", `#${t}`);
+  const pairs = useMemo(() => (Array.isArray(st?.pairs) ? st.pairs : []), [st]);
+  const watch = useMemo(() => (Array.isArray(st?.watch) ? st.watch : []), [st]);
+  const counts = useMemo(() => Object.fromEntries(GROUPS.map(([g]) => [g, pairs.filter((p) => p.verdict === g).length])), [pairs]);
+  const shown = useMemo(() => {
+    const s = q.trim().toLowerCase();
+    return pairs.filter((p) => (!filter || p.verdict === filter) && (!s || `${p.a} ${p.b}`.toLowerCase().includes(s)));
+  }, [pairs, filter, q]);
+  const cur = sel ? pairs.find((p) => pairKey(p) === sel) : null;
+
+  // wide screens open the first pair straight away; on a phone the list comes first
+  useEffect(() => {
+    if (sel || !pairs.length || typeof window === "undefined") return;
+    if (window.matchMedia("(min-width: 1024px)").matches) setSel(pairKey(pairs[0]));
+  }, [pairs, sel]);
+
+  const pick = (p) => {
+    setSel(pairKey(p));
+    setShare(false);
+    if (typeof window !== "undefined" && !window.matchMedia("(min-width: 1024px)").matches) window.scrollTo({ top: 0 });
   };
-  const ask = (a) => new Promise((resolve) => setConfirm({ ask: a, resolve }));
-  const askYesNo = async (question) => (await ask({ title: "Are you sure?", lines: [question], yes: "Yes" })) !== null;
 
-  async function run(fn, label) {
+  async function send(body, label) {
     setBusy(true);
     setMsg(`${label}...`);
     try {
-      const d = await fn();
+      const d = await postSecurity(body);
       setMsg(d.msg || "Done.");
       await load();
       return true;
@@ -117,37 +196,46 @@ export default function SecurityApp() {
       setBusy(false);
     }
   }
-  const listen = () => run(() => postThreats({ cmd: "run" }), "Asking Zombita to listen");
-  const sendHouse = (body, label) => run(() => postSecurity(body), label);
-  const act = async (cmd, player, extra = {}) => {
-    const note = await ask(askFor(cmd, player, extra));
-    if (note === null) return;
-    run(() => postThreats({ cmd, player, finding: extra.finding || "", note }), "Saving");
+  const mark = (a, b, kind, question) => {
+    if (typeof window === "undefined" || !window.confirm(question)) return;
+    send({ cmd: "watch", a, b, kind, note: "" }, "Saving");
   };
-  const openPlayer = (name) => {
-    setSel(name);
-    go("players");
-    if (typeof window !== "undefined") window.scrollTo({ top: 0 });
+  const listen = () => send({ cmd: "run" }, "Asking Zombita to listen");
+  const addPair = async () => {
+    const a = form.a.trim(), b = form.b.trim();
+    if (!a || !b) return;
+    if (!window.confirm(`Add ${a} and ${b} as ${KIND_LABEL[form.kind] || form.kind}?`)) return;
+    if (await send({ cmd: "watch", ...form, a, b }, "Saving")) setForm({ a: "", b: "", kind: "suspect", note: "" });
   };
 
   if (authErr === 401) return <Gate text="Log in with Discord to see Zombita's Security." link={<a href={`${API}/auth/discord/login`} style={{ color: C.gold }}>Log in</a>} />;
   if (authErr === 403) return <Gate text="Zombita's Security is for admins only." />;
-  if (!thr && err) return <Gate text={`Can't reach the server: ${err}`} />;
-  if (!thr || !sec) return <Gate text="Loading..." />;
+  if (!st && err) return <Gate text={`Can't reach the server: ${err}`} />;
+  if (!st) return <Gate text="Loading..." />;
 
-  const box = <Confirm ask={confirm?.ask} onYes={(note) => { confirm.resolve(note ?? ""); setConfirm(null); }} onNo={() => { confirm.resolve(null); setConfirm(null); }} />;
-
-  if (report) {
+  // SHARE VIEW: one pair, no buttons but Back, no other player names
+  if (share && cur) {
     return (
-      <>
-        <CaseReport what={report} rep={thr} sec={sec} onClose={() => { setReport(null); window.scrollTo({ top: 0 }); }} />
-        {box}
-      </>
+      <main className="min-h-screen px-4 py-6 sm:py-10" style={{ background: C.bg, fontFamily: BODY }}>
+        <div className="max-w-[820px] mx-auto">
+          <button onClick={() => setShare(false)} className="font-mono text-[0.68rem] uppercase tracking-[0.12em] px-2 py-1 mb-4 cursor-pointer"
+            style={{ color: C.muted, border: `1px solid ${C.line}`, background: "transparent", borderRadius: 2 }}>Back</button>
+          <div className="border p-5 sm:p-8" style={{ borderColor: C.line, background: C.card }}>
+            <Header st={st} share />
+            <div className="h-px my-6" style={{ background: C.line }} />
+            <CaseCard p={cur} st={st} share />
+            <div className="mt-8 pt-4 border-t flex items-center gap-3 flex-wrap" style={{ borderColor: C.line }}>
+              <span className="text-[0.85rem] italic" style={{ color: C.text }}>Written by Zombita. I check every pair of accounts every night.</span>
+              <span className="ml-auto font-mono text-[0.65rem] uppercase tracking-[0.12em]" style={{ color: C.muted }}>
+                Last {st.window_days || 14} days · checked {st.at ? new Date(st.at * 1000).toLocaleDateString() : "never"}
+              </span>
+            </div>
+          </div>
+        </div>
+      </main>
     );
   }
 
-  const counts = thr.counts || {};
-  const running = thr.running || sec.running;
   return (
     <main className="min-h-screen" style={{ background: C.bg, fontFamily: BODY }}>
       <div className="max-w-[1320px] mx-auto px-4 sm:px-6 py-6 sm:py-10">
@@ -155,92 +243,107 @@ export default function SecurityApp() {
           <Link href="/ops" style={{ color: C.muted }}>Live Ops</Link>
           <Link href="/admin" style={{ color: C.muted }}>Admin panel</Link>
         </div>
+        <Header st={st} busy={busy} onListen={listen} />
 
-        <header className="flex items-center gap-4 sm:gap-5">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={PORTRAIT} alt="Zombita" className="w-16 h-16 sm:w-24 sm:h-24 rounded-full object-cover shrink-0"
-            style={{ border: `2px solid ${C.gold}55`, boxShadow: `0 0 24px ${C.gold}22` }} />
-          <div className="flex-1 min-w-0">
-            <h1 className="m-0 leading-none" style={{ fontFamily: DISPLAY, fontSize: "clamp(30px, 6vw, 48px)", letterSpacing: 3, color: C.gold, fontWeight: "normal", textTransform: "none" }}>
-              ZOMBITA&apos;S SECURITY
-            </h1>
-            <p className="m-0 mt-1.5 text-[0.95rem] leading-relaxed" style={{ color: C.bright }}>{thr.status}</p>
-            <div className="flex items-center gap-x-4 gap-y-2 flex-wrap mt-2.5">
-              <span className="font-mono text-[0.7rem] uppercase tracking-[0.1em]" style={{ color: C.muted }}>
-                Last check <span style={{ color: C.text }}>{when(thr.at)}</span>
-              </span>
-              <span className="font-mono text-[0.7rem] uppercase tracking-[0.1em]" style={{ color: C.muted }}>
-                Window <span style={{ color: C.text }}>{thr.window_days || 14} days</span>
-              </span>
-              <button onClick={listen} disabled={busy || running}
-                className="font-mono text-[0.72rem] uppercase tracking-[0.12em] px-3 py-1.5 cursor-pointer disabled:cursor-default"
-                style={{ color: C.gold, border: `1px solid ${C.gold}`, background: running ? `${C.gold}22` : `${C.gold}12`, borderRadius: 2, opacity: busy && !running ? 0.5 : 1 }}>
-                {running ? "Listening..." : "Listen now"}
-              </button>
-            </div>
-          </div>
-        </header>
-
-        {(running || thr.error || sec.error || msg || err) && (
+        {(st.running || st.error || msg || err) && (
           <div className="mt-4 flex flex-col gap-1.5 font-mono text-[0.78rem]">
-            {running && <div style={{ color: C.gold }}>Zombita is listening. This page reads again every 5 seconds.</div>}
-            {(thr.error || sec.error) && <div style={{ color: C.red }}>The last run failed: {thr.error || sec.error}</div>}
+            {st.running && <div style={{ color: C.gold }}>Zombita is listening. This page reads again every 5 seconds.</div>}
+            {st.error && <div style={{ color: C.red }}>The last run failed: {st.error}</div>}
             {msg && <div style={{ color: msg.startsWith("Couldn't") ? C.red : C.gold }}>{msg}</div>}
-            {err && <div style={{ color: C.red }}>Can&apos;t read the report: {err}</div>}
+            {err && <div style={{ color: C.red }}>Can't read the report: {err}</div>}
           </div>
         )}
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-px mt-6 border" style={{ borderColor: C.line, background: C.line }}>
-          {RISKS.map(([r, title, color, hint]) => {
-            const on = tab === "players" && filter === r;
+        {/* summary strip: one button per group, a click filters the list */}
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-px mt-6 border" style={{ borderColor: C.line, background: C.line }}>
+          {GROUPS.map(([g, title, color]) => {
+            const on = filter === g;
             return (
-              <button key={r} onClick={() => { setFilter(on ? "" : r); go("players"); }} title={hint}
+              <button key={g} onClick={() => setFilter(on ? "" : g)} title={on ? "Show every pair" : `Show only: ${title}`}
                 className="text-left px-3 py-3 cursor-pointer transition-colors"
                 style={{ background: on ? `${color}1f` : C.card, boxShadow: on ? `inset 0 -2px 0 ${color}` : "none" }}>
-                <div className="leading-none" style={{ fontFamily: DISPLAY, fontSize: 34, color: n(counts[r]) ? color : "#3a4250" }}>{n(counts[r])}</div>
+                <div className="leading-none" style={{ fontFamily: DISPLAY, fontSize: 32, color: counts[g] ? color : "#3a4250" }}>{counts[g] || 0}</div>
                 <div className="font-mono text-[0.62rem] uppercase tracking-[0.1em] mt-1" style={{ color: on ? color : C.muted }}>{title}</div>
               </button>
             );
           })}
         </div>
 
-        <nav className="flex gap-1 mt-6 overflow-x-auto border-b" style={{ borderColor: C.line }}>
-          {TABS.map(([k, label]) => (
-            <button key={k} onClick={() => go(k)} className="font-mono text-[0.72rem] uppercase tracking-[0.12em] px-3 py-2 cursor-pointer whitespace-nowrap"
-              style={{ color: tab === k ? C.gold : C.muted, background: "transparent", border: 0, borderBottom: `2px solid ${tab === k ? C.gold : "transparent"}`, marginBottom: -1 }}>
-              {label}{k === "households" && Array.isArray(sec.pairs) ? ` (${sec.pairs.filter((p) => p.verdict === "one").length})` : ""}
-              {k === "bites" && Array.isArray(thr.bites?.marked) && thr.bites.marked.length ? ` (${thr.bites.marked.length})` : ""}
-            </button>
-          ))}
-        </nav>
+        <div className="grid gap-6 mt-6 grid-cols-[minmax(0,1fr)] lg:grid-cols-[380px_minmax(0,1fr)] items-start">
+          {/* left: the pairs */}
+          <div className={cur ? "hidden lg:block" : ""}>
+            <div className="border" style={{ borderColor: C.line, background: C.card }}>
+              <div className="p-3 border-b" style={{ borderColor: C.line }}>
+                <input className={inp} style={inpStyle} placeholder="Search by name" value={q} onChange={(e) => setQ(e.target.value)} />
+                <div className="flex items-center gap-2 mt-2 font-mono text-[0.65rem] uppercase tracking-[0.1em]" style={{ color: C.muted }}>
+                  <span>{plural(shown.length, "pair")}{filter ? ` · ${GROUPS.find((g) => g[0] === filter)?.[1]}` : ""}</span>
+                  {(filter || q) && <button onClick={() => { setFilter(""); setQ(""); }} className="ml-auto cursor-pointer uppercase" style={{ color: C.gold, background: "transparent", border: 0 }}>Show all</button>}
+                </div>
+              </div>
+              <div className="lg:max-h-[calc(100vh-260px)] lg:overflow-y-auto">
+                {shown.map((p) => (
+                  <PairRow key={pairKey(p)} p={p} active={pairKey(p) === sel} onPick={() => pick(p)} mark={watch.find((w) => samePair(w, p.a, p.b))} />
+                ))}
+                {pairs.length === 0 && <div className="p-4 text-[0.85rem]" style={{ color: C.muted }}>No pairs yet. Press Listen now, or wait for tonight&apos;s check.</div>}
+                {pairs.length > 0 && shown.length === 0 && <div className="p-4 text-[0.85rem]" style={{ color: C.muted }}>No pair matches.</div>}
+              </div>
+            </div>
 
-        <div className="mt-6">
-          {tab === "players" && <PlayersTab rep={thr} filter={filter} setFilter={setFilter} sel={sel} setSel={setSel} busy={busy} act={act}
-            onReport={(p) => { setReport({ kind: "player", subject: p }); window.scrollTo({ top: 0 }); }} />}
-          {tab === "households" && <Households st={sec} busy={busy} send={sendHouse} ask={askYesNo}
-            onReport={(p) => { setReport({ kind: "pair", subject: p }); window.scrollTo({ top: 0 }); }} />}
-          {tab === "bites" && <BitesTab rep={thr} busy={busy} act={act} openPlayer={openPlayer} />}
-          {tab === "access" && <AccessTab rep={thr} />}
-          {tab === "server" && <ServerTab rep={thr} />}
-          {tab === "staff" && <StaffTab rep={thr} />}
+            <Fold title="Add a pair to watch">
+              <div className="grid grid-cols-2 gap-2">
+                <input className={inp} style={inpStyle} placeholder="First name" value={form.a} onChange={(e) => setForm({ ...form, a: e.target.value })} />
+                <input className={inp} style={inpStyle} placeholder="Second name" value={form.b} onChange={(e) => setForm({ ...form, b: e.target.value })} />
+                <select className={`${inp} col-span-2`} style={inpStyle} value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })}>
+                  <option value="suspect">Suspect (check them anyway)</option>
+                  <option value="couple">Couple (yardstick)</option>
+                  <option value="friends">Friends (yardstick)</option>
+                  <option value="cleared">Cleared (two people)</option>
+                </select>
+                <input className={`${inp} col-span-2`} style={inpStyle} placeholder="Note (optional)" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
+                <button onClick={addPair} disabled={busy || !form.a.trim() || !form.b.trim()}
+                  className="col-span-2 font-mono text-[0.72rem] uppercase tracking-[0.12em] py-2 cursor-pointer disabled:opacity-40 disabled:cursor-default"
+                  style={{ color: C.gold, border: `1px solid ${C.gold}`, background: `${C.gold}12`, borderRadius: 2 }}>Add</button>
+              </div>
+              <p className="text-[0.75rem] mt-2 mb-0" style={{ color: C.muted }}>Use the names as they show in game. A new mark shows in the next report (Listen now to see it at once).</p>
+            </Fold>
+
+            <Fold title={`Admin marks (${watch.length})`}>
+              {watch.length === 0 && <p className="text-[0.82rem] m-0" style={{ color: C.muted }}>No marks yet.</p>}
+              {watch.map((w) => (
+                <div key={`${w.a}|${w.b}`} className="flex items-start gap-2 py-2 border-b last:border-b-0" style={{ borderColor: C.line }}>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[0.85rem]" style={{ color: C.bright }}>{w.a} + {w.b}</div>
+                    <div className="font-mono text-[0.65rem] uppercase tracking-[0.08em]" style={{ color: C.gold }}>{KIND_LABEL[w.kind] || w.kind}</div>
+                    {(w.by || w.at) && <div className="text-[0.72rem]" style={{ color: C.muted }}>{w.by ? `by ${w.by}` : ""}{w.at ? `, ${new Date(w.at * 1000).toLocaleDateString()}` : ""}</div>}
+                    {w.note && <div className="text-[0.75rem] italic" style={{ color: C.text }}>&ldquo;{w.note}&rdquo;</div>}
+                  </div>
+                  <button disabled={busy} onClick={() => mark(w.a, w.b, "remove", `Remove the admin mark on ${w.a} and ${w.b}?`)}
+                    className="font-mono text-[0.62rem] uppercase tracking-[0.1em] px-2 py-1 cursor-pointer disabled:opacity-40"
+                    style={{ color: C.muted, border: `1px solid ${C.line}`, background: "transparent", borderRadius: 2 }}>Remove</button>
+                </div>
+              ))}
+            </Fold>
+          </div>
+
+          {/* right: the case card */}
+          <div className={cur ? "" : "hidden lg:block"}>
+            {cur ? (
+              <div className="border p-4 sm:p-6" style={{ borderColor: C.line, background: C.card }}>
+                <button onClick={() => setSel("")} className="lg:hidden font-mono text-[0.68rem] uppercase tracking-[0.12em] px-2 py-1 mb-4 cursor-pointer"
+                  style={{ color: C.muted, border: `1px solid ${C.line}`, background: "transparent", borderRadius: 2 }}>Back to the list</button>
+                <CaseCard p={cur} st={st} watchMark={watch.find((w) => samePair(w, cur.a, cur.b))} busy={busy} mark={mark}
+                  onShare={() => { setShare(true); window.scrollTo({ top: 0 }); }} />
+              </div>
+            ) : (
+              <div className="border p-10 text-center text-[0.9rem]" style={{ borderColor: C.line, background: C.card, color: C.muted }}>
+                {pairs.length ? "Pick a pair on the left to see its case." : "Nothing to show yet."}
+              </div>
+            )}
+          </div>
         </div>
 
-        <details className="mt-10 border" style={{ borderColor: C.line, background: C.card }}>
-          <summary className="cursor-pointer px-4 py-3 font-mono text-[0.75rem] uppercase tracking-[0.14em] select-none" style={{ color: C.gold }}>How Zombita watches, in plain words</summary>
-          <div className="px-4 pb-5 text-[0.88rem] leading-relaxed max-w-[860px]" style={{ color: C.text }}>
-            <p>Every night at 04:30 UTC Zombita reads the last {thr.window_days || 14} days: skill logs, kills per minute, the game&apos;s own anti-cheat
-              lines, where everyone stood each minute, admin commands, money records, joins and refused joins. For every player she writes down what
-              normal play can&apos;t explain, and next to it the innocent reasons she checked: an admin restore, crafting recipes with big XP, a journal,
-              a Dawn of the Dead horde, a basement edge, RespawnInCar moving someone to their car at login, a bus ride, a car flung by a crash.</p>
-            <p>Risk levels: <b style={{ color: C.red, fontWeight: 500 }}>serious</b> (a critical finding or two serious ones), <b style={{ color: C.amber, fontWeight: 500 }}>suspicious</b> (one
-              serious finding), <b style={{ color: C.gold, fontWeight: 500 }}>watch</b> (smaller things, or an admin is watching), <b style={{ color: C.green, fontWeight: 500 }}>clean</b>. Staff are
-              never judged; their admin commands are listed under Staff actions for everyone on the team to see.</p>
-            <p className="mb-0" style={{ color: C.bright }}>Zombita states what the logs show. She never calls anyone a cheater and never decides who
-              someone is. Admins decide, and every button here is written down with the admin&apos;s name.</p>
-          </div>
-        </details>
+        <Explain st={st} />
       </div>
-      {box}
     </main>
   );
 }
