@@ -144,7 +144,7 @@ export default function NotorietyTab() {
           Score = deeds (A and S wins, hot streaks, keeper hopping, emptying tills, buy limits, earning a lot and spending little) plus
           stats (skills, days alive, kills, bank; 30 at most, so stats alone never Mark anyone). Deeds only fade when the player is calm.
           At 25 Zombita warns in public, often. At 40 she gives the last warning, and after 30 minutes of play they are Marked:
-          raids at random times (one of 9 templates: 300 or 600 zombies in waves, sprinter packs, a siege, Crowe's bandits with a horde; each raid they survive makes the next one bigger), wanted posters on zombies, no sending or withdrawing money, and the tab
+          raids at random times (one of 11 templates: 300 or 600 zombies in waves, sprinter packs, a siege, Crowe's bandits alone or after a horde; each raid they survive makes the next one bigger), wanted posters on zombies, no sending or withdrawing money, and the tab
           grows every hour they play. If they die while Marked the tab goes to the treasury (debt if the bank is short).
         </p>
       </div>
