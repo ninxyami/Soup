@@ -30,6 +30,9 @@ const SETTINGS = [
   ["RAID_Z_MIN", "Raid size, low end (100 = normal)"], ["RAID_Z_MAX", "Raid size, high end (100 = normal)"], ["RAID_SPRINT", "Sprinters in every horde (%)"],
   ["RAID_WAVE_GAP", "Seconds between waves"], ["RAID_SPRINTERS", "Sprinter pack size (10 = normal)"],
   ["RAID_B_MIN", "Fewest bandits in Crowe's raid"], ["RAID_B_MAX", "Most bandits in Crowe's raid"],
+  // mod 1.8.13: Dawn of the Dead is harder for the wanted
+  ["DOTD_MARKED_X", "Dawn of the Dead: Marked get x zombies (2 = double)"], ["DOTD_MARKED_SPRINT", "Dawn of the Dead: Marked get +% sprinters"],
+  ["DOTD_LW_X", "Dawn of the Dead: last warning gets x zombies"], ["DOTD_LW_SPRINT", "Dawn of the Dead: last warning gets +% sprinters"],
 ];
 
 export default function NotorietyTab() {
