@@ -31,6 +31,17 @@ const Row = ({ k, children }) => (
   <tr><td style={{ ...dim, width: 190, verticalAlign: "top" }}>{k}</td><td style={mono}>{children}</td></tr>
 );
 const prettyItem = (t) => String(t || "").replace(/^Base\./, "").replace(/_/g, " ");
+// B42 ids look like "base:fasthealer" / "base:fireofficer": drop the "base:" and make them readable
+const prettyId = (t) => {
+  const s = String(t || "").replace(/^base:/i, "").replace(/_/g, " ");
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+};
+const SOURCE = {
+  record: "From the death record.",
+  copy: "From the game's restore copy (this death was recorded before the record carried the character).",
+  both: "From the death record and the game's restore copy.",
+  none: "Nothing saved for this character. The game writes it from mod 1.8.9 on; older deaths show it only while the game still keeps their restore copy (72 h).",
+};
 
 // health over the last 30 seconds as small bars (0-100), newest on the right
 const HealthBars = ({ pts }) => {
@@ -132,20 +143,22 @@ const DeathDetail = ({ id, onClose, onChanged, toast }) => {
         </tbody></table>
 
         <h4 style={{ margin: "18px 0 6px" }}>The character they lost</h4>
+        {d.character_source && <div style={{ ...dim, marginBottom: 6 }}>{SOURCE[d.character_source] || ""}</div>}
         <table className="ap-t"><tbody>
           <Row k="Name">{d.name || "-"}</Row>
-          <Row k="Profession">{d.profession || "-"}</Row>
-          <Row k="Survived">{d.hours} in-game hours, {fmt(d.kills)} kills</Row>
-          <Row k="Traits"><Chips list={d.traits} /></Row>
+          <Row k="Profession">{d.profession ? prettyId(d.profession) : "-"}</Row>
+          <Row k="Survived">{fmt(d.hours)} in-game hours{d.hours >= 24 ? ` (${fmt(Math.floor(d.hours / 24))} days)` : ""}, {fmt(d.kills)} kills</Row>
+          <Row k="Traits"><Chips list={(d.traits || []).map(prettyId)} /></Row>
           <Row k="Recipes known">{d.recipes?.length ? <>
             <span>{d.recipes.length} </span><B sm c="ghost" onClick={() => setShowRecipes(v => !v)}>{showRecipes ? "Hide" : "Show"}</B>
             {showRecipes && <div style={{ marginTop: 8 }}><Chips list={d.recipes} /></div>}
-          </> : <span style={dim}>none saved</span>}</Row>
+          </> : d.recipes_count ? <span>{fmt(d.recipes_count)} <span style={dim}>(the names are kept only while the game keeps its copy, 72 h)</span></span>
+            : <span style={dim}>none saved</span>}</Row>
         </tbody></table>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 14, marginTop: 14 }}>
           <div>
-            <h4 style={{ margin: "6px 0" }}>Skills</h4>
+            <h4 style={{ margin: "6px 0" }}>Skills{d.skills?.length ? <span style={dim}> ({d.skills.length}, {d.skills.reduce((a, s) => a + s.level, 0)} levels in all)</span> : null}</h4>
             {!d.skills?.length ? <Empty text="No skills saved" /> :
               <table className="ap-t"><thead><tr><th>Skill</th><th style={{ textAlign: "right" }}>Level</th><th style={{ textAlign: "right" }}>XP</th></tr></thead><tbody>
                 {d.skills.map(s => <tr key={s.name}><td style={mono}>{s.name}{s.passive ? <span style={dim}> (passive)</span> : ""}</td>
@@ -153,10 +166,10 @@ const DeathDetail = ({ id, onClose, onChanged, toast }) => {
               </tbody></table>}
           </div>
           <div>
-            <h4 style={{ margin: "6px 0" }}>What they carried</h4>
+            <h4 style={{ margin: "6px 0" }}>What they carried{d.items?.length ? <span style={dim}> ({fmt(d.items.reduce((a, it) => a + it.count, 0))} items, {d.items.length} kinds)</span> : null}</h4>
             {!d.items?.length ? <Empty text="No items saved" /> :
               <table className="ap-t"><tbody>
-                {d.items.map((it, i) => <tr key={i}><td style={mono} title={it.type}>{prettyItem(it.type)}</td>
+                {[...d.items].sort((a, b) => b.count - a.count || prettyItem(a.type).localeCompare(prettyItem(b.type))).map((it, i) => <tr key={i}><td style={mono} title={it.type}>{prettyItem(it.type)}</td>
                   <td style={{ ...mono, textAlign: "right" }}>x{it.count}</td></tr>)}
               </tbody></table>}
             <div style={{ ...dim, marginTop: 6 }}>A restore moves what is still on the body. Anything a friend already took is not given twice.</div>
