@@ -3,10 +3,65 @@
 // components/quests/GiveLog.tsx: give one player a job of your own (Give), and what was asked of the game and what it
 // answered (Log), with the specials and IOUs the bot keeps.
 
-import { useState } from "react";
-import { C, MONO, BODY, Btn, Card, Note, Pill, Input, Select, Label, Empty, ItemsEditor, money, ago, fmt } from "./ui";
+import { useEffect, useRef, useState } from "react";
+import { C, MONO, BODY, Btn, Card, Note, Pill, Input, Select, Label, Empty, ItemsEditor, money, ago, fmt, inputStyle } from "./ui";
 
 const TWISTS = ["ambush", "road", "moved", "bandits", "bait"];
+
+// Player box with a list (Nin 2026-10-17: no typing names). Empty box = who's online now (Live Ops state); typing
+// searches every in-game name the rankings know (all characters ever seen), online ones first. Free typing still works.
+function PlayerPicker({ value, onChange, apiGet }) {
+  const [online, setOnline] = useState([]);
+  const [all, setAll] = useState([]);
+  const [open, setOpen] = useState(false);
+  const box = useRef(null);
+  useEffect(() => {
+    let stop = false;
+    const loadOnline = () => apiGet("/api/admin/ops/state").then((s) => !stop && setOnline((s?.players || []).map((p) => p.name).filter(Boolean))).catch(() => {});
+    loadOnline();
+    apiGet("/api/rankings").then((d) => !stop && setAll([...new Set((d?.players || []).map((p) => p.name).filter(Boolean))])).catch(() => {});
+    const t = setInterval(loadOnline, 30000);
+    return () => { stop = true; clearInterval(t); };
+  }, [apiGet]);
+  useEffect(() => {
+    const away = (e) => { if (box.current && !box.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", away);
+    return () => document.removeEventListener("mousedown", away);
+  }, []);
+  const q = (value || "").trim().toLowerCase();
+  const on = new Set(online.map((n) => n.toLowerCase()));
+  const byName = (a, b) => a.localeCompare(b, undefined, { sensitivity: "base" });
+  const rows = q
+    ? [...new Set([...online, ...all])].filter((n) => n.toLowerCase().includes(q))
+        .sort((a, b) => (on.has(b.toLowerCase()) - on.has(a.toLowerCase())) || byName(a, b)).slice(0, 40)
+    : [...online].sort(byName);
+  const pick = (n) => { onChange(n); setOpen(false); };
+  return (
+    <div ref={box} style={{ position: "relative" }}>
+      <input value={value ?? ""} placeholder={`Pick or search (${online.length} online)`} onFocus={() => setOpen(true)}
+        onChange={(e) => { onChange(e.target.value); setOpen(true); }}
+        onKeyDown={(e) => { if (e.key === "Escape") setOpen(false); if (e.key === "Enter" && rows[0]) pick(rows[0]); }}
+        style={{ ...inputStyle, width: "100%" }} />
+      {open && (
+        <div style={{ position: "absolute", zIndex: 30, top: "100%", left: 0, right: 0, maxHeight: 280, overflowY: "auto",
+          background: C.panel2, border: `1px solid ${C.line}`, fontFamily: MONO, fontSize: 13 }}>
+          <div style={{ padding: "6px 10px", fontSize: 11, color: C.faint, letterSpacing: 1 }}>
+            {q ? `${rows.length >= 40 ? "First 40" : rows.length} match${rows.length === 1 ? "" : "es"} (all players)` : "ONLINE NOW · type to search everyone"}
+          </div>
+          {rows.length === 0 && <div style={{ padding: "6px 10px", color: C.dim }}>{q ? "No player by that name." : "Nobody online."}</div>}
+          {rows.map((n) => (
+            <div key={n} onMouseDown={(e) => { e.preventDefault(); pick(n); }}
+              style={{ padding: "6px 10px", cursor: "pointer", color: C.text, display: "flex", alignItems: "center", gap: 8 }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = C.line)} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
+              <span style={{ width: 7, height: 7, borderRadius: "50%", background: on.has(n.toLowerCase()) ? C.green : C.faint, flex: "none" }} />
+              {n}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function Give({ state, send, apiGet }) {
   const types = (state.control?.types || []).filter((t) => t.live !== false);
@@ -30,7 +85,7 @@ export function Give({ state, send, apiGet }) {
       <Note style={{ marginBottom: 14 }}>A job for one player only, from the admins. It appears on their phone (red, an admin job) and skips the tier unlocks and the job type switches.
         Leave a field empty to use the tier's normal value.</Note>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
-        <div><Label>Player</Label><Input value={f.player} onChange={set("player")} placeholder="In-game name" /></div>
+        <div><Label>Player</Label><PlayerPicker value={f.player} onChange={set("player")} apiGet={apiGet} /></div>
         <div><Label>Type</Label><Select value={f.type} onChange={set("type")} options={types.length ? types.map((x) => ({ value: x.id, label: x.name })) : [f.type]} /></div>
         <div><Label>Tier</Label><Select value={f.tier} onChange={set("tier")} options={tiers} /></div>
         <div><Label>Twist</Label><Select value={f.twist} onChange={set("twist")} options={[{ value: "", label: "none" }, ...TWISTS]} /></div>
