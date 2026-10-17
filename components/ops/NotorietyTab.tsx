@@ -25,7 +25,10 @@ const SETTINGS = [
   ["TAB_BASE", "Tab per hour while Marked (bronze)"], ["TAB_PER_POINT", "Extra per hour for each point gained while Marked"],
   ["TAB_SINK", "Tab sinks per hour once calm (keep it small)"], ["CALM_HOURS", "Hours of play with nothing new before it fades"],
   ["RAID_EVERY_MIN", "Shortest minutes of play between raids"], ["RAID_EVERY_MAX", "Longest minutes of play between raids"],
-  ["RAID_Z_MIN", "Fewest zombies in a raid"], ["RAID_Z_MAX", "Most zombies in a raid"], ["RAID_SPRINT", "Sprinters in a raid (%)"],
+  ["RAID_Z_MIN", "Fewest zombies in a raid wave"], ["RAID_Z_MAX", "Most zombies in a raid wave"], ["RAID_SPRINT", "Sprinters in a horde (%)"],
+  // mod 1.8.13: raids roll horde (waves) / big horde (x2) / sprinter pack / Crowe's bandits
+  ["RAID_WAVES", "Waves in a horde raid"], ["RAID_WAVE_GAP", "Seconds between waves"], ["RAID_SPRINTERS", "Sprinters in the sprinter pack"],
+  ["RAID_B_MIN", "Fewest bandits in Crowe's raid"], ["RAID_B_MAX", "Most bandits in Crowe's raid"],
 ];
 
 export default function NotorietyTab() {
@@ -140,7 +143,7 @@ export default function NotorietyTab() {
           Score = deeds (A and S wins, hot streaks, keeper hopping, emptying tills, buy limits, earning a lot and spending little) plus
           stats (skills, days alive, kills, bank; 30 at most, so stats alone never Mark anyone). Deeds only fade when the player is calm.
           At 25 Zombita warns in public, often. At 40 she gives the last warning, and after 30 minutes of play they are Marked:
-          Dusk's hordes and Crowe's bandits at random times, wanted posters on zombies, no sending or withdrawing money, and the tab
+          raids at random times (Dusk's horde in waves, a big horde, a sprinter pack, or Crowe's bandits with a horde), wanted posters on zombies, no sending or withdrawing money, and the tab
           grows every hour they play. If they die while Marked the tab goes to the treasury (debt if the bank is short).
         </p>
       </div>
