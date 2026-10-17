@@ -608,6 +608,7 @@ function CharacterPanel({ p, act }) {
   const [notify, setNotify] = useState(true);
   const [q, setQ] = useState("");
   const [addT, setAddT] = useState("");
+  const [tq, setTq] = useState("");
   const [xpPerk, setXpPerk] = useState("");
   const [xpAmt, setXpAmt] = useState(100);
   const h = { ...mono, fontSize: 10, color: C.grey, textTransform: "uppercase", letterSpacing: 1, marginTop: 6 };
@@ -630,7 +631,13 @@ function CharacterPanel({ p, act }) {
     return Object.entries(g).sort(([a], [b]) => a.localeCompare(b));
   }, [sheet, q]);
   if (!open) return <div><div style={h}>Character</div><Btn small onClick={() => { setOpen(true); load(); }}>Open character sheet</Btn></div>;
-  const labelOf = (id) => (sheet?.allTraits || []).find((t) => t.id === id)?.label || id;
+  // mod traits come as "UI_trait_SuperImmune" when the game has no text for them: show "Super Immune"
+  const nice = (s) => String(s || "").replace(/^UI_trait_/i, "").replace(/^[a-z0-9]+:/i, "").replace(/_/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2").replace(/^./, (c) => c.toUpperCase());
+  const labelOf = (id) => {
+    const l = (sheet?.allTraits || []).find((t) => t.id === id)?.label || id;
+    return /^UI_trait_/i.test(l) ? nice(l) : l;
+  };
   const st = sheet?.stats || {};
   const bar = (k, label, good = "low") => {
     const v = Math.max(0, Math.min(1, Number(st[k] || 0)));
@@ -682,13 +689,19 @@ function CharacterPanel({ p, act }) {
             </span>
           ))}
         </div>
-        <div style={{ display: "flex", gap: 6 }}>
-          <select style={inp} value={addT} onChange={(e) => setAddT(e.target.value)}>
-            <option value="">Add a trait...</option>
-            {(sheet.allTraits || []).filter((t) => !(sheet.traits || []).includes(t.id)).sort((a, b) => a.label.localeCompare(b.label))
-              .map((t) => <option key={t.id} value={t.id}>{t.label} ({t.cost > 0 ? "+" : ""}{t.cost})</option>)}
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          <input style={{ ...inp, flex: "1 1 140px" }} placeholder="Search traits" value={tq}
+            onChange={(e) => { setTq(e.target.value); setAddT(""); }} />
+          <select style={{ ...inp, flex: "2 1 200px" }} value={addT} onChange={(e) => setAddT(e.target.value)}>
+            <option value="">{tq ? "Pick a match..." : "Add a trait..."}</option>
+            {/* every trait (the card's own list can be wrong before mod 1.8.10); a mark shows the ones listed above */}
+            {(sheet.allTraits || [])
+              .map((t) => ({ ...t, shown: labelOf(t.id) }))
+              .filter((t) => !tq || (t.shown + " " + t.id).toLowerCase().includes(tq.trim().toLowerCase()))
+              .sort((a, b) => a.shown.localeCompare(b.shown))
+              .map((t) => <option key={t.id} value={t.id}>{t.shown} ({t.cost > 0 ? "+" : ""}{t.cost}){(sheet.traits || []).includes(t.id) ? " [listed]" : ""}</option>)}
           </select>
-          <Btn small disabled={!addT} onClick={() => act("pl_trait", { player: p.name, trait: addT, on: true, notify }, () => { setAddT(""); reload(); })}>Add</Btn>
+          <Btn small disabled={!addT} onClick={() => act("pl_trait", { player: p.name, trait: addT, on: true, notify }, () => { setAddT(""); setTq(""); reload(); })}>Add</Btn>
         </div>
         <div style={h}>Skills</div>
         <input style={inp} placeholder="Find a skill" value={q} onChange={(e) => setQ(e.target.value)} />
