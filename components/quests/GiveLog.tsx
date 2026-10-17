@@ -65,9 +65,11 @@ function PlayerPicker({ value, onChange, apiGet }) {
 
 export function Give({ state, send, apiGet }) {
   const types = (state.control?.types || []).filter((t) => t.live !== false);
-  const [f, setF] = useState({ player: "", type: types[0]?.id || "horde", tier: "B", coins: "", hours: "", title: "", text: "", twist: "" });
+  const [f, setF] = useState({ player: "", type: types[0]?.id || "horde", tier: "B", coins: "", hours: "", title: "", text: "", twist: "", test: false });
   const [items, setItems] = useState([]);
   const set = (k) => (v) => setF((s) => ({ ...s, [k]: v }));
+  // a test job only when the game (mod 1.8.12: testJobs) AND the bot (jobs_test_give: testGive) both handle it, else it'd be real
+  const canTest = state?.testJobs === true && state?.testGive === true;
   const t = types.find((x) => x.id === f.type);
   const tiers = t ? String(t.tiers || "DCBAS").split("") : ["D", "C", "B", "A", "S"];
   const go = () => {
@@ -78,7 +80,8 @@ export function Give({ state, send, apiGet }) {
     if (f.text.trim()) a.text = f.text.trim().slice(0, 200);
     if (f.twist) a.twist = f.twist;
     if (items.length) a.items = items.map(([id, n]) => ({ id, n }));
-    send("give", a, `Job given to ${a.player}`);
+    if (f.test && canTest) a.test = true;           // mod 1.8.12: plays normally, pays and records nothing
+    send("give", a, `${f.test ? "Test job" : "Job"} given to ${a.player}`);
   };
   return (
     <Card title="Give a quest">
@@ -98,7 +101,20 @@ export function Give({ state, send, apiGet }) {
         <div><Label>Text (optional)</Label><Input value={f.text} onChange={set("text")} /></div>
         <div><Label>Extra items for the winner (optional)</Label><ItemsEditor items={items} onChange={setItems} apiGet={apiGet} /></div>
       </div>
-      <div style={{ marginTop: 16 }}><Btn c="solid" disabled={!f.player.trim()} onClick={go}>Give the job</Btn></div>
+      <label style={{ display: "flex", gap: 10, alignItems: "flex-start", marginTop: 16, cursor: canTest ? "pointer" : "not-allowed", padding: "10px 12px",
+        opacity: canTest ? 1 : 0.55, border: `1px solid ${f.test ? C.orange : C.line}`, background: f.test ? "rgba(212,135,58,0.08)" : "transparent" }}>
+        <input type="checkbox" checked={f.test} disabled={!canTest} onChange={(e) => set("test")(e.target.checked)} style={{ marginTop: 3, accentColor: C.orange }} />
+        <span>
+          <span style={{ fontFamily: MONO, fontSize: 12, letterSpacing: 1, color: f.test ? C.orange : C.text }}>TEST JOB (FOR ADMINS)</span>
+          <span style={{ display: "block", fontFamily: BODY, fontSize: 12, color: C.dim, marginTop: 3, lineHeight: 1.5 }}>
+            Plays like a real job (waves, bag, twist, timer) with "[TEST]" in its title. When it ends nothing is paid and nothing is
+            recorded: no coins, items or reputation, no Job Rank, leaderboards, notoriety, cards, Discord or newspaper, and no rest.
+            {!canTest && <span style={{ color: C.orange }}> Not ready yet: needs mod 1.8.12 live and the bot's jobs_test_give patch (until then a
+              "test" would be a real job, so the box stays off).</span>}
+          </span>
+        </span>
+      </label>
+      <div style={{ marginTop: 12 }}><Btn c="solid" disabled={!f.player.trim()} onClick={go}>{f.test ? "Give the test job" : "Give the job"}</Btn></div>
     </Card>
   );
 }

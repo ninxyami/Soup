@@ -30,7 +30,7 @@ export function demoData(preview) {
     new: i > 9, tested: i < 8, testedBy: "Nin", testedAt: now - 86400 * (i + 1), note: i < 8 ? "Works" : "", twists: i < 5 ? "ambush,road" : "" }));
   return {
     state: {
-      v: 2, at: now - 12, stale: false, on: true, cap: 15000, totalKills: 22206, unlockAt: 5000,
+      v: 2, at: now - 12, stale: false, testJobs: true, testGive: true, on: true, cap: 15000, totalKills: 22206, unlockAt: 5000,
       tierUnlocks: { A: 25000, S: 30000, SS: 35000, SSS: 40000, "SSS+": 45000 },
       tierUnlocksDefault: { A: 25000, S: 30000, SS: 35000, SSS: 40000, "SSS+": 45000 },
       tierOpen: { A: false, S: false, SS: false, SSS: false, "SSS+": false }, tierUnlocksCustom: false,
