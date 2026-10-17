@@ -33,15 +33,23 @@ function askFor(cmd, name, extra) {
   const bites = [
     `${name} goes on Zombita Bites' list (zombita_bite.txt).`,
     `The next time ${name} is online: god mode, invisibility and noclip are switched off, a pop-up tells them "You cheated. This is what you get for cheating.", everyone online reads "${name} cheated. Zombita bites back.", and a horde spawns right around the character.`,
-    "Still alive after 10 seconds: Zombita kills the character. Still alive after 20 seconds: the bot kicks them. The mark stays until that character dies, and the 3rd kick is a ban (account and Steam id).",
+    "Still alive after 10 seconds: Zombita kills the character. Still alive after 20 seconds: the bot kicks them. The hunt repeats on every login until that character dies, and the 3rd kick is a ban (account and Steam id).",
+    `When that character dies, ${name} waits for an appeal: every login is kicked at once with "Zombita caught you cheating. Open a ticket on our Discord to appeal." Only Release (or a new mark) changes that.`,
     "Unmark stops the hunt within seconds. A character that already died is not given back automatically (restore it on the Deaths tab).",
   ];
   switch (cmd) {
     case "watch": return { title: `Watch ${name}`, color: C.gold, yes: "Watch", lines: [`${name} goes on the watch list and shows as "watch" at least. Nothing happens to the player.`],
       note: { label: "Why (optional, admins only)", placeholder: "e.g. reported in a ticket" } };
     case "unwatch": return { title: `Stop watching ${name}`, yes: "Stop watching", lines: ["The risk goes back to what the findings say."] };
-    case "mark": return { title: `Mark ${name} for Zombita Bites`, color: C.red, yes: "Mark and hunt", lines: bites };
-    case "unmark": return { title: `Unmark ${name}`, color: C.green, yes: "Unmark", lines: [`${name} comes off Zombita Bites' list. A hunt going on stops within seconds, and the next login is normal.`] };
+    case "mark": return { title: extra.again ? `Hunt ${name} again` : `Mark ${name} for Zombita Bites`, color: C.red, yes: "Mark and hunt", lines: bites };
+    case "mark_forever": return { title: `Mark ${name} permanently`, color: C.red, yes: "Mark permanently", lines: [
+      `${name} goes on Zombita Bites' list with a permanent mark ("!${name}" in zombita_bite.txt).`,
+      "Every character they make is hunted the same way: god mode and noclip switched off, a horde right around them, killed at 10 seconds, kicked at 20 seconds, the 3rd kick is a ban.",
+      "The mark stays through every death. There is no appeal lock: it only ends when an admin presses Unmark."] };
+    case "release": return { title: `Release ${name}`, color: C.green, yes: "Release", lines: [
+      `${name} comes off Zombita Bites' list. They can join and play again within seconds: no horde, no kick.`,
+      "Do this when their appeal ticket is accepted. The character Zombita killed is not given back automatically (restore it on the Deaths tab if you want to)."] };
+    case "unmark": return { title: `Unmark ${name}`, color: C.green, yes: "Unmark", lines: [`${name} comes off Zombita Bites' list (a permanent mark too). A hunt going on stops within seconds, and the next login is normal.`] };
     case "kick": return { title: `Kick ${name}`, color: C.amber, yes: "Kick", lines: [
       `The bot kicks ${name} within a few seconds if they are online (a line in zombita_autokick.txt, source "security").`,
       "If they are not online in the next 15 minutes, nothing happens. They can join again right away. The admin channel gets a line."],
@@ -209,7 +217,7 @@ export default function SecurityApp() {
             <button key={k} onClick={() => go(k)} className="font-mono text-[0.72rem] uppercase tracking-[0.12em] px-3 py-2 cursor-pointer whitespace-nowrap"
               style={{ color: tab === k ? C.gold : C.muted, background: "transparent", border: 0, borderBottom: `2px solid ${tab === k ? C.gold : "transparent"}`, marginBottom: -1 }}>
               {label}{k === "households" && Array.isArray(sec.pairs) ? ` (${sec.pairs.filter((p) => p.verdict === "one").length})` : ""}
-              {k === "bites" && Array.isArray(thr.bites?.marked) && thr.bites.marked.length ? ` (${thr.bites.marked.length})` : ""}
+              {k === "bites" && ((thr.bites?.marked || []).length + (thr.bites?.appeal || []).length) ? ` (${(thr.bites?.marked || []).length + (thr.bites?.appeal || []).length})` : ""}
             </button>
           ))}
         </nav>

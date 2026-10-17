@@ -50,6 +50,7 @@ function PlayerRow({ p, active, onPick }) {
       <div className="flex items-center gap-2">
         <span className="flex-1 min-w-0 truncate text-[0.92rem]" style={{ color: C.bright }}>{p.name}</span>
         {p.marked && <span className="font-mono text-[0.58rem] uppercase px-1" style={{ color: C.red, border: `1px solid ${C.red}66` }}>bites</span>}
+        {p.appeal && <span className="font-mono text-[0.58rem] uppercase px-1" style={{ color: C.amber, border: `1px solid ${C.amber}66` }}>appeal</span>}
         <RiskChip r={p.risk} small />
       </div>
       <div className="flex items-center gap-x-2 gap-y-1 flex-wrap mt-1 font-mono text-[0.64rem]" style={{ color: C.muted }}>
@@ -128,32 +129,64 @@ export function PlayersTab({ rep, filter, setFilter, sel, setSel, busy, act, onR
 }
 
 // ---------------- Zombita Bites ----------------
-const BITE_KIND = { mark: "marked", hunt: "hunted", kill: "killed by Zombita", kick: "kicked", ban: "banned (3rd kick)", died: "died, mark cleared",
-  unmark: "taken off the list", skillguard: "skill guard: impossible new character", autokick_kick: "the bot kicked", autokick_ban: "the bot banned",
-  site_mark: "marked on the site", site_unmark: "unmarked on the site", site_kick: "kick asked on the site", site_ban: "ban asked on the site" };
+const BITE_KIND = { mark: "marked", hunt: "hunted", kill: "killed by Zombita", kick: "kicked", ban: "banned (3rd kick)", died: "character died",
+  unmark: "taken off the list", release: "released", appeal_try: "tried to join (waiting for appeal)", appeal_kick: "kicked: waiting for appeal",
+  skillguard: "skill guard: impossible new character", autokick_kick: "the bot kicked", autokick_ban: "the bot banned",
+  site_mark: "marked on the site", site_mark_forever: "marked permanently on the site", site_unmark: "unmarked on the site",
+  site_release: "released on the site", site_kick: "kick asked on the site", site_ban: "ban asked on the site" };
+
+function biteState(p) {
+  if (p.appeal) return <span style={{ color: C.amber }}>waiting for appeal</span>;
+  if (p.marked) return <span style={{ color: C.red }}>{p.forever ? "hunted, permanent" : "hunted"}</span>;
+  return "no";
+}
 
 export function BitesTab({ rep, busy, act, openPlayer }) {
   const B = rep.bites || {};
   const people = Array.isArray(B.people) ? B.people : [];
   const marked = Array.isArray(B.marked) ? B.marked : [];
+  const appeal = Array.isArray(B.appeal) ? B.appeal : [];
+  const forever = new Set((Array.isArray(B.marked_forever) ? B.marked_forever : []).map((m) => String(m).toLowerCase()));
+  const tries = Object.fromEntries(people.map((p) => [String(p.name).toLowerCase(), n(p.attempts)]));
+  const nameBtn = (m) => <button onClick={() => openPlayer(m)} className="text-[0.95rem] cursor-pointer" style={{ color: C.bright, background: "transparent", border: 0, padding: 0 }}>{m}</button>;
   return (
     <div className="grid gap-4 grid-cols-[minmax(0,1fr)] lg:grid-cols-2 items-start">
-      <Box title={`Marked now (${marked.length})`} note="On zombita_bite.txt: hunted every time they are online, until the character dies.">
-        {marked.length === 0 && <p className="text-[0.85rem] m-0" style={{ color: C.muted }}>Nobody is marked.</p>}
+      <Box title={`Hunted now (${marked.length})`} note="Hunted every time they are online. A plain mark ends when the character dies (then they wait for an appeal); a permanent mark stays through every death.">
+        {marked.length === 0 && <p className="text-[0.85rem] m-0" style={{ color: C.muted }}>Nobody is hunted.</p>}
         <div className="flex flex-col gap-2">
           {marked.map((m) => (
             <div key={m} className="flex items-center gap-2 flex-wrap">
-              <button onClick={() => openPlayer(m)} className="text-[0.95rem] cursor-pointer" style={{ color: C.bright, background: "transparent", border: 0, padding: 0 }}>{m}</button>
-              <span className="ml-auto"><Btn color={C.green} disabled={busy} onClick={() => act("unmark", m)}>Unmark</Btn></span>
+              {nameBtn(m)}
+              {forever.has(m.toLowerCase()) && <span className="font-mono text-[0.6rem] uppercase px-1" style={{ color: C.red, border: `1px solid ${C.red}66` }}>permanent</span>}
+              <span className="ml-auto flex gap-2 flex-wrap">
+                {!forever.has(m.toLowerCase()) && <Btn color={C.red} disabled={busy} onClick={() => act("mark_forever", m)}>Make permanent</Btn>}
+                <Btn color={C.green} disabled={busy} onClick={() => act("unmark", m)}>Unmark</Btn>
+              </span>
             </div>
           ))}
         </div>
       </Box>
-      <Box title="Everyone Zombita bit" note={`Last ${rep.window_days || 14} days`}>
-        <Table head={["Player", "Marked", "Hunted", "Kicked", "Banned", "Last"]} empty="Nobody yet."
+      <Box title={`Waiting for appeal (${appeal.length})`} note="Their hunted character died. Every login is kicked at once and told to open a ticket on Discord. An admin decides.">
+        {appeal.length === 0 && <p className="text-[0.85rem] m-0" style={{ color: C.muted }}>Nobody is waiting.</p>}
+        <div className="flex flex-col gap-2">
+          {appeal.map((m) => (
+            <div key={m} className="flex items-center gap-2 flex-wrap">
+              {nameBtn(m)}
+              <span className="font-mono text-[0.68rem]" style={{ color: C.muted }}>{plural(tries[m.toLowerCase()] || 0, "attempt")}</span>
+              <span className="ml-auto flex gap-2 flex-wrap">
+                <Btn color={C.green} disabled={busy} onClick={() => act("release", m)}>Release</Btn>
+                <Btn color={C.red} disabled={busy} onClick={() => act("mark", m, { again: true })}>Hunt again</Btn>
+                <Btn color={C.red} disabled={busy} onClick={() => act("mark_forever", m)}>Mark permanently</Btn>
+              </span>
+            </div>
+          ))}
+        </div>
+      </Box>
+      <Box title="Everyone Zombita bit" note={`Last ${rep.window_days || 14} days`} className="lg:col-span-2">
+        <Table head={["Player", "Now", "Hunted", "Kicked", "Tried to join", "Banned", "Last"]} empty="Nobody yet."
           rows={people.map((p) => [
             <button key="n" onClick={() => openPlayer(p.name)} className="cursor-pointer" style={{ color: C.bright, background: "transparent", border: 0, padding: 0 }}>{p.name}</button>,
-            p.marked ? <span style={{ color: C.red }}>yes</span> : "no", n(p.hunts), n(p.kicks), p.banned ? <span style={{ color: C.red }}>yes</span> : "no",
+            biteState(p), n(p.hunts), n(p.kicks), n(p.attempts), p.banned ? <span style={{ color: C.red }}>yes</span> : "no",
             <span key="t" className="font-mono text-[0.7rem]">{p.last ? utc(p.last) : "?"}</span>])} />
       </Box>
       <Box title="What happened" note="Newest first: the game's lines, the bot's kicks and bans, and the site's buttons." className="lg:col-span-2">

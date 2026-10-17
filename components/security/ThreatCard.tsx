@@ -91,7 +91,8 @@ function Stat({ k, v, note = "" }) {
 }
 
 const ACT_LABEL = { watch: "watch", unwatch: "stopped watching", clear: "cleared a finding", unclear: "counted a finding again", note: "note",
-  mark: "marked for Zombita Bites", unmark: "took off Zombita Bites", kick: "asked a kick", ban: "asked a ban" };
+  mark: "marked for Zombita Bites", mark_forever: "marked permanently", unmark: "took off Zombita Bites", release: "released (appeal)",
+  kick: "asked a kick", ban: "asked a ban" };
 
 // act(cmd, extra) asks first (Confirm) and then posts
 export default function ThreatCard({ p, rep, busy, act, onReport, onBack = null }) {
@@ -112,7 +113,8 @@ export default function ThreatCard({ p, rep, busy, act, onReport, onBack = null 
           <div className="flex items-center gap-2 flex-wrap mt-2">
             <RiskChip r={p.risk} />
             {p.watched && <span className="font-mono text-[0.62rem] uppercase tracking-[0.1em]" style={{ color: C.gold }}>on the watch list</span>}
-            {p.marked && <span className="font-mono text-[0.62rem] uppercase tracking-[0.1em] px-1.5" style={{ color: C.red, border: `1px solid ${C.red}66` }}>marked for Zombita Bites</span>}
+            {p.marked && <span className="font-mono text-[0.62rem] uppercase tracking-[0.1em] px-1.5" style={{ color: C.red, border: `1px solid ${C.red}66` }}>{p.marked_forever ? "marked permanently" : "marked for Zombita Bites"}</span>}
+            {p.appeal && <span className="font-mono text-[0.62rem] uppercase tracking-[0.1em] px-1.5" style={{ color: C.amber, border: `1px solid ${C.amber}66` }}>waiting for appeal</span>}
           </div>
         </div>
         <Btn color={C.gold} onClick={onReport}>Write case report</Btn>
@@ -143,9 +145,23 @@ export default function ThreatCard({ p, rep, busy, act, onReport, onBack = null 
           {p.watched
             ? <Btn disabled={busy} onClick={() => act("unwatch", name)}>Stop watching</Btn>
             : <Btn color={C.gold} disabled={busy} onClick={() => act("watch", name)}>Watch</Btn>}
-          {p.marked
-            ? <Btn color={C.green} disabled={busy} onClick={() => act("unmark", name)}>Unmark (stop the hunt)</Btn>
-            : <Btn color={C.red} disabled={busy} onClick={() => act("mark", name)}>Mark for Zombita Bites</Btn>}
+          {p.appeal ? (
+            <>
+              <Btn color={C.green} disabled={busy} onClick={() => act("release", name)}>Release (let them play)</Btn>
+              <Btn color={C.red} disabled={busy} onClick={() => act("mark", name, { again: true })}>Hunt again</Btn>
+              <Btn color={C.red} disabled={busy} onClick={() => act("mark_forever", name)}>Mark permanently</Btn>
+            </>
+          ) : p.marked ? (
+            <>
+              <Btn color={C.green} disabled={busy} onClick={() => act("unmark", name)}>Unmark (stop the hunt)</Btn>
+              {!p.marked_forever && <Btn color={C.red} disabled={busy} onClick={() => act("mark_forever", name)}>Make permanent</Btn>}
+            </>
+          ) : (
+            <>
+              <Btn color={C.red} disabled={busy} onClick={() => act("mark", name)}>Mark for Zombita Bites</Btn>
+              <Btn color={C.red} disabled={busy} onClick={() => act("mark_forever", name)}>Mark permanently</Btn>
+            </>
+          )}
           <Btn color={C.amber} disabled={busy} onClick={() => act("kick", name)}>Kick</Btn>
           <Btn color={C.red} disabled={busy || !rep.can_ban} title={rep.can_ban ? "" : "The bot can't ban yet: install Zombita_autokick_ban.zip"} onClick={() => act("ban", name)}>Ban</Btn>
           <Btn disabled={busy} onClick={() => act("note", name)}>Add a note</Btn>
