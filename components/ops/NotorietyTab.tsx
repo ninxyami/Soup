@@ -90,26 +90,24 @@ export default function NotorietyTab() {
       </div>
       {msg && <div style={{ ...mono, fontSize: 12, color: C.gold, marginBottom: 8 }}>{msg}</div>}
 
-      <table style={{ width: "100%", borderCollapse: "collapse", ...mono, fontSize: 12 }}>
-        <thead>
-          <tr style={{ color: C.grey, textAlign: "left", borderBottom: `1px solid ${C.line}` }}>
-            <th style={{ padding: 4 }}>Player</th><th>Stage</th><th>Score</th><th>Tab</th><th>Raids</th><th>Lately</th><th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {players.length === 0 && <tr><td colSpan={7} style={{ padding: 8, color: C.grey }}>Nobody yet.</td></tr>}
+      {/* One card per player (was a 7-column table: in the narrow Live Ops panel the buttons fell off the right edge). */}
+      <div style={{ ...mono, fontSize: 12 }}>
+          {players.length === 0 && <div style={{ padding: 8, color: C.grey }}>Nobody yet.</div>}
           {players.map((p) => {
             const color = p.marked ? C.red : p.lastWarning ? C.amber : n(p.stage) >= 2 ? C.gold : C.text;
             const why = (Array.isArray(p.why) ? p.why : []).slice(0, 2).map((w) => (n(w.pts) > 0 ? `+${w.pts} ` : "") + w.why).join("; ");
+            const tab = (n(p.tab) > 0 ? money(p.tab) : "") + (n(p.rate) > 0 ? ` +${money(p.rate)}/h` : n(p.rate) < 0 ? ` -${money(-p.rate)}/h` : "");
             return (
-              <tr key={p.name} style={{ borderBottom: `1px solid ${C.line}` }}>
-                <td style={{ padding: 4, color }}>{p.name}</td>
-                <td style={{ color }}>{p.marked ? "MARKED" : p.lastWarning ? "LAST WARNING" : p.stageName}{p.calm ? " (calm)" : ""}</td>
-                <td>{p.score} <span style={{ color: C.grey }}>({p.heat} + {p.standing})</span></td>
-                <td style={{ color: C.gold }}>{n(p.tab) > 0 ? money(p.tab) : ""}{n(p.rate) > 0 ? ` +${money(p.rate)}/h` : n(p.rate) < 0 ? ` -${money(-p.rate)}/h` : ""}</td>
-                <td>{n(p.raids) || ""}</td>
-                <td style={{ color: C.grey, maxWidth: 320, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={why}>{why}</td>
-                <td style={{ whiteSpace: "nowrap" }}>
+              <div key={p.name} style={{ borderBottom: `1px solid ${C.line}`, padding: "8px 4px" }}>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 14px", alignItems: "baseline" }}>
+                  <span style={{ color, fontSize: 13, fontWeight: 600 }}>{p.name}</span>
+                  <span style={{ color }}>{p.marked ? "MARKED" : p.lastWarning ? "LAST WARNING" : p.stageName}{p.calm ? " (calm)" : ""}</span>
+                  <span>score {p.score} <span style={{ color: C.grey }}>({p.heat} + {p.standing})</span></span>
+                  {tab && <span style={{ color: C.gold }}>tab {tab}</span>}
+                  {n(p.raids) > 0 && <span>raids {n(p.raids)}</span>}
+                </div>
+                {why && <div style={{ color: C.grey, marginTop: 4, lineHeight: 1.4, wordBreak: "break-word" }}>{why}</div>}
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 6 }}>
                   <button style={btn()} disabled={busy} onClick={() => sure(`Clear ${p.name}'s notoriety (back to 0, unmarked)? The tab stays.`) && send({ cmd: "clear", name: p.name }, "Clearing")}>Clear</button>
                   <button style={btn(C.gold)} disabled={busy} onClick={() => {
                     const v = ask(`${p.name}'s tab in bronze (0 clears it):`, String(n(p.tab)));
@@ -122,12 +120,11 @@ export default function NotorietyTab() {
                     <button style={btn(C.red)} disabled={busy} onClick={() => sure(`Send Queen Dusk's horde at ${p.name} now? Friends near them get half.`) && send({ cmd: "raid_now", name: p.name, kind: "dusk" }, "Sending a raid")}>Dusk raid</button>
                     <button style={btn(C.red)} disabled={busy} onClick={() => sure(`Send Silas Crowe's bandits at ${p.name} now?`) && send({ cmd: "raid_now", name: p.name, kind: "crowe" }, "Sending bandits")}>Crowe raid</button>
                   </>}
-                </td>
-              </tr>
+                </div>
+              </div>
             );
           })}
-        </tbody>
-      </table>
+      </div>
 
       <div style={{ marginTop: 16, ...mono, fontSize: 12 }}>
         <div style={{ color: C.gold, marginBottom: 6 }}>Numbers (changed in the game at once, kept across restarts)</div>
