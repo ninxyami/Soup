@@ -134,11 +134,18 @@ function Settings({ settings, onSaved, toast }) {
     <div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 8 }}>
         <Inp label="Newspaper title (masthead)" {...f("title")} />
-        <div className="ap-fg"><label className="ap-fl">Weekly paper</label><Toggle value={s.enabled === "1"} onChange={(v) => setS({ ...s, enabled: v ? "1" : "0" })} /></div>
+        <div className="ap-fg"><label className="ap-fl">Zombita's paper on</label><Toggle value={s.enabled === "1"} onChange={(v) => setS({ ...s, enabled: v ? "1" : "0" })} /></div>
         <Sel label="Zombita writes on" {...f("write_dow")}>{DAYS.map((d, i) => <option key={i} value={String(i)}>{d}</option>)}</Sel>
         <Inp label="at (hour, UTC)" type="number" min="0" max="23" {...f("write_hour")} />
         <Sel label="Published on" {...f("publish_dow")}>{DAYS.map((d, i) => <option key={i} value={String(i)}>{d}</option>)}</Sel>
         <Inp label="at (hour, UTC)" type="number" min="0" max="23" {...f("publish_hour")} />
+        {/* news_twice (bot patch 2026-10-17): a second paper each week; "none" = weekly */}
+        {"write2_dow" in settings && <>
+          <Sel label="Second paper: Zombita writes on" {...f("write2_dow")}><option value="">none (one paper a week)</option>{DAYS.map((d, i) => <option key={i} value={String(i)}>{d}</option>)}</Sel>
+          <Inp label="at (hour, UTC)" type="number" min="0" max="23" {...f("write2_hour")} />
+          <Sel label="Second paper: published on" {...f("publish2_dow")}><option value="">none (one paper a week)</option>{DAYS.map((d, i) => <option key={i} value={String(i)}>{d}</option>)}</Sel>
+          <Inp label="at (hour, UTC)" type="number" min="0" max="23" {...f("publish2_hour")} />
+        </>}
         <Inp label="Reminders (hours after writing, comma separated)" {...f("reminders")} />
         <Inp label="Skip the week if the activity score is under" type="number" min="0" {...f("min_activity")} />
         <Inp label="Stories besides the headline (1-4)" type="number" min="1" max="4" {...f("max_stories")} />
