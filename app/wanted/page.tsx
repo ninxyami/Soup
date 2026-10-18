@@ -2,11 +2,15 @@
 // WANTED (2026-10-14, mod 1.7.196 Notoriety + bounties): Silas Crowe's board. Everyone Zombita has warned in public
 // (Warned) or Queen Dusk has marked (Marked), with their poster and price. Noticed players are never shown here.
 // Logged in: your own notoriety card. Data: GET /api/notoriety, /api/notoriety/me, posters /api/notoriety/poster/{name}.
+// HALL OF INFAMY (2026-10-18, mod 1.8.20 + bot notoriety_hall): the biggest bounty each player ever reached, this season and
+// ALL TIME, with the title Zombita gave them and Queen Dusk's remark (GET /api/notoriety "hall"). Nobody is paid for it.
 import { useEffect, useState } from "react";
 import { API } from "@/lib/constants";
 
 interface Wanted { name: string; stage: string; marked: boolean; lastWarning: boolean; tab: number; rate: number; raids: number; remark: string }
 interface Me { on: boolean; linked: boolean; name?: string; me?: any; lines?: Record<string, number> }
+interface HallRow { rank: number; name: string; maxTab: number; at: number; first: number; title: string; remark: string; reasons: string[]; season?: string }
+interface Hall { season: HallRow[]; alltime: HallRow[]; since: number }
 
 function money(b: number) {
   const v = Math.max(0, Math.round(Number(b) || 0));
@@ -15,6 +19,79 @@ function money(b: number) {
   if (s) parts.push(`${s.toLocaleString("en-US")} silver`);
   if (r || !parts.length) parts.push(`${r} bronze`);
   return parts.join(" ");
+}
+
+function day(epoch: number) {
+  if (!epoch) return "";
+  return new Date(epoch * 1000).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+// "s1792281600" (the game's season id = when it began) -> "Oct 18, 2026"
+function seasonDay(id?: string) {
+  const n = Number(String(id || "").replace(/^s/, ""));
+  return n > 0 ? day(n) : "";
+}
+
+const RANK_COLOR = ["#e0b54b", "#c3c7cf", "#c9834a"];
+
+function HallOfInfamy({ hall, myName }: { hall: Hall; myName?: string }) {
+  const [tab, setTab] = useState<"season" | "alltime">("season");
+  const rows = (tab === "season" ? hall.season : hall.alltime) || [];
+  const mine = (myName || "").toLowerCase();
+  return (
+    <section className="mt-10">
+      <h2 className="text-[1.25rem] text-[#e6e8ec] font-semibold m-0">Hall of Infamy</h2>
+      <p className="text-[0.85rem] text-[#8a8f98] mt-1 mb-4 leading-relaxed max-w-[760px]">
+        The biggest price Silas Crowe ever put on each head. Zombita picks a title for everyone on it, and Queen Dusk always
+        has something to say. Nobody gets paid for being here. It&apos;s a record, not a reward.
+      </p>
+      <div className="flex gap-2 mb-4" role="tablist">
+        {(["season", "alltime"] as const).map((k) => (
+          <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)}
+                  className="font-mono text-[0.7rem] uppercase tracking-widest px-3 py-1.5 border"
+                  style={{ borderColor: tab === k ? "#c8a84b" : "#2a2f37", color: tab === k ? "#c8a84b" : "#8a8f98",
+                           background: tab === k ? "#1a1710" : "transparent" }}>
+            {k === "season" ? "This season" : "All time"}
+          </button>
+        ))}
+        {tab === "season" && hall.since > 0 && (
+          <span className="self-center font-mono text-[0.68rem] text-[#5d636d] ml-1">since {day(hall.since)}</span>
+        )}
+      </div>
+      {rows.length === 0 ? (
+        <p className="text-[#8a8f98] text-[0.88rem]">
+          {tab === "season" ? "Nobody has had a price on their head this season. Yet." : "The hall is empty. Queen Dusk finds that boring."}
+        </p>
+      ) : (
+        <ol className="list-none p-0 m-0 flex flex-col gap-2">
+          {rows.map((r) => {
+            const me = mine !== "" && r.name.toLowerCase() === mine;
+            return (
+              <li key={`${tab}-${r.name}`} className="bg-[#0d1117] border p-3 flex gap-3"
+                  style={{ borderColor: me ? "#c8a84b" : "#1e2530" }}>
+                <div className="font-mono text-[1.1rem] font-semibold w-8 shrink-0 text-right"
+                     style={{ color: RANK_COLOR[r.rank - 1] || "#5d636d" }}>{r.rank}</div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                    <span className="text-[#e6e8ec] font-semibold break-all">{r.name}{me ? " (you)" : ""}</span>
+                    <span className="text-[0.82rem] text-[#c8a84b]">{r.title}</span>
+                    <span className="font-mono text-[0.8rem] text-[#e05555] sm:ml-auto">{money(r.maxTab)}</span>
+                  </div>
+                  <div className="text-[0.82rem] text-[#aab1bc] italic mt-1">&quot;{r.remark}&quot; (Queen Dusk)</div>
+                  <div className="font-mono text-[0.66rem] text-[#5d636d] mt-1">
+                    {r.first > 0 && r.first !== r.at ? <>wanted since {day(r.first)} · </> : null}
+                    peak {day(r.at)}
+                    {tab === "alltime" && seasonDay(r.season) ? <> · season of {seasonDay(r.season)}</> : null}
+                    {r.reasons && r.reasons.length > 0 ? <> · wanted for {r.reasons.join(", ")}</> : null}
+                  </div>
+                </div>
+              </li>
+            );
+          })}
+        </ol>
+      )}
+    </section>
+  );
 }
 
 function Poster({ w }: { w: Wanted }) {
@@ -87,7 +164,7 @@ function MyCard({ me }: { me: Me }) {
 }
 
 export default function WantedPage() {
-  const [board, setBoard] = useState<{ on: boolean; players: Wanted[] } | null>(null);
+  const [board, setBoard] = useState<{ on: boolean; players: Wanted[]; hall?: Hall } | null>(null);
   const [me, setMe] = useState<Me | null>(null);
   const [err, setErr] = useState("");
 
@@ -137,6 +214,7 @@ export default function WantedPage() {
           </div>
         </>
       )}
+      {board?.hall && <HallOfInfamy hall={board.hall} myName={me?.linked ? me.name : undefined} />}
     </main>
   );
 }
