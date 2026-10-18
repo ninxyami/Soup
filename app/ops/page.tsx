@@ -864,6 +864,7 @@ function CarInspect({ t, act, players, onClose }) {
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
   const [keyTo, setKeyTo] = useState(t.player || "");
+  const [bringTo, setBringTo] = useState("");
   const target = useMemo(() => (t.player ? { player: t.player } : t.vid != null ? { vid: t.vid } : { sid: t.sid }), [t]);
   const read = useCallback(async () => {
     try { setRep(await api(`/api/admin/ops/car?${carQuery(t)}`)); setNote(""); }
@@ -875,6 +876,16 @@ function CarInspect({ t, act, players, onClose }) {
   }, [act, target, read]);
   useEffect(() => { inspect(); }, [inspect]);
   const fix = (cmd, extra = {}, ask = "") => { if (ask && !confirm(ask)) return; act(cmd, { ...target, ...extra }, read); };
+  // mod 1.8.20 BRING CAR: the car the player DRIVES goes beside another player, or to x, y (floor). Their game does the
+  // move, so the report is read again a few seconds after the game says it asked.
+  const bring = () => {
+    const v = bringTo.trim();
+    const m = v.match(/^(\d+)\s*[, ]\s*(\d+)(?:\s*[, ]\s*(\d+))?$/);
+    const dest = m ? { x: Number(m[1]), y: Number(m[2]), ...(m[3] != null ? { z: Number(m[3]) } : {}) } : { to: v };
+    const where = m ? `${m[1]}, ${m[2]}${m[3] != null ? ` (floor ${m[3]})` : ""}` : `beside ${v} (3 tiles east of them)`;
+    if (!confirm(`Bring ${t.player}'s car to ${where}?\n\n${t.player} has to sit in the DRIVER's seat of this car, and the spot has to be within 60 tiles of where the car is now. Their game moves it, so it takes a few seconds.`)) return;
+    act("car_bring", { player: t.player, ...dest }, () => { setTimeout(read, 6000); });
+  };
   const h = { ...mono, fontSize: 10, color: C.grey, textTransform: "uppercase", letterSpacing: 1, marginTop: 6 };
   const bar = (label, v, right = null) => {
     const n = Math.max(0, Math.min(100, Math.round(Number(v) || 0)));
@@ -929,6 +940,12 @@ function CarInspect({ t, act, players, onClose }) {
           <datalist id="ops-car-key">{players.map((pp) => <option key={pp.name} value={pp.name} />)}</datalist>
           <Btn small disabled={!keyTo.trim()} onClick={() => fix("car_key", { to: keyTo.trim() })}>Give key</Btn>
         </div>
+        {t.player ? (
+          <div style={{ display: "flex", gap: 6 }}>
+            <input style={inp} list="ops-car-key" placeholder="Bring car to (online player, or x, y)" value={bringTo} onChange={(e) => setBringTo(e.target.value)} />
+            <Btn small disabled={!bringTo.trim()} onClick={bring}>Bring car</Btn>
+          </div>
+        ) : null}
         <div style={h}>Parts ({(r.parts || []).length})</div>
         {(r.parts || []).slice().sort((a, b) => (b.missing - a.missing) || (a.cond - b.cond)).map((pt) => (
           <div key={pt.id} style={{ display: "flex", gap: 6, alignItems: "center", ...mono, fontSize: 11 }}>
