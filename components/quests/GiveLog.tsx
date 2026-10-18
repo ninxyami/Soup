@@ -4,9 +4,62 @@
 // answered (Log), with the specials and IOUs the bot keeps.
 
 import { useEffect, useRef, useState } from "react";
-import { C, MONO, BODY, Btn, Card, Note, Pill, Input, Select, Label, Empty, ItemsEditor, money, ago, fmt, inputStyle } from "./ui";
+import { C, MONO, BODY, Btn, Card, Note, Pill, Input, Select, Label, Empty, ItemsEditor, ItemIcon, money, ago, fmt, inputStyle } from "./ui";
 
 const TWISTS = ["ambush", "road", "moved", "bandits", "bait"];
+const TIER_ORDER = "DCBAS";
+// Nin 2026-10-18: "random option too and also pre options for items based on difficulty. lighter is common so D so if i just put
+// lighter it will auto select the difficulty". Auto tier = the hardest tier among the reward items (their shop rarity: common D,
+// uncommon C, rare B, epic A, legendary S; the bot's give_tiers); an item the shop doesn't sell counts as B, no items = B. Random type = any type that has that tier.
+const FALLBACK_TIER = "B";
+function autoTier(items, meta) {
+  let best = "";
+  for (const [id] of items) {
+    const t = meta[id] || FALLBACK_TIER;         // not sold in shops: counted as B
+    if (!best || TIER_ORDER.indexOf(t) > TIER_ORDER.indexOf(best)) best = t;
+  }
+  return best || FALLBACK_TIER;
+}
+/** the allowed tier nearest to want (a type that has no D job: its lowest tier above, else the highest below) */
+function nearestTier(want, allowed) {
+  if (allowed.includes(want)) return want;
+  const i = TIER_ORDER.indexOf(want);
+  return allowed.find((t) => TIER_ORDER.indexOf(t) > i) || allowed[allowed.length - 1] || want;
+}
+const tiersOf = (t) => String(t?.tiers || "DCBAS").split("");
+
+// A few shop items of one tier's rarity, one click each (GET /api/admin/jobs/items/ideas, the bot's give_tiers).
+function ItemIdeas({ apiGet, tier, onAdd }) {
+  const [t, setT] = useState(tier);
+  const [ideas, setIdeas] = useState(null);
+  const [err, setErr] = useState("");
+  const load = (x) => {
+    setT(x); setIdeas(null); setErr("");
+    apiGet(`/api/admin/jobs/items/ideas?tier=${x}`)
+      .then((d) => { setIdeas(d?.ideas || []); if (d?.error) setErr(d.error); })
+      .catch(() => { setIdeas([]); setErr("Item ideas need the bot's give_tiers update."); });
+  };
+  return (
+    <div style={{ marginTop: 10 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+        <span style={{ fontFamily: MONO, fontSize: 11, color: C.faint, letterSpacing: 1 }}>ITEM IDEAS</span>
+        {TIER_ORDER.split("").map((x) => <Btn key={x} sm c={ideas && t === x ? "solid" : "dim"} onClick={() => load(x)}>{x}</Btn>)}
+        {ideas && <Btn sm c="dim" onClick={() => load(t)}>Shuffle</Btn>}
+      </div>
+      {ideas && ideas.length === 0 && <Note style={{ marginTop: 6 }}>{err || "No shop items of that rarity."}</Note>}
+      {ideas && ideas.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+          {ideas.map((it) => (
+            <button key={it.id} type="button" title={`${it.id} (${it.rarity})`} onClick={() => onAdd(it)}
+              style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 8px", background: C.bg, border: `1px solid ${C.line}`, color: C.text, cursor: "pointer", fontFamily: BODY, fontSize: 13 }}>
+              <ItemIcon id={it.id} size={20} />{it.name}<span style={{ color: C.gold, fontFamily: MONO }}>+</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // Player box with a list (Nin 2026-10-17: no typing names). Empty box = who's online now (Live Ops state); typing
 // searches every in-game name the rankings know (all characters ever seen), online ones first. Free typing still works.
@@ -65,15 +118,29 @@ function PlayerPicker({ value, onChange, apiGet }) {
 
 export function Give({ state, send, apiGet }) {
   const types = (state.control?.types || []).filter((t) => t.live !== false);
-  const [f, setF] = useState({ player: "", type: types[0]?.id || "horde", tier: "B", coins: "", hours: "", title: "", text: "", twist: "", test: false });
+  const [f, setF] = useState({ player: "", type: "random", tier: "auto", coins: "", hours: "", title: "", text: "", twist: "", test: false });
   const [items, setItems] = useState([]);
+  const [meta, setMeta] = useState({});        // item id -> its rarity tier ("" = the shop doesn't sell it)
+  const noteItem = (it) => setMeta((m) => ({ ...m, [it.id]: it.tier || "" }));
+  const addIdea = (it) => {
+    noteItem(it);
+    setItems((cur) => (cur.some((x) => x[0] === it.id) || cur.length >= 20 ? cur : [...cur, [it.id, 1]]));
+  };
   const set = (k) => (v) => setF((s) => ({ ...s, [k]: v }));
   // a test job only when the game (mod 1.8.12: testJobs) AND the bot (jobs_test_give: testGive) both handle it, else it'd be real
   const canTest = state?.testJobs === true && state?.testGive === true;
   const t = types.find((x) => x.id === f.type);
-  const tiers = t ? String(t.tiers || "DCBAS").split("") : ["D", "C", "B", "A", "S"];
+  const tiers = t ? tiersOf(t) : ["D", "C", "B", "A", "S"];
+  const auto = autoTier(items, meta);
+  const tier = f.tier === "auto" ? nearestTier(auto, tiers) : f.tier;
+  const unknown = items.filter(([id]) => !meta[id]).map(([id]) => id);
   const go = () => {
-    const a = { player: f.player.trim(), type: f.type, tier: f.tier };
+    let type = f.type;
+    if (type === "random") {
+      const fit = types.filter((x) => tiersOf(x).includes(tier));
+      type = (fit.length ? fit : types)[Math.floor(Math.random() * (fit.length || types.length))]?.id || "horde";
+    }
+    const a = { player: f.player.trim(), type, tier };
     if (f.coins !== "" && f.coins != null) a.coins = Math.max(0, Math.min(100000, Math.floor(Number(f.coins) || 0)));
     if (f.hours !== "" && f.hours != null) a.hours = Math.max(0.5, Math.min(168, Number(f.hours) || 1));
     if (f.title.trim()) a.title = f.title.trim().slice(0, 60);
@@ -81,7 +148,7 @@ export function Give({ state, send, apiGet }) {
     if (f.twist) a.twist = f.twist;
     if (items.length) a.items = items.map(([id, n]) => ({ id, n }));
     if (f.test && canTest) a.test = true;           // mod 1.8.12: plays normally, pays and records nothing
-    send("give", a, `${f.test ? "Test job" : "Job"} given to ${a.player}`);
+    send("give", a, `${f.test ? "Test job" : "Job"} (${type}, ${tier}) given to ${a.player}`);
   };
   return (
     <Card title="Give a quest">
@@ -89,8 +156,13 @@ export function Give({ state, send, apiGet }) {
         Leave a field empty to use the tier's normal value.</Note>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
         <div><Label>Player</Label><PlayerPicker value={f.player} onChange={set("player")} apiGet={apiGet} /></div>
-        <div><Label>Type</Label><Select value={f.type} onChange={set("type")} options={types.length ? types.map((x) => ({ value: x.id, label: x.name })) : [f.type]} /></div>
-        <div><Label>Tier</Label><Select value={f.tier} onChange={set("tier")} options={tiers} /></div>
+        <div><Label>Type</Label><Select value={f.type} onChange={set("type")}
+          options={[{ value: "random", label: "Random (any type)" }, ...types.map((x) => ({ value: x.id, label: x.name }))]} />
+          {f.type === "random" && <div style={{ fontFamily: MONO, fontSize: 11, color: C.faint, marginTop: 3 }}>picked when you press Give, from the types that have tier {tier}</div>}</div>
+        <div><Label>Tier</Label><Select value={f.tier} onChange={set("tier")}
+          options={[{ value: "auto", label: `Auto (${tier})` }, ...tiers.map((x) => ({ value: x, label: x }))]} />
+          {f.tier === "auto" && <div style={{ fontFamily: MONO, fontSize: 11, color: C.faint, marginTop: 3 }}>
+            {items.length ? `from the reward's rarity${unknown.length ? `; not sold in shops: ${unknown.length} (counted as ${FALLBACK_TIER})` : ""}` : `add an item, or ${FALLBACK_TIER}`}</div>}</div>
         <div><Label>Twist</Label><Select value={f.twist} onChange={set("twist")} options={[{ value: "", label: "none" }, ...TWISTS]} /></div>
         <div><Label>Pay (bronze)</Label><Input type="number" value={f.coins} onChange={set("coins")} placeholder="tier's pot" min={0} max={100000} />
           {f.coins !== "" && <div style={{ fontFamily: MONO, fontSize: 11, color: C.faint, marginTop: 3 }}>{money(Number(f.coins) || 0)}</div>}</div>
@@ -99,7 +171,8 @@ export function Give({ state, send, apiGet }) {
       <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 12, marginTop: 12 }}>
         <div><Label>Title (optional)</Label><Input value={f.title} onChange={set("title")} placeholder="Zombita's own words if empty" /></div>
         <div><Label>Text (optional)</Label><Input value={f.text} onChange={set("text")} /></div>
-        <div><Label>Extra items for the winner (optional)</Label><ItemsEditor items={items} onChange={setItems} apiGet={apiGet} /></div>
+        <div><Label>Extra items for the winner (optional)</Label><ItemsEditor items={items} onChange={setItems} apiGet={apiGet} onMeta={noteItem} />
+          <ItemIdeas apiGet={apiGet} tier={tier} onAdd={addIdea} /></div>
       </div>
       <label style={{ display: "flex", gap: 10, alignItems: "flex-start", marginTop: 16, cursor: canTest ? "pointer" : "not-allowed", padding: "10px 12px",
         opacity: canTest ? 1 : 0.55, border: `1px solid ${f.test ? C.orange : C.line}`, background: f.test ? "rgba(212,135,58,0.08)" : "transparent" }}>

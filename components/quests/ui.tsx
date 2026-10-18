@@ -227,7 +227,7 @@ export function ItemPicker({ apiGet, onPick, onClose }) {
             <ItemIcon id={it.id} size={30} />
             <span style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontFamily: BODY, fontSize: 14 }}>{it.name}</div>
-              <div style={{ fontFamily: MONO, fontSize: 11, color: C.dim }}>{it.id}{it.category ? ` / ${it.category}` : ""}{it.mod ? ` / ${it.mod}` : ""}</div>
+              <div style={{ fontFamily: MONO, fontSize: 11, color: C.dim }}>{it.id}{it.category ? ` / ${it.category}` : ""}{it.mod ? ` / ${it.mod}` : ""}{it.rarity ? ` / ${it.rarity} (tier ${it.tier})` : ""}</div>
             </span>
             <span style={{ fontFamily: MONO, color: C.gold }}>+ {n}</span>
           </button>
@@ -239,7 +239,7 @@ export function ItemPicker({ apiGet, onPick, onClose }) {
 }
 
 /** Edit a list of [item, count] pairs. */
-export function ItemsEditor({ items, onChange, apiGet }) {
+export function ItemsEditor({ items, onChange, apiGet, onMeta = null }) {
   const [pick, setPick] = useState(false);
   const set = (i, n) => onChange(items.map((it, k) => (k === i ? [it[0], Math.max(1, Math.min(100, Number(n) || 1))] : it)));
   return (
@@ -264,6 +264,7 @@ export function ItemsEditor({ items, onChange, apiGet }) {
       </div>
       {pick && (
         <ItemPicker apiGet={apiGet} onClose={() => setPick(false)} onPick={(it, n) => {
+          if (onMeta) onMeta(it);           // the Give form keeps each item's rarity tier (give_tiers)
           const i = items.findIndex((x) => x[0] === it.id);
           onChange(i >= 0 ? items.map((x, k) => (k === i ? [x[0], Math.min(100, x[1] + n)] : x)) : [...items, [it.id, n]]);
           setPick(false);
