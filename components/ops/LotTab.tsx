@@ -4,6 +4,8 @@
 // Duke's cars (admins add a vehicle id + price; a sale spawns that car on the lot) and Hattie's animals (prices, off sale), plus where
 // the lot and the pen are and how big. The game keeps the lists; it rewrites zombita_lot_state.txt every minute and after every change.
 // Data: GET /api/admin/lot. Changes: POST /api/admin/lot {action, ...}, answer at /api/admin/lot/reply/{id} (only while the server is up).
+// 2026-10-19 (mod 1.8.21, lot_shelf_patch.py): Hattie's rotating shelf (8 animals a 12 h roll, limited stock): re-roll, put an
+// animal on it, set or refill its stock. Every price box shows its allowed range (the game refuses a price outside it).
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { API } from "@/lib/constants";
 
@@ -66,6 +68,57 @@ function Area({ which, a, busy, send }) {
   );
 }
 
+function left(sec) {
+  const v = Math.max(0, Math.floor(n(sec)));
+  const h = Math.floor(v / 3600), m = Math.floor((v % 3600) / 60);
+  if (v < 60) return "any moment now";
+  return h ? `${h} h ${m} min` : `${m} min`;
+}
+
+function Shelf({ st, busy, send }) {
+  const [stock, setStock] = useState({});
+  const [pick, setPick] = useState("");
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 30000); return () => clearInterval(t); }, []);
+  const byId = useMemo(() => Object.fromEntries((st.animals || []).map((a) => [a.id, a])), [st]);
+  const shelf = st.shelf || [];
+  const onShelf = new Set(shelf.map((s) => s.id));
+  const choices = (st.animals || []).filter((a) => !onShelf.has(a.id) && !a.off && !a.missing);
+  const secs = n(st.shelf_next) - Math.floor((now / 1000) - n(st.at));
+  return (
+    <>
+      <Card title={`Hattie's shelf now (${shelf.length})`}
+        right={<Btn color={C.red} disabled={busy} onClick={() => { if (confirm("Roll a new shelf for Hattie now? Every animal and its stock is replaced.")) send({ action: "shelf_roll" }, "New shelf rolled."); }}>Re-roll now</Btn>}>
+        <Note>New animals in {left(secs)}. Each roll puts 8 animals out, picked by rarity, with limited stock. Sold out stays sold out until the next roll.</Note>
+        {shelf.length === 0 && <Note color={C.gold}>Nothing on the shelf yet (the game writes it once the server is up).</Note>}
+        {shelf.map((s) => {
+          const a = byId[s.id] || { name: s.id, price: 0 };
+          return (
+            <Row key={s.id} style={{ borderTop: `1px solid ${C.line}`, paddingTop: 6 }}>
+              <span style={{ ...mono, fontSize: 12, minWidth: 230, color: a.off || a.missing ? C.grey : C.text }}>{a.name}{a.off ? "  (off sale: players don't see it)" : ""}</span>
+              <b style={{ ...mono, fontSize: 12, color: C.gold, minWidth: 80 }}>{money(a.price)}</b>
+              <span style={{ ...mono, fontSize: 12, minWidth: 90, color: n(s.left) > 0 ? C.green : C.red }}>{n(s.left) > 0 ? `${s.left} of ${s.max} left` : "sold out"}</span>
+              <input style={{ ...inp, width: 60 }} placeholder="stock" value={stock[s.id] || ""} onChange={(e) => setStock({ ...stock, [s.id]: e.target.value })} title="0 to 99" />
+              <Btn disabled={busy || !(stock[s.id] || "").trim()} onClick={async () => { if (await send({ action: "shelf_stock", id: s.id, stock: stock[s.id] }, "Stock set.")) setStock({ ...stock, [s.id]: "" }); }}>Set stock</Btn>
+              <Btn color={C.green} disabled={busy} onClick={() => send({ action: "shelf_stock", id: s.id, stock: "refill" }, "Refilled.")}>Refill</Btn>
+            </Row>
+          );
+        })}
+      </Card>
+      <Card title="Put an animal on the shelf">
+        <Row>
+          <select style={{ ...inp, width: 300 }} value={pick} onChange={(e) => setPick(e.target.value)}>
+            <option value="">pick an animal...</option>
+            {choices.map((a) => <option key={a.id} value={a.id}>{`${a.name} (${money(a.price)})`}</option>)}
+          </select>
+          <Btn color={C.green} disabled={busy || !pick} onClick={async () => { if (await send({ action: "shelf_add", id: pick }, "On the shelf.")) setPick(""); }}>Put on shelf</Btn>
+        </Row>
+        <Note>It goes on this shelf with its usual stock until the next roll.</Note>
+      </Card>
+    </>
+  );
+}
+
 export default function LotTab() {
   const [st, setSt] = useState(null);
   const [err, setErr] = useState("");
@@ -119,9 +172,12 @@ export default function LotTab() {
   if (!st.ok) return <Note color={C.gold}>{st.why}</Note>;
   const cars = st.cars || [];
   const animals = (st.animals || []).filter((a) => a.group === group);
-  const priceBox = (id) => (
-    <input style={{ ...inp, width: 90 }} placeholder="price" value={prices[id] || ""} onChange={(e) => setPrices({ ...prices, [id]: e.target.value })}
-      title="Bronze (52000) or 5g 2s / 15s / 300b" />
+  const priceBox = (id, row = null) => (
+    <>
+      <input style={{ ...inp, width: 90 }} placeholder="price" value={prices[id] || ""} onChange={(e) => setPrices({ ...prices, [id]: e.target.value })}
+        title="Bronze (52000) or 15s / 15s 200b / 300b" />
+      {row && n(row.lo) > 0 && <span style={{ ...mono, fontSize: 10, color: C.grey }}>{`${money(row.lo)} to ${money(row.hi)}`}</span>}
+    </>
   );
   const clearBox = (id) => setPrices((p) => ({ ...p, [id]: "" }));
 
@@ -131,6 +187,7 @@ export default function LotTab() {
       <Row>
         <Btn color={view === "cars" ? C.gold : C.grey} onClick={() => setView("cars")}>Duke: cars</Btn>
         <Btn color={view === "animals" ? C.gold : C.grey} onClick={() => setView("animals")}>Hattie: animals</Btn>
+        <Btn color={view === "shelf" ? C.gold : C.grey} onClick={() => setView("shelf")}>Hattie: shelf</Btn>
         <span style={{ marginLeft: "auto" }} />
         <Note color={st.car_on ? C.green : C.gold}>Car shop {st.car_on ? "ON" : "OFF for players"}</Note>
         <Note color={st.animal_on ? C.green : C.gold}>Animal shop {st.animal_on ? "ON" : "OFF for players"}</Note>
@@ -163,7 +220,7 @@ export default function LotTab() {
                 <span style={{ ...mono, fontSize: 12, minWidth: 200, color: c.missing ? C.grey : C.text }}>{c.name}</span>
                 <span style={{ ...mono, fontSize: 11, color: C.grey, minWidth: 190 }}>{c.script}{c.missing ? "  (the game can't make it: mod missing?)" : ""}</span>
                 <b style={{ ...mono, fontSize: 12, color: C.gold, minWidth: 90 }}>{money(c.price)}</b>
-                {priceBox(c.id)}
+                {priceBox(c.id, c)}
                 <Btn disabled={busy || !(prices[c.id] || "").trim()} onClick={async () => { if (await send({ action: "price", id: c.id, price: prices[c.id] }, "Priced.")) clearBox(c.id); }}>Price</Btn>
                 <Btn color={C.red} disabled={busy} onClick={() => { if (confirm(`Take ${c.name} off Duke's list?`)) send({ action: "car_remove", script: c.script }, "Removed."); }}>Remove</Btn>
               </Row>
@@ -172,6 +229,8 @@ export default function LotTab() {
           <Area which="car" a={st.lot} busy={busy} send={send} />
         </>
       )}
+
+      {view === "shelf" && <Shelf st={st} busy={busy} send={send} />}
 
       {view === "animals" && (
         <>
@@ -187,7 +246,7 @@ export default function LotTab() {
                   {a.name}{a.off ? "  (off sale)" : ""}{a.missing ? "  (not in this world)" : ""}</span>
                 <b style={{ ...mono, fontSize: 12, color: C.gold, minWidth: 80 }}>{money(a.price)}</b>
                 <span style={{ ...mono, fontSize: 11, color: C.grey, minWidth: 90 }}>{a.price !== a.def ? `(was ${money(a.def)})` : ""}</span>
-                {priceBox(a.id)}
+                {priceBox(a.id, a)}
                 <Btn disabled={busy || !(prices[a.id] || "").trim()} onClick={async () => { if (await send({ action: "price", id: a.id, price: prices[a.id] }, "Priced.")) clearBox(a.id); }}>Price</Btn>
                 <Btn disabled={busy || !(prices[a.id] || "").trim()} title="Every breed / age of this kind at this price"
                   onClick={async () => { if (await send({ action: "price_group", prefix: kindPrefix(a.id), price: prices[a.id] }, "Priced.")) clearBox(a.id); }}>All breeds</Btn>

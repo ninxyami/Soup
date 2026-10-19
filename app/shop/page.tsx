@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { API } from "@/lib/constants";
 import LocalGoods from "./LocalGoods";
+import HattieAnimals from "./HattieAnimals";
 
 // id MUST equal the backend shop_type string (see zombita_shop_catalog).
 // NPC names / roles / locations mirror the in-game ZS_NPCData.lua keepers.
@@ -549,6 +550,9 @@ export default function ShopPage() {
 
         {/* Wholesale (only while it's switched on) */}
         <LocalGoods />
+
+        {/* Hattie's animals (her 12 h shelf, limited stock) */}
+        <HattieAnimals />
 
         {/* How it works */}
         <div className="mt-8 grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
