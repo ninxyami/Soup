@@ -43,6 +43,7 @@ import JobsTab            from "./tabs/JobsTab";
 import QuestControlTab    from "./tabs/QuestControlTab";
 import QuestRewardsTab    from "./tabs/QuestRewardsTab";
 import CardsTab           from "./tabs/CardsTab";
+import TreasureTab        from "./tabs/TreasureTab";
 
 const NAV_SECTIONS = [
   { label: "COMMAND", items: [
@@ -73,6 +74,7 @@ const NAV_SECTIONS = [
     { key: "dotd",           icon: "💀", label: "Dawn of Dead" },
     { key: "mira",           icon: "🛰️", label: "Project MIRA" },
     { key: "hunt",           icon: "🗺️", label: "Treasure Hunt" },
+    { key: "treasure",       icon: "📱", label: "Treasure" },
     { key: "questcontrol",   icon: "🎛️", label: "Quest Control" },
     { key: "jobs",           icon: "📋", label: "Zombita's Jobs" },
     { key: "jobrewards",     icon: "🎁", label: "Quest Rewards" },
@@ -127,6 +129,7 @@ const PANELS = {
   dotd:        DotdTab,
   mira:        MiraTab,
   hunt:        HuntTab,
+  treasure:    TreasureTab,
   players:     PlayersTab,
   games:       GamesTab,
   reputation:  ReputationTab,

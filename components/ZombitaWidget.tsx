@@ -1,11 +1,12 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
+import { usePathname } from "next/navigation";
 import { API, AVATAR_BASE, GUEST_LIMIT } from "@/lib/constants";
 
 interface Msg { role: "user" | "zombita"; text: string; }
 interface SessionMsg { role: "user" | "admin"; sender_name: string; message: string; }
 
-export default function ZombitaWidget() {
+function ZombitaWidgetInner() {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<"chat" | "contact">("chat");
   const [msgs, setMsgs] = useState<Msg[]>([]);
@@ -312,4 +313,11 @@ export default function ZombitaWidget() {
       </div>
     </>
   );
+}
+
+// The event phone page (/p) fills the whole screen: no chat bubble over it
+export default function ZombitaWidget() {
+  const pathname = usePathname();
+  if (pathname === "/p" || pathname?.startsWith("/p/")) return null;
+  return <ZombitaWidgetInner />;
 }

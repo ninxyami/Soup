@@ -33,6 +33,9 @@ export default function Nav() {
     { href: "/feed", label: "Feed" },
   ];
 
+  // The event phone page (/p) is its own full-screen app, opened from a QR in game: no site menu at all
+  if (pathname === "/p" || pathname?.startsWith("/p/")) return null;
+
   // The map, Live Ops and the Workspace are full-screen pages: the site menu stays hidden there, behind a small
   // "menu" tab at the top edge that slides it in over the page when it's needed
   const toolPage = pathname === "/map" || pathname?.startsWith("/ops") || pathname?.startsWith("/workspace");
