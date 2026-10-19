@@ -15,6 +15,7 @@ const SHOPS = [
   { id: "librarian", label: "Miles's Library",   npc: "Miles Ashford",  role: "Books & Skills",     icon: "📚", location: "Greenleaf",                      portrait: "/shop/miles.png"   },
   { id: "melee",     label: "Bruno's Workshop",  npc: "Bruno Kessler",  role: "Melee & Tools",      icon: "🔨", location: "Constown",                       portrait: "/shop/bruno.png"   },
   { id: "music",     label: "Scarlett's Records", npc: "Scarlett Vance", role: "Community Tapes",    icon: "🎵", location: "See the map: the cassette sign", portrait: "/shop/scarlett.png" },
+  { id: "animals",   label: "Hattie's Livestock & Pets", npc: "Hattie Brennan", role: "Pet Supplies",  icon: "🐄", location: "Zombita's Diner",                portrait: null                },
   { id: "global",    label: "General Stores",    npc: "Six keepers",    role: "Everyday Goods",     icon: "⛽", location: "39 stores in 26 towns",          portrait: null                },
 ];
 
@@ -379,7 +380,7 @@ export default function ShopPage() {
             SHOP NETWORK
           </h1>
           <p className="font-mono text-[0.72rem] text-[#555]">
-            Eight specialist keepers plus 39 general stores across Kentucky. Scarlett sells only the songs players share in #song-submissions. Stock rotates every three days;{" "}
+            Nine specialist keepers plus 39 general stores across Kentucky. Hattie also sells animals: see her pens below. Scarlett sells only the songs players share in #song-submissions. Stock rotates every three days;{" "}
             <a href="/intel" className="text-accent no-underline hover:underline">Zombita drops hints</a> before it happens.
             Player listings live in the phone&apos;s <strong className="text-[#888]">Marketplace</strong> app and on every kiosk&apos;s Marketplace tab.
           </p>
