@@ -8,7 +8,8 @@
    "role": "Melee & Tools",
    "town": "Constown",
    "x": 5496,
-   "y": 11186
+   "y": 11186,
+   "shop": "melee"
   },
   {
    "kind": "shop",
@@ -17,7 +18,8 @@
    "role": "General Store",
    "town": "Frogtown",
    "x": 3725,
-   "y": 6984
+   "y": 6984,
+   "shop": "global"
   },
   {
    "kind": "shop",
@@ -26,7 +28,8 @@
    "role": "General Store",
    "town": "Irvington",
    "x": 2530,
-   "y": 14476
+   "y": 14476,
+   "shop": "global"
   },
   {
    "kind": "shop",
@@ -35,7 +38,8 @@
    "role": "General Store",
    "town": "March Ridge",
    "x": 10137,
-   "y": 12792
+   "y": 12792,
+   "shop": "global"
   },
   {
    "kind": "shop",
@@ -44,7 +48,8 @@
    "role": "General Store",
    "town": "Oakshire",
    "x": 8602,
-   "y": 7821
+   "y": 7821,
+   "shop": "global"
   },
   {
    "kind": "shop",
@@ -53,7 +58,8 @@
    "role": "General Store",
    "town": "Rosewood",
    "x": 8286,
-   "y": 12225
+   "y": 12225,
+   "shop": "global"
   },
   {
    "kind": "shop",
@@ -62,7 +68,8 @@
    "role": "General Store",
    "town": "Safeharbor Garrison",
    "x": 12099,
-   "y": 10676
+   "y": 10676,
+   "shop": "global"
   },
   {
    "kind": "shop",
@@ -71,7 +78,8 @@
    "role": "Tailor & Apparel",
    "town": "March Ridge",
    "x": 10081,
-   "y": 12815
+   "y": 12815,
+   "shop": "tailor"
   },
   {
    "kind": "shop",
@@ -80,7 +88,8 @@
    "role": "General Store",
    "town": "Daisy County",
    "x": 10037,
-   "y": 8077
+   "y": 8077,
+   "shop": "global"
   },
   {
    "kind": "shop",
@@ -89,7 +98,8 @@
    "role": "General Store",
    "town": "Ekron",
    "x": 653,
-   "y": 9910
+   "y": 9910,
+   "shop": "global"
   },
   {
    "kind": "shop",
@@ -98,7 +108,8 @@
    "role": "General Store",
    "town": "Grapeseed",
    "x": 6498,
-   "y": 11179
+   "y": 11179,
+   "shop": "global"
   },
   {
    "kind": "shop",
@@ -107,7 +118,8 @@
    "role": "General Store",
    "town": "Muldraugh",
    "x": 10669,
-   "y": 10636
+   "y": 10636,
+   "shop": "global"
   },
   {
    "kind": "shop",
@@ -116,7 +128,8 @@
    "role": "General Store",
    "town": "Nettle Township",
    "x": 7055,
-   "y": 9449
+   "y": 9449,
+   "shop": "global"
   },
   {
    "kind": "shop",
@@ -125,7 +138,8 @@
    "role": "General Store",
    "town": "Raccoon City",
    "x": 9946,
-   "y": 10171
+   "y": 10171,
+   "shop": "global"
   },
   {
    "kind": "shop",
@@ -134,7 +148,18 @@
    "role": "General Store",
    "town": "West Point",
    "x": 11820,
-   "y": 6874
+   "y": 6874,
+   "shop": "global"
+  },
+  {
+   "kind": "shop",
+   "id": "duke",
+   "name": "Duke Harlan",
+   "role": "Cars & Titles",
+   "town": "Zombita's Diner",
+   "x": 7336,
+   "y": 8292,
+   "shop": "cars"
   },
   {
    "kind": "shop",
@@ -143,7 +168,8 @@
    "role": "General Store",
    "town": "Bradenburg",
    "x": 1672,
-   "y": 5751
+   "y": 5751,
+   "shop": "global"
   },
   {
    "kind": "shop",
@@ -152,7 +178,8 @@
    "role": "General Store",
    "town": "Constown",
    "x": 5351,
-   "y": 11242
+   "y": 11242,
+   "shop": "global"
   },
   {
    "kind": "shop",
@@ -161,7 +188,8 @@
    "role": "General Store",
    "town": "Daisy County",
    "x": 10389,
-   "y": 7481
+   "y": 7481,
+   "shop": "global"
   },
   {
    "kind": "shop",
@@ -170,7 +198,8 @@
    "role": "General Store",
    "town": "Dixie",
    "x": 11517,
-   "y": 8827
+   "y": 8827,
+   "shop": "global"
   },
   {
    "kind": "shop",
@@ -179,7 +208,8 @@
    "role": "General Store",
    "town": "Riverside",
    "x": 5423,
-   "y": 5865
+   "y": 5865,
+   "shop": "global"
   },
   {
    "kind": "shop",
@@ -188,7 +218,8 @@
    "role": "General Store",
    "town": "Willowbrook",
    "x": 9046,
-   "y": 9864
+   "y": 9864,
+   "shop": "global"
   },
   {
    "kind": "shop",
@@ -197,7 +228,18 @@
    "role": "Medical Supplies",
    "town": "Oakshire",
    "x": 8468,
-   "y": 7778
+   "y": 7778,
+   "shop": "medical"
+  },
+  {
+   "kind": "shop",
+   "id": "hattie",
+   "name": "Hattie Brennan",
+   "role": "Livestock & Pets",
+   "town": "Zombita's Diner",
+   "x": 7322,
+   "y": 8292,
+   "shop": "animals"
   },
   {
    "kind": "shop",
@@ -206,7 +248,8 @@
    "role": "General Store",
    "town": "Daisy County",
    "x": 10069,
-   "y": 7293
+   "y": 7293,
+   "shop": "global"
   },
   {
    "kind": "shop",
@@ -215,7 +258,8 @@
    "role": "General Store",
    "town": "Echo Creek",
    "x": 3567,
-   "y": 10906
+   "y": 10906,
+   "shop": "global"
   },
   {
    "kind": "shop",
@@ -224,7 +268,8 @@
    "role": "General Store",
    "town": "Havenfall",
    "x": 4376,
-   "y": 9261
+   "y": 9261,
+   "shop": "global"
   },
   {
    "kind": "shop",
@@ -233,7 +278,8 @@
    "role": "General Store",
    "town": "Muldraugh",
    "x": 10628,
-   "y": 9748
+   "y": 9748,
+   "shop": "global"
   },
   {
    "kind": "shop",
@@ -242,7 +288,8 @@
    "role": "General Store",
    "town": "Raccoon City",
    "x": 10032,
-   "y": 10427
+   "y": 10427,
+   "shop": "global"
   },
   {
    "kind": "shop",
@@ -251,7 +298,8 @@
    "role": "General Store",
    "town": "Valley Station",
    "x": 12688,
-   "y": 6528
+   "y": 6528,
+   "shop": "global"
   },
   {
    "kind": "shop",
@@ -260,7 +308,8 @@
    "role": "General Store",
    "town": "West Point",
    "x": 12071,
-   "y": 7153
+   "y": 7153,
+   "shop": "global"
   },
   {
    "kind": "shop",
@@ -269,7 +318,8 @@
    "role": "Gardener & Produce",
    "town": "Raccoon City",
    "x": 10217,
-   "y": 10100
+   "y": 10100,
+   "shop": "gardener"
   },
   {
    "kind": "shop",
@@ -278,7 +328,8 @@
    "role": "Books & Skills",
    "town": "Grapeseed",
    "x": 6620,
-   "y": 11148
+   "y": 11148,
+   "shop": "librarian"
   },
   {
    "kind": "shop",
@@ -287,7 +338,8 @@
    "role": "General Store",
    "town": "Anruisi Town",
    "x": 12137,
-   "y": 11587
+   "y": 11587,
+   "shop": "global"
   },
   {
    "kind": "shop",
@@ -296,7 +348,8 @@
    "role": "General Store",
    "town": "Blackstone",
    "x": 15388,
-   "y": 7698
+   "y": 7698,
+   "shop": "global"
   },
   {
    "kind": "shop",
@@ -305,7 +358,8 @@
    "role": "General Store",
    "town": "Bradenburg",
    "x": 2059,
-   "y": 6430
+   "y": 6430,
+   "shop": "global"
   },
   {
    "kind": "shop",
@@ -314,7 +368,8 @@
    "role": "General Store",
    "town": "Constown",
    "x": 6122,
-   "y": 11168
+   "y": 11168,
+   "shop": "global"
   },
   {
    "kind": "shop",
@@ -323,7 +378,8 @@
    "role": "General Store",
    "town": "Dixie",
    "x": 11600,
-   "y": 8314
+   "y": 8314,
+   "shop": "global"
   },
   {
    "kind": "shop",
@@ -332,7 +388,8 @@
    "role": "General Store",
    "town": "Riverside",
    "x": 6066,
-   "y": 5310
+   "y": 5310,
+   "shop": "global"
   },
   {
    "kind": "shop",
@@ -341,7 +398,8 @@
    "role": "General Store",
    "town": "Fallas Lake",
    "x": 7310,
-   "y": 8198
+   "y": 8198,
+   "shop": "global"
   },
   {
    "kind": "shop",
@@ -350,7 +408,8 @@
    "role": "General Store",
    "town": "Grapeseed",
    "x": 7224,
-   "y": 11229
+   "y": 11229,
+   "shop": "global"
   },
   {
    "kind": "shop",
@@ -359,7 +418,8 @@
    "role": "General Store",
    "town": "Irvington",
    "x": 2421,
-   "y": 13868
+   "y": 13868,
+   "shop": "global"
   },
   {
    "kind": "shop",
@@ -368,7 +428,8 @@
    "role": "General Store",
    "town": "Nettle Township",
    "x": 6651,
-   "y": 9495
+   "y": 9495,
+   "shop": "global"
   },
   {
    "kind": "shop",
@@ -377,7 +438,8 @@
    "role": "General Store",
    "town": "Oakshire",
    "x": 8742,
-   "y": 8220
+   "y": 8220,
+   "shop": "global"
   },
   {
    "kind": "shop",
@@ -386,7 +448,8 @@
    "role": "General Store",
    "town": "Rosewood",
    "x": 8170,
-   "y": 11283
+   "y": 11283,
+   "shop": "global"
   },
   {
    "kind": "shop",
@@ -395,7 +458,8 @@
    "role": "General Store",
    "town": "Safeharbor Garrison",
    "x": 12438,
-   "y": 10721
+   "y": 10721,
+   "shop": "global"
   },
   {
    "kind": "shop",
@@ -404,7 +468,8 @@
    "role": "Records & Tapes",
    "town": "Zombita's Diner",
    "x": 7330,
-   "y": 8289
+   "y": 8289,
+   "shop": "music"
   },
   {
    "kind": "shop",
@@ -413,7 +478,8 @@
    "role": "Parts & Mechanics",
    "town": "West Point",
    "x": 12261,
-   "y": 6945
+   "y": 6945,
+   "shop": "mechanic"
   },
   {
    "kind": "shop",
@@ -422,7 +488,8 @@
    "role": "Arms & Ammunition",
    "town": "Nettle Township",
    "x": 7097,
-   "y": 9549
+   "y": 9549,
+   "shop": "weapons"
   },
   {
    "kind": "bus",

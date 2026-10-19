@@ -18,6 +18,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { API } from "@/lib/constants";
+import { mapIconFor } from "@/lib/mapIcons";
 import GameTimeWidget from "@/components/GameTimeWidget";
 
 const TILE_BASE = (process.env.NEXT_PUBLIC_MAP_TILES || "https://api.stateofundeadpurge.site/map-tiles/v1").replace(/\/$/, "");
@@ -62,6 +63,7 @@ const CSS = `
 .wm-pin{transform:translate(-50%,-50%);pointer-events:auto;cursor:pointer;display:flex!important;align-items:center;gap:4px;white-space:nowrap}
 .wm-pin .dot{display:inline-block;flex:0 0 auto;width:15px;height:15px;border-radius:50%;border:2px solid #0b0d10;box-shadow:0 0 0 1px rgba(255,255,255,.45),0 1px 4px rgba(0,0,0,.6)}
 .wm-pin .lbl{font:600 12px/1.2 var(--mono,monospace);color:#e6e6e6;text-shadow:0 1px 2px #000,0 0 3px #000;letter-spacing:.3px}
+.wm-pin .ico{display:inline-block;flex:0 0 auto;width:22px;height:22px;image-rendering:pixelated;filter:drop-shadow(0 1px 2px rgba(0,0,0,.7))}
 .wm-pin.town{pointer-events:none}
 .wm-pin.town .lbl{font:600 15px/1.2 'Bebas Neue',sans-serif;letter-spacing:1.5px;color:#f2f2f2;text-transform:uppercase}
 /* OpenSeadragon writes an inline display on every overlay, so these need !important */
@@ -1273,7 +1275,10 @@ export default function WorldMap({ places = NONE, dots = NONE, rects = NONE, hid
         const vp = toVp(OSD, mid(p.x), mid(p.y), 0); if (!vp) continue;
         const el = document.createElement("div");
         el.className = `wm-pin ${p.kind}`;
-        el.innerHTML = p.kind === "town" ? `<span class="lbl"></span>` : `<span class="dot" style="background:${KIND[p.kind]?.color || "#fff"}"></span><span class="lbl"></span>`;
+        const ico = mapIconFor(p);               // the game's own sign (mod 1.8.23): the shop type's, else the cart; bus, diner
+        el.innerHTML = p.kind === "town" ? `<span class="lbl"></span>`
+          : ico ? `<img class="ico" alt="" src="${ico}"><span class="lbl"></span>`
+          : `<span class="dot" style="background:${KIND[p.kind]?.color || "#fff"}"></span><span class="lbl"></span>`;
         el.querySelector(".lbl").textContent = p.name;
         if (p.kind !== "town") {
           el.addEventListener("mouseenter", () => { const r = el.getBoundingClientRect(), w = wrap.current.getBoundingClientRect(); setTip({ p, left: r.left - w.left + 14, top: r.top - w.top + 14 }); });
