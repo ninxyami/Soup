@@ -7,6 +7,7 @@ export const NAV_LINKS = [
   { href: "/server", label: "Server" },
   { href: "/map", label: "Map" },
   { href: "/features", label: "Features" },
+  { href: "/reviews", label: "Reviews" },
   { href: "/shop", label: "Shop" },
   { href: "/marketplace", label: "Market" },
   { href: "/news", label: "News" },

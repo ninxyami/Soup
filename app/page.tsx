@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { API, CURRENT_SEASON } from "@/lib/constants";
 import { timeAgo } from "@/lib/utils";
 import ServerGoalBar from "@/components/ServerGoalBar";
+import { HomeReviews } from "@/components/reviews/Reviews";
 
 interface Post {
   id: string; display_name: string; avatar_url: string; content: string;
@@ -377,6 +378,9 @@ export default function HomePage() {
         <MapShowcase />
 
         <div className="h-px bg-[#1a1a1a]" />
+
+        {/* ── PLAYER REVIEWS (Discord star ratings; hidden when there are none or the API is down) ── */}
+        <HomeReviews />
 
         {/* ── WHAT IS THIS ── */}
         <section className="py-14 sm:py-20">
