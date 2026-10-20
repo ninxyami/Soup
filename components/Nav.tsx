@@ -33,6 +33,11 @@ export default function Nav() {
     { href: "/feed", label: "Feed" },
   ];
 
+  // Shop, the player market and Zombita's intel share one economy header with tabs, so the Shop link stays lit on all three
+  const ECONOMY_PAGES = ["/shop", "/marketplace", "/intel"];
+  const isActive = (href: string) =>
+    href === "/shop" ? ECONOMY_PAGES.some(p => pathname === p || pathname?.startsWith(p + "/")) : pathname === href;
+
   // The event phone page (/p) is its own full-screen app, opened from a QR in game: no site menu at all
   if (pathname === "/p" || pathname?.startsWith("/p/")) return null;
 
@@ -61,7 +66,7 @@ export default function Nav() {
         {/* Desktop: nav links left */}
         <div className="hidden md:flex items-center gap-6 flex-1 flex-wrap">
           {allLinks.map(l => (
-            <Link key={l.href} href={l.href} className={`nav-link${pathname === l.href ? " active" : ""}${l.href === "/feed" ? " text-[#4a7c59]" : ""}`}>
+            <Link key={l.href} href={l.href} className={`nav-link${isActive(l.href) ? " active" : ""}${l.href === "/feed" ? " text-[#4a7c59]" : ""}`}>
               {l.label}
             </Link>
           ))}
@@ -147,7 +152,7 @@ export default function Nav() {
           <div className="px-5 py-1 grid grid-cols-2">
             {allLinks.map(l => (
               <Link key={l.href} href={l.href}
-                className={`nav-link py-3 pr-3 border-b border-[#181818] text-[0.8rem]${pathname === l.href ? " active" : ""}${l.href === "/feed" ? " text-[#4a7c59]" : ""}`}
+                className={`nav-link py-3 pr-3 border-b border-[#181818] text-[0.8rem]${isActive(l.href) ? " active" : ""}${l.href === "/feed" ? " text-[#4a7c59]" : ""}`}
                 onClick={() => setOpen(false)}>
                 {l.label}
               </Link>

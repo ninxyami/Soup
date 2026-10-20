@@ -363,6 +363,12 @@ export default function HomePage() {
               Explore Features →
             </Link>
           </div>
+          <p className="mt-5 font-mono text-[0.65rem] tracking-[0.15em] text-[#555]">
+            Past seasons:{" "}
+            <Link href="/archive" className="text-[#888] no-underline border-b border-[#333] hover:text-[#c8a84b] hover:border-[#c8a84b] transition-all">
+              the Archive →
+            </Link>
+          </p>
         </div>
       </header>
 

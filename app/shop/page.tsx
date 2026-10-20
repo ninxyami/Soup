@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { API } from "@/lib/constants";
+import EconomyHeader from "@/components/EconomyHeader";
 import LocalGoods from "./LocalGoods";
 import HattieAnimals from "./HattieAnimals";
 
@@ -348,21 +349,7 @@ export default function ShopPage() {
     <div className="scanline min-h-screen" style={{background:"#080a0c",color:"#c8cdd6"}}>
 
       {/* Header */}
-      <header className="px-4 sm:px-8 py-4 border-b border-[#1e2530] bg-[#0f1318] sticky top-[49px] z-10">
-        <div className="max-w-[1000px] mx-auto flex items-center gap-3">
-          <a href="/" className="font-mono text-[0.65rem] text-[#444] hover:text-[#c8cdd6] no-underline tracking-widest hidden sm:block">← S.O.U.P</a>
-          <span className="font-display text-2xl tracking-[3px] text-accent" style={{fontFamily:"'Bebas Neue',sans-serif",textShadow:"0 0 20px rgba(200,168,75,0.25)"}}>
-            THE ECONOMY
-          </span>
-          <div className="flex-1" />
-          <a href="/marketplace" className="font-mono text-[0.65rem] px-3 py-1.5 border border-[#4a8fc4] text-[#4a8fc4] no-underline hover:bg-[#4a8fc4] hover:text-black transition-all">
-            🏪 Marketplace
-          </a>
-          <a href="/intel" className="font-mono text-[0.65rem] px-3 py-1.5 border border-[#1e2530] text-[#555] no-underline hover:border-accent hover:text-accent transition-all">
-            📰 Intel
-          </a>
-        </div>
-      </header>
+      <EconomyHeader active="shop" />
 
       {/* Notice */}
       <div className="border-b border-[#1e2530]" style={{background:"rgba(200,168,75,0.04)"}}>

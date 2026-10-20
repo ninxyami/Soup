@@ -9,7 +9,6 @@ export const NAV_LINKS = [
   { href: "/features", label: "Features" },
   { href: "/reviews", label: "Reviews" },
   { href: "/shop", label: "Shop" },
-  { href: "/marketplace", label: "Market" },
   { href: "/news", label: "News" },
   { href: "/newspaper", label: "Paper" },
   { href: "/mods", label: "Mods" },
@@ -20,9 +19,7 @@ export const NAV_LINKS = [
   { href: "/cards", label: "Cards" },
   { href: "/factions", label: "Factions" },
   { href: "/players", label: "Players" },
-  { href: "/archive", label: "Archive" },
   { href: "/zombita", label: "Zombita" },
-  { href: "/whitelist", label: "Whitelist" },
 ];
 
 export const ADMIN_NAV_LINKS = [

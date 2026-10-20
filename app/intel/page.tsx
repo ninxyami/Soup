@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { API } from "@/lib/constants";
+import EconomyHeader from "@/components/EconomyHeader";
 import { timeAgo } from "@/lib/utils";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -151,21 +152,7 @@ export default function NewsPage() {
     <div className="scanline min-h-screen" style={{ background: "#080a0c", color: "#c8cdd6" }}>
 
       {/* Header */}
-      <header className="px-4 sm:px-8 py-4 border-b border-[#1e2530] bg-[#0f1318] sticky top-[49px] z-10">
-        <div className="max-w-[680px] mx-auto flex items-center gap-3">
-          <a href="/" className="font-mono text-[0.65rem] text-[#444] hover:text-[#c8cdd6] no-underline tracking-widest hidden sm:block">← S.O.U.P</a>
-          <span className="font-display text-2xl tracking-[3px] text-[#c8a84b]" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
-            ZOMBITA&apos;S INTEL
-          </span>
-          <div className="flex-1" />
-          <a href="/shop" className="font-mono text-[0.65rem] px-3 py-1.5 border border-[#1e2530] text-[#555] no-underline hover:border-accent hover:text-accent transition-all">
-            🏪 Shops
-          </a>
-          <a href="/marketplace" className="font-mono text-[0.65rem] px-3 py-1.5 border border-[#1e2530] text-[#555] no-underline hover:border-[#4a8fc4] hover:text-[#4a8fc4] transition-all">
-            🛒 Market
-          </a>
-        </div>
-      </header>
+      <EconomyHeader active="intel" />
 
       <div className="max-w-[680px] mx-auto">
 
