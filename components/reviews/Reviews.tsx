@@ -1,6 +1,6 @@
 "use client";
 // PLAYER REVIEWS (2026-10-19; v2 2026-10-20): players rate the server 1 to 5 stars and write reviews in Discord
-// (#feedback, the "Rate SOUP" and "Write a review" buttons). A review shows the writer's stars when they rated.
+// (#server-feedback, the "Rate SOUP" and "Write a review" buttons; the cards are in the reviews channel). A review shows the writer's stars when they rated.
 // Public data: GET /api/feedback?limit=N -> { score: {average, count, stars}, reviews: [...], updated }.
 // Texts are plain text from players: always rendered as text, never as HTML. Dates are relative only.
 // Used by the home page section (HomeReviews) and /reviews (ReviewsView).
@@ -206,7 +206,7 @@ export function HomeReviews() {
 function HowToRate() {
   return (
     <p className="text-[0.8rem] text-[#666] leading-relaxed m-0">
-      Played with us? Go to the #feedback channel on our{" "}
+      Played with us? Go to the #server-feedback channel on our{" "}
       <a href={DISCORD_INVITE} target="_blank" rel="noopener noreferrer" className="text-[#5865F2] hover:text-[#8891f7]">Discord</a>.
       Press <span className="text-[#c8a84b]">Rate SOUP</span> to give stars, or <span className="text-[#c8a84b]">Write a review</span> to
       tell others what it&apos;s like.
