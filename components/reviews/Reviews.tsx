@@ -1,5 +1,5 @@
 "use client";
-// PLAYER REVIEWS (2026-10-19): players rate the server 1 to 5 stars in Discord (#feedback, "Rate Zombita" button).
+// PLAYER REVIEWS (2026-10-19): players rate the server 1 to 5 stars in Discord (#feedback, "Rate SOUP" button).
 // Public data: GET /api/feedback?limit=N -> { score: {average, count, stars}, reviews: [...], updated }.
 // Texts are plain text from players: always rendered as text, never as HTML. Dates are relative only.
 // Used by the home page section (HomeReviews) and /reviews (ReviewsView).
@@ -196,7 +196,7 @@ function HowToRate() {
     <p className="text-[0.8rem] text-[#666] leading-relaxed m-0">
       Played with us? Add your own review in the #feedback channel on our{" "}
       <a href={DISCORD_INVITE} target="_blank" rel="noopener noreferrer" className="text-[#5865F2] hover:text-[#8891f7]">Discord</a>.
-      Press the <span className="text-[#c8a84b]">Rate Zombita</span> button there.
+      Press the <span className="text-[#c8a84b]">Rate SOUP</span> button there.
     </p>
   );
 }
