@@ -1,8 +1,6 @@
 "use client";
 // PLAYER REVIEWS (2026-10-19; v2 2026-10-20): players rate the server 1 to 5 stars and write reviews in Discord
-// (#server-feedback, the "Rate SOUP" and "Write a review" buttons; the review cards are in the reviews channel).
-// v4 (Nin 10-20, "stars can be personal"): a rating is private. Only the overall score is public; the list has reviews
-// only and never shows the writer's stars (the API sends "stars": null; this page drops ratings and stars itself too).
+// (#server-feedback, the "Rate SOUP" and "Write a review" buttons; the cards are in the reviews channel). A review shows the writer's stars when they rated.
 // Public data: GET /api/feedback?limit=N -> { score: {average, count, stars}, reviews: [...], updated }.
 // Texts are plain text from players: always rendered as text, never as HTML. Dates are relative only.
 // Used by the home page section (HomeReviews) and /reviews (ReviewsView).
@@ -29,14 +27,13 @@ function clean(d: any): Feedback | null {
   if (!d || typeof d !== "object" || !d.score) return null;
   const count = Number(d.score.count) || 0;
   const avg = d.score.average == null ? null : Number(d.score.average);
-  // v4: reviews only, never a rating, never who gave which stars (even if an older API still sends them)
   const reviews: Review[] = (Array.isArray(d.reviews) ? d.reviews : [])
-    .filter((r: any) => r && typeof r === "object" && r.kind === "review")
+    .filter((r: any) => r && typeof r === "object")
     .map((r: any) => ({
       id: Number(r.id) || 0,
       name: String(r.name ?? ""),
-      kind: "review" as Review["kind"],
-      stars: null,
+      kind: (r.kind === "review" ? "review" : "rating") as Review["kind"],
+      stars: Number(r.stars) >= 1 ? Math.min(5, Math.round(Number(r.stars))) : null,
       title: String(r.title ?? ""),
       liked: String(r.liked ?? ""),
       improve: String(r.improve ?? ""),
@@ -147,6 +144,7 @@ export function ReviewCard({ r }: { r: Review }) {
   return (
     <article className="border border-[#1a1a1a] bg-[#0a0d10] p-4 h-full flex flex-col">
       <div className="flex items-center gap-2 mb-2.5 flex-wrap">
+        {r.stars != null && <Stars value={r.stars} size={13} />}
         <span className="font-mono text-[0.7rem] text-[#777] truncate max-w-[180px]">{r.name}</span>
         <span className="font-mono text-[0.6rem] text-[#333] ml-auto">
           {relativeDay(r.at)}{r.edited ? " · edited" : ""}
@@ -158,12 +156,18 @@ export function ReviewCard({ r }: { r: Review }) {
       {r.liked.trim() !== "" && (
         <p className="text-[0.85rem] text-[#aaa] leading-relaxed whitespace-pre-line break-words m-0">{r.liked}</p>
       )}
+      {r.improve.trim() !== "" && (
+        <div className="mt-3 pt-2.5 border-t border-[#141414]">
+          <p className="font-mono text-[0.58rem] tracking-widest text-[#444] uppercase mb-1">Could be better:</p>
+          <p className="text-[0.75rem] text-[#555] leading-relaxed whitespace-pre-line break-words m-0">{r.improve}</p>
+        </div>
+      )}
     </article>
   );
 }
 
-// Something worth reading: a written review
-const hasWords = (r: Review) => r.title.trim() !== "" || r.liked.trim() !== "";
+// Something worth reading: a written review, or a rating with a line
+const hasWords = (r: Review) => r.title.trim() !== "" || r.liked.trim() !== "" || r.improve.trim() !== "";
 const hasScore = (d: Feedback) => d.score.count > 0 && d.score.average != null;
 
 // Home page section: hidden completely while loading, when the API fails, or when there's nothing yet
@@ -205,7 +209,7 @@ function HowToRate() {
       Played with us? Go to the #server-feedback channel on our{" "}
       <a href={DISCORD_INVITE} target="_blank" rel="noopener noreferrer" className="text-[#5865F2] hover:text-[#8891f7]">Discord</a>.
       Press <span className="text-[#c8a84b]">Rate SOUP</span> to give stars, or <span className="text-[#c8a84b]">Write a review</span> to
-      tell others what it&apos;s like. Your stars stay private: they only count in the score.
+      tell others what it&apos;s like.
     </p>
   );
 }
