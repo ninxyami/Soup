@@ -1,5 +1,6 @@
 "use client";
-// PLAYER REVIEWS (2026-10-19): players rate the server 1 to 5 stars in Discord (#feedback, "Rate SOUP" button).
+// PLAYER REVIEWS (2026-10-19; v2 2026-10-20): players rate the server 1 to 5 stars and write reviews in Discord
+// (#feedback, the "Rate SOUP" and "Write a review" buttons). A review shows the writer's stars when they rated.
 // Public data: GET /api/feedback?limit=N -> { score: {average, count, stars}, reviews: [...], updated }.
 // Texts are plain text from players: always rendered as text, never as HTML. Dates are relative only.
 // Used by the home page section (HomeReviews) and /reviews (ReviewsView).
@@ -10,7 +11,8 @@ import { API } from "@/lib/constants";
 export const DISCORD_INVITE = "https://discord.gg/zDwa2g37R";
 
 export interface Review {
-  id: number; name: string; stars: number; liked: string; improve: string; at: number; edited: boolean;
+  id: number; kind: "rating" | "review"; name: string; stars: number | null; title: string;
+  liked: string; improve: string; at: number; edited: boolean;
 }
 export interface FeedbackScore {
   average: number | null; count: number; stars: Record<string, number>;
@@ -30,7 +32,9 @@ function clean(d: any): Feedback | null {
     .map((r: any) => ({
       id: Number(r.id) || 0,
       name: String(r.name ?? ""),
-      stars: Math.max(1, Math.min(5, Math.round(Number(r.stars) || 0))),
+      kind: (r.kind === "review" ? "review" : "rating") as Review["kind"],
+      stars: Number(r.stars) >= 1 ? Math.min(5, Math.round(Number(r.stars))) : null,
+      title: String(r.title ?? ""),
       liked: String(r.liked ?? ""),
       improve: String(r.improve ?? ""),
       at: Number(r.at) || 0,
@@ -140,12 +144,15 @@ export function ReviewCard({ r }: { r: Review }) {
   return (
     <article className="border border-[#1a1a1a] bg-[#0a0d10] p-4 h-full flex flex-col">
       <div className="flex items-center gap-2 mb-2.5 flex-wrap">
-        <Stars value={r.stars} size={13} />
+        {r.stars != null && <Stars value={r.stars} size={13} />}
         <span className="font-mono text-[0.7rem] text-[#777] truncate max-w-[180px]">{r.name}</span>
         <span className="font-mono text-[0.6rem] text-[#333] ml-auto">
           {relativeDay(r.at)}{r.edited ? " · edited" : ""}
         </span>
       </div>
+      {r.title.trim() !== "" && (
+        <h3 className="!normal-case !tracking-normal text-[0.95rem] text-[#e6e6e6] font-semibold leading-snug mt-0 mb-1.5 break-words">{r.title}</h3>
+      )}
       {r.liked.trim() !== "" && (
         <p className="text-[0.85rem] text-[#aaa] leading-relaxed whitespace-pre-line break-words m-0">{r.liked}</p>
       )}
@@ -159,11 +166,16 @@ export function ReviewCard({ r }: { r: Review }) {
   );
 }
 
-// Home page section: hidden completely while loading, when the API fails, or when nobody has rated yet
+// Something worth reading: a written review, or a rating with a line
+const hasWords = (r: Review) => r.title.trim() !== "" || r.liked.trim() !== "" || r.improve.trim() !== "";
+const hasScore = (d: Feedback) => d.score.count > 0 && d.score.average != null;
+
+// Home page section: hidden completely while loading, when the API fails, or when there's nothing yet
 export function HomeReviews() {
-  const data = useFeedback(3);
-  if (data === "loading" || !data || data.score.count <= 0 || data.score.average == null) return null;
-  const recent = data.reviews.slice(0, 3);
+  const data = useFeedback(12);
+  if (data === "loading" || !data) return null;
+  const recent = data.reviews.filter(hasWords).slice(0, 3);
+  if (!hasScore(data) && recent.length === 0) return null;
   return (
     <>
       <section className="py-14 sm:py-20">
@@ -176,7 +188,7 @@ export function HomeReviews() {
             Read all reviews →
           </Link>
         </div>
-        <ScoreSummary score={data.score} />
+        {hasScore(data) && <ScoreSummary score={data.score} />}
         {recent.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
             {recent.map((r) => <ReviewCard key={r.id} r={r} />)}
@@ -194,9 +206,10 @@ export function HomeReviews() {
 function HowToRate() {
   return (
     <p className="text-[0.8rem] text-[#666] leading-relaxed m-0">
-      Played with us? Add your own review in the #feedback channel on our{" "}
+      Played with us? Go to the #feedback channel on our{" "}
       <a href={DISCORD_INVITE} target="_blank" rel="noopener noreferrer" className="text-[#5865F2] hover:text-[#8891f7]">Discord</a>.
-      Press the <span className="text-[#c8a84b]">Rate SOUP</span> button there.
+      Press <span className="text-[#c8a84b]">Rate SOUP</span> to give stars, or <span className="text-[#c8a84b]">Write a review</span> to
+      tell others what it&apos;s like.
     </p>
   );
 }
@@ -204,7 +217,7 @@ function HowToRate() {
 // The /reviews page body
 export function ReviewsView() {
   const data = useFeedback(50);
-  const has = data !== "loading" && !!data && data.score.count > 0 && data.score.average != null;
+  const has = data !== "loading" && !!data && (hasScore(data) || data.reviews.length > 0);
   return (
     <main className="max-w-[900px] mx-auto px-4 sm:px-6 py-10 sm:py-16">
       <section>
@@ -219,12 +232,12 @@ export function ReviewsView() {
       ) : !has ? (
         <div className="border border-[#1a1a1a] bg-[#0a0d10] p-5 sm:p-6">
           <p className="font-mono text-[0.62rem] tracking-[0.25em] text-[#c8a84b] uppercase mb-2">No reviews yet</p>
-          <p className="text-[0.85rem] text-[#777] leading-relaxed mb-3">Nobody has rated the server yet. Yours could be the first.</p>
+          <p className="text-[0.85rem] text-[#777] leading-relaxed mb-3">Nobody has rated or reviewed the server yet. Yours could be the first.</p>
           <HowToRate />
         </div>
       ) : (
         <>
-          <ScoreSummary score={data!.score} />
+          {hasScore(data!) && <ScoreSummary score={data!.score} />}
           <div className="mt-4 mb-8"><HowToRate /></div>
           {data!.reviews.length > 0 && (
             <>
