@@ -10,7 +10,8 @@ import CommunityCentreBar from "@/components/CommunityCentreBar";
 import DerbyBoard from "@/components/DerbyBoard";
 
 // the game's colours (ZQ_Shared.lua Q.COLORS): D / C yellow, B / A blue, S gold, personal red, exclusive violet, yours green
-const COLOR = { small: "#edc740", big: "#599ef2", S: "#ffcc2e", personal: "#e64d4d", exclusive: "#ad73f5", active: "#4dd173" };
+// long-term (mod 1.8.45): personal jobs in their own section, pink, an "LT" chip instead of a tier letter
+const COLOR = { small: "#edc740", big: "#599ef2", S: "#ffcc2e", personal: "#e64d4d", exclusive: "#ad73f5", active: "#4dd173", lt: "#f299bf" };
 const tierColor = (t: string) => (t === "S" ? COLOR.S : t === "A" || t === "B" ? COLOR.big : COLOR.small);
 const TYPE: Record<string, { icon: string; word: string }> = {
   visit: { icon: "🧭", word: "Scout" },
@@ -58,10 +59,18 @@ function money(b: number) {
 }
 
 function TierChip({ t, big }: { t: string; big?: boolean }) {
+  const lt = t === "LT";
   return (
-    <span className={`inline-flex items-center justify-center font-mono font-bold ${big ? "w-8 h-8 text-sm" : "w-5 h-5 text-[0.65rem]"}`}
-      style={{ color: "#0e0e0e", background: tierColor(t), borderRadius: 3 }}>{t}</span>
+    <span className={`inline-flex items-center justify-center font-mono font-bold ${big ? "h-8 text-sm" : "h-5 text-[0.65rem]"} ${lt ? "px-1" : big ? "w-8" : "w-5"}`}
+      style={{ color: "#0e0e0e", background: lt ? COLOR.lt : tierColor(t), borderRadius: 3 }}>{t}</span>
   );
+}
+
+// a long-term job: how many are on it (never their names), and how many finished it
+function ltText(q: any) {
+  const n = q.players || 0, f = q.finished || 0;
+  const on = n === 0 ? "Nobody on it yet" : `${n} ${n === 1 ? "player" : "players"} on it`;
+  return f > 0 ? `${on} · ${f} finished` : on;
 }
 
 function isMine(q: any, me: any) {
@@ -72,8 +81,9 @@ function isMine(q: any, me: any) {
 
 function QuestCard({ q, me, busy, note, onTake, onLeave, confirm, setConfirm }: any) {
   const ty = TYPE[q.type] || { icon: "📋", word: "Quest" };
-  const mine = isMine(q, me);
-  const col = mine ? COLOR.active : tierColor(q.tier);
+  const lt = q.kind === "lt";                     // a long-term job: personal, no race, no tier letter
+  const mine = !lt && isMine(q, me);
+  const col = mine ? COLOR.active : lt ? COLOR.lt : tierColor(q.tier);
   const racers = q.racers || [];
   const closing = q.left < 15 * 60 && !(q.kind === "S" && racers.length === 0);   // an untaken S has a short window on purpose
   const canTake = !mine && !closing;
@@ -84,18 +94,22 @@ function QuestCard({ q, me, busy, note, onTake, onLeave, confirm, setConfirm }: 
         <span className="text-2xl leading-none mt-0.5">{ty.icon}</span>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <TierChip t={q.tier} />
+            <TierChip t={lt ? "LT" : q.tier} />
             <span className="font-semibold" style={{ color: q.kind === "S" ? COLOR.S : "#e6e6e6" }}>{q.title}</span>
             {q.big && <span className="text-[0.62rem] font-mono px-1.5 py-0.5" style={{ color: COLOR.S, border: `1px solid ${COLOR.S}66` }}>2 HORDES</span>}
           </div>
-          <div className="text-[0.72rem] text-[#666] font-mono mt-1">{ty.word}{q.place ? ` · ${q.place}` : ""} · {closing ? <span className="text-[#c8a84b]">closing</span> : `${dur(q.left)} left`}</div>
+          <div className="text-[0.72rem] text-[#666] font-mono mt-1">{ty.word}{q.place ? ` · ${q.place}` : ""} · {closing ? <span className="text-[#c8a84b]">closing</span> : lt ? `on the board for ${dur(q.left)}` : `${dur(q.left)} left`}</div>
         </div>
       </div>
       <div className="flex items-center justify-between gap-3 flex-wrap text-[0.78rem] font-mono">
-        <span className={racers.length ? "text-[#c8a84b]" : "text-[#4a7c59]"}>
-          {racers.length === 0 ? "Nobody on it yet" : "Racing: " + racers.map((r) => r.name + (r.crew?.length ? ` + ${r.crew.join(", ")}` : "")).join(" vs ")}
-        </span>
-        <span style={{ color: COLOR.S }} title={q.pay2 && q.pay2 !== q.pay ? `${q.pay2} each for a crew of 2` : ""}>{q.pay}{q.pay2 && q.pay2 !== q.pay ? <span className="text-[#777]"> solo</span> : ""}</span>
+        {lt
+          ? <span className={q.players ? "text-[#c8a84b]" : "text-[#4a7c59]"}>{ltText(q)}</span>
+          : <span className={racers.length ? "text-[#c8a84b]" : "text-[#4a7c59]"}>
+              {racers.length === 0 ? "Nobody on it yet" : "Racing: " + racers.map((r) => r.name + (r.crew?.length ? ` + ${r.crew.join(", ")}` : "")).join(" vs ")}
+            </span>}
+        {lt
+          ? <span style={{ color: COLOR.S }}>{q.pay}<span className="text-[#777]"> each</span></span>
+          : <span style={{ color: COLOR.S }} title={q.pay2 && q.pay2 !== q.pay ? `${q.pay2} each for a crew of 2` : ""}>{q.pay}{q.pay2 && q.pay2 !== q.pay ? <span className="text-[#777]"> solo</span> : ""}</span>}
       </div>
       {q.type === "horde" && q.total > 1 && q.progress > 0 && (
         <div className="h-1.5 bg-[#1a1f26]"><div className="h-full" style={{ width: `${Math.min(100, (100 * q.progress) / q.total)}%`, background: col }} /></div>
@@ -112,7 +126,7 @@ function QuestCard({ q, me, busy, note, onTake, onLeave, confirm, setConfirm }: 
             <button disabled={busy} onClick={() => onTake(q)}
               className="px-3 py-1 text-[0.7rem] tracking-[0.08em] uppercase font-mono cursor-pointer disabled:opacity-50"
               style={{ background: col, color: "#0e0e0e", border: "none" }}>
-              {racers.length ? "Race them" : "Take it"}
+              {racers.length && !lt ? "Race them" : "Take it"}
             </button>
           )}
           {me?.linked && mine && (confirm === q.id
@@ -196,6 +210,7 @@ export default function JobsPage() {
   const sq = quests.filter((q) => q.kind === "S");
   const big = quests.filter((q) => q.kind === "big");
   const small = quests.filter((q) => q.kind === "small");
+  const ltq = quests.filter((q) => q.kind === "lt");
   const refillIn = board?.refillAt ? board.refillAt - now : 0;
   const card = (q) => <QuestCard key={q.id} q={q} me={me} busy={busy[q.id]} note={notes[q.id]} confirm={confirm} setConfirm={setConfirm}
                                  onTake={(x) => ask(x, "take")} onLeave={(x) => ask(x, "leave")} />;
@@ -235,6 +250,10 @@ export default function JobsPage() {
           {small.length === 0 ? <p className="text-[#555] font-mono text-sm italic">Refilling - a new one any minute.</p>
             : <div className="grid gap-3 sm:grid-cols-3">{small.map(card)}</div>}
         </Section>
+        <Section title="Long-term" color={COLOR.lt} note="These run beside your normal job and don't use its slot. Anyone can take the same one: everyone works on their own, and everyone who finishes gets paid. You get 3 days once you take it, one of each kind at a time. Give one up from the Long-term tab on your phone.">
+          {ltq.length === 0 ? <p className="text-[#555] font-mono text-sm italic">None up right now. A new one comes up a few minutes after one leaves the board.</p>
+            : <div className="grid gap-3 sm:grid-cols-2">{ltq.map(card)}</div>}
+        </Section>
         <p className="text-[0.72rem] text-[#555] font-mono">
           Take a quest here or on your phone - online or not, it&apos;s in your Jobs app straight away. One quest at a time, then a short rest.
           Personal and exclusive quests are private: only on your phone.
@@ -255,7 +274,7 @@ export default function JobsPage() {
             : <div className="flex flex-col">
                 {data.recent.map((r, i) => (
                   <div key={i} className="flex items-center gap-3 py-2 border-b border-[#1a1a1a] text-[0.85rem]">
-                    <TierChip t={r.tier} />
+                    <TierChip t={r.kind === "lt" ? "LT" : r.tier} />
                     <div className="min-w-0 flex-1">
                       <div className="text-[#ccc] truncate">{r.title}</div>
                       <div className="text-[0.7rem] text-[#666] font-mono truncate">
@@ -382,6 +401,10 @@ export default function JobsPage() {
           <div className="border p-4" style={{ borderColor: COLOR.small + "44" }}>
             <div className="mb-1" style={{ color: COLOR.small }}>🤝 Crews</div>
             Invite phone friends or faction mates (up to 4 on a side) - an invite skips the rank check. The pot is split evenly between the ones who were there.
+          </div>
+          <div className="border p-4" style={{ borderColor: COLOR.lt + "55" }}>
+            <div className="mb-1" style={{ color: COLOR.lt }}>⏳ Long-term jobs</div>
+            Practice a skill or fill a crafting bingo card, at your own pace, beside your normal job. Not a race: everyone who finishes is paid, once per job.
           </div>
           <div className="border p-4" style={{ borderColor: "#e0555555" }}>
             <div className="text-[#e05555] mb-1">🎭 Queen Dusk</div>
