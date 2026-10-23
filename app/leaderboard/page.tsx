@@ -5,7 +5,7 @@ import { repTier, timeAgo } from "@/lib/utils";
 import Link from "next/link";
 import { FactionLogo } from "@/components/FactionBits";
 
-type BoardType = "ingame" | "jobs" | "wolf" | "quiz" | "rps" | "c4" | "chess" | "arcade" | "cah" | "reputation";
+type BoardType = "ingame" | "jobs" | "cards" | "wolf" | "quiz" | "rps" | "c4" | "chess" | "arcade" | "cah" | "reputation";
 type JobsView = "players" | "factions" | "duos";
 type JobsTier = "all" | "S" | "A" | "B" | "C" | "D";
 const TIER_COLOR: Record<string, string> = { S: "#ffcc2e", A: "#599ef2", B: "#599ef2", C: "#edc740", D: "#edc740" };   // the game's colours (jobs v2)
@@ -54,6 +54,7 @@ export default function LeaderboardPage() {
   const [reputation, setReputation] = useState<any[]>([]);
   const [cah, setCah] = useState<any>(null);
   const [factionPages, setFactionPages] = useState<any>({});   // name -> {fid, pictures, tag}
+  const [cards, setCards] = useState<any>(null);               // Zombita's Cards (/api/cards): the switched-on cards' top 10
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -70,7 +71,8 @@ export default function LeaderboardPage() {
       fetch(`${API}/api/cah/leaderboard`).then(r=>r.ok?r.json():null).catch(()=>null),
       fetch(`${API}/api/stats/arcade`).then(r=>r.ok?r.json():null).catch(()=>null),
       fetch(`${API}/api/stats/chess`).then(r=>r.ok?r.json():null).catch(()=>null),
-    ]).then(([ing,wlf,qz,rp,c,rep,ch,arc,chs])=>{
+      fetch(`${API}/api/cards`).then(r=>r.ok?r.json():null).catch(()=>null),
+    ]).then(([ing,wlf,qz,rp,c,rep,ch,arc,chs,crd])=>{
       setIngame(ing);
       setWolf(Array.isArray(wlf)?wlf:(wlf?.data||wlf?.players||[]));
       setQuiz(Array.isArray(qz)?qz:(qz?.data||qz?.players||[]));
@@ -79,6 +81,7 @@ export default function LeaderboardPage() {
       setCah(ch);
       setArcade(arc);
       setChess(chs);
+      setCards(crd);
       setLoading(false);
     });
   }, []);
@@ -165,7 +168,7 @@ export default function LeaderboardPage() {
       {/* Board selector - scrollable on mobile */}
       <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 pb-1">
         <div className="flex gap-2 mb-8 min-w-max sm:min-w-0 sm:flex-wrap">
-          {([["ingame","⚔️ In-Game"],["jobs","📋 Jobs"],["wolf","🐺 Werewolf"],["quiz","🧠 Quizarium"],["rps","🪨 RPS"],["c4","🔴 Connect4"],["chess","♞ Chess"],["arcade","🕹️ Arcade"],["cah","🃏 CAH"],["reputation","📋 Reputation"]] as [BoardType,string][]).map(([id,label])=>(
+          {([["ingame","⚔️ In-Game"],["jobs","📋 Jobs"],["cards","🃏 Cards"],["wolf","🐺 Werewolf"],["quiz","🧠 Quizarium"],["rps","🪨 RPS"],["c4","🔴 Connect4"],["chess","♞ Chess"],["arcade","🕹️ Arcade"],["cah","🃏 CAH"],["reputation","📋 Reputation"]] as [BoardType,string][]).map(([id,label])=>(
             <button key={id} onClick={()=>setBoard(id)}
               className={`px-3 py-[0.4rem] text-[0.68rem] tracking-[0.08em] uppercase border font-[inherit] cursor-pointer transition-all whitespace-nowrap ${board===id?"border-[#4a7c59] text-[#4a7c59]":"border-[#222] text-[#555] hover:border-[#444] hover:text-[#e6e6e6]"}`}>
               {label}
@@ -214,6 +217,46 @@ export default function LeaderboardPage() {
                 ))}</tbody></table></div>
             : <p className="text-[#555] font-mono text-sm italic">No factions yet.</p>
           )}
+        </div>}
+
+        {board==="cards" && <div>
+          <p className="text-[0.72rem] text-[#555] mb-4">Zombita&apos;s Cards: lifetime card points for each card that is open, and its rank (Apprentice, Journeyman, Expert, Master). Points count for everyone, with or without the card. The cards open one at a time; a new one shows here when it opens. <Link href="/cards" className="text-[#4a7c59] hover:underline">How the cards work</Link></p>
+          {(() => {
+            const open = ((cards?.ready && cards?.on) ? (cards.cards || []) : []).filter((c:any) => c.on);
+            if (!open.length) return <p className="text-[#555] font-mono text-sm italic">No card is open yet. The Mechanic card comes first.</p>;
+            return open.map((c:any) => {
+              const holders = new Set<string>((c.holders || []).map((h:any) => String(h.name || "").toLowerCase()));
+              const rows: any[] = (c.lifeTop && c.lifeTop.length ? c.lifeTop : [...(c.top || [])].sort((a:any,b:any)=>(b.life||0)-(a.life||0))).slice(0, 10);
+              const col = Array.isArray(c.color) ? `rgb(${c.color.map((v:number)=>Math.round(v*255)).join(",")})` : "#4a7c59";
+              return (
+                <div key={c.id} className="mb-8">
+                  <div className="flex items-baseline gap-3 mb-2">
+                    <span className="text-[0.85rem] tracking-[0.12em] uppercase" style={{color: col}}>{c.name}</span>
+                    <span className="text-[0.65rem] text-[#555]">
+                      {(c.holders || []).length ? `Held by ${(c.holders || []).map((h:any) => h.name + (h.how === "earned" ? " (earned)" : "")).join(", ")}` : "Nobody holds it right now"}
+                    </span>
+                  </div>
+                  {rows.length === 0
+                    ? <p className="text-[#555] font-mono text-sm italic">No points yet.</p>
+                    : <div className="overflow-x-auto -mx-2 px-2"><table className="lb-table min-w-full">
+                        <thead><tr><th className="w-8"/><th>Player</th><th className="text-right hidden sm:table-cell">Rank</th><th className="text-right hidden sm:table-cell">Lately</th><th className="text-right">Points</th></tr></thead>
+                        <tbody>{rows.map((t:any, i:number) => (
+                          <tr key={t.name} className={`lb-row ${rc(i)}`}>
+                            <td className="text-center text-sm">{medal(i)}</td>
+                            <td>
+                              <a href={`/player?id=${encodeURIComponent(t.name)}`} className="hover:text-[#4a7c59] transition-colors">{t.name}</a>
+                              {holders.has(String(t.name).toLowerCase()) && <span className="text-[0.6rem] ml-2 px-1 border" style={{color: col, borderColor: col}}>HOLDS IT</span>}
+                              <span className="text-[0.65rem] text-[#555] ml-2 sm:hidden">{t.rank}</span>
+                            </td>
+                            <td className="text-right font-mono text-xs hidden sm:table-cell">{t.rank}</td>
+                            <td className="text-right font-mono text-xs text-[#555] hidden sm:table-cell">{t.recent || 0}</td>
+                            <td className="text-right font-mono text-xs sm:text-sm">{(t.life || 0).toLocaleString()}</td>
+                          </tr>
+                        ))}</tbody></table></div>}
+                </div>
+              );
+            });
+          })()}
         </div>}
 
         {board==="jobs" && <div>

@@ -141,11 +141,34 @@ function ComingSoonBlock({ c }) {
   );
 }
 
+// The Mechanic card in plain words (mod 1.8.52, Nin 10-23). Numbers come from the game's settings when it sends them, else
+// the launch numbers. Shown on the Mechanic block; while the game still sends the old (pre-1.8.52) perk lines, they are hidden.
+function num(st, key, dflt) {
+  const v = Number(st?.settings?.[key]);
+  return Number.isFinite(v) ? v : dflt;
+}
+function mechanicGuide(st) {
+  const caps = [1, 2, 3, 4].map((i) => num(st, `mechCond${i}`, [70, 80, 90, 100][i - 1]));
+  const pay = Math.round((num(st, "payMult", Number(st?.payMult) || 1.25) - 1) * 100);
+  return [
+    ["Getting it", `Bought from Mags at Zombita's garage (the wrench sign on the map) for ${money(num(st, "price", 1000))}. It comes with Zombita's tow truck for as long as the card runs, or a Mechanic Kit (one replica of every Mechanic tool) if you have your own truck.`],
+    ["Zombita's Garage on any car", `Right-click any car you may work on. Repairs take ${num(st, "matsLess", 30)}% fewer materials (every part and tool is still needed), and parts go up to ${caps.join(" / ")}% by rank. Part installs, take-offs and repairs are faster.`],
+    ["Card jobs", `Their own job slot next to your normal quest, ${pay > 0 ? `+${pay}% pay` : "better pay"}: Call a Mechanic (a player's own repair request, paid what they offer, the bank holds it), tow jobs to Zombita's scrapyard, fleet service (three cars), power up (get a dead generator running), plus parts orders, roadside repairs, salvage and parts runs.`],
+    ["Card shop", `From Apprentice: the vehicle magazines and manuals for your rank at ${num(st, "cardMagPct", 50)}% of the shop price. Each is your own card copy: one read, then it is used up. A free one at every new rank. From Expert: replica tools, Claim Cores and the orb's materials.`],
+    ["Claim Orbs", `From Expert you can build a Vehicle Claim Orb yourself: right-click a Claim Core (Claim Cores come from Mechanic card jobs and the card shop).`],
+    ["Master", "Generators repaired to full, one generator a week in the card shop, Garage parts up to 100%."],
+    ["Tool wear", "When tool wear is on, only tools used on cars wear out while the Mechanic is the only open card."],
+  ];
+}
+function oldMechanicPerks(c) {
+  return c.id === "mechanic" && !(c.perks || []).some((p) => String(p.text || "").includes("Garage"));
+}
+
 function CardBlock({ c, st }) {
   if (comingSoon(c, st)) return <ComingSoonBlock c={c} />;
   const col = hex(c.color);
   const ranks = st.ranks.map((r) => r.name);
-  const perks = [...(c.perks || [])].sort((a, b) => ranks.indexOf(a.rank) - ranks.indexOf(b.rank));
+  const perks = oldMechanicPerks(c) ? [] : [...(c.perks || [])].sort((a, b) => ranks.indexOf(a.rank) - ranks.indexOf(b.rank));
   return (
     <article className="border border-[#1e2530] bg-[#0d1117] p-4 flex gap-4" style={{ borderLeft: `3px solid ${col}` }}>
       <div className="shrink-0 hidden sm:block"><CardFace card={c} /></div>
@@ -164,6 +187,16 @@ function CardBlock({ c, st }) {
         <div className="font-mono text-[0.66rem] text-[#777] mt-2"><span className="text-[#555]">POINTS FROM </span>{c.from}</div>
         {(c.jobs || []).length > 0 && (
           <div className="font-mono text-[0.66rem] text-[#777] mt-1"><span className="text-[#555]">CARD JOBS </span>{c.jobs.map((j) => JOB_WORD[j] || j).join(", ")}</div>
+        )}
+        {c.id === "mechanic" && (
+          <div className="mt-3 flex flex-col gap-y-1.5">
+            {mechanicGuide(st).map(([head, body]) => (
+              <div key={head} className="text-[0.78rem] leading-snug">
+                <span className="font-mono text-[0.6rem] uppercase tracking-widest mr-2" style={{ color: col }}>{head}</span>
+                <span className="text-[#aab1bc]">{body}</span>
+              </div>
+            ))}
+          </div>
         )}
         <div className="mt-3 flex flex-col gap-y-1">
           {perks.map((p, i) => (
