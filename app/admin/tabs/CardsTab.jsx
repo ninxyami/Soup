@@ -68,6 +68,10 @@ export default function CardsTab({ toast }) {
   return (
     <div>
       <Title t="ZOMBITA'S CARDS" s="Role cards: a switch per card, the numbers, who holds what. Every change is a request the game runs within a few seconds." />
+      <div className="ap-note info" style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <span>Cards have their own page now: overview, each card, players and points, jobs, shops, tool wear and the log.</span>
+        <a href="/cards-admin" style={{ color: "var(--accent, #c8a84b)", fontWeight: 600 }}>Open the Cards page</a>
+      </div>
       {!d?.ready && <div className="ap-note danger">No word from the game yet. Cards need mod 1.7.146 on the server and the cards bot zips.</div>}
       {d?.ready && s.stale && <div className="ap-note danger">The game last reported {relTime(s.at)}. The server may be down or restarting; requests wait until it's back.</div>}
       {waiting > 0 && <div className="ap-note info">Waiting for the game to answer...</div>}

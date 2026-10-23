@@ -91,6 +91,11 @@ export default function Nav() {
             </Link>
           )}
           {user?.is_admin && (
+            <Link href="/cards-admin" className={`nav-link${pathname?.startsWith("/cards-admin") ? " active" : ""}`} style={{ color: "#c8a84b" }}>
+              Cards
+            </Link>
+          )}
+          {user?.is_admin && (
             <Link href="/workspace" className={`nav-link${pathname?.startsWith("/workspace") ? " active" : ""}`} style={{ color: "#c8a84b" }}>
               Workspace
             </Link>
@@ -171,6 +176,9 @@ export default function Nav() {
               </Link>
               <Link href="/quests" className="nav-link text-[0.8rem] block mt-2" style={{ color: "#c8a84b" }} onClick={() => setOpen(false)}>
                 Quests
+              </Link>
+              <Link href="/cards-admin" className="nav-link text-[0.8rem] block mt-2" style={{ color: "#c8a84b" }} onClick={() => setOpen(false)}>
+                Cards
               </Link>
               <Link href="/workspace" className="nav-link text-[0.8rem] block mt-2" style={{ color: "#c8a84b" }} onClick={() => setOpen(false)}>
                 Workspace
