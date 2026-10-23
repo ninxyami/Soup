@@ -18,6 +18,9 @@ const SHOPS = [
   { id: "music",     label: "Scarlett's Records", npc: "Scarlett Vance", role: "Community Tapes",    icon: "🎵", location: "See the map: the cassette sign", portrait: "/shop/scarlett.png" },
   { id: "animals",   label: "Hattie's Livestock & Pets", npc: "Hattie Brennan", role: "Pet Supplies",  icon: "🐄", location: "Zombita's Diner",                portrait: null                },
   { id: "global",    label: "General Stores",    npc: "Six keepers",    role: "Everyday Goods",     icon: "⛽", location: "39 stores in 26 towns",          portrait: null                },
+  // Mags (mod 1.8.52): the Mechanic card's keeper, at Zombita's garage. Shown only while her kiosk is out in game (she opens
+  // with the Mechanic card); her prices come from the same API (propane / mask / goggles under the other shops' price).
+  { id: "mags",      label: "Mags' Garage",      npc: "Mags",           role: "Mechanic & Tow Yard", icon: "🔧", location: "Zombita's garage (the wrench sign)", portrait: null, liveOnly: true },
 ];
 
 // The general stores (ZS_NPCData.lua, shop_type "global"): six keepers, each running a counter in several towns.
@@ -277,6 +280,9 @@ export default function ShopPage() {
     const list = live.byNpc[npc];
     return list && list.length ? list.join(", ") : fallback;
   };
+  // a keeper who is only out some of the time (Mags): her card only while her kiosk is live
+  const shown = SHOPS.filter(s => !s.liveOnly || (live !== null && (live.count[s.npc] || 0) > 0));
+  const shownIds = shown.map(s => s.id);
   const [search,    setSearch]    = useState("");
   const [page,      setPage]      = useState(1);
 
@@ -333,7 +339,7 @@ export default function ShopPage() {
   const isAll   = active === ALL;
   const shop    = isAll ? null : SHOP_BY_ID[active];
   const allItems: Item[] = isAll
-    ? SHOP_TYPES.flatMap(t => rotations[t] || []).sort(sortItems)
+    ? shownIds.flatMap(t => rotations[t] || []).sort(sortItems)
     : (rotations[active] || []);
 
   const q = search.trim().toLowerCase();
@@ -343,7 +349,7 @@ export default function ShopPage() {
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage  = Math.min(page, pageCount);
   const pageItems = filtered.slice((safePage-1)*PAGE_SIZE, safePage*PAGE_SIZE);
-  const totalAll  = SHOP_TYPES.reduce((n,t) => n + (rotations[t]?.length || 0), 0);
+  const totalAll  = shownIds.reduce((n,t) => n + (rotations[t]?.length || 0), 0);
 
   return (
     <div className="scanline min-h-screen" style={{background:"#080a0c",color:"#c8cdd6"}}>
@@ -377,7 +383,7 @@ export default function ShopPage() {
 
         {/* Shop selector */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6">
-          {SHOPS.map(s => (
+          {shown.map(s => (
             <button key={s.id} onClick={()=>setActive(s.id)}
               className={`p-3 border text-left transition-all cursor-pointer bg-transparent ${
                 active===s.id ? "border-[rgba(200,168,75,0.4)] bg-[rgba(200,168,75,0.04)]" : "border-[#1e2530] bg-[#0c0f13] hover:border-[#2a2f3a]"
@@ -444,6 +450,17 @@ export default function ShopPage() {
               </div>
             )}
           </div>
+
+          {/* Mags: what her shelf is (mod 1.8.52) */}
+          {active === "mags" && (
+            <div className="px-4 sm:px-5 py-3 border-b border-[#1e2530] bg-[#0c0f13]">
+              <div className="font-mono text-[0.62rem] leading-relaxed text-[#888]">
+                She ran the town tow yard before all this. Her shelf is the Mechanic&apos;s gear: welder masks and old welding goggles are
+                always there, cheaper than anywhere else, and so are propane tanks when she has one. Everything else is one of each at
+                most, and it changes when her shelf turns over. The Mechanic card is bought from her too, in game.
+              </div>
+            </div>
+          )}
 
           {/* General stores: who runs them and where */}
           {active === "global" && (
