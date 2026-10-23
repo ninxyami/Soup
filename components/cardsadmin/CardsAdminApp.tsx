@@ -160,7 +160,7 @@ export default function CardsAdminApp() {
   const switches = board?.board?.switches || null;
   const pending = mine.filter((m) => !m.done);
   const recent = mine.filter((m) => m.done && Date.now() / 1000 - (m.end || 0) < 90).slice(-3);
-  const x = { st, data, board, zc, switches, jobs, shop, log, loadShop, loadLog, send, sendSwitch, ask, goCard, goPlayer, setTab,
+  const x = { apiGet, st, data, board, zc, switches, jobs, shop, log, loadShop, loadLog, send, sendSwitch, ask, goCard, goPlayer, setTab,
               pickCard, selectCard, pickPlayer, setPickPlayer, mine, busy: pending.length > 0 };
 
   let gate = null;

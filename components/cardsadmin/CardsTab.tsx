@@ -5,7 +5,8 @@
 
 import { useState } from "react";
 import { C, MONO, BODY, DISPLAY, Btn, Card, Note, Pill, Toggle, Empty, fmt } from "../quests/ui";
-import { CardArt, NameInput, cardHex, left, cardOfSetting, groupRows, WEAR_GROUP, RANK_NAMES } from "./lib";
+import { PlayerPicker } from "../quests/GiveLog";
+import { CardArt, cardHex, left, cardOfSetting, groupRows, WEAR_GROUP, RANK_NAMES } from "./lib";
 import { cardSwitch } from "./Overview";
 import Settings from "./Settings";
 
@@ -33,9 +34,8 @@ export function Picker({ st, pick, setPick, all = true }) {
   );
 }
 
-function Holders({ c, st, send, ask, goPlayer }) {
+function Holders({ c, st, send, ask, goPlayer, apiGet }) {
   const [who, setWho] = useState("");
-  const names = (st.players || []).map((p) => p.name);
   const give = () => {
     const p = who.trim();
     if (!p) return;
@@ -57,7 +57,7 @@ function Holders({ c, st, send, ask, goPlayer }) {
         </div>
       ))}
       <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
-        <div style={{ flex: "1 1 180px" }}><NameInput value={who} onChange={setWho} names={names} onEnter={give} /></div>
+        <div style={{ flex: "1 1 180px" }}><PlayerPicker value={who} onChange={setWho} apiGet={apiGet} /></div>
         <Btn disabled={!who.trim()} onClick={give}>Give this card</Btn>
       </div>
     </Card>
@@ -81,7 +81,7 @@ function Top({ title, list, field, goPlayer }) {
   );
 }
 
-function OneCard({ c, st, send, ask, goPlayer, setTab }) {
+function OneCard({ c, st, send, ask, goPlayer, setTab, apiGet }) {
   const color = cardHex(c.color);
   const byRank = RANK_NAMES.map((r) => [r, (c.perks || []).filter((p) => p.rank === r)]).filter(([, l]) => l.length);
   const groups = groupRows(st.settingRows, (r) => r.group !== WEAR_GROUP && cardOfSetting(r) === c.id);
@@ -123,7 +123,7 @@ function OneCard({ c, st, send, ask, goPlayer, setTab }) {
           ))}
         </Card>
         <div>
-          <Holders c={c} st={st} send={send} ask={ask} goPlayer={goPlayer} />
+          <Holders c={c} st={st} send={send} ask={ask} goPlayer={goPlayer} apiGet={apiGet} />
           <Card title="Card jobs" right={<Btn sm onClick={() => setTab("jobs")}>Send one</Btn>}>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
               {(c.jobs || []).map((j, i) => <Pill key={i} c={C.blue}>{j === "order" ? "Order" : j}</Pill>)}

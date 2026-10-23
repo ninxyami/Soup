@@ -42,7 +42,6 @@ import SecurityTab        from "./tabs/SecurityTab";
 import JobsTab            from "./tabs/JobsTab";
 import QuestControlTab    from "./tabs/QuestControlTab";
 import QuestRewardsTab    from "./tabs/QuestRewardsTab";
-import CardsTab           from "./tabs/CardsTab";
 import TreasureTab        from "./tabs/TreasureTab";
 
 const NAV_SECTIONS = [
@@ -78,7 +77,6 @@ const NAV_SECTIONS = [
     { key: "questcontrol",   icon: "🎛️", label: "Quest Control" },
     { key: "jobs",           icon: "📋", label: "Zombita's Jobs" },
     { key: "jobrewards",     icon: "🎁", label: "Quest Rewards" },
-    { key: "cards",          icon: "🃏", label: "Zombita's Cards" },
   ]},
   { label: "COMMUNITY", items: [
     { key: "players",        icon: "👥", label: "Players" },
@@ -137,7 +135,6 @@ const PANELS = {
   questcontrol: QuestControlTab,
   jobs:        JobsTab,
   jobrewards:  QuestRewardsTab,
-  cards:       CardsTab,
   newspaper:    NewspaperTab,
   news:         NewsTab,
   factions:     FactionsTab,

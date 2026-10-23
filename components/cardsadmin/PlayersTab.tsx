@@ -1,13 +1,15 @@
 // @ts-nocheck
 "use client";
 // components/cardsadmin/PlayersTab.tsx: card points first (Nin couldn't find the old POINTS box), then everyone with points
-// (search) and one player: their card, points and rank per card, give / take back a card.
+// and one player: their card, points and rank per card, give / take back a card.
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { C, MONO, BODY, DISPLAY, Btn, Card, Note, Pill, Select, Label, Empty, fmt } from "../quests/ui";
-import { NameInput, cardHex, left, rankOf } from "./lib";
+import { PlayerPicker } from "../quests/GiveLog";
+import { inputStyle } from "../quests/ui";
+import { cardHex, left, rankOf } from "./lib";
 
-function PointsForm({ st, form, setForm, send, ask }) {
+function PointsForm({ st, form, setForm, send, ask, apiGet }) {
   const cards = st.cards || [];
   const n = Math.trunc(Number(form.points) || 0);
   const p = (st.players || []).find((x) => x.name.toLowerCase() === form.player.trim().toLowerCase());
@@ -28,13 +30,13 @@ function PointsForm({ st, form, setForm, send, ask }) {
   return (
     <Card title="Add or take card points" style={{ borderColor: C.gold }}>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(200px, 100%), 1fr))", gap: 12, alignItems: "end" }}>
-        <div><Label>Player</Label><NameInput big value={form.player} onChange={(v) => setForm((f) => ({ ...f, player: v }))} names={(st.players || []).map((x) => x.name)} onEnter={go} /></div>
-        <div><Label>Card</Label><Select value={form.card} onChange={(v) => setForm((f) => ({ ...f, card: v }))} style={{ fontSize: 16, padding: "10px 12px" }}
+        <div><Label>Player</Label><PlayerPicker value={form.player} onChange={(v) => setForm((f) => ({ ...f, player: v }))} apiGet={apiGet} /></div>
+        <div><Label>Card</Label><Select value={form.card} onChange={(v) => setForm((f) => ({ ...f, card: v }))}
           options={cards.map((c) => ({ value: c.id, label: c.name + (c.on ? "" : " (off)") }))} /></div>
         <div><Label>Points (minus to take)</Label>
           <input value={form.points} onChange={(e) => setForm((f) => ({ ...f, points: e.target.value.replace(/[^0-9-]/g, "") }))} placeholder="+50 / -20" inputMode="numeric"
             onKeyDown={(e) => e.key === "Enter" && go()}
-            style={{ background: C.bg, border: `1px solid ${C.line}`, color: C.text, padding: "10px 12px", fontFamily: MONO, fontSize: 16, width: "100%", boxSizing: "border-box", outline: "none" }} /></div>
+            style={{ ...inputStyle, width: "100%" }} /></div>
       </div>
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10 }}>
         {quick.map((q) => <Btn key={q} sm c={q > 0 ? "green" : "red"} onClick={() => setForm((f) => ({ ...f, points: String(q) }))}>{q > 0 ? `+${q}` : q}</Btn>)}
@@ -106,7 +108,7 @@ function OnePlayer({ p, st, send, ask, setForm, formRef }) {
   );
 }
 
-export default function PlayersTab({ st, send, ask, pickPlayer, setPickPlayer }) {
+export default function PlayersTab({ st, send, ask, pickPlayer, setPickPlayer, apiGet }) {
   const players = st.players || [];
   const [q, setQ] = useState("");
   const [onlyHolders, setOnlyHolders] = useState(false);
@@ -119,20 +121,30 @@ export default function PlayersTab({ st, send, ask, pickPlayer, setPickPlayer })
     .filter((p) => (!q || p.name.toLowerCase().includes(q.toLowerCase())) && (!onlyHolders || (p.card && Number(p.until) > Date.now() / 1000)))
     .sort((a, b) => total(b) - total(a)), [players, q, onlyHolders]);
   const cards = st.cards || [];
-  const sel = players.find((p) => p.name === pickPlayer);
+  // someone with no card points yet still opens (an empty record): give them a card or points from there
+  const sel = players.find((p) => p.name === pickPlayer) || (pickPlayer ? { name: pickPlayer, card: "", how: "", until: 0, pts: {} } : null);
   const pick = (name) => { setPickPlayer(name); setTimeout(() => panelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50); };
+  // the picker's box both filters the list and, on a whole name (picked from its list), opens that player
+  const findPlayer = (v) => {
+    setQ(v);
+    const hit = players.find((p) => p.name.toLowerCase() === v.trim().toLowerCase());
+    if (hit && hit.name !== pickPlayer) pick(hit.name);
+  };
 
   return (
     <div>
-      <div ref={formRef} style={{ scrollMarginTop: 120 }}><PointsForm st={st} form={form} setForm={setForm} send={send} ask={ask} /></div>
+      <div ref={formRef} style={{ scrollMarginTop: 120 }}><PointsForm st={st} form={form} setForm={setForm} send={send} ask={ask} apiGet={apiGet} /></div>
       <div className="ca-two" style={{ gridTemplateColumns: undefined }}>
         <Card title={`Players with points (${players.length})`} pad={10}>
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="search a name"
-            style={{ background: C.bg, border: `1px solid ${C.line}`, color: C.text, padding: "8px 10px", fontFamily: MONO, fontSize: 14, width: "100%", boxSizing: "border-box", outline: "none" }} />
+          <Label>Find a player (online first)</Label>
+          <PlayerPicker value={q} onChange={findPlayer} apiGet={apiGet} />
+          {q.trim() && !players.some((p) => p.name.toLowerCase() === q.trim().toLowerCase()) && (
+            <Btn sm style={{ marginTop: 6 }} onClick={() => pick(q.trim())}>Open {q.trim()} (no card points yet)</Btn>
+          )}
           <label style={{ display: "flex", gap: 6, alignItems: "center", fontFamily: BODY, fontSize: 12, color: C.dim, margin: "8px 0" }}>
             <input type="checkbox" checked={onlyHolders} onChange={(e) => setOnlyHolders(e.target.checked)} /> only card holders
           </label>
-          {list.length === 0 && <Empty>Nobody{q ? " by that name" : ""}.</Empty>}
+          {list.length === 0 && <Empty>Nobody{q ? " with card points by that name" : ""}.</Empty>}
           <div style={{ maxHeight: 560, overflowY: "auto" }}>
             {list.slice(0, 300).map((p) => {
               const held = p.card && Number(p.until) > Date.now() / 1000 ? cards.find((c) => c.id === p.card) : null;
@@ -151,7 +163,7 @@ export default function PlayersTab({ st, send, ask, pickPlayer, setPickPlayer })
         </Card>
         <div ref={panelRef} style={{ minWidth: 0, scrollMarginTop: 120 }}>
           {sel ? <OnePlayer p={sel} st={st} send={send} ask={ask} setForm={setForm} formRef={formRef} />
-            : <Card title="A player"><Empty>Pick a player on the left to see their cards, points and ranks.</Empty></Card>}
+            : <Card title="A player"><Empty>Find a player with the box, or click one in the list, to see their cards, points and ranks.</Empty></Card>}
         </div>
       </div>
       <Note>Points: lifetime sets the rank ({(st.ranks || []).map((r) => `${r.name} ${fmt(r.min)}`).join(", ")}); recent (last {st.recentDays || 5} days) decides who Zombita offers the earned slot.</Note>

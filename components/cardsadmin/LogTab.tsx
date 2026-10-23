@@ -5,11 +5,12 @@
 
 import { useMemo, useState } from "react";
 import { C, MONO, BODY, Btn, Card, Note, Pill, Select, Empty, itemName, money, ago } from "../quests/ui";
+import { PlayerPicker } from "../quests/GiveLog";
 import { EVENT_WORDS, eventLine, cardHex, when } from "./lib";
 
 const VIEWS = [["events", "Card events"], ["buys", "Card shop buys"], ["paid", "Cards bought"], ["mine", "Sent from here"]];
 
-export default function LogTab({ st, log, loadLog, mine, goPlayer }) {
+export default function LogTab({ st, log, loadLog, mine, goPlayer, apiGet }) {
   const [view, setView] = useState("events");
   const [q, setQ] = useState("");
   const [card, setCard] = useState("");
@@ -36,8 +37,7 @@ export default function LogTab({ st, log, loadLog, mine, goPlayer }) {
             cursor: "pointer", background: view === k ? C.panel2 : C.panel, border: `1px solid ${view === k ? C.gold : C.line}`, color: view === k ? C.gold : C.text }}>{l}</button>
         ))}
         <span style={{ flex: 1 }} />
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="player"
-          style={{ background: C.bg, border: `1px solid ${C.line}`, color: C.text, padding: "7px 10px", fontFamily: MONO, fontSize: 13, width: 140, outline: "none" }} />
+        <div style={{ width: 200, maxWidth: "100%" }}><PlayerPicker value={q} onChange={setQ} apiGet={apiGet} /></div>
         <Select value={card} onChange={setCard} width={140} options={[{ value: "", label: "every card" }, ...cards.map((c) => ({ value: c.id, label: c.name }))]} />
         <Btn sm c="dim" onClick={loadLog}>Refresh</Btn>
       </div>

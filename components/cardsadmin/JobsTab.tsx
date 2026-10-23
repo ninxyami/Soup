@@ -5,7 +5,8 @@
 
 import { useState } from "react";
 import { C, MONO, BODY, Btn, Card, Note, Pill, TierPill, Select, Label, Empty, dur } from "../quests/ui";
-import { NameInput, cardHex, KV } from "./lib";
+import { PlayerPicker } from "../quests/GiveLog";
+import { cardHex, KV } from "./lib";
 
 const KIND_WORDS = {
   tow: "Tow a wreck to the nearest scrapyard (needs a scrapyard set).",
@@ -20,7 +21,7 @@ const KIND_WORDS = {
   supply: "Bring medical supplies.",
 };
 
-export default function JobsTab({ st, zc, jobs, send, ask }) {
+export default function JobsTab({ st, zc, jobs, send, ask, apiGet }) {
   const cards = st.cards || [];
   const [f, setF] = useState({ player: "", card: "mechanic", kind: "random" });
   const card = cards.find((c) => c.id === f.card);
@@ -53,10 +54,10 @@ export default function JobsTab({ st, zc, jobs, send, ask }) {
     <div>
       <Card title="Send a card job now" style={{ borderColor: C.gold }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(200px, 100%), 1fr))", gap: 12, alignItems: "end" }}>
-          <div><Label>Player (online)</Label><NameInput big value={f.player} onChange={(v) => setF((x) => ({ ...x, player: v }))} names={(st.players || []).map((p) => p.name)} onEnter={go} /></div>
-          <div><Label>Card</Label><Select value={f.card} onChange={(v) => setF({ ...f, card: v, kind: "random" })} style={{ fontSize: 16, padding: "10px 12px" }}
+          <div><Label>Player (online)</Label><PlayerPicker value={f.player} onChange={(v) => setF((x) => ({ ...x, player: v }))} apiGet={apiGet} /></div>
+          <div><Label>Card</Label><Select value={f.card} onChange={(v) => setF({ ...f, card: v, kind: "random" })}
             options={cards.map((c) => ({ value: c.id, label: c.name + (c.on ? "" : " (off)") }))} /></div>
-          <div><Label>Kind</Label><Select value={f.kind} onChange={(v) => setF({ ...f, kind: v })} style={{ fontSize: 16, padding: "10px 12px" }}
+          <div><Label>Kind</Label><Select value={f.kind} onChange={(v) => setF({ ...f, kind: v })}
             options={[{ value: "random", label: "Any kind" }, ...kinds.map((k) => ({ value: k.id, label: k.name }))]} /></div>
         </div>
         <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap", marginTop: 14 }}>

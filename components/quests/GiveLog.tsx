@@ -63,7 +63,8 @@ function ItemIdeas({ apiGet, tier, onAdd }) {
 
 // Player box with a list (Nin 2026-10-17: no typing names). Empty box = who's online now (Live Ops state); typing
 // searches every in-game name the rankings know (all characters ever seen), online ones first. Free typing still works.
-function PlayerPicker({ value, onChange, apiGet }) {
+// Also the Cards page's player box (/cards-admin, Nin 2026-10-23: "exactly like give a quest").
+export function PlayerPicker({ value, onChange, apiGet }) {
   const [online, setOnline] = useState([]);
   const [all, setAll] = useState([]);
   const [open, setOpen] = useState(false);

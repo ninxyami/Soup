@@ -3,8 +3,7 @@
 // components/cardsadmin/lib.tsx: the /cards-admin page's small helpers. The look is the /quests kit (components/quests/ui):
 // same colours, buttons, cards, modals, so the admin tools feel like one set.
 
-import { useState } from "react";
-import { C, MONO, BODY, money, fmt, inputStyle } from "../quests/ui";
+import { C, MONO, BODY, money, fmt } from "../quests/ui";
 
 export const CARD_IDS = ["merchant", "artisan", "provider", "hunter", "mechanic", "medic", "adventurer", "guardian"];
 
@@ -135,20 +134,6 @@ export function CardArt({ card, size = 64, on = true }) {
     // eslint-disable-next-line @next/next/no-img-element
     <img src={cardArt(card.id)} alt="" width={size} height={Math.round(size * 1.4)} loading="lazy"
       style={{ objectFit: "cover", border: `2px solid ${cardHex(card.color)}`, flexShrink: 0, filter: on ? "none" : "grayscale(0.85) brightness(0.6)", background: C.bg }} />
-  );
-}
-
-/** an in-game name box that suggests the players the game knows */
-let nameListN = 0;
-export function NameInput({ value, onChange, names = [], placeholder = "in-game name", onEnter = null, big = false }) {
-  const [id] = useState(() => `ca-names-${++nameListN}`);
-  return (
-    <>
-      <input list={id} value={value ?? ""} placeholder={placeholder} autoComplete="off" spellCheck={false}
-        onChange={(e) => onChange(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && onEnter) onEnter(); }}
-        style={{ ...inputStyle, width: "100%", ...(big ? { fontSize: 16, padding: "10px 12px" } : {}) }} />
-      <datalist id={id}>{names.slice(0, 400).map((n) => <option key={n} value={n} />)}</datalist>
-    </>
   );
 }
 
