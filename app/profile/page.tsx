@@ -6,6 +6,15 @@ import { repTier } from "@/lib/utils";
 
 type State = "loading" | "guest" | "profile";
 
+// 1 silver = 1,000 bronze; never gold (Nin 2026-10-13)
+function silverBronze(b: number): string {
+  const s = Math.floor(b / 1000), r = b % 1000;
+  const parts: string[] = [];
+  if (s) parts.push(`${s.toLocaleString("en-US")} silver`);
+  if (r || !s) parts.push(`${r} bronze`);
+  return parts.join(" ");
+}
+
 export default function ProfilePage() {
   const [state, setState] = useState<State>("loading");
   const [user, setUser] = useState<User | null>(null);
@@ -17,6 +26,7 @@ export default function ProfilePage() {
   const [bioInput, setBioInput] = useState("");
   const [bioSaving, setBioSaving] = useState(false);
   const [bioFeedback, setBioFeedback] = useState("");
+  const [taxOwed, setTaxOwed] = useState(0);
 
   useEffect(() => {
     fetch(`${API}/auth/me`, { credentials: "include" })
@@ -30,6 +40,11 @@ export default function ProfilePage() {
             fetch(`${API}/api/rankings`),
             fetch(`${API}/api/players`),
           ]);
+          // the weekly tax's tab: what the bank couldn't cover, taken from the next money that comes in (2026-10-23)
+          fetch(`${API}/api/tax-tab/me`, { credentials: "include" })
+            .then((r) => (r.ok ? r.json() : null))
+            .then((t) => { if (t && Number(t.owed) > 0) setTaxOwed(Number(t.owed)); })
+            .catch(() => {});
           let ingameName = "";
           if (sr.ok) {
             const sd = await sr.json();
@@ -111,6 +126,11 @@ export default function ProfilePage() {
               }
               {gameStats?.balance !== undefined && (
                 <p className="text-[0.85rem] text-[#555] mt-1 font-mono">{gameStats.balance.toLocaleString()} 🟤</p>
+              )}
+              {taxOwed > 0 && (
+                <p className="text-[0.78rem] text-[#a0603a] mt-1 font-mono">
+                  Tax owed: {silverBronze(taxOwed)}. Zombita takes it from the next money you get.
+                </p>
               )}
             </div>
           </div>

@@ -88,6 +88,27 @@ const TreasuryPayout = ({ t, m, doPayout }) => {
   </div>);
 };
 
+// The weekly tax's tab (2026-10-23): what a player's bank couldn't cover, collected from their next money. Forgive = nothing
+// more is taken (what was already collected stays in the treasury).
+const TaxTabs = ({ toast }) => {
+  const [tabs, setTabs] = useState(null);
+  const load = useCallback(async () => { try { setTabs((await fetchApi("/api/admin/tax-tab")).tabs || []); } catch (e) { setTabs([]); toast("Tax tabs: " + e.message, "error"); } }, [toast]);
+  useEffect(() => { load(); }, [load]);
+  const forgive = async (t) => {
+    if (!window.confirm(`Forgive ${t.name || t.discord_id}'s tax tab of ${bronzeToCoins(t.owed)}? Nothing more will be taken.`)) return;
+    try { const r = await postApi("/api/admin/tax-tab/clear", { discord_id: t.discord_id }); toast(r.forgiven ? `Forgave ${bronzeToCoins(r.forgiven)}` : "Nothing was owed", "success"); load(); } catch (e) { toast("Failed: " + e.message, "error"); }
+  };
+  return (<TW title="TAX TABS" right={<B c="ghost" sm onClick={load}>↻</B>}>
+    <div className="ap-note">The part of the weekly tax a bank could not cover (cash counts too). Zombita takes it from the next money that comes into that bank. Still unpaid after 7 days: one notoriety deed (4 points).</div>
+    {tabs === null ? <Load /> : tabs.length ? <div>{tabs.map(t => <div key={t.discord_id} className="ap-lr">
+      <span className="ap-lr-p" style={{ minWidth: 140 }}>{t.name || `#${t.discord_id}`}</span>
+      <span className="ap-lr-v neg">{bronzeToCoins(t.owed)}</span>
+      <span className="ap-lr-d">paid so far {bronzeToCoins(t.paid_total)} · {t.days} days{t.deed_done ? " · deed counted" : ""}</span>
+      <B c="ghost" sm onClick={() => forgive(t)}>Forgive</B>
+    </div>)}</div> : <Empty text="nobody owes tax" />}
+  </TW>);
+};
+
 export default function TreasuryTab({ toast }) {
   const [sub, setSub] = useStickyState("overview", "treasury.sub");
   const [data, setData] = useState(null);
@@ -108,7 +129,7 @@ export default function TreasuryTab({ toast }) {
   const doReset = async (bal) => { try { await postApi("/api/treasury/admin/reset-cycle", bal ? { new_balance: parseInt(bal) } : {}); toast("Cycle reset!", "success"); setShowReset(false); loadOv(); } catch (e) { toast("Reset failed", "error"); setShowReset(false); } };
   const doPayout = async (did, amt, reason) => { try { await postApi("/api/treasury/admin/payout", { discord_id: parseInt(did), amount: parseInt(amt), reason: reason || "Admin payout" }); toast(`Sent ${fmt(amt)} 🟤`, "success"); loadOv(); } catch (e) { toast("Payout failed: " + e.message, "error"); } };
 
-  const tabs = [{ key: "overview", icon: "🏦", label: "Overview" }, { key: "controls", icon: "⚙️", label: "Controls" }, { key: "payout", icon: "💰", label: "Payout" }, { key: "log", icon: "📋", label: "Event Log" }];
+  const tabs = [{ key: "overview", icon: "🏦", label: "Overview" }, { key: "controls", icon: "⚙️", label: "Controls" }, { key: "payout", icon: "💰", label: "Payout" }, { key: "log", icon: "📋", label: "Event Log" }, { key: "taxtabs", icon: "🧾", label: "Tax tabs" }];
   if (loading) return <><Title t="TREASURY" s="economy health · coin flow" /><Load /></>;
 
   return (<>
@@ -152,6 +173,8 @@ export default function TreasuryTab({ toast }) {
     </div>}
 
     {sub === "payout" && <TreasuryPayout t={t} m={m} doPayout={doPayout} />}
+
+    {sub === "taxtabs" && <TaxTabs toast={toast} />}
 
     {sub === "log" && <TW title="EVENTS" right={<><div style={{ display: "flex", gap: 6 }}>{[null, "payout", "burn", "recycle", "inject", "reset", "adjust"].map(f => <button key={f || "all"} className={`ap-ft ${logFilter === f ? "act" : ""}`} onClick={() => { setLogFilter(f); loadLog(f); }}>{f || "All"}</button>)}</div><B c="ghost" sm onClick={() => loadLog(logFilter)}>↻</B></>}>
       {log.length ? <div>{log.map((e, i) => <div key={i} className="ap-lr"><span className="ap-lr-t">{relTime(e.timestamp)}</span><EvBadge type={e.event_type} /><span className="ap-lr-d">{e.reason || "-"}</span><span className="ap-lr-p">{e.player || (e.discord_id ? `#${e.discord_id}` : "-")}</span><span className={`ap-lr-v ${["payout", "burn"].includes(e.event_type) ? "neg" : e.amount > 0 ? "pos" : "neu"}`}>{["payout", "burn"].includes(e.event_type) ? "−" : e.amount > 0 ? "+" : ""}{fmt(Math.abs(e.amount))} 🟤</span><span style={{ color: "var(--textdim)", fontFamily: "var(--mono)", fontSize: 11, minWidth: 80, textAlign: "right" }}>→ {fmt(e.balance_after)}</span></div>)}</div> : <Empty text="no events" />}
