@@ -91,6 +91,16 @@ function MyCards({ me, st }) {
       )}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {st.cards.map((c) => {
+          if (comingSoon(c, st)) {
+            return (
+              <div key={c.id} className="border border-[#161b22] p-2">
+                <div className="flex justify-between font-mono text-[0.68rem]">
+                  <span className="text-[#888]">{c.name}</span>
+                  <span className="text-[#666]">Coming soon</span>
+                </div>
+              </div>
+            );
+          }
           const p = mine.pts?.[c.id] || [0, 0];
           const { rank, next } = rankOf(st.ranks, p[0]);
           const pct = next ? ((p[0] - rank.min) / (next.min - rank.min)) * 100 : 100;
@@ -112,7 +122,26 @@ function MyCards({ me, st }) {
   );
 }
 
+// The game opens the cards one at a time. While the system is on, a card that is still switched off shows only its
+// name and its one-line blurb. With the whole system off, every card shows in full as before (the banner says so).
+function comingSoon(c, st) {
+  return !!st.on && !c.on;
+}
+
+function ComingSoonBlock({ c }) {
+  return (
+    <article className="border border-[#1e2530] bg-[#0d1117] p-4" style={{ borderLeft: "3px solid #333" }}>
+      <div className="flex items-center gap-2 flex-wrap">
+        <h2 className="text-[1.15rem] font-semibold m-0 text-[#888]">{c.name}</h2>
+        <span className="font-mono text-[0.58rem] uppercase tracking-widest px-1.5 py-0.5 border border-[#444] text-[#777]">Coming soon</span>
+      </div>
+      {c.blurb && <p className="text-[0.85rem] text-[#777] m-0 mt-1">{c.blurb}</p>}
+    </article>
+  );
+}
+
 function CardBlock({ c, st }) {
+  if (comingSoon(c, st)) return <ComingSoonBlock c={c} />;
   const col = hex(c.color);
   const ranks = st.ranks.map((r) => r.name);
   const perks = [...(c.perks || [])].sort((a, b) => ranks.indexOf(a.rank) - ranks.indexOf(b.rank));
@@ -241,6 +270,9 @@ export default function CardsPage() {
           <section className="mt-6"><MyCards me={me} st={st} /></section>
 
           <section className="mt-6 flex flex-col gap-3">
+            {st.on && st.cards.some((c) => !c.on) && (
+              <div className="font-mono text-[0.72rem] text-[#888]">Zombita opens the cards one at a time. The rest are coming soon.</div>
+            )}
             {st.cards.map((c) => <CardBlock key={c.id} c={c} st={st} />)}
           </section>
           <div className="font-mono text-[0.6rem] text-[#444] mt-4">Updated {timeAgo(st.at)} from the game.</div>
