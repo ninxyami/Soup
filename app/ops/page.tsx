@@ -7,6 +7,8 @@
 // a player's character: skills / levels, traits, heal, needs, god / invisible / noclip (1.7.114), inventory, cars,
 // movement trail + "who was here", warnings, zombies, weather + events, moving shops / bus stations, admin presence (1.7.115).
 // Backend: /api/admin/ops/* (routers/liveops.py); the game side is mod 1.7.111 ZO_Server.lua. Admins only.
+// 2026-10-24 (mod 1.8.54, liveops_yards_patch.py): the Job spots tab: scrapyards (where tow jobs end), cabin spots, car
+// drop-offs and car spawns (where tow wrecks / fleet cars go), added on the map or by x, y, removed one by one or all.
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { flyTo } from "@/components/WorldMap";
@@ -27,6 +29,19 @@ const C = { gold: "#c8a84b", blue: "#4a8fc4", green: "#4caf7d", red: "#e05555", 
 const mono = { fontFamily: "var(--mono, monospace)" };
 const MARK = { go: { label: "Go here", color: "#e8be4a" }, event: { label: "Event", color: "#ec8c3c" }, info: { label: "Info", color: "#60a0dc" },
   danger: { label: "Danger", color: "#e05246" } };
+// the Job spots tab's kinds (yards = the Mechanic card's scrapyards; the others are ZQ_Cabins' saved spots)
+const SPOT_KINDS = [
+  { id: "yards", label: "Scrapyards", pin: "Scrapyard", word: "scrapyard", color: "#d08a4a" },
+  { id: "cabin", label: "Cabin spots", pin: "Cabin", word: "cabin spot", color: "#6fbf5a" },
+  { id: "car", label: "Car drop-offs", pin: "Drop-off", word: "car drop-off", color: "#4fc3d9" },
+  { id: "wreck", label: "Car spawns", pin: "Spawn", word: "car spawn", color: "#d77ad0" },
+];
+const MAX_YARDS = 8;
+// one list per kind: { n, x, y, town, by, seed, check: "ok" | "unchecked" | "bad", why }
+function spotRows(st, kind) {
+  if (kind === "yards") return (st?.yards || []).map((y) => ({ n: y.i, x: y.x, y: y.y, town: y.place || "", by: y.by || "", at: y.at, check: "ok", why: "" }));
+  return st?.spots?.[kind] || [];
+}
 const LAYERS = [
   { id: "town", label: "Towns", color: "#e6e6e6" },
   { id: "shop", label: "Shops", color: "#c8a84b" },
@@ -38,6 +53,7 @@ const LAYERS = [
   { id: "zombies", label: "Zombies", color: C.red },
   { id: "bandits", label: "Bandits", color: "#e0904a" },
   { id: "vehicles", label: "Claimed cars", color: "#cfd3da" },
+  ...SPOT_KINDS.map((k) => ({ id: "sp_" + k.id, label: k.label, color: k.color })),
 ];
 
 async function api(path, body) {
@@ -97,10 +113,13 @@ export default function OpsPage() {
 function OpsInner() {
   const [st, setSt] = useState(null);
   const [err, setErr] = useState("");
-  const [layers, setLayers] = useState({ town: true, shop: true, bus: true, diner: true, markers: true, players: true, safehouses: true, zombies: true, bandits: true, vehicles: false });
+  const [layers, setLayers] = useState({ town: true, shop: true, bus: true, diner: true, markers: true, players: true, safehouses: true, zombies: true, bandits: true, vehicles: false,
+    sp_yards: true, sp_cabin: false, sp_car: false, sp_wreck: false });
   const [places, setPlaces] = useState([]);
   const [markDraft, setMarkDraft] = useState(null);     // { x, y } where a new marker goes
   const [markFor, setMarkFor] = useState("");          // a private marker: only this player sees it ("" = everyone)
+  const [spotKind, setSpotKind] = useState("yards");    // the Job spots tab's kind
+  const [spotDraft, setSpotDraft] = useState(null);     // { x, y } where a new job spot goes
   const [trailPts, setTrailPts] = useState(null);       // { player, points } drawn on the map
   const [spot, setSpot] = useState(null);               // { x, y, for } a spot picked for the World tools
   const [moveK, setMoveK] = useState(null);             // { kind, id, name } a shop / station being moved
@@ -261,6 +280,12 @@ function OpsInner() {
     if (layers.markers) (st?.markers || []).forEach((m) => out.push({ id: "m:" + m.id, label: m.title, x: m.x, y: m.y, size: 12,
       color: (MARK[m.kind] || MARK.go).color, onClick: () => setTab("markers") }));
     if (markDraft) out.push({ id: "m:draft", label: "new marker", x: markDraft.x, y: markDraft.y, size: 12, color: "#fff" });
+    for (const k of SPOT_KINDS) {                  // job spots: their layer on, or the Job spots tab open on that kind
+      if (!layers["sp_" + k.id] && !(mode === "live" && tab === "spots" && spotKind === k.id)) continue;
+      for (const r of spotRows(st, k.id)) out.push({ id: `sp:${k.id}:${r.x},${r.y}`, label: `${k.pin} ${r.n}${r.check === "bad" ? " (bad)" : r.check === "unchecked" ? " (unchecked)" : ""}`,
+        x: r.x, y: r.y, size: 10, color: r.check === "bad" ? C.red : k.color, onClick: () => { setSpotKind(k.id); setTab("spots"); } });
+    }
+    if (spotDraft) out.push({ id: "sp:draft", label: `new ${(SPOT_KINDS.find((k) => k.id === spotKind) || SPOT_KINDS[0]).word}`, x: spotDraft.x, y: spotDraft.y, size: 12, color: "#fff" });
     if (trailPts?.points?.length) {
       const pts = trailPts.points, step = Math.max(1, Math.ceil(pts.length / 300));
       for (let i = 0; i < pts.length; i += step) {
@@ -277,7 +302,7 @@ function OpsInner() {
       onClick: () => toast(true, `${v.owner}'s ${String(v.model).replace(/^Base\./, "")} at ${v.x}, ${v.y}`) }));
     if (mode === "zombita" || mode === "panther" || mode === "tiger") out.push(...zLayer.dots);
     return out;
-  }, [st, layers, selP, toast, markDraft, trailPts, spot, admins, meId, mode, zLayer]);
+  }, [st, layers, selP, toast, markDraft, trailPts, spot, admins, meId, mode, zLayer, tab, spotKind, spotDraft]);
   const rects = useMemo(() => {
     const out = [];
     if (layers.zombies && st?.zombies) {
@@ -335,6 +360,9 @@ function OpsInner() {
     } else if (pick.mode === "marker") {
       setMarkDraft({ x: w.x, y: w.y });
       setPick(null);
+    } else if (pick.mode === "jobspot") {
+      setSpotDraft({ x: w.x, y: w.y });
+      setPick(null);
     } else if (pick.mode === "claim") {
       setClaimDraft((d) => ({ tier: d?.tier || 1, cx: w.x, cy: w.y }));
       setPick(null);
@@ -356,7 +384,7 @@ function OpsInner() {
     if (tab === "factions" && selF) return `Faction ${(facs.factions.find((f) => f.fid === selF) || {}).name || ""}`;
     if (moveK) return `Moving ${moveK.name}`;
     return { players: "Players", safehouses: "Safehouses", factions: "Factions", cars: "Cars", world: "World tools", places: "Shops and stations",
-      markers: "Markers", chat: "Chat", log: "Log" }[tab] || "Live Ops";
+      markers: "Markers", spots: "Job spots", chat: "Chat", log: "Log" }[tab] || "Live Ops";
   }, [tab, selP, selS, selF, facs, moveK, mode, ztab]);
   const doingRef = useRef(doing);
   doingRef.current = doing;
@@ -430,7 +458,7 @@ function OpsInner() {
       ))}
       {pick && (
         <div style={{ ...mono, fontSize: 12, padding: "6px 14px", background: "#2a2410", color: C.gold, display: "flex", gap: 12, alignItems: "center" }}>
-          {pick.mode === "z" ? pick.hint : pick.mode === "teleport" ? `Click the spot on the map to teleport ${selP} to.` : pick.mode === "claim" ? "Click where the claim's flag goes (its center)." : pick.mode === "marker" ? "Click where the marker goes." : pick.mode === "spot" ? (pick.hint || "Click the spot on the map.") : pick.mode === "move" ? `Click where ${moveK?.name || "it"} should stand now.` : pick.first ? "Now click the opposite corner." : "Click one corner of the safehouse on the map."}
+          {pick.mode === "z" ? pick.hint : pick.mode === "teleport" ? `Click the spot on the map to teleport ${selP} to.` : pick.mode === "claim" ? "Click where the claim's flag goes (its center)." : pick.mode === "marker" ? "Click where the marker goes." : pick.mode === "jobspot" ? `Click where the new ${(SPOT_KINDS.find((k) => k.id === spotKind) || SPOT_KINDS[0]).word} goes.` : pick.mode === "spot" ? (pick.hint || "Click the spot on the map.") : pick.mode === "move" ? `Click where ${moveK?.name || "it"} should stand now.` : pick.first ? "Now click the opposite corner." : "Click one corner of the safehouse on the map."}
           <Btn small onClick={() => { setPick(null); }}>Cancel</Btn>
         </div>
       )}
@@ -462,7 +490,7 @@ function OpsInner() {
             tab={ztab} setTab={setZtab} picked={zPicked} /> : <>
           <div style={{ display: "flex", flexWrap: "wrap", borderBottom: `1px solid ${C.line}` }}>
             {[["players", `Players (${players.length})`], ["safehouses", `Safehouses (${safehouses.length})`], ["factions", "Factions"], ["cars", `Cars (${(st?.vehicles || []).length})`], ["world", "World"], ["places", "Places"],
-              ["markers", `Markers (${(st?.markers || []).length})`], ["chat", "Chat"], ["log", "Log"], ["rcon", "RCON"]].map(([k, l]) => (
+              ["markers", `Markers (${(st?.markers || []).length})`], ["spots", "Job spots"], ["chat", "Chat"], ["log", "Log"], ["rcon", "RCON"]].map(([k, l]) => (
               <button key={k} onClick={() => setTab(k)} style={{ ...mono, flex: "1 0 22%", fontSize: 11, padding: "8px 4px", background: tab === k ? C.bg : "transparent",
                 color: tab === k ? C.gold : C.grey, border: 0, borderBottom: tab === k ? `2px solid ${C.gold}` : "2px solid transparent", cursor: "pointer", textTransform: "uppercase" }}>{l}</button>
             ))}
@@ -482,6 +510,8 @@ function OpsInner() {
             {tab === "places" && <PlacesTab kiosks={kiosks} moveK={moveK} setMoveK={setMoveK} setPick={setPick} />}
             {tab === "markers" && <MarkersTab markers={st?.markers || []} draft={markDraft} setDraft={setMarkDraft} setPick={setPick} act={act}
               players={players} forWho={markFor} setForWho={setMarkFor} />}
+            {tab === "spots" && <JobSpotsTab st={st} kind={spotKind} setKind={(k) => { setSpotKind(k); setSpotDraft(null); }} draft={spotDraft} setDraft={setSpotDraft}
+              setPick={setPick} act={act} />}
             {tab === "chat" && <ChatTab chat={chat} meta={chatMeta} mine={mine} setMine={setMine} act={act} />}
             {tab === "log" && <LogTab log={log} />}
             {tab === "rcon" && <RconTab />}
@@ -1437,6 +1467,94 @@ function ChatTab({ chat, meta, mine, setMine, act }) {
 }
 
 // ── map markers (players see them on their map + minimap in game) ─────────────
+// ── job spots (mod 1.8.54): scrapyards, cabin spots, car drop-offs, car spawns ───────────────────────────────────────
+const SPOT_HELP = {
+  yards: `Tow jobs end here: the wreck has to be unhooked within 15 tiles of any scrapyard. Up to ${MAX_YARDS}. No scrapyard = no tow jobs.`,
+  cabin: "A cabin job builds its bandit hideout on a free cabin spot near the job: in the woods, with no building close by.",
+  car: "Car collection and Bring it home jobs park the car on a free drop-off near the job: a road or a parking lot with room for a car.",
+  wreck: "Tow wrecks and fleet service cars go on the nearest free car spawn near the job (up to 250 tiles away): a road or a parking lot with room for a car. None near: they go near the town spot like before.",
+};
+const SPOT_CLEAR = {
+  yards: "Remove ALL scrapyards? No tow jobs until one is set again.",
+  cabin: "Remove ALL cabin spots? Cabin jobs go back to searching the woods on their own.",
+  car: "Remove ALL car drop-offs? Car jobs go back to parking near their town spot.",
+  wreck: "Remove ALL car spawns? Tow and fleet cars go near the town spot again.",
+};
+
+function JobSpotsTab({ st, kind, setKind, draft, setDraft, setPick, act }) {
+  const [typed, setTyped] = useState("");             // the spot typed instead of clicked: "12010, 2142"
+  const typedXY = (() => {
+    const m = typed.trim().match(/^(\d+)\s*[, ]\s*(\d+)$/);
+    return m ? { x: Number(m[1]), y: Number(m[2]) } : null;
+  })();
+  const K = SPOT_KINDS.find((k) => k.id === kind) || SPOT_KINDS[0];
+  const rows = spotRows(st, kind);
+  const yards = kind === "yards";
+  const full = yards && rows.length >= MAX_YARDS;
+  const spots = st?.spots || {};
+  const gameOld = !!st && !("cabinOn" in spots);     // a game before 1.8.54 (or an older bot) sends no spot lists
+  const h = { ...mono, fontSize: 10, color: C.grey, textTransform: "uppercase", letterSpacing: 1, marginTop: 4 };
+  const add = () => {
+    if (!draft) return;
+    act(yards ? "yard_add" : "sp_add", yards ? { x: draft.x, y: draft.y } : { kind, x: draft.x, y: draft.y }, () => { setDraft(null); setTyped(""); });
+  };
+  const remove = (r) => {
+    if (!confirm(`Remove ${K.word} ${r.n} at ${r.x}, ${r.y}${r.town ? ` (${r.town})` : ""}?`)) return;
+    act(yards ? "yard_remove" : "sp_remove", yards ? { x: r.x, y: r.y } : { kind, x: r.x, y: r.y });
+  };
+  const status = (r) => r.check === "bad" ? <b style={{ color: C.red }}> · bad: {r.why || "failed its check"}</b>
+    : r.check === "unchecked" ? <span style={{ color: C.gold }}> · unchecked (checked when a job first uses it)</span> : null;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+        {SPOT_KINDS.map((k) => (
+          <button key={k.id} onClick={() => setKind(k.id)} style={{ ...mono, fontSize: 11, padding: "4px 8px", borderRadius: 3, cursor: "pointer",
+            background: kind === k.id ? "#1a1e24" : "transparent", color: kind === k.id ? k.color : C.grey, border: `1px solid ${kind === k.id ? k.color : C.line}` }}>
+            {k.label} ({spotRows(st, k.id).length})</button>
+        ))}
+      </div>
+      <div style={{ ...mono, fontSize: 11, color: C.grey }}>{SPOT_HELP[kind]}</div>
+      {kind === "cabin" && <div style={{ ...mono, fontSize: 12, color: spots.cabinOn ? C.green : C.gold }}>
+        {rows.length} saved, aim for 20 to 30. {spots.cabinOn ? "Cabin jobs are ON." : "Cabin jobs are OFF until there are enough spots."}</div>}
+      {!yards && <div style={{ ...mono, fontSize: 11, color: C.grey }}>Added from here with nobody near, a spot is saved unchecked and checked the
+        first time a job uses it. If it fails then, it is marked bad and never used (remove it and pick another).</div>}
+      {gameOld && <div style={{ ...mono, fontSize: 11, color: C.gold }}>The server doesn't send these lists yet: they come with the Zombita 1.8.54 build.</div>}
+      <div style={{ border: `1px solid ${K.color}`, borderRadius: 3, padding: 10, display: "flex", flexDirection: "column", gap: 8, background: "#14161a" }}>
+        <b>New {K.word}</b>
+        <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+          <Btn small onClick={() => setPick({ mode: "jobspot" })}>{draft ? "Move the spot" : "Pick the spot on the map"}</Btn>
+          {draft && <span style={{ ...mono, fontSize: 12 }}>{draft.x}, {draft.y}</span>}
+        </div>
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <input style={inp} placeholder="or type the spot: x, y  (12010, 2142)" value={typed} onChange={(e) => setTyped(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && typedXY) { setDraft(typedXY); flyTo(typedXY.x, typedXY.y, 1); } }} />
+          <Btn small disabled={!typedXY} onClick={() => { if (typedXY) { setDraft(typedXY); flyTo(typedXY.x, typedXY.y, 1); } }}>Use</Btn>
+        </div>
+        <div style={{ display: "flex", gap: 6 }}>
+          <Btn small color={K.color} disabled={!draft || full} title={full ? `There are ${MAX_YARDS} already. Remove one first.` : ""} onClick={add}>Add {K.word}</Btn>
+          {draft && <Btn small color={C.grey} onClick={() => setDraft(null)}>Cancel</Btn>}
+        </div>
+        {full && <div style={{ ...mono, fontSize: 11, color: C.gold }}>There are {MAX_YARDS} scrapyards already. Remove one first.</div>}
+      </div>
+      <div style={h}>{K.label} now</div>
+      {rows.length === 0 && <div style={{ ...mono, fontSize: 12, color: C.grey }}>{yards ? "None set. No tow jobs until one is." : `No ${K.label.toLowerCase()} saved.`}</div>}
+      {rows.map((r) => (
+        <div key={`${r.x},${r.y}`} style={{ ...mono, fontSize: 12, padding: "7px 9px", background: C.bg, border: `1px solid ${C.line}`,
+          borderLeft: `3px solid ${r.check === "bad" ? C.red : K.color}`, borderRadius: 3 }}>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <a style={{ flex: 1, cursor: "pointer", color: C.text }} title="Show it on the map" onClick={() => flyTo(r.x, r.y, 1)}>
+              {K.pin} {r.n}{r.town ? `, ${r.town}` : ""}</a>
+            <Btn small color={C.red} onClick={() => remove(r)}>Remove</Btn>
+          </div>
+          <div style={{ color: C.grey, fontSize: 11 }}>{r.x}, {r.y}{r.seed ? " · built in" : ""}{r.by ? ` · by ${String(r.by).replace(" (website)", "")}` : ""}{status(r)}</div>
+        </div>
+      ))}
+      {rows.length > 0 && <Btn small color={C.red} onClick={() => { if (confirm(SPOT_CLEAR[kind])) act(yards ? "yard_clear" : "sp_clear", yards ? {} : { kind }); }}>
+        Remove all {K.label.toLowerCase()}</Btn>}
+    </div>
+  );
+}
+
 function MarkersTab({ markers, draft, setDraft, setPick, act, players = [], forWho = "", setForWho = (_v) => {} }) {
   const [kind, setKind] = useState("go");
   const [title, setTitle] = useState("");
