@@ -9,6 +9,9 @@
 // Backend: /api/admin/ops/* (routers/liveops.py); the game side is mod 1.7.111 ZO_Server.lua. Admins only.
 // 2026-10-24 (mod 1.8.54, liveops_yards_patch.py): the Job spots tab: scrapyards (where tow jobs end), cabin spots, car
 // drop-offs and car spawns (where tow wrecks / fleet cars go), added on the map or by x, y, removed one by one or all.
+// 2026-10-24 (mod 1.8.56, liveops_places_patch.py): the Places tab's "Admin places": Mags' garage (the Mechanic card spot),
+// the community centre, the diner, Duke's car lot and Hattie's pen (squares: the pick is their centre), moved on the map
+// or by x, y with place_set, the same as their in-game SET ... HERE buttons.
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { flyTo } from "@/components/WorldMap";
@@ -42,6 +45,22 @@ function spotRows(st, kind) {
   if (kind === "yards") return (st?.yards || []).map((y) => ({ n: y.i, x: y.x, y: y.y, town: y.place || "", by: y.by || "", at: y.at, check: "ok", why: "" }));
   return st?.spots?.[kind] || [];
 }
+// the five admin places (mod 1.8.56, liveops_places_patch.py): set here the same way their in-game SET ... HERE button does.
+// mags / centre / diner are points; carlot / pen are squares and the pick is their centre (the size stays).
+const PLACE_KINDS = [
+  { id: "mags", label: "Mags' garage", color: "#e0a040", what: "Mags' garage (the Mechanic card spot and her kiosk)", button: "SET MECHANIC CARD SPOT HERE",
+    help: "Players buy the Mechanic card here and the tow truck rolls out onto the nearest free road or lot. Mags' kiosk moves here too. Pick a spot inside the garage or auto shop." },
+  { id: "centre", label: "Community centre", color: "#7ec8e3", what: "the community centre", button: "SET COMMUNITY CENTRE HERE",
+    help: "Players claim their Job Rank here (when the centre is switched on in the cards settings)." },
+  { id: "diner", label: "Diner", color: "#9775cc", what: "Zombita's diner", button: "SET DINER HERE",
+    help: "Zombita moves here, patrols here and spawns here after restarts. The map pins follow." },
+  { id: "carlot", label: "Car lot", color: "#cfd3da", what: "Duke's car lot", button: "CAR LOT HERE", rect: true, size: 15, keeper: "Duke",
+    help: "Duke's sold cars are parked inside this square. You pick its centre; the size stays (Zombita Control > Lot & Pen)." },
+  { id: "pen", label: "Animal pen", color: "#b5d67a", what: "Hattie's animal pen", button: "PEN HERE", rect: true, size: 10, keeper: "Hattie",
+    help: "Hattie's big animals are let out inside this square. You pick its centre; the size stays (Zombita Control > Lot & Pen)." },
+];
+// the square a lot / pen covers with its centre on (x, y): the game's own sum (ZS_Lot_Server areaRect)
+function placeSquare(cx, cy, n) { const h = Math.floor(n / 2); return { x: cx - h, y: cy - h, w: n, h: n }; }
 const LAYERS = [
   { id: "town", label: "Towns", color: "#e6e6e6" },
   { id: "shop", label: "Shops", color: "#c8a84b" },
@@ -54,6 +73,7 @@ const LAYERS = [
   { id: "bandits", label: "Bandits", color: "#e0904a" },
   { id: "vehicles", label: "Claimed cars", color: "#cfd3da" },
   ...SPOT_KINDS.map((k) => ({ id: "sp_" + k.id, label: k.label, color: k.color })),
+  { id: "places", label: "Admin places", color: "#e0a040" },
 ];
 
 async function api(path, body) {
@@ -114,12 +134,14 @@ function OpsInner() {
   const [st, setSt] = useState(null);
   const [err, setErr] = useState("");
   const [layers, setLayers] = useState({ town: true, shop: true, bus: true, diner: true, markers: true, players: true, safehouses: true, zombies: true, bandits: true, vehicles: false,
-    sp_yards: true, sp_cabin: false, sp_car: false, sp_wreck: false });
+    sp_yards: true, sp_cabin: false, sp_car: false, sp_wreck: false, places: true });
   const [places, setPlaces] = useState([]);
   const [markDraft, setMarkDraft] = useState(null);     // { x, y } where a new marker goes
   const [markFor, setMarkFor] = useState("");          // a private marker: only this player sees it ("" = everyone)
   const [spotKind, setSpotKind] = useState("yards");    // the Job spots tab's kind
   const [spotDraft, setSpotDraft] = useState(null);     // { x, y } where a new job spot goes
+  const [placeSel, setPlaceSel] = useState(null);       // the admin place being moved (PLACE_KINDS id)
+  const [placeDraft, setPlaceDraft] = useState(null);   // { x, y } its new spot (a lot / pen: its new centre)
   const [trailPts, setTrailPts] = useState(null);       // { player, points } drawn on the map
   const [spot, setSpot] = useState(null);               // { x, y, for } a spot picked for the World tools
   const [moveK, setMoveK] = useState(null);             // { kind, id, name } a shop / station being moved
@@ -286,6 +308,14 @@ function OpsInner() {
         x: r.x, y: r.y, size: 10, color: r.check === "bad" ? C.red : k.color, onClick: () => { setSpotKind(k.id); setTab("spots"); } });
     }
     if (spotDraft) out.push({ id: "sp:draft", label: `new ${(SPOT_KINDS.find((k) => k.id === spotKind) || SPOT_KINDS[0]).word}`, x: spotDraft.x, y: spotDraft.y, size: 12, color: "#fff" });
+    if (layers.places || (mode === "live" && tab === "places")) for (const P of PLACE_KINDS) {   // the admin places (the diner has its own layer)
+      const p = st?.places?.[P.id];
+      if (!p || P.id === "diner" || P.rect) continue;         // the lot and the pen are drawn as their squares (rects below)
+      out.push({ id: "pl:" + P.id, label: P.label, x: p.x, y: p.y, size: 11, color: P.color,
+        onClick: () => { setTab("places"); if (placeSel !== P.id) { setPlaceSel(P.id); setPlaceDraft(null); } } });
+    }
+    if (placeSel && placeDraft && !PLACE_KINDS.find((k) => k.id === placeSel)?.rect) out.push({ id: "pl:draft", label: `${(PLACE_KINDS.find((k) => k.id === placeSel) || PLACE_KINDS[0]).label} (new)`,
+      x: placeDraft.x, y: placeDraft.y, size: 12, color: "#fff" });
     if (trailPts?.points?.length) {
       const pts = trailPts.points, step = Math.max(1, Math.ceil(pts.length / 300));
       for (let i = 0; i < pts.length; i += step) {
@@ -302,7 +332,7 @@ function OpsInner() {
       onClick: () => toast(true, `${v.owner}'s ${String(v.model).replace(/^Base\./, "")} at ${v.x}, ${v.y}`) }));
     if (mode === "zombita" || mode === "panther" || mode === "tiger") out.push(...zLayer.dots);
     return out;
-  }, [st, layers, selP, toast, markDraft, trailPts, spot, admins, meId, mode, zLayer, tab, spotKind, spotDraft]);
+  }, [st, layers, selP, toast, markDraft, trailPts, spot, admins, meId, mode, zLayer, tab, spotKind, spotDraft, placeSel, placeDraft]);
   const rects = useMemo(() => {
     const out = [];
     if (layers.zombies && st?.zombies) {
@@ -331,9 +361,20 @@ function OpsInner() {
       out.push({ id: "claimdraft", x: claimDraft.cx - r, y: claimDraft.cy - r, w: 2 * r + 1, h: 2 * r + 1, color: C.purple, dashed: true,
         fill: "rgba(151,117,204,.12)", label: `new claim ${2 * r + 1} x ${2 * r + 1}` });
     }
+    if (layers.places || (mode === "live" && tab === "places")) for (const P of PLACE_KINDS) {   // the car lot and the pen: their squares
+      const p = st?.places?.[P.id];
+      if (!P.rect || !p || !p.w) continue;
+      out.push({ id: "plr:" + P.id, x: p.x1, y: p.y1, w: p.w, h: p.h, color: P.color, fill: "rgba(207,211,218,.08)", label: `${P.label}${p.set ? "" : ` (beside ${P.keeper})`} ${p.w} x ${p.h}`,
+        onClick: () => { setTab("places"); if (placeSel !== P.id) { setPlaceSel(P.id); setPlaceDraft(null); } } });
+    }
+    const PD = placeSel && placeDraft ? PLACE_KINDS.find((k) => k.id === placeSel) : null;
+    if (PD?.rect) {                                       // the square the lot / pen would cover (same size, new centre)
+      const n = st?.places?.[PD.id]?.w || PD.size, sq = placeSquare(placeDraft.x, placeDraft.y, n);
+      out.push({ id: "plr:draft", ...sq, color: "#fff", dashed: true, fill: "rgba(255,255,255,.08)", label: `${PD.label} (new) ${n} x ${n}` });
+    }
     if (mode === "zombita" || mode === "panther" || mode === "tiger") out.push(...zLayer.rects);
     return out;
-  }, [st, layers, safehouses, selS, draft, claimDraft, facs, spot, mode, zLayer]);
+  }, [st, layers, safehouses, selS, draft, claimDraft, facs, spot, mode, zLayer, tab, placeSel, placeDraft]);
 
   // map clicks: pick a teleport spot, or two corners of a safehouse box
   const onMapClick = useCallback((w) => {
@@ -363,6 +404,9 @@ function OpsInner() {
     } else if (pick.mode === "jobspot") {
       setSpotDraft({ x: w.x, y: w.y });
       setPick(null);
+    } else if (pick.mode === "place") {
+      setPlaceDraft({ x: w.x, y: w.y });
+      setPick(null);
     } else if (pick.mode === "claim") {
       setClaimDraft((d) => ({ tier: d?.tier || 1, cx: w.x, cy: w.y }));
       setPick(null);
@@ -383,9 +427,10 @@ function OpsInner() {
     if (tab === "safehouses" && selS) return `Safehouse ${selS.split(",").slice(2).join(",")}'s`;
     if (tab === "factions" && selF) return `Faction ${(facs.factions.find((f) => f.fid === selF) || {}).name || ""}`;
     if (moveK) return `Moving ${moveK.name}`;
-    return { players: "Players", safehouses: "Safehouses", factions: "Factions", cars: "Cars", world: "World tools", places: "Shops and stations",
+    if (placeSel && tab === "places") return `Moving: ${(PLACE_KINDS.find((k) => k.id === placeSel) || PLACE_KINDS[0]).label}`;
+    return { players: "Players", safehouses: "Safehouses", factions: "Factions", cars: "Cars", world: "World tools", places: "Places",
       markers: "Markers", spots: "Job spots", chat: "Chat", log: "Log" }[tab] || "Live Ops";
-  }, [tab, selP, selS, selF, facs, moveK, mode, ztab]);
+  }, [tab, selP, selS, selF, facs, moveK, mode, ztab, placeSel]);
   const doingRef = useRef(doing);
   doingRef.current = doing;
   useEffect(() => {
@@ -458,7 +503,7 @@ function OpsInner() {
       ))}
       {pick && (
         <div style={{ ...mono, fontSize: 12, padding: "6px 14px", background: "#2a2410", color: C.gold, display: "flex", gap: 12, alignItems: "center" }}>
-          {pick.mode === "z" ? pick.hint : pick.mode === "teleport" ? `Click the spot on the map to teleport ${selP} to.` : pick.mode === "claim" ? "Click where the claim's flag goes (its center)." : pick.mode === "marker" ? "Click where the marker goes." : pick.mode === "jobspot" ? `Click where the new ${(SPOT_KINDS.find((k) => k.id === spotKind) || SPOT_KINDS[0]).word} goes.` : pick.mode === "spot" ? (pick.hint || "Click the spot on the map.") : pick.mode === "move" ? `Click where ${moveK?.name || "it"} should stand now.` : pick.first ? "Now click the opposite corner." : "Click one corner of the safehouse on the map."}
+          {pick.mode === "z" ? pick.hint : pick.mode === "teleport" ? `Click the spot on the map to teleport ${selP} to.` : pick.mode === "claim" ? "Click where the claim's flag goes (its center)." : pick.mode === "marker" ? "Click where the marker goes." : pick.mode === "jobspot" ? `Click where the new ${(SPOT_KINDS.find((k) => k.id === spotKind) || SPOT_KINDS[0]).word} goes.` : pick.mode === "place" ? (PLACE_KINDS.find((k) => k.id === placeSel)?.rect ? `${(PLACE_KINDS.find((k) => k.id === placeSel) || PLACE_KINDS[0]).label}: click its new centre on the map (the square keeps its size).` : `${(PLACE_KINDS.find((k) => k.id === placeSel) || PLACE_KINDS[0]).label}: click its new spot on the map.`) : pick.mode === "spot" ? (pick.hint || "Click the spot on the map.") : pick.mode === "move" ? `Click where ${moveK?.name || "it"} should stand now.` : pick.first ? "Now click the opposite corner." : "Click one corner of the safehouse on the map."}
           <Btn small onClick={() => { setPick(null); }}>Cancel</Btn>
         </div>
       )}
@@ -507,7 +552,8 @@ function OpsInner() {
             {tab === "cars" && <CarsTab cars={st?.vehicles || []} act={act} players={players} />}
             {tab === "world" && <WorldTab act={act} spot={spot} setSpot={setSpot} setPick={setPick} players={players} places={livePlaces}
               showTrail={(player, points) => setTrailPts({ player, points })} />}
-            {tab === "places" && <PlacesTab kiosks={kiosks} moveK={moveK} setMoveK={setMoveK} setPick={setPick} />}
+            {tab === "places" && <PlacesTab kiosks={kiosks} moveK={moveK} setMoveK={setMoveK} setPick={setPick} st={st} act={act}
+              placeSel={placeSel} setPlaceSel={(id) => { setPlaceSel(id); setPlaceDraft(null); }} placeDraft={placeDraft} setPlaceDraft={setPlaceDraft} />}
             {tab === "markers" && <MarkersTab markers={st?.markers || []} draft={markDraft} setDraft={setMarkDraft} setPick={setPick} act={act}
               players={players} forWho={markFor} setForWho={setMarkFor} />}
             {tab === "spots" && <JobSpotsTab st={st} kind={spotKind} setKind={(k) => { setSpotKind(k); setSpotDraft(null); }} draft={spotDraft} setDraft={setSpotDraft}
@@ -1272,12 +1318,90 @@ function EventsBox({ act, spot, pickSpot, players, places = [], box, row, num })
   );
 }
 
+// ── the five admin places (mod 1.8.56): Mags' garage, community centre, diner, car lot, animal pen ──────────────────────
+function placeWhere(P, p) {
+  const by = p?.by ? ` · by ${String(p.by).replace(" (website)", "")}` : "";
+  if (P.id === "mags") return p ? `${p.x}, ${p.y}${p.place ? `, ${p.place}` : ""}${p.on ? "" : " · the Mechanic card is off (Mags stays closed)"}${by}`
+    : "Not set. The Mechanic card can't be bought until it is.";
+  if (P.id === "centre") return p ? `${p.x}, ${p.y}${p.place ? `, ${p.place}` : ""}${p.on ? "" : " · switched off in the cards settings"}${by}`
+    : "Not set. Job Ranks work without the centre until it is.";
+  if (P.id === "diner") return p ? `${p.x}, ${p.y}${p.z ? `, floor ${p.z}` : ""}${p.default ? " · the first spot" : ""}` : "Not reported yet.";
+  return p ? `${p.set ? "Centre" : `Beside ${P.keeper} (not set), centre`} ${p.x}, ${p.y} · ${p.w} x ${p.h} tiles`
+    : `Not set, and ${P.keeper} isn't out, so there is no square yet.`;
+}
+
+function AdminPlaces({ st, act, setPick, sel, setSel, draft, setDraft }) {
+  const [typed, setTyped] = useState("");             // the spot typed instead of clicked: "12010, 2142"
+  const typedXY = (() => {
+    const m = typed.trim().match(/^(\d+)\s*[, ]\s*(\d+)$/);
+    return m ? { x: Number(m[1]), y: Number(m[2]) } : null;
+  })();
+  const places = st?.places;
+  const h = { ...mono, fontSize: 10, color: C.grey, textTransform: "uppercase", letterSpacing: 1, marginTop: 4 };
+  const move = (P) => {
+    if (!draft) return;
+    const p = places?.[P.id];
+    const from = p ? (P.rect && !p.set ? `beside ${P.keeper} (${p.x}, ${p.y})` : `${p.x}, ${p.y}`) : "nowhere (not set yet)";
+    let more = "";
+    if (P.id === "mags") more = "Mags' kiosk moves there too. Players buy the Mechanic card there from now on.";
+    else if (P.id === "centre") more = "Players claim their Job Rank there from now on.";
+    else if (P.id === "diner") more = "Zombita leaves the old diner and stands at the new one (once someone is near).";
+    else {
+      const n = p?.w || P.size, sq = placeSquare(draft.x, draft.y, n);
+      more = `The ${n} x ${n} square goes around it (${sq.x}, ${sq.y} to ${sq.x + n - 1}, ${sq.y + n - 1}).`;
+    }
+    if (!confirm(`Move ${P.what} from ${from} to ${draft.x}, ${draft.y}?\n\n${more}`)) return;
+    act("place_set", { what: P.id, x: draft.x, y: draft.y }, () => { setDraft(null); setTyped(""); setSel(null); });
+  };
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={h}>Admin places</div>
+      <div style={{ ...mono, fontSize: 11, color: C.grey }}>Moving one here is the same as standing on the spot in game and pressing its
+        SET ... HERE button in Zombita Control.</div>
+      {st && !places && <div style={{ ...mono, fontSize: 11, color: C.gold }}>The server doesn't send these yet (the bot needs liveops_places_patch.py).</div>}
+      {places && !places.diner && <div style={{ ...mono, fontSize: 11, color: C.gold }}>The game doesn't send these yet: they come with the Zombita 1.8.56 build.</div>}
+      {PLACE_KINDS.map((P) => {
+        const p = places?.[P.id], open = sel === P.id;
+        return (
+          <div key={P.id} id={"place-" + P.id} style={{ ...mono, fontSize: 12, padding: "7px 9px", background: C.bg, border: `1px solid ${open ? P.color : C.line}`,
+            borderLeft: `3px solid ${P.color}`, borderRadius: 3, display: "flex", flexDirection: "column", gap: 6 }}>
+            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              <a style={{ flex: 1, cursor: p ? "pointer" : "default", color: C.text }} title={p ? "Show it on the map" : ""}
+                onClick={() => { if (p) flyTo(p.x, p.y, 1); }}>{P.label}</a>
+              <Btn small color={open ? C.grey : P.color} onClick={() => { setSel(open ? null : P.id); setTyped(""); if (open) setPick(null); }}>{open ? "Close" : "Move"}</Btn>
+            </div>
+            <div style={{ color: p ? C.grey : C.gold, fontSize: 11 }}>{placeWhere(P, p)}</div>
+            {open && <>
+              <div style={{ color: C.grey, fontSize: 11 }}>{P.help}</div>
+              <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                <Btn small onClick={() => setPick({ mode: "place" })}>{draft ? "Pick again" : P.rect ? "Pick the centre on the map" : "Pick on the map"}</Btn>
+                {draft && <span>New: {draft.x}, {draft.y}</span>}
+              </div>
+              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <input style={inp} placeholder="or type it: x, y  (12010, 2142)" value={typed} onChange={(e) => setTyped(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter" && typedXY) { setDraft(typedXY); flyTo(typedXY.x, typedXY.y, 1); } }} />
+                <Btn small disabled={!typedXY} onClick={() => { if (typedXY) { setDraft(typedXY); flyTo(typedXY.x, typedXY.y, 1); } }}>Use</Btn>
+              </div>
+              <div style={{ display: "flex", gap: 6 }}>
+                <Btn small color={P.color} disabled={!draft} onClick={() => move(P)}>Move here</Btn>
+                {draft && <Btn small color={C.grey} onClick={() => setDraft(null)}>Clear</Btn>}
+              </div>
+            </>}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── shops and bus stations: move them on the map ───────────────────────────
-function PlacesTab({ kiosks, moveK, setMoveK, setPick }) {
+function PlacesTab({ kiosks, moveK, setMoveK, setPick, st, act, placeSel, setPlaceSel, placeDraft, setPlaceDraft }) {
   const [q, setQ] = useState("");
   const list = kiosks.filter((k) => (k.name + " " + k.id).toLowerCase().includes(q.toLowerCase())).sort((a, b) => a.kind.localeCompare(b.kind) || String(a.name).localeCompare(String(b.name)));
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <AdminPlaces st={st} act={act} setPick={setPick} sel={placeSel} setSel={setPlaceSel} draft={placeDraft} setDraft={setPlaceDraft} />
+      <div style={{ ...mono, fontSize: 10, color: C.grey, textTransform: "uppercase", letterSpacing: 1, marginTop: 8 }}>Shops and bus stations</div>
       <div style={{ ...mono, fontSize: 11, color: C.grey }}>Shops, bus stations and the diner where they stand now. Moving one is the same as moving it from the in-game panel.</div>
       {moveK && <div style={{ ...mono, fontSize: 12, color: C.gold }}>Moving {moveK.name}: click its new spot on the map. <a style={{ color: C.grey, cursor: "pointer" }} onClick={() => { setMoveK(null); setPick(null); }}>cancel</a></div>}
       <input style={inp} placeholder="Find a shop or station" value={q} onChange={(e) => setQ(e.target.value)} />
@@ -1287,7 +1411,10 @@ function PlacesTab({ kiosks, moveK, setMoveK, setPick }) {
           <span style={{ color: k.kind === "bus" ? C.blue : k.kind === "diner" ? C.purple : C.gold }}>{k.kind === "bus" ? "BUS" : k.kind === "diner" ? "DINER" : "SHOP"}</span>
           <a style={{ flex: 1, cursor: "pointer", opacity: k.off ? 0.5 : 1 }} onClick={() => flyTo(k.x, k.y, 1)}>{k.name}{k.off ? " (destroyed)" : ""} <span style={{ color: C.grey, fontSize: 11 }}>{k.x}, {k.y}</span></a>
           {k.kind === "diner"
-            ? <span style={{ color: C.grey, fontSize: 11 }} title="Stand in the new diner in game: Zombita Control > ZOMBITA > SET DINER HERE">move it in game</span>
+            ? <Btn small title="Admin places above: Diner" onClick={() => {
+                setPlaceSel("diner");
+                setTimeout(() => document.getElementById("place-diner")?.scrollIntoView({ block: "nearest", behavior: "smooth" }), 50);
+              }}>Move</Btn>
             : <Btn small onClick={() => { setMoveK({ kind: k.kind, id: k.id, name: k.name }); setPick({ mode: "move" }); }}>Move</Btn>}
         </div>
       ))}
