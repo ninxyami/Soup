@@ -15,6 +15,8 @@
 // 2026-10-30 (mod 1.8.77, sh_respawn_patch.py): a safehouse card shows who respawns there after death (owner + members, faction
 // safehouses too) with an ON / OFF switch each: sh_respawn x y owner player on, the same setting as the in-game safehouse
 // window and the faction window's RESPAWN AT OUR SAFEHOUSE switch. The game reports the list as "respawn" in its state.
+// 2026-10-25 (mod 1.8.66, liveops_gifts_patch.py): the Gifts tab: items for a checklist of players, online or offline
+// (components/ops/GiftsTab.tsx; the game hands them over, offline players at their next login). 2026-10-30: Announce to everyone.
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { flyTo } from "@/components/WorldMap";
@@ -22,6 +24,7 @@ import { API } from "@/lib/constants";
 import ZombitaControl from "@/components/ops/ZombitaControl";
 import PantherTab from "@/components/ops/PantherTab";
 import TigerTab from "@/components/ops/TigerTab";
+import GiftsTab from "@/components/ops/GiftsTab";
 import PanelGate from "@/components/PanelGate";
 import ServerControls from "@/components/ops/ServerControls";
 import CorpseClearBox from "@/components/ops/CorpseClearBox";
@@ -433,7 +436,7 @@ function OpsInner() {
     if (moveK) return `Moving ${moveK.name}`;
     if (placeSel && tab === "places") return `Moving: ${(PLACE_KINDS.find((k) => k.id === placeSel) || PLACE_KINDS[0]).label}`;
     return { players: "Players", safehouses: "Safehouses", factions: "Factions", cars: "Cars", world: "World tools", places: "Places",
-      markers: "Markers", spots: "Job spots", chat: "Chat", log: "Log" }[tab] || "Live Ops";
+      markers: "Markers", spots: "Job spots", gifts: "Gifts", chat: "Chat", log: "Log" }[tab] || "Live Ops";
   }, [tab, selP, selS, selF, facs, moveK, mode, ztab, placeSel]);
   const doingRef = useRef(doing);
   doingRef.current = doing;
@@ -539,7 +542,7 @@ function OpsInner() {
             tab={ztab} setTab={setZtab} picked={zPicked} /> : <>
           <div style={{ display: "flex", flexWrap: "wrap", borderBottom: `1px solid ${C.line}` }}>
             {[["players", `Players (${players.length})`], ["safehouses", `Safehouses (${safehouses.length})`], ["factions", "Factions"], ["cars", `Cars (${(st?.vehicles || []).length})`], ["world", "World"], ["places", "Places"],
-              ["markers", `Markers (${(st?.markers || []).length})`], ["spots", "Job spots"], ["chat", "Chat"], ["log", "Log"], ["rcon", "RCON"]].map(([k, l]) => (
+              ["markers", `Markers (${(st?.markers || []).length})`], ["spots", "Job spots"], ["gifts", "Gifts"], ["chat", "Chat"], ["log", "Log"], ["rcon", "RCON"]].map(([k, l]) => (
               <button key={k} onClick={() => setTab(k)} style={{ ...mono, flex: "1 0 22%", fontSize: 11, padding: "8px 4px", background: tab === k ? C.bg : "transparent",
                 color: tab === k ? C.gold : C.grey, border: 0, borderBottom: tab === k ? `2px solid ${C.gold}` : "2px solid transparent", cursor: "pointer", textTransform: "uppercase" }}>{l}</button>
             ))}
@@ -562,6 +565,7 @@ function OpsInner() {
               players={players} forWho={markFor} setForWho={setMarkFor} />}
             {tab === "spots" && <JobSpotsTab st={st} kind={spotKind} setKind={(k) => { setSpotKind(k); setSpotDraft(null); }} draft={spotDraft} setDraft={setSpotDraft}
               setPick={setPick} act={act} />}
+            {tab === "gifts" && <GiftsTab act={act} players={players} setPick={setPick} />}
             {tab === "chat" && <ChatTab chat={chat} meta={chatMeta} mine={mine} setMine={setMine} act={act} />}
             {tab === "log" && <LogTab log={log} />}
             {tab === "rcon" && <RconTab />}
