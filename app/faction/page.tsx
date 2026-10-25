@@ -62,6 +62,7 @@ export default function FactionPage() {
   const [blurb, setBlurb] = useState("");
   const [ladder, setLadder] = useState<any[]>([]);
   const [editRanks, setEditRanks] = useState(false);
+  const [waiting, setWaiting] = useState<any[]>([]);      // 2026-10-25: faction safehouse applications waiting for MY yes / no
   const logoRef = useRef<HTMLInputElement>(null);
   const bannerRef = useRef<HTMLInputElement>(null);
 
@@ -77,6 +78,8 @@ export default function FactionPage() {
     const id = new URLSearchParams(window.location.search).get("id") || "";
     setFid(id);
     if (id) load(id); else setError("No faction given.");
+    fetch(`${API}/api/sh/convert/pending`, { credentials: "include" }).then((r) => (r.ok ? r.json() : null))
+      .then((d) => setWaiting((d?.pending || []).filter((t: any) => t.convert && t.convert.fid === id))).catch(() => {});
   }, []);
 
   const act = async (fn: () => Promise<any>) => {
@@ -125,7 +128,8 @@ export default function FactionPage() {
               <span className="text-[#4a7c59]">{(f.kills || 0).toLocaleString()} kills</span>
               <span>founded {day(f.since)}</span>
               {f.renamedFrom && <span>formerly {f.renamedFrom}</span>}
-              {claim && <span className="text-[#c8a84b]">🏴 {TIERS[claim.tier] || "claim"} at {claim.x},{claim.y} (r{claim.radius})</span>}
+              {claim && (claim.rect?.w ? <span className="text-[#c8a84b]">🏴 faction safehouse {claim.rect.w} x {claim.rect.h} at {claim.rect.x},{claim.rect.y}</span>
+                : <span className="text-[#c8a84b]">🏴 {TIERS[claim.tier] || "claim"} at {claim.x},{claim.y} (r{claim.radius})</span>)}
             </div>
           </div>
         </div>
@@ -355,7 +359,13 @@ export default function FactionPage() {
       {/* the claim: the faction's safehouse */}
       {(isMember || claim) && (
         <Sec title="Claim" right={<span className="font-mono text-[0.6rem] text-[#555]">the faction&rsquo;s safehouse</span>}>
-          {claim ? (
+          {claim && claim.rect?.w ? (
+            <div className="border border-[#222] p-3 font-mono text-[0.7rem] text-[#9a9a9a] flex items-center gap-3 flex-wrap">
+              <span><b className="text-[#e6e6e6]">Faction safehouse</b> {claim.rect.w} x {claim.rect.h} at {claim.rect.x},{claim.rect.y} &middot; was {claim.converted_from?.owner || "a member"}&rsquo;s safehouse, kept at its own size &middot; {day(claim.at)}</span>
+              <span className="text-[#777]">It can&rsquo;t be upgraded or turned back into a normal safehouse.</span>
+              {P.CLAIM && canAct && <Btn disabled={busy} onClick={() => { if (confirm("Abandon the faction safehouse? It goes like any faction claim, nothing is refunded, and it does NOT go back to being a normal safehouse.")) act(() => post(`/api/factions/${fid}/claim/abandon`)); }}>Abandon</Btn>}
+            </div>
+          ) : claim ? (
             <div className="border border-[#222] p-3 font-mono text-[0.7rem] text-[#9a9a9a] flex items-center gap-3 flex-wrap">
               <span><b className="text-[#e6e6e6]">{TIERS[claim.tier] || "Claim"}</b> at {claim.x},{claim.y} &middot; radius {claim.radius} tiles &middot; planted by {claim.by || "?"} {day(claim.at)}</span>
               {P.CLAIM && canAct && claim.tier < 3 && (
@@ -371,6 +381,28 @@ export default function FactionPage() {
             <div className="border border-[#222] p-3 font-mono text-[0.7rem] text-[#9a9a9a]">
               No claim yet. Plant one <b className="text-[#e6e6e6]">in game</b> (faction window &rarr; PLANT THE CLAIM HERE, where you stand): it becomes the faction&rsquo;s safehouse, the owner&rsquo;s, with every member on it.
               <div className="mt-1 text-[#555]">Outpost {fmtBronze(costs[1]?.[0])} (r{costs[1]?.[1]}) &middot; Compound {fmtBronze(costs[2]?.[0])} (r{costs[2]?.[1]}) &middot; Stronghold {fmtBronze(costs[3]?.[0])} (r{costs[3]?.[1]}) - from the faction wallet; upgrades cost the difference.</div>
+              {/* 2026-10-25 (mod 1.8.67, Nin for Timbrr's group): make a member's safehouse the faction safehouse, through an Admin Ticket */}
+              <div className="mt-3 border-t border-[#222] pt-3 text-[#9a9a9a] leading-relaxed">
+                <b className="text-[#9775cc]">Already have a safehouse? Make it the faction safehouse.</b> The safehouse stays exactly as it is
+                (same ground, same size, everything inside) and it&rsquo;s free apart from an <b className="text-[#e6e6e6]">Admin Ticket</b>.
+                <ol className="list-decimal ml-5 mt-1">
+                  <li>The safehouse owner, or anyone with the claim permission, buys an Admin Ticket (Shop, ALWAYS tab).</li>
+                  <li>Open the link in your private ticket channel on Discord and pick <b className="text-[#e6e6e6]">FACTION SAFEHOUSE</b>.</li>
+                  <li>The other side confirms on the website (the owner, or the faction&rsquo;s leader side) within 3 days. If one person is both, one yes is enough.</li>
+                  <li>An admin checks it and approves. The faction&rsquo;s leader becomes the owner and every member is on it.</li>
+                </ol>
+                <div className="mt-1 text-[#a55]">It is one way: it can&rsquo;t be turned back into a normal safehouse. Players on the safehouse who aren&rsquo;t in {f.name} lose access. The safehouse owner has to be in {f.name}.</div>
+              </div>
+            </div>
+          )}
+          {waiting.length > 0 && (
+            <div className="border border-[#9775cc] p-3 mt-2 font-mono text-[0.7rem] text-[#e6e6e6]">
+              <b className="text-[#9775cc]">Waiting for your answer:</b>
+              {waiting.map((t: any) => (
+                <div key={t.id} className="mt-1">
+                  {t.convert.owner}&rsquo;s safehouse ({t.convert.rect.w} x {t.convert.rect.h} at {t.convert.rect.x},{t.convert.rect.y}) as the faction safehouse
+                  &middot; <a href={`/safehouse?convert=${t.id}`} className="text-[#c8a84b]">open, confirm or decline &rarr;</a>
+                </div>))}
             </div>
           )}
         </Sec>

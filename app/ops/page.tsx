@@ -548,7 +548,7 @@ function OpsInner() {
             {tab === "safehouses" && <SafehousesTab safehouses={safehouses} selected={selected} setSelS={setSelS} shKey={shKey} draft={draft} setDraft={setDraft}
               setPick={setPick} act={act} players={players} />}
             {tab === "factions" && <FactionsTab facs={facs} selF={selF} setSelF={setSelF} act={act} players={players} refresh={refreshFactions}
-              claimDraft={claimDraft} setClaimDraft={setClaimDraft} setPick={setPick} />}
+              claimDraft={claimDraft} setClaimDraft={setClaimDraft} setPick={setPick} safehouses={safehouses} />}
             {tab === "cars" && <CarsTab cars={st?.vehicles || []} act={act} players={players} />}
             {tab === "world" && <WorldTab act={act} spot={spot} setSpot={setSpot} setPick={setPick} players={players} places={livePlaces}
               showTrail={(player, points) => setTrailPts({ player, points })} />}
@@ -1759,13 +1759,13 @@ function MarkersTab({ markers, draft, setDraft, setPick, act, players = [], forW
 }
 
 // ── factions ────────────────────────────────────────────────────────────────
-function FactionsTab({ facs, selF, setSelF, act, players, refresh, claimDraft, setClaimDraft, setPick }) {
+function FactionsTab({ facs, selF, setSelF, act, players, refresh, claimDraft, setClaimDraft, setPick, safehouses = [] }) {
   const [q, setQ] = useState("");
   const list = (facs.factions || []).filter((f) => (f.name + " " + f.tag + " " + f.members.join(" ")).toLowerCase().includes(q.toLowerCase()));
   const f = (facs.factions || []).find((x) => x.fid === selF) || null;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-      {f && <FactionCard onClose={() => { setSelF(null); setClaimDraft(null); }} f={f} facs={facs} act={act} players={players} refresh={refresh} claimDraft={claimDraft} setClaimDraft={setClaimDraft} setPick={setPick} />}
+      {f && <FactionCard onClose={() => { setSelF(null); setClaimDraft(null); }} f={f} facs={facs} act={act} players={players} refresh={refresh} claimDraft={claimDraft} setClaimDraft={setClaimDraft} setPick={setPick} safehouses={safehouses} />}
       <input style={inp} placeholder="Find a faction or member" value={q} onChange={(e) => setQ(e.target.value)} />
       {list.length === 0 && <div style={{ ...mono, fontSize: 12, color: C.grey }}>No factions.</div>}
       {list.map((x) => (
@@ -1773,14 +1773,14 @@ function FactionsTab({ facs, selF, setSelF, act, players, refresh, claimDraft, s
           style={{ ...mono, fontSize: 12, textAlign: "left", padding: "7px 9px", background: x.fid === selF ? "#1a1424" : C.bg, color: C.text,
             border: `1px solid ${x.fid === selF ? C.purple : C.line}`, borderRadius: 3, cursor: "pointer" }}>
           <div style={{ display: "flex", gap: 8 }}><span style={{ flex: 1 }}>{x.name}{x.tag ? ` [${x.tag}]` : ""}</span><span style={{ color: C.grey }}>{x.members.length}</span></div>
-          <div style={{ color: C.grey, fontSize: 11 }}>led by {x.owner || "?"}{x.claim?.x ? ` · ${facs.tiers?.[x.claim.tier] || "claim"} at ${x.claim.x}, ${x.claim.y}` : " · no claim"}</div>
+          <div style={{ color: C.grey, fontSize: 11 }}>led by {x.owner || "?"}{x.claim?.rect?.w ? ` · faction safehouse ${x.claim.rect.w} x ${x.claim.rect.h} at ${x.claim.rect.x}, ${x.claim.rect.y}` : x.claim?.x ? ` · ${facs.tiers?.[x.claim.tier] || "claim"} at ${x.claim.x}, ${x.claim.y}` : " · no claim"}</div>
         </button>
       ))}
     </div>
   );
 }
 
-function FactionCard({ f, facs, act, players, refresh, claimDraft, setClaimDraft, setPick, onClose }) {
+function FactionCard({ f, facs, act, players, refresh, claimDraft, setClaimDraft, setPick, onClose, safehouses = [] }) {
   const [who, setWho] = useState("");
   const done = () => setTimeout(refresh, 1500);
   const h = { ...mono, fontSize: 10, color: C.grey, textTransform: "uppercase", letterSpacing: 1, marginTop: 4 };
@@ -1809,7 +1809,10 @@ function FactionCard({ f, facs, act, players, refresh, claimDraft, setClaimDraft
         <Btn small disabled={!who.trim()} onClick={() => act("fa_add", { faction: f.name, player: who.trim() }, () => { setWho(""); done(); })}>Add</Btn>
       </div>
       <div style={h}>Claim {changed ? "(dashed purple box = new)" : ""}</div>
-      {!d ? <div style={{ ...mono, fontSize: 12, color: C.grey }}>No claim.</div> : (
+      {!d ? <div style={{ ...mono, fontSize: 12, color: C.grey }}>No claim.</div> : c.rect?.w && !changed ? (
+        <div style={{ ...mono, fontSize: 12 }}>Faction safehouse {c.rect.w} x {c.rect.h} at {c.rect.x}, {c.rect.y}
+          <div style={{ fontSize: 11, color: C.grey }}>Was {c.converted_from?.owner || "a player"}&apos;s safehouse (converted {c.converted_from?.by ? "by " + c.converted_from.by : ""}). One way: it can&apos;t be turned back. Tier for rewards: {facs.tiers?.[c.tier] || c.tier}.</div></div>
+      ) : (
         <div style={{ ...mono, fontSize: 12 }}>{facs.tiers?.[d.tier] || "Tier " + d.tier} at {d.cx}, {d.cy} ({2 * (facs.radii?.[d.tier] ?? 10) + 1} x {2 * (facs.radii?.[d.tier] ?? 10) + 1})</div>
       )}
       <div style={row}>
@@ -1819,12 +1822,61 @@ function FactionCard({ f, facs, act, players, refresh, claimDraft, setClaimDraft
       </div>
       <div style={row}>
         <Btn small onClick={() => setPick({ mode: "claim" })}>{c.x ? "Move on map" : "Place on map"}</Btn>
-        <Btn small disabled={!changed} onClick={() => act("fa_claim_set", { fid: f.fid, cx: d.cx, cy: d.cy, tier: d.tier }, () => { setClaimDraft(null); done(); })}>Save claim</Btn>
+        <Btn small disabled={!changed} onClick={() => { if (c.rect?.w && !confirm(`${f.name}'s claim is a converted safehouse (${c.rect.w} x ${c.rect.h}). Saving makes it a normal square claim: the game rebuilds the safehouse as the square. Go on?`)) return; act("fa_claim_set", { fid: f.fid, cx: d.cx, cy: d.cy, tier: d.tier }, () => { setClaimDraft(null); done(); }); }}>Save claim</Btn>
         {changed && <Btn small color={C.grey} onClick={() => setClaimDraft(null)}>Undo</Btn>}
         <span style={{ flex: 1 }} />
         {c.x ? <Btn small color={C.red} onClick={() => { if (confirm(`Remove ${f.name}'s claim? Its safehouse goes within a minute.`)) act("fa_claim_remove", { fid: f.fid }, done); }}>Remove</Btn> : null}
       </div>
       <div style={{ ...mono, fontSize: 11, color: C.grey }}>Admin claims are free. The game makes the safehouse within a minute and refuses one that overlaps another safehouse.</div>
+      {!c.x && <ConvertBox f={f} act={act} done={done} safehouses={safehouses} />}
+    </div>
+  );
+}
+
+// 2026-10-25 (mod 1.8.67, Nin: Timbrr's group): make a player's safehouse this faction's safehouse, in place. ONE WAY. Players do it with
+// an Admin Ticket (the other side confirms, an admin approves on /safehouse); here the admins can do it directly: no ticket, no
+// confirmations, and the owner may be outside the faction (then they lose access too).
+function convertLosers(sh, members, leader) {
+  const inF = new Set([...(members || []), leader || ""].map((m) => String(m).toLowerCase()));
+  const lose = (sh.members || []).filter((m) => !inF.has(String(m).toLowerCase()));
+  if (!inF.has(String(sh.owner || "").toLowerCase())) lose.unshift(sh.owner);
+  return lose;
+}
+
+function ConvertBox({ f, act, done, safehouses }) {
+  const [pick, setPick] = useState("");
+  const h = { ...mono, fontSize: 10, color: C.grey, textTransform: "uppercase", letterSpacing: 1, marginTop: 4 };
+  const key = (s) => `${s.x},${s.y},${s.w},${s.h},${s.owner}`;
+  const list = (safehouses || []).filter((s) => !s.faction && !String(s.title || "").startsWith("Faction: "));
+  const inF = new Set([...(f.members || []), f.owner || ""].map((m) => String(m).toLowerCase()));
+  list.sort((a, b) => Number(inF.has(String(b.owner).toLowerCase())) - Number(inF.has(String(a.owner).toLowerCase())) || String(a.owner).localeCompare(String(b.owner)));
+  const sh = list.find((s) => key(s) === pick) || null;
+  const lose = sh ? convertLosers(sh, f.members, f.owner) : [];
+  const go = () => {
+    if (!sh) return;
+    const text = `Make ${sh.owner}'s safehouse (${sh.w} x ${sh.h} at ${sh.x}, ${sh.y}) the faction safehouse of ${f.name}?\n\n`
+      + `The exact rectangle is kept, nothing moves, and it's free. ${f.owner || "The leader"} becomes its owner.\n`
+      + `ONE WAY: it can't be turned back into a normal safehouse.\n\n`
+      + (lose.length ? `These players are NOT in ${f.name} and lose access: ${lose.join(", ")}.` : "Nobody loses access.");
+    if (!confirm(text)) return;
+    act("fa_convert_sh", { fid: f.fid, x: sh.x, y: sh.y, w: sh.w, h: sh.h, owner: sh.owner }, () => { setPick(""); done(); });
+  };
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6, borderTop: `1px solid ${C.line}`, paddingTop: 8 }}>
+      <div style={h}>Make a safehouse the faction safehouse (one way)</div>
+      <select style={inp} value={pick} onChange={(e) => setPick(e.target.value)}>
+        <option value="">Pick a player safehouse</option>
+        {list.map((s) => <option key={key(s)} value={key(s)}>{s.owner}{inF.has(String(s.owner).toLowerCase()) ? " (in the faction)" : ""}: {s.w} x {s.h} at {s.x}, {s.y}{s.title ? ` "${s.title}"` : ""}</option>)}
+      </select>
+      {sh && (
+        <div style={{ ...mono, fontSize: 11, color: C.text, lineHeight: 1.5 }}>
+          Kept exactly: {sh.w} x {sh.h} at {sh.x}, {sh.y} ({(sh.w * sh.h).toLocaleString()} tiles). {f.owner || "The leader"} becomes the owner; every member is on it.
+          {!inF.has(String(sh.owner).toLowerCase()) && <div style={{ color: C.gold }}>{sh.owner} is not in {f.name}. Players can only do this for a member&apos;s safehouse; as an admin you can, and {sh.owner} loses access.</div>}
+          <div style={{ color: lose.length ? C.red : C.grey }}>{lose.length ? `Lose access (not in ${f.name}): ${lose.join(", ")}` : "Nobody loses access."}</div>
+          <div style={{ color: C.red }}>One way: it can&apos;t be turned back into a normal safehouse.</div>
+        </div>)}
+      <Btn small color={C.purple} disabled={!sh} onClick={go}>Convert it</Btn>
+      <div style={{ ...mono, fontSize: 11, color: C.grey }}>The game checks it again (same owner and size, no overlap, the leader owns no other safehouse) and changes the safehouse in place: no gap, nothing moves. Players see the new owner after a relog.</div>
     </div>
   );
 }

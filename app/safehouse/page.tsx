@@ -7,6 +7,10 @@
 //                        two corners or nudge the four sides, the price shows as they go, "Send to the admins". An admin who opens the
 //                        same link sees the drawn box (read only) and Approve / Edit price / Reject.
 //   /safehouse           admins: the ticket list and the price / limit settings.
+//   /safehouse?convert=N 2026-10-25 (mod 1.8.67, Nin: "they need admin ticket to convert ... admins will check and approve"): an application
+//                        to make a safehouse the faction safehouse. The other side (the safehouse owner, or someone with the claim permission
+//                        in the faction) confirms or declines here; the admins approve here or in the ticket channel. ONE WAY.
+//                        The ticket page (?t=) has the FACTION SAFEHOUSE part where the ticket's player files it.
 //
 // A safehouse in Project Zomboid is a RECTANGLE (x, y, width, height). The price and the limits are the bot's (zombita_sh_pricing.py: a tile
 // costs 1 + its row bronze, the biggest is 59 x 49); this page only asks /api/sh/quote and shows the answer.
@@ -53,17 +57,21 @@ async function call(path, body) {
 
 export default function SafehousePage() {
   const [token, setToken] = useState(null);
+  const [convertId, setConvertId] = useState("");
   const [ready, setReady] = useState(false);
-  useEffect(() => { setToken(new URLSearchParams(window.location.search).get("t") || ""); setReady(true); }, []);
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    setToken(q.get("t") || ""); setConvertId((q.get("convert") || "").replace(/[^0-9]/g, "")); setReady(true);
+  }, []);
   if (!ready) return null;
   return (
     <div style={{ ...mono, background: C.bg, color: C.text, minHeight: "100vh", display: "flex", flexDirection: "column" }}>
       <header style={{ padding: "10px 16px", borderBottom: `1px solid ${C.line}`, display: "flex", gap: 14, alignItems: "baseline", flexWrap: "wrap" }}>
         <a href="/" style={{ color: C.grey, fontSize: 12, textDecoration: "none" }}>← site</a>
         <b style={{ color: C.gold, letterSpacing: 2, fontSize: 15 }}>SAFEHOUSE TICKET</b>
-        <span style={{ color: C.grey, fontSize: 12 }}>make your safehouse bigger</span>
+        <span style={{ color: C.grey, fontSize: 12 }}>{convertId ? "make a safehouse the faction safehouse" : "make your safehouse bigger, or make it your faction safehouse"}</span>
       </header>
-      {token ? <TicketPage token={token} /> : <AdminList />}
+      {convertId ? <ConvertPage id={convertId} /> : token ? <TicketPage token={token} /> : <AdminList />}
     </div>
   );
 }
@@ -87,6 +95,8 @@ function TicketPage({ token }) {
   const [q, setQ] = useState(null);                     // the latest answer from /api/sh/quote
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
+  const [mode, setMode] = useState(null);               // "expand" | "convert" (2026-10-25: make it the faction safehouse)
+  const [convFocus, setConvFocus] = useState(null);     // the safehouse picked in the FACTION SAFEHOUSE part
   const seq = useRef(0);
 
   const load = useCallback(async () => {
@@ -104,6 +114,8 @@ function TicketPage({ token }) {
   }, [liveState, load]);
 
   const tk = data?.ticket;
+  const isConvert = tk?.kind === "faction_convert";
+  const viewMode = mode || (isConvert || (data && data.world_ok && !(data.mine || []).length) ? "convert" : "expand");
   const settings = data?.settings;
   const yours = data?.yours;
   const admin = data?.admin;
@@ -186,7 +198,16 @@ function TicketPage({ token }) {
     if (pick?.a) out.push({ id: "corner", x: pick.a.x, y: pick.a.y, w: 1, h: 1, color: C.purple, fill: "rgba(151,117,204,.5)" });
     return out;
   }, [data, old, draft, q, pick]);
-  const focus = useMemo(() => old ? { x: old.x + Math.floor(old.w / 2), y: old.y + Math.floor(old.h / 2), z: 1 } : null, [old && old.x, old && old.y]);
+  const convRect = viewMode === "convert" ? (convFocus || (isConvert && tk?.convert?.rect?.w ? tk.convert.rect : null)) : null;
+  const shownRects = useMemo(() => {
+    if (!convRect) return viewMode === "convert" ? (data?.others || []).map((o, i) => ({ id: `o${i}`, ...o, color: "#a05050", fill: "rgba(224,85,85,.10)" })) : rects;
+    return [...(data?.others || []).filter((o) => !same(o, convRect)).map((o, i) => ({ id: `o${i}`, x: o.x, y: o.y, w: o.w, h: o.h, color: "#a05050", fill: "rgba(224,85,85,.10)" })),
+      { id: "conv", x: convRect.x, y: convRect.y, w: convRect.w, h: convRect.h, color: C.purple, fill: "rgba(151,117,204,.18)", label: `${convRect.w} x ${convRect.h}` }];
+  }, [rects, convRect, viewMode, data]);
+  const focus = useMemo(() => {
+    const r = convRect || old;
+    return r ? { x: r.x + Math.floor(r.w / 2), y: r.y + Math.floor(r.h / 2), z: 1 } : null;
+  }, [old && old.x, old && old.y, convRect && convRect.x, convRect && convRect.y]);
 
   if (err) {
     if (err.status === 401) return <Login why="Log in with the same Discord account you bought the Admin Ticket with." />;
@@ -211,12 +232,20 @@ function TicketPage({ token }) {
           {pick.a ? "Now click the opposite corner of the area you want." : "Click one corner of the area you want. (Your safehouse is always included.)"}
           {" "}<Btn small onClick={() => setPick(null)}>Cancel</Btn></div>}
         {!data.world_ok && <div style={{ ...mono, fontSize: 12, padding: "6px 14px", background: "#2a1414", color: "#f3b0b0" }}>{data.world_error}</div>}
-        <WorldMap rects={rects} focus={focus} onMapClick={onMapClick} />
+        <WorldMap rects={shownRects} focus={focus} onMapClick={onMapClick} />
       </div>
       <aside style={{ width: 380, maxWidth: "46vw", overflowY: "auto", borderLeft: `1px solid ${C.line}`, background: C.panel, padding: 14, display: "flex", flexDirection: "column", gap: 12 }}>
         <div style={{ fontSize: 12, color: C.grey }}>Ticket #{tk.id} for <b style={{ color: C.text }}>{data.owner}</b></div>
-        <div style={{ fontSize: 13, lineHeight: 1.5, color: state === "rejected" || state === "failed" ? C.red : state === "returned" ? C.gold : state === "done" ? C.green : C.text }}>{stateText}</div>
         {!admin || yours ? null : <div style={{ fontSize: 11, color: C.purple }}>You're looking at this as an admin.</div>}
+        {(yours ? ["new", "open", "returned", "confirming", "submitted"].includes(state) : false) && (
+          <div style={{ display: "flex", gap: 6 }}>
+            <Btn small color={viewMode === "expand" ? C.gold : C.grey} onClick={() => setMode("expand")}>Make it bigger</Btn>
+            <Btn small color={viewMode === "convert" ? C.purple : C.grey} onClick={() => setMode("convert")}>Faction safehouse</Btn>
+          </div>)}
+        {viewMode === "convert" ? (
+          <ConvertPanel token={token} tk={tk} yours={yours} admin={admin} reload={load} onFocus={setConvFocus} />
+        ) : (<>
+        <div style={{ fontSize: 13, lineHeight: 1.5, color: state === "rejected" || state === "failed" ? C.red : state === "returned" ? C.gold : state === "done" ? C.green : C.text }}>{stateText}</div>
 
         {!old && data.world_ok && <div style={{ color: C.red, fontSize: 13 }}>The game doesn't list a safehouse for {data.owner}. You need a safehouse before you can grow one.</div>}
 
@@ -267,13 +296,14 @@ function TicketPage({ token }) {
         </>)}
 
         {admin && !yours && ["submitted", "stuck"].includes(state) && <AdminDecision tk={tk} done={load} />}
-        {admin && !yours && !["approving", "applying", "stuck"].includes(state) && <AdminClose tk={tk} done={load} />}
 
         <div style={{ fontSize: 11, color: C.grey, lineHeight: 1.6, borderTop: `1px solid ${C.line}`, paddingTop: 10 }}>
           <b style={{ color: C.text }}>How it works.</b> A new tile next to your safehouse costs {settings.base + settings.step} bronze, and every row further out costs {settings.step} bronze more per tile.
           The biggest safehouse is {settings.max_long} x {settings.max_short} tiles (either way round), and it can't touch another safehouse (red boxes).
           After an approved expansion the next ticket waits {settings.cooldown_days} day{settings.cooldown_days === 1 ? "" : "s"}.
         </div>
+        </>)}
+        {admin && !yours && !["approving", "applying", "stuck"].includes(state) && <AdminClose tk={tk} done={load} />}
       </aside>
     </div>
   );
@@ -340,7 +370,7 @@ function AdminList() {
   const [form, setForm] = useState({});
   const [msg, setMsg] = useState("");
   const load = useCallback(async () => {
-    const states = filter === "open" ? "new,open,returned,submitted,approving,applying,stuck" : "";
+    const states = filter === "open" ? "new,open,returned,confirming,submitted,approving,applying,stuck" : "";
     const r = await call(`/api/admin/sh/tickets${states ? `?state=${states}` : ""}`);
     if (r.status === 200 && r.data?.ok) { setD(r.data); setForm(r.data.settings); setErr(null); }
     else setErr(r.status);
@@ -363,15 +393,16 @@ function AdminList() {
         <Btn small color={filter === "all" ? C.gold : C.grey} onClick={() => setFilter("all")}>All</Btn>
       </div>
       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-        <thead><tr style={{ color: C.grey, textAlign: "left" }}><th>#</th><th>Player</th><th>State</th><th>New size</th><th>Price</th><th></th></tr></thead>
+        <thead><tr style={{ color: C.grey, textAlign: "left" }}><th>#</th><th>Player</th><th>Kind</th><th>State</th><th>Size</th><th>Price</th><th></th></tr></thead>
         <tbody>
-          {d.tickets.length === 0 && <tr><td colSpan={6} style={{ padding: 14, color: C.grey }}>No tickets.</td></tr>}
+          {d.tickets.length === 0 && <tr><td colSpan={7} style={{ padding: 14, color: C.grey }}>No tickets.</td></tr>}
           {d.tickets.map((t) => (
             <tr key={t.id} style={{ borderTop: `1px solid ${C.line}` }}>
               <td style={{ padding: 6 }}>{t.id}</td><td>{t.username}</td>
-              <td style={{ color: t.state === "submitted" ? C.gold : t.state === "stuck" ? C.red : C.text }}>{t.state}</td>
-              <td>{t.new ? `${t.new.w} x ${t.new.h}` : "-"}</td><td>{t.new ? money(t.price) : "-"}</td>
-              <td><a href={`/safehouse?t=${t.token}`} style={{ color: C.gold }}>open</a></td>
+              <td style={{ color: t.kind === "faction_convert" ? C.purple : C.grey }}>{t.kind === "faction_convert" ? `faction: ${t.convert?.faction || "?"}` : "bigger"}</td>
+              <td style={{ color: t.state === "submitted" ? C.gold : t.state === "stuck" ? C.red : C.text }}>{t.state}{t.kind === "faction_convert" && t.state === "confirming" ? ` (waits for ${t.convert?.waits_for === "owner" ? "the owner" : "the faction"})` : ""}</td>
+              <td>{t.new ? `${t.new.w} x ${t.new.h}` : "-"}</td><td>{t.kind === "faction_convert" ? "free" : t.new ? money(t.price) : "-"}</td>
+              <td><a href={t.kind === "faction_convert" && t.convert?.owner ? `/safehouse?convert=${t.id}` : `/safehouse?t=${t.token}`} style={{ color: C.gold }}>open</a></td>
             </tr>))}
         </tbody>
       </table>
@@ -387,6 +418,216 @@ function AdminList() {
         </div>
         <div style={{ marginTop: 12, display: "flex", gap: 10, alignItems: "center" }}><Btn onClick={save}>Save settings</Btn><span style={{ fontSize: 12, color: C.gold }}>{msg}</span></div>
       </div>
+    </div>
+  );
+}
+
+// ── 2026-10-25 (mod 1.8.67): make a safehouse the faction safehouse. ONE WAY. ───────────────────────────────────────
+// The ticket's player (the safehouse owner, or someone with the claim permission in the faction) files it on their ticket page; the
+// OTHER side confirms on /safehouse?convert=N within 3 days (the same person = one confirmation); then an admin approves.
+const when = (ts) => (Number(ts) > 0 ? new Date(Number(ts) * 1000).toLocaleString() : "not yet");
+const sideText = (side) => (side === "owner" ? "the safehouse owner" : "the faction (the leader or anyone with the claim permission)");
+
+function OneWayNote() {
+  return (
+    <div style={{ fontSize: 12, lineHeight: 1.6, color: C.text, border: `1px solid ${C.purple}`, borderRadius: 3, padding: 10, background: "#14101c" }}>
+      <b style={{ color: C.purple }}>What happens.</b> The safehouse becomes your faction&apos;s safehouse <b>exactly as it is</b>: same ground, same size,
+      everything inside stays. It is free (the Admin Ticket is the only cost) and the faction&apos;s leader becomes its owner, with every member on it.
+      <div style={{ color: C.red, marginTop: 6 }}><b>It is one way.</b> A faction safehouse can&apos;t be turned back into a normal safehouse. If the faction
+        releases it later, it is gone like any faction claim.</div>
+    </div>
+  );
+}
+
+function LoseList({ lose, faction }) {
+  if (!lose || !lose.length) return <div style={{ fontSize: 12, color: C.green }}>Nobody loses access: everyone on it is in {faction || "the faction"}.</div>;
+  return <div style={{ fontSize: 12, color: C.red }}>These players are on the safehouse but not in {faction || "the faction"}, so they <b>lose access</b>: {lose.join(", ")}.</div>;
+}
+
+function ConvertSummary({ cv, state }) {
+  const r = cv.rect || {};
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 12, lineHeight: 1.5 }}>
+      <div><span style={{ color: C.grey }}>Safehouse:</span> <b>{cv.owner}</b>&apos;s, {r.w} x {r.h} at {r.x},{r.y} ({thousands(r.w * r.h)} tiles){cv.title ? ` "${cv.title}"` : ""}</div>
+      <div><span style={{ color: C.grey }}>Becomes the safehouse of:</span> <b style={{ color: C.purple }}>{cv.faction}</b> (leader {cv.leader || "?"})</div>
+      <div><span style={{ color: C.grey }}>Owner side:</span> {cv.owner_ok_at ? <span style={{ color: C.green }}>{cv.owner_ok_by} said yes, {when(cv.owner_ok_at)}</span> : <span style={{ color: C.gold }}>{cv.owner} has not confirmed yet</span>}</div>
+      <div><span style={{ color: C.grey }}>Faction side:</span> {cv.leader_ok_at ? <span style={{ color: C.green }}>{cv.leader_ok_by} said yes, {when(cv.leader_ok_at)}</span> : <span style={{ color: C.gold }}>nobody with the claim permission has confirmed yet</span>}</div>
+      {state === "confirming" && cv.confirm_by ? <div style={{ color: C.grey }}>Waiting for {sideText(cv.waits_for)} until {when(cv.confirm_by)}. Not confirmed by then: it closes and the ticket price comes back.</div> : null}
+      <LoseList lose={cv.lose} faction={cv.faction} />
+      {cv.overlap && <div style={{ color: C.grey }}>Overlap check: {cv.overlap}</div>}
+    </div>
+  );
+}
+
+const CONVERT_STATE = {
+  confirming: "Filed. Waiting for the other side to confirm.", submitted: "Both sides said yes. Waiting for an admin.",
+  approving: "An admin is approving it…", applying: "Approved. The game is making it the faction safehouse…",
+  done: "Done. It is the faction safehouse now (one way). Log out and back in to see the new owner and title.",
+  failed: "The game didn't convert it. Nothing changed, and the ticket price was given back.",
+  stuck: "The game hasn't confirmed yet. An admin is checking.", returned: "An admin sent it back. Pick the safehouse and file it again.",
+  cancelled: "Closed. Nothing changed in the game.",
+};
+
+// the ticket page's FACTION SAFEHOUSE part
+function ConvertPanel({ token, tk, yours, admin, reload, onFocus }) {
+  const [d, setD] = useState(null);
+  const [sel, setSel] = useState(-1);
+  const [sure, setSure] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+  const filed = tk.kind === "faction_convert" && tk.convert && tk.convert.owner;
+  const canFile = yours && ["new", "open", "returned", "confirming", "submitted"].includes(tk.state);
+  const load = useCallback(async () => {
+    if (!yours) return;
+    const r = await call(`/api/sh/convert/options?t=${encodeURIComponent(token)}`);
+    setD(r.status === 200 && r.data ? r.data : { options: [], why: r.data?.detail || "Couldn't load your safehouses." });
+  }, [token, yours]);
+  useEffect(() => { load(); }, [load]);
+  const opt = d && sel >= 0 ? d.options[sel] : null;
+  useEffect(() => { onFocus(opt ? { x: opt.x, y: opt.y, w: opt.w, h: opt.h } : null); }, [opt && opt.x, opt && opt.y, opt && opt.w, opt && opt.h]);   // eslint-disable-line
+  const file = async () => {
+    if (!opt) return;
+    const lose = opt.lose && opt.lose.length ? `\n\nThese players are not in ${opt.faction} and lose access: ${opt.lose.join(", ")}.` : "";
+    if (!confirm(`Make ${opt.owner}'s safehouse (${opt.w} x ${opt.h} at ${opt.x},${opt.y}) the faction safehouse of ${opt.faction}?\n\n`
+      + `The exact rectangle is kept and it is free. ONE WAY: it can't be turned back into a normal safehouse.${lose}`)) return;
+    setBusy(true); setMsg("");
+    const r = await call("/api/sh/convert/submit", { t: token, x: opt.x, y: opt.y, w: opt.w, h: opt.h, owner: opt.owner, fid: opt.fid });
+    setBusy(false);
+    setMsg(r.data?.msg || r.data?.reason || r.data?.detail || "Couldn't file it.");
+    if (r.data?.ok) { setSel(-1); setSure(false); reload(); }
+  };
+  const cancel = async () => {
+    if (!confirm("Close this ticket? It ends here. You get the ticket price back.")) return;
+    const r = await call("/api/sh/cancel", { t: token });
+    setMsg(r.data?.msg || ""); reload();
+  };
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <b style={{ color: C.purple, fontSize: 12, textTransform: "uppercase", letterSpacing: 1 }}>Make a safehouse our faction safehouse</b>
+      {filed && (
+        <div style={{ border: `1px solid ${C.line}`, borderRadius: 3, padding: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ fontSize: 13, color: tk.state === "failed" ? C.red : tk.state === "done" ? C.green : C.text }}>{CONVERT_STATE[tk.state] || tk.state}{tk.note && ["returned", "cancelled", "failed"].includes(tk.state) ? ` (${tk.note})` : ""}</div>
+          <ConvertSummary cv={tk.convert} state={tk.state} />
+          {tk.state === "confirming" && <div style={{ fontSize: 12, color: C.gold }}>Send this link to {tk.convert.waits_for === "owner" ? tk.convert.owner : "your faction's leader (or anyone with the claim permission)"}: <a href={`/safehouse?convert=${tk.id}`} style={{ color: C.gold }}>/safehouse?convert={tk.id}</a>. They log in and press Confirm. It is in the ticket channel too.</div>}
+        </div>)}
+      {admin && !yours && filed && <ConvertAdmin tk={tk} done={reload} />}
+      {canFile && (<>
+        <OneWayNote />
+        {!d && <div style={{ fontSize: 12, color: C.grey }}>Loading your faction&apos;s safehouses…</div>}
+        {d && !d.options.length && <div style={{ fontSize: 12, color: C.red }}>{d.why}</div>}
+        {d && d.options.map((o, i) => (
+          <button key={i} onClick={() => { setSel(i); setSure(false); }}
+            style={{ ...mono, textAlign: "left", fontSize: 12, padding: 8, background: sel === i ? "#1a1424" : C.bg, color: C.text,
+              border: `1px solid ${sel === i ? C.purple : C.line}`, borderRadius: 3, cursor: "pointer" }}>
+            <div><b>{o.owner}</b>&apos;s safehouse{o.title ? ` "${o.title}"` : ""}: {o.w} x {o.h} at {o.x},{o.y}</div>
+            <div style={{ color: C.grey }}>for {o.faction} · {o.side === "both" ? "you own it and may claim: one confirmation is enough" : o.side === "owner" ? "you own it: the faction confirms" : `you claim for the faction: ${o.owner} confirms`}</div>
+            {!o.ok && <div style={{ color: C.red }}>{o.why}</div>}
+          </button>))}
+        {opt && (
+          <div style={{ border: `1px solid ${opt.ok ? C.purple : C.red}`, borderRadius: 3, padding: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+            <div style={{ fontSize: 12 }}>Kept exactly: <b>{opt.w} x {opt.h}</b> at {opt.x},{opt.y} ({thousands(opt.w * opt.h)} tiles). New owner: {opt.leader || "the faction's leader"}.</div>
+            <LoseList lose={opt.lose} faction={opt.faction} />
+            {opt.waits_for ? <div style={{ fontSize: 12, color: C.gold }}>{opt.waits_for} has to confirm it on the website within {d.confirm_days || 3} days. Then an admin checks it.</div>
+              : <div style={{ fontSize: 12, color: C.grey }}>No one else has to confirm. An admin checks it next.</div>}
+            {opt.ok && <label style={{ fontSize: 12, display: "flex", gap: 6, alignItems: "flex-start" }}>
+              <input type="checkbox" checked={sure} onChange={(e) => setSure(e.target.checked)} />
+              <span>I understand this is one way: it can&apos;t be turned back into a normal safehouse.</span></label>}
+            <Btn color={C.purple} disabled={busy || !opt.ok || !sure} onClick={file} wide>{filed ? "File this one instead" : "File it"}</Btn>
+          </div>)}
+        {msg && <div style={{ fontSize: 12, color: C.gold }}>{msg}</div>}
+        <Btn small color={C.grey} onClick={cancel}>Close this ticket</Btn>
+      </>)}
+    </div>
+  );
+}
+
+// the admins' decision on a conversion
+function ConvertAdmin({ tk, done }) {
+  const [out, setOut] = useState("");
+  const cv = tk.convert || {};
+  const both = cv.owner_ok_at > 0 && cv.leader_ok_at > 0;
+  const cmd = async (c, extra = {}) => {
+    const r = await call("/api/admin/sh/cmd", { cmd: c, id: tk.id, ...extra });
+    setOut(r.data?.msg || r.data?.detail || "");
+    done();
+  };
+  const approve = () => {
+    const lose = cv.lose && cv.lose.length ? `\n\nThey lose access: ${cv.lose.join(", ")}.` : "";
+    if (confirm(`Make ${cv.owner}'s safehouse (${cv.rect?.w} x ${cv.rect?.h} at ${cv.rect?.x},${cv.rect?.y}) the faction safehouse of ${cv.faction}?\n\nOne way. Everything is checked again first.${lose}`)) cmd("approve", { submitted_at: tk.submitted_at });
+  };
+  return (
+    <div style={{ border: `1px solid ${C.purple}`, borderRadius: 3, padding: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+      <b style={{ color: C.purple, fontSize: 12, textTransform: "uppercase" }}>Admin</b>
+      {["confirming", "submitted"].includes(tk.state) && (<>
+        <Btn color={C.green} disabled={tk.state !== "submitted" || !both} title={both ? "" : "Both sides have to confirm first"} onClick={approve} wide>Approve (one way)</Btn>
+        {!both && <div style={{ fontSize: 11, color: C.grey }}>Approve unlocks when both the owner side and the faction side have said yes.</div>}
+        <Btn color={C.red} onClick={() => { const why = prompt("Why? (the player sees this; they can file again)", ""); if (why !== null) cmd("reject", { reason: why }); }} wide>Send back</Btn>
+      </>)}
+      {tk.state === "stuck" && (<>
+        <div style={{ fontSize: 11, color: C.grey }}>The game hasn&apos;t confirmed. Check Live Ops: is it the faction safehouse now?</div>
+        <Btn color={C.red} onClick={() => cmd("refund")} wide>It is NOT: take the claim back, refund the ticket</Btn>
+        <Btn color={C.green} onClick={() => cmd("done")} wide>It IS: mark done</Btn>
+      </>)}
+      {out && <div style={{ fontSize: 12, color: C.gold }}>{out}</div>}
+    </div>
+  );
+}
+
+// /safehouse?convert=N: the other side confirms here; the admins decide here
+function ConvertPage({ id }) {
+  const [d, setD] = useState(null);
+  const [err, setErr] = useState(null);
+  const [msg, setMsg] = useState("");
+  const [busy, setBusy] = useState(false);
+  const load = useCallback(async () => {
+    const r = await call(`/api/sh/convert?id=${encodeURIComponent(id)}`);
+    if (r.status === 200 && r.data?.ok) { setD(r.data); setErr(null); }
+    else setErr({ status: r.status, text: r.data?.detail || "Couldn't load the application." });
+  }, [id]);
+  useEffect(() => { load(); }, [load]);
+  const tk = d?.ticket;
+  const cv = tk?.convert || {};
+  const r = cv.rect;
+  const rects = useMemo(() => (r && r.w ? [{ id: "conv", x: r.x, y: r.y, w: r.w, h: r.h, color: C.purple, fill: "rgba(151,117,204,.18)", label: `${r.w} x ${r.h}` }] : []), [r && r.x, r && r.y, r && r.w, r && r.h]);
+  const focus = useMemo(() => (r && r.w ? { x: r.x + Math.floor(r.w / 2), y: r.y + Math.floor(r.h / 2), z: 1 } : null), [r && r.x, r && r.y]);
+  if (err) {
+    if (err.status === 401) return <Login why="Log in with Discord to see this application (the account linked to your in-game name)." />;
+    return <div style={{ padding: 40, color: C.red }}>{err.text}</div>;
+  }
+  if (!d) return <div style={{ padding: 40, color: C.grey }}>Loading the application…</div>;
+  const answer = async (yes) => {
+    const text = yes
+      ? `Confirm: make ${cv.owner}'s safehouse (${r.w} x ${r.h} at ${r.x},${r.y}) the faction safehouse of ${cv.faction}?\n\nOne way: it can't be turned back.${cv.lose?.length ? `\n\nThey lose access: ${cv.lose.join(", ")}.` : ""}`
+      : `Decline? The application closes and ${tk.username} gets the ticket price back.`;
+    if (!confirm(text)) return;
+    setBusy(true);
+    const res = await call("/api/sh/convert/answer", { id: tk.id, yes });
+    setBusy(false);
+    setMsg(res.data?.msg || res.data?.detail || "");
+    load();
+  };
+  return (
+    <div style={{ flex: 1, minHeight: 0, display: "flex", height: "calc(100vh - 46px)", flexWrap: "wrap" }}>
+      <div style={{ flex: 1, minWidth: 280, minHeight: 300, display: "flex", flexDirection: "column" }}>
+        <WorldMap rects={rects} focus={focus} onMapClick={() => {}} />
+      </div>
+      <aside style={{ width: 400, maxWidth: "100%", overflowY: "auto", borderLeft: `1px solid ${C.line}`, background: C.panel, padding: 14, display: "flex", flexDirection: "column", gap: 12, boxSizing: "border-box" }}>
+        <div style={{ fontSize: 12, color: C.grey }}>Application #{tk.id}, filed by <b style={{ color: C.text }}>{tk.username}</b>{d.me ? <> · you are {d.me}</> : null}</div>
+        <b style={{ color: C.purple, letterSpacing: 1, fontSize: 13 }}>MAKE A SAFEHOUSE THE FACTION SAFEHOUSE</b>
+        <div style={{ fontSize: 13, color: tk.state === "failed" ? C.red : tk.state === "done" ? C.green : C.text }}>{CONVERT_STATE[tk.state] || tk.state}{tk.note && ["returned", "cancelled", "failed"].includes(tk.state) ? ` (${tk.note})` : ""}</div>
+        <ConvertSummary cv={cv} state={tk.state} />
+        <OneWayNote />
+        {d.can_answer && (
+          <div style={{ border: `1px solid ${C.gold}`, borderRadius: 3, padding: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+            <div style={{ fontSize: 12 }}>You can answer for {sideText(d.side)}.</div>
+            <Btn color={C.green} disabled={busy} onClick={() => answer(true)} wide>Confirm</Btn>
+            <Btn color={C.red} disabled={busy} onClick={() => answer(false)} wide>Decline</Btn>
+          </div>)}
+        {!d.can_answer && tk.state === "confirming" && !d.admin && <div style={{ fontSize: 12, color: C.grey }}>Waiting for {sideText(cv.waits_for)}. {d.yours ? "Send them this page's link." : "You can't answer this one."}</div>}
+        {msg && <div style={{ fontSize: 12, color: C.gold }}>{msg}</div>}
+        {d.admin && <ConvertAdmin tk={tk} done={load} />}
+        {d.admin && !["approving", "applying", "stuck"].includes(tk.state) && <AdminClose tk={tk} done={load} />}
+      </aside>
     </div>
   );
 }
