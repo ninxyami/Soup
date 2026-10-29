@@ -143,6 +143,34 @@ export default function NotorietyTab() {
             }}>{label}</button>
           ))}
         </div>
+        {/* Horde Night hold (mod 1.8.75, ZNO_Server.lua V.holdCheck): with this many players online or more, a raid that would
+            start while Dawn of the Dead is warned, running or only just over waits, then starts after it at full size, one by
+            one. Fewer online: the raid starts on top of Horde Night. Same three settings as Zombita Control > NOTORIETY.
+            Current values come from the game's "hold" block (st.hold: on, gap, players, held, names) when the API passes it
+            through; without it the buttons still work and the game's answer says the new value. */}
+        <div style={{ color: C.gold, margin: "12px 0 6px" }}>
+          Horde Night hold{st.hold ? (st.hold.on ? " (on" : " (off") + (n(st.hold.held) > 0 ? `, ${n(st.hold.held)} waiting: ${st.hold.names || ""})` : ")") : ""}
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          <button style={btn(C.red)} disabled={busy} onClick={() => {
+            if (sure("Hold raids for Horde Night? On a busy server a raid due while Dawn of the Dead is warned, running or only just over waits, then starts after it at full size.")) {
+              send({ cmd: "setting", key: "HOLD_DOTD", value: "true" }, "Turning the Horde Night hold on");
+            }
+          }}>{st.hold && st.hold.on ? "Hold: ON" : "Hold on"}</button>
+          <button style={btn()} disabled={busy} onClick={() => {
+            if (sure("Stop holding raids for Horde Night? Raids then start on top of it whatever the player count; any waiting now start at once, one by one.")) {
+              send({ cmd: "setting", key: "HOLD_DOTD", value: "false" }, "Turning the Horde Night hold off");
+            }
+          }}>{st.hold && st.hold.on === false ? "Hold: OFF" : "Hold off"}</button>
+          {[["HOLD_GAP_MIN", "gap", "Minutes after Horde Night before held raids start (0-120)"],
+            ["HOLD_MIN_PLAYERS", "players", "Hold only with this many players online or more (1-100)"]].map(([key, field, label]) => (
+            <button key={key} style={btn()} disabled={busy} onClick={() => {
+              const cur = st.hold && st.hold[field] != null ? String(st.hold[field]) : "";
+              const v = ask(`${label}:`, cur);
+              if (v !== null && v !== "") send({ cmd: "setting", key, value: v }, `Setting ${key}`);
+            }}>{label}{st.hold && st.hold[field] != null ? `: ${st.hold[field]}` : ""}</button>
+          ))}
+        </div>
         <p style={{ color: C.grey, lineHeight: 1.6, marginTop: 10 }}>
           Score = deeds (A and S wins, hot streaks, keeper hopping, emptying tills, buy limits, earning a lot and spending little) plus
           stats (skills, days alive, kills, bank; 30 at most, so stats alone never Mark anyone). Deeds only fade when the player is calm.
