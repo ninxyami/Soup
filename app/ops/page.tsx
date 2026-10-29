@@ -12,6 +12,9 @@
 // 2026-10-24 (mod 1.8.56, liveops_places_patch.py): the Places tab's "Admin places": Mags' garage (the Mechanic card spot),
 // the community centre, the diner, Duke's car lot and Hattie's pen (squares: the pick is their centre), moved on the map
 // or by x, y with place_set, the same as their in-game SET ... HERE buttons.
+// 2026-10-30 (mod 1.8.77, sh_respawn_patch.py): a safehouse card shows who respawns there after death (owner + members, faction
+// safehouses too) with an ON / OFF switch each: sh_respawn x y owner player on, the same setting as the in-game safehouse
+// window and the faction window's RESPAWN AT OUR SAFEHOUSE switch. The game reports the list as "respawn" in its state.
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { flyTo } from "@/components/WorldMap";
@@ -1472,6 +1475,31 @@ function BoxInputs({ d, setDraft }) {
   );
 }
 
+// mod 1.8.77: who respawns at this safehouse after death (the owner and the members can; faction safehouses too)
+function RespawnBlock({ s, act, h, row }) {
+  const id = { x: s.x, y: s.y, owner: s.owner };
+  const known = Array.isArray(s.respawn);
+  const rs = s.respawn || [];
+  const people = [s.owner, ...(s.members || [])].filter((p, i, all) => p && all.indexOf(p) === i);
+  return (<>
+    <div style={h}>Respawn here after death</div>
+    {!known ? <div style={{ ...mono, fontSize: 12, color: C.grey }}>The game reports this from mod 1.8.77 on.</div> : (
+      <div style={row}>
+        {people.map((p) => {
+          const on = rs.includes(p);
+          return (
+            <span key={p} style={{ ...mono, fontSize: 12, border: `1px solid ${on ? C.green : C.line}`, padding: "2px 6px", borderRadius: 3, display: "inline-flex", gap: 6, alignItems: "center" }}>
+              {p}{p === s.owner ? " (owner)" : ""}
+              <Btn small color={on ? C.green : C.grey} title={on ? "Respawns here. Click to turn it off." : "Doesn't respawn here. Click to turn it on."}
+                onClick={() => act("sh_respawn", { ...id, player: p, on: !on })}>{on ? "On" : "Off"}</Btn>
+            </span>
+          );
+        })}
+      </div>
+    )}
+  </>);
+}
+
 function SafehouseCard({ s, draft, setDraft, setPick, act, players, onGone, onMoved, onClose }) {
   const [who, setWho] = useState("");
   const d = draft || { x: s.x, y: s.y, w: s.w, h: s.h };
@@ -1484,6 +1512,7 @@ function SafehouseCard({ s, draft, setDraft, setPick, act, players, onGone, onMo
       <div style={{ display: "flex" }}><button onClick={onClose} title="Close" style={{ marginLeft: "auto", background: "transparent", border: `1px solid ${C.red}`, color: C.red, borderRadius: 3, cursor: "pointer", fontSize: 12, padding: "1px 8px", fontFamily: "var(--mono, monospace)" }}>× Close</button></div>
       <div><b style={{ fontSize: 15 }}>{s.faction ? s.title : `${s.owner}'s safehouse`}</b>
         <div style={{ ...mono, fontSize: 11, color: C.grey }}>{s.x}, {s.y} to {s.x + s.w - 1}, {s.y + s.h - 1} · {s.w} x {s.h}</div></div>
+      <RespawnBlock s={s} act={act} h={h} row={row} />
       {s.faction ? (
         <div style={{ ...mono, fontSize: 12, color: C.purple }}>This is a faction claim. The game re-makes it from the claim every 30 seconds, so change it as a claim (faction window in game, or the Factions admin tab).</div>
       ) : (<>
