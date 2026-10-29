@@ -2,11 +2,13 @@
 "use client";
 // components/cardsadmin/JobsTab.tsx: send a card job now; the card jobs and Call a Mechanic jobs open on Zombita's Jobs
 // (/api/admin/jobs); the Mechanic's scrapyards, calls and tow trucks (Zombita Control > CARDS via the Live Ops board).
+// 2026-10-29 (mod 1.8.77): the players' Mechanic calls from the cards state, each live one with a CLOSE (CallsCard).
 
 import { useState } from "react";
 import { C, MONO, BODY, Btn, Card, Note, Pill, TierPill, Select, Label, Empty, dur } from "../quests/ui";
 import { PlayerPicker } from "../quests/GiveLog";
 import { cardHex, KV } from "./lib";
+import CallsCard from "./CallsCard";
 
 const KIND_WORDS = {
   tow: "Tow a wreck to the nearest scrapyard (needs a scrapyard set).",
@@ -21,7 +23,7 @@ const KIND_WORDS = {
   supply: "Bring medical supplies.",
 };
 
-export default function JobsTab({ st, zc, jobs, send, ask, apiGet }) {
+export default function JobsTab({ st, zc, jobs, send, ask, apiGet, busy }) {
   const cards = st.cards || [];
   const [f, setF] = useState({ player: "", card: "mechanic", kind: "random" });
   const card = cards.find((c) => c.id === f.card);
@@ -77,7 +79,8 @@ export default function JobsTab({ st, zc, jobs, send, ask, apiGet }) {
           {cardJobs.map((q) => <Job key={q.id} q={q} />)}
         </Card>
         <div>
-          <Card title="Call a Mechanic" pad={10}>
+          <CallsCard st={st} send={send} busy={busy} />
+          <Card title="Call a Mechanic jobs" pad={10}>
             <KV k="Players' calls" v={zc ? (zc.calls || "none") : "unknown (Live Ops board not readable)"} />
             {calls.length > 0 && <div style={{ marginTop: 6 }}>{calls.map((q) => <Job key={q.id} q={q} />)}</div>}
             {jobs?.state && calls.length === 0 && <Note style={{ marginTop: 6 }}>No call is being repaired as a job right now. Open calls wait on the Mechanics' phones until one takes it.</Note>}
