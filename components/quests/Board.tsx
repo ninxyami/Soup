@@ -1,9 +1,10 @@
 // @ts-nocheck
 "use client";
 // components/quests/Board.tsx: the state of Zombita's Jobs at a glance and the things you do most: the switches, the
-// tier unlocks (A at 25k kills...), what's on the board right now (win / cancel), post a job now.
+// tier unlocks (A at 25k kills...), what's on the board right now (win / cancel), post a job now, failed jobs ("Our fault").
 
 import { useEffect, useState } from "react";
+import FailedJobs from "./Faults";
 import { C, MONO, BODY, Btn, Card, Note, Pill, TierPill, Stat, Input, Select, Label, Toggle, Empty, Confirm, Modal, fmt, money, dur, ago } from "./ui";
 
 const UNLOCKS = [["A", "A"], ["S", "S"], ["SS", "SS"], ["SSS", "SSS"], ["SSS+", "SSSP"]];
@@ -187,6 +188,7 @@ export default function Board({ state, send }) {
         <Stat label="Daily limit" value={money(state.cap)} sub="pay per player a day (S included)" c={C.gold} />
       </div>
       <OpenJobs state={state} send={send} />
+      <FailedJobs control={ctl} send={send} />
       <TierUnlocks state={state} send={send} />
       <Switches control={ctl} send={send} />
       <Derby derby={ctl.derby} send={send} />
