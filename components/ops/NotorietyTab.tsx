@@ -221,6 +221,36 @@ export default function NotorietyTab() {
             }}>{label}{st.cleanup && st.cleanup[field] != null ? `: ${st.cleanup[field]}` : ""}</button>
           ))}
         </div>
+        {/* Crowe's men (mod 1.8.78, server/ZNO_BanditGrace.lua): his raid bandits rise on their own ring, never closer than
+            "Ring from" to anyone online and never inside their longest gun's reach + 10 (the game pushes the ring out), and
+            hold fire for "Grace" seconds after they rise (they still come in). Same three settings as Zombita Control >
+            NOTORIETY > CROWE'S MEN. Current values come from the game's "bandits" block (st.bandits: grace, ringMin, ringMax,
+            usedMin, usedMax, gun, holding, last) when the API passes it through (bot zip Zombita_bandit_grace.zip); without
+            it the buttons still work and the game's answer says the new value. */}
+        <div style={{ color: C.gold, margin: "12px 0 6px" }}>
+          Crowe's men{st.bandits ? (n(st.bandits.grace) > 0 ? ` (hold fire ${n(st.bandits.grace)} s)` : " (may fire at once)") : ""}
+        </div>
+        {st.bandits && (
+          <div style={{ color: n(st.bandits.grace) > 0 ? C.text : C.amber, marginBottom: 6, lineHeight: 1.5 }}>
+            They rise {st.bandits.usedMin}-{st.bandits.usedMax} tiles out (their longest gun reaches {st.bandits.gun})
+            {n(st.bandits.holding) > 0 ? `, ${n(st.bandits.holding)} holding fire now` : ""}.
+            {st.bandits.last ? <span style={{ color: C.grey }}> Last first hit: {st.bandits.last}</span> : null}
+          </div>
+        )}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          {[["RAID_BANDIT_GRACE", "grace", "Seconds they hold fire after they rise (0 = at once)", 0, 60],
+            ["RAID_B_RING_MIN", "ringMin", "Closest tiles they rise from anyone online", 20, 150],
+            ["RAID_B_RING_MAX", "ringMax", "Furthest tiles they rise from their target", 25, 200]].map(([key, field, label, lo, hi]) => (
+            <button key={key} style={btn()} disabled={busy} onClick={() => {
+              const cur = st.bandits && st.bandits[field] != null ? String(st.bandits[field]) : "";
+              const v = ask(`${label} (${lo}-${hi}):`, cur);
+              if (v === null || v === "") return;
+              const num = Number(v);
+              if (!Number.isFinite(num) || num < lo || num > hi) { setMsg(`${label}: ${lo} to ${hi}, please.`); return; }
+              send({ cmd: "setting", key, value: String(Math.floor(num)) }, `Setting ${key}`);
+            }}>{label}{st.bandits && st.bandits[field] != null ? `: ${st.bandits[field]}` : ""}</button>
+          ))}
+        </div>
         <p style={{ color: C.grey, lineHeight: 1.6, marginTop: 10 }}>
           Score = deeds (A and S wins, hot streaks, keeper hopping, emptying tills, buy limits, earning a lot and spending little) plus
           stats (skills, days alive, kills, bank; 30 at most, so stats alone never Mark anyone). Deeds only fade when the player is calm.
