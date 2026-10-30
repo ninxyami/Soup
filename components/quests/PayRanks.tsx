@@ -80,6 +80,8 @@ function Ranks({ state, send }) {
 export default function PayRanks({ state, send }) {
   const [cap, setCap] = useState(state.cap);
   useEffect(() => { setCap(state.cap); }, [state.cap]);
+  const [clear, setClear] = useState(state.shClear);
+  useEffect(() => { setClear(state.shClear); }, [state.shClear]);
   return (
     <div>
       <Card title="Daily limit">
@@ -90,6 +92,14 @@ export default function PayRanks({ state, send }) {
         </div>
         <Note style={{ marginTop: 10 }}>The most one player can earn from jobs in a day. S jobs don't count.</Note>
       </Card>
+      {state.shClear !== undefined && <Card title="Distance from bases">
+        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          <Input type="number" value={clear} onChange={setClear} width={140} min={0} max={300} />
+          <span style={{ fontFamily: MONO, fontSize: 12, color: C.dim }}>{Number(clear) > 0 ? `tiles from every safehouse (default ${state.shClearDefault})` : "off: jobs can land next to bases"}</span>
+          <Btn c="solid" disabled={Number(clear) === Number(state.shClear)} onClick={() => send("sh_clear", { tiles: Math.max(0, Math.min(300, Math.floor(Number(clear) || 0))) }, "Distance from bases saved")}>Save</Btn>
+        </div>
+        <Note style={{ marginTop: 10 }}>New jobs that bring zombies are placed at least this far from every safehouse's edge, so hordes don't land behind bases. Jobs already posted stay. 0 = off.</Note>
+      </Card>}
       <Card title="Tiers" right={<span style={{ fontFamily: MONO, fontSize: 11, color: C.dim }}>pot = a solo win, split evenly by a crew</span>}>
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: BODY, fontSize: 13 }}>
