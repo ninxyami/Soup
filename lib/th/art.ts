@@ -14,6 +14,8 @@ export const ART = {
   vial: "/m/vial.webp",
   panel: "/m/panel.webp",
   paper: "/m/paper.webp",
+  dusk: "/m/dusk.webp",        // Queen Dusk's face: swap this file for a new picture (kit: docs/art_src/queen_dusk)
+  duskSound: "/m/dusk.mp3",
 };
 
 // The dark screen inside frame.webp (left, top, width, height); the app is drawn on top of it

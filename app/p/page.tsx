@@ -18,6 +18,7 @@ import VialSort from "@/components/th/VialSort";
 import LabWiring from "@/components/th/LabWiring";
 import WaitView from "@/components/th/WaitView";
 import HintCard from "@/components/th/HintCard";
+import { useDuskScare } from "@/components/th/DuskScare";
 import { DeadScreen, SelfDestruct, type EndText } from "@/components/th/SelfDestruct";
 import { WEB_STEPS } from "@/components/th/steps";
 import { ART } from "@/lib/th/art";
@@ -69,6 +70,7 @@ export default function EventPhone() {
   const syncRef = useRef(sync);
   syncRef.current = sync;
   const mock = process.env.NODE_ENV !== "production" && !!tok?.startsWith("mock-");
+  const scare = useDuskScare(me, tok, woke && !dead && !dying);
 
   useEffect(() => {
     const t = (new URLSearchParams(window.location.search).get("t") || "").trim();
@@ -294,6 +296,7 @@ export default function EventPhone() {
         <div className="th-sync" role="status" style={mock ? { bottom: 64 } : undefined}><span className="th-dot" />{slow ? "still waiting for the game..." : "syncing..."}</div>
       )}
       {dying && <SelfDestruct onDone={onDead} />}
+      {scare}
       {mock && <DevBar tok={tok} step={me.step} reload={load} />}
     </PhoneShell>
   );
@@ -308,6 +311,7 @@ function DevBar({ tok, step, reload }: { tok: string; step: string; reload: () =
     <div className="th-dev">
       <span>MOCK {step}</span>
       <button onClick={async () => { const m = await import("@/lib/th/mock"); m.mockGameStep(tok); reload(); }}>game moves on</button>
+      <button onClick={async () => { const m = await import("@/lib/th/mock"); m.mockScare(tok); reload(); }}>Dusk</button>
       {step === "go_final" && <button onClick={async () => { const m = await import("@/lib/th/mock"); m.mockToggleBuzz(tok); reload(); }}>buzz on/off</button>}
       <select value="" onChange={e => e.target.value && go(e.target.value)} style={{ background: "#2c1840", color: "#ead8fb", border: "1px solid #6b3f8f", font: "inherit" }}>
         <option value="">jump to...</option>

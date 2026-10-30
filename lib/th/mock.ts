@@ -19,7 +19,7 @@ const DELAY = 2500;
 interface S {
   step: Step; since: number; fails: number; fail_cap: number; mg2: "vial" | "wiring"; attempt: number;
   tries: number; patternWait: number; cipherWait: number; started: number; test: boolean; size: number; seed: number;
-  prize: string; buzz: boolean;
+  prize: string; buzz: boolean; scareAt: number;
 }
 const teams = new Map<string, S>();
 const pending = new Map<string, { at: number; ok: boolean; msg: string; done: boolean }>();
@@ -45,7 +45,7 @@ function team(t: string): S {
   s = {
     step, since: now(), fails: 0, fail_cap: 6, mg2: parts.includes("wiring") ? "wiring" : "vial", attempt: 1,
     tries: 5, patternWait: 0, cipherWait: 0, started: 0, test: parts.includes("test"), size: parts.includes("solo") ? 1 : 3,
-    seed: 1938475, prize: step === "done" || step === "broken" ? "first" : "", buzz: parts.includes("buzz"),
+    seed: 1938475, prize: step === "done" || step === "broken" ? "first" : "", buzz: parts.includes("buzz"), scareAt: 0,
   };
   teams.set(t, s);
   return s;
@@ -142,7 +142,12 @@ function puzzleFor(t: string, s: S): Puzzle {
     case "unlock": return { game: "pattern", grid: 3, tries_left: s.tries, wait_until: s.patternWait };
     case "mg1_signal": return { game: "signal", min: 88, max: 108, target: Math.round((88.5 + r() * 19) * 10) / 10 };
     case "mg1_photo": return { game: "photo", img: mockImg("loc2"), size: 3, tiles: photoTiles(r) };
-    case "go_loc2": case "arrange":
+    case "go_loc2":                 // no item names before the cabin, like the API
+      return {
+        game: "sketch", img: mockImg("loc2"),
+        tiles: { A: { type: "", name: "?" }, B: { type: "", name: "?" }, C: { type: "", name: "?" } },
+      };
+    case "arrange":
       return {
         game: "sketch", img: mockImg("loc2"),
         tiles: { A: { type: "Base.Candle", name: "Candle" }, B: { type: "Base.TeddyBear", name: "Teddy Bear" }, C: { type: "Base.Spoon", name: "Spoon" } },
@@ -155,7 +160,7 @@ function puzzleFor(t: string, s: S): Puzzle {
     case "mg2_cipher": {
       const shift = 7;
       const az = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-      return { game: "cipher", len: 5, wait_until: s.cipherWait, shift, letters: az.slice(shift) + az.slice(0, shift) };
+      return { game: "cipher", len: 5, wait_until: s.cipherWait, shift, letters: az.slice(shift) + az.slice(0, shift), code_until: s.since + 300 };
     }
     case "go_final": return { game: "wait", key: "go_final", img: mockImg("final") };
     case "mg2_game":
@@ -176,7 +181,7 @@ export async function mockMe(t: string): Promise<Me> {
   return {
     step: s.step, since: s.since, team_size: s.size, members_here: s.size, fails: s.fails, fail_cap: s.fail_cap,
     broken: s.step === "broken", prize: s.prize, test: s.test, puzzle: puzzleFor(t, s), now: now(),
-    buzz: s.step === "go_final" && s.buzz, text: mockText(s.step, s.mg2, s.prize),
+    buzz: s.step === "go_final" && s.buzz, text: mockText(s.step, s.mg2, s.prize), scare_at: s.scareAt,
   };
 }
 
@@ -281,6 +286,11 @@ export function mockGameStep(t: string) {
 export function mockToggleBuzz(t: string) {
   const s = team(t);
   s.buzz = !s.buzz;
+}
+
+// The dev bar's "Dusk" button: the game's word that Queen Dusk has looked in
+export function mockScare(t: string) {
+  team(t).scareAt = now();
 }
 
 export function mockReset(t: string) {

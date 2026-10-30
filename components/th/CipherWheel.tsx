@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ART } from "@/lib/th/art";
 import type { CipherP, GameProps } from "@/lib/th/types";
+import { fmtClock } from "./useTimer";
 
 const AZ = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
@@ -54,18 +55,24 @@ export default function CipherWheel({ puzzle, busy, serverNow, onSolve }: GamePr
   const [idx, setIdx] = useState<number[]>(() => Array(len).fill(0));
   const [, force] = useState(0);
   const waitLeft = Math.max(0, Math.ceil((puzzle.wait_until || 0) - serverNow()));
+  const codeLeft = Math.max(0, Math.ceil((puzzle.code_until || 0) - serverNow()));
 
   useEffect(() => {
-    if (!waitLeft) return;
+    if (!waitLeft && !codeLeft) return;
     const id = setInterval(() => force(x => x + 1), 500);
     return () => clearInterval(id);
-  }, [waitLeft]);
+  }, [waitLeft > 0, codeLeft > 0]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const code = idx.map(i => letters[i]).join("");
   const locked = busy || waitLeft > 0;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14, borderRadius: 12, padding: "16px 12px", backgroundImage: `url(${ART.paper})`, backgroundSize: "cover" }}>
+      {codeLeft > 0 && (
+        <div className="th-mono" role="timer" style={{ textAlign: "center", fontSize: 20, color: "#ff8a7a", background: "rgba(20,16,10,0.9)", borderRadius: 8, padding: "6px 8px" }}>
+          The code changes in {fmtClock(codeLeft)}
+        </div>
+      )}
       <div style={{ display: "flex", gap: 6, background: "rgba(20,16,10,0.88)", borderRadius: 12, padding: "10px 8px", border: "2px solid #3b2f1c" }}>
         {idx.map((v, k) => <Wheel key={k} letters={letters} idx={v} disabled={locked} setIdx={i => setIdx(a => a.map((x, j) => (j === k ? i : x)))} />)}
       </div>

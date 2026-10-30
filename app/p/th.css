@@ -107,6 +107,12 @@
 .th-shake { animation: th-shake 0.5s linear 2; }
 @keyframes th-shake { 10%, 50%, 90% { transform: translate(-3px, 1px); } 30%, 70% { transform: translate(3px, -2px); } }
 .th-glitch { position: absolute; inset: 0; z-index: 45; pointer-events: none; overflow: hidden; }
+/* Queen Dusk: one calm picture that rushes in once and holds. No flashing. */
+.th-dusk { position: fixed; inset: 0; z-index: 3000; background: #000; display: flex; align-items: center; justify-content: center; overflow: hidden; touch-action: none; user-select: none; }
+.th-dusk img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 40%; animation: th-dusk-in 0.22s cubic-bezier(0.12, 0.8, 0.2, 1) both; }
+.th-dusk-line { position: absolute; left: 0; right: 0; top: 68%; text-align: center; color: #f3e9d6; font-family: "Bebas Neue", Impact, sans-serif; font-size: clamp(38px, 11vw, 72px); letter-spacing: 0.08em; text-shadow: 0 2px 18px #000, 0 0 6px #000; }
+@keyframes th-dusk-in { from { transform: scale(0.72); } to { transform: scale(1.06); } }
+@media (orientation: landscape) { .th-dusk img { object-fit: contain; } }
 .th-glitch i { position: absolute; left: -10%; right: -10%; background: rgba(160,255,200,0.12); mix-blend-mode: screen; animation: th-slice 0.18s steps(2) infinite; }
 @keyframes th-slice { 0% { transform: translateX(-6%); background: rgba(255,60,90,0.18); } 100% { transform: translateX(6%); background: rgba(60,220,255,0.18); } }
 .th-wipe { position: absolute; inset: 0; z-index: 46; background: #000; transform-origin: top; animation: th-wipe 1.6s 1.4s cubic-bezier(.7,0,.3,1) both; }
@@ -124,4 +130,4 @@
 @keyframes th-buzz { 0% { transform: translate(-1px, 0) rotate(-6deg); } 50% { transform: translate(1px, 0) rotate(6deg); } 100% { transform: translate(-1px, 0) rotate(-6deg); } }
 .th-buzz-card { border: 1px solid #5ff0ff; background: rgba(8,30,36,0.92); border-radius: 10px; padding: 12px; display: flex; gap: 12px; align-items: center; box-shadow: 0 0 18px rgba(95,240,255,0.35); animation: th-buzz-in 0.4s ease-out; }
 @keyframes th-buzz-in { 0% { transform: scale(0.96); opacity: 0; } 100% { transform: none; opacity: 1; } }
-@media (prefers-reduced-motion: reduce) { .th-buzz-icon { animation: none !important; } }
+@media (prefers-reduced-motion: reduce) { .th-buzz-icon { animation: none !important; } .th-dusk img { animation: none; } }

@@ -303,6 +303,7 @@ export default function TreasureTab({ toast }) {
       <SC label="Time left" value={ev.on ? dur(left) : "-"} color="blue" sub={ev.on && ev.ends ? `ends ${fmtFull(ev.ends)}` : "4 h after the start"} />
       <SC label="Top prizes left" value={ev.prizes_left ?? "-"} color="purple" sub="for the 1st and 2nd team" />
       <SC label="Runners" value={ev.runners ?? 0} color="orange" sub={`${teams.length} team${teams.length === 1 ? "" : "s"}`} />
+      <SC label="Dusk looked in" value={teams.filter(t => t.scare_at).length} color="orange" sub="once a hunt per team" />
     </div>
 
     <div className="ap-2c">
@@ -354,7 +355,7 @@ export default function TreasureTab({ toast }) {
                   </td>
                   <td><span style={{ fontFamily: "var(--mono)", color: "var(--accent)" }}>{STEP_NO[t.step] ?? "?"}. {t.step}</span><div style={{ fontSize: 11, color: "var(--textdim)" }}>{STEP_LABEL[t.step] || ""}</div></td>
                   <td style={{ fontFamily: "var(--mono)" }}>{t.since ? dur(now - t.since) : "-"}</td>
-                  <td style={{ fontFamily: "var(--mono)", color: t.fails ? "var(--red)" : undefined }}>{t.fails ?? 0} / {t.fail_cap ?? 6}</td>
+                  <td style={{ fontFamily: "var(--mono)", color: t.fails ? "var(--red)" : undefined }}>{t.fails ?? 0} / {t.fail_cap ?? 6}{t.scare_at ? <div style={{ fontSize: 11, color: "var(--accent)" }}>Dusk looked in</div> : null}</td>
                   <td>{t.mg2 === "wiring" ? "Lab wiring" : t.mg2 === "vial" ? "Vial sort" : "-"}</td>
                   <td>{!t.prize ? "-" : t.prize === "consolation" ? "consolation" : "top prize"}</td>
                   <td>

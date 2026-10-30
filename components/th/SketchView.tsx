@@ -49,8 +49,10 @@ function Sketch({ puzzle, big }: { puzzle: SketchP; big?: boolean }) {
 
 export default function SketchView({ puzzle, arranging }: { puzzle: SketchP; arranging: boolean }) {
   const [open, setOpen] = useState(false);
+  const notThereYet = Object.values(puzzle.tiles).every(t => t.name === "?");
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14, alignItems: "center" }}>
+      {notThereYet && <div className="th-note" style={{ color: "#e8efe9", fontSize: 15 }}>Everything you need is waiting at the location.</div>}
       {!arranging && <PolaroidPhoto img={apiUrl(puzzle.img)} alt="The whole photo" tilt={-1.5} />}
       <button onClick={() => setOpen(true)} aria-label="The sketch. Tap to enlarge"
         style={{ width: "100%", padding: 0, border: 0, background: "transparent", cursor: "zoom-in", display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>

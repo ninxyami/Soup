@@ -12,7 +12,10 @@ export interface PhotoP { game: "photo"; img: string; size: number; tiles: numbe
 export interface SketchTile { type: string; name: string }
 export interface SketchP { game: "sketch"; img: string; tiles: Record<string, SketchTile> }
 export interface ScanP { game: "scan"; img?: string; tiles?: Record<string, SketchTile> } // th-bot adds the sketch
-export interface CipherP { game: "cipher"; len: number; wait_until: number; letters?: string; shift?: number }
+export interface CipherP {
+  game: "cipher"; len: number; wait_until: number; letters?: string; shift?: number;
+  code_until?: number; // when the code the game showed stops working, on the server clock (0: no timer)
+}
 export interface VialP {
   game: "vial"; vials: string[][]; cap: number; move_limit: number; time_s: number; started: number; attempt: number;
 }
@@ -31,6 +34,7 @@ export interface Me {
   buzz?: boolean;  // the team is at the special spot: show text.buzz and buzz the phone
   text?: StepText | null; // every word the player reads for this step, from the API
   now?: number; // optional server clock (epoch s), see CONTRACT_CHANGES.md; falls back to this device's clock
+  scare_at?: number; // when Queen Dusk looked in on the team (epoch s), 0 = not yet
 }
 
 export interface StepText {
