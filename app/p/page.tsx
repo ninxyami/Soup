@@ -1,6 +1,6 @@
 "use client";
 // EVENT PHONE (2026-10-19). Opened from a QR in game: /p/?t=<token>. One token per team member, bound to this device
-// by the API. The game owns every step; this page polls GET /api/th/me (2 s, 10 s when hidden), shows the mini-game
+// by the API. The game owns every step; this page polls GET /api/th/me (3 s, not at all while hidden), shows the mini-game
 // the step needs and sends the answer to POST /api/th/act, then shows "syncing..." until the game has reacted.
 // Every story word (titles, next steps, hints, quotes, the start and end screens) comes from `me.text`: the site is
 // public, so this code holds only neutral UI words. Without a valid token the page says "Nothing here." and nothing
@@ -25,7 +25,9 @@ import { ART } from "@/lib/th/art";
 import { ThError, apiUrl, thAct, thImg, thMe, thResult } from "@/lib/th/client";
 import type { ActAction, Me, Puzzle } from "@/lib/th/types";
 
-const POLL_MS = 2000, HIDDEN_MS = 10000, SLOW_SYNC_MS = 20000;
+const POLL_MS = 3000, BACKOFF_MAX_MS = 20000, SLOW_SYNC_MS = 20000;
+const RETRY_MS = [1000, 2000, 3000, 5000, 8000]; // an answer that couldn't get through goes again after each of these
+const canRetry = (e: ThError) => e.status === 0 || e.status >= 500 || (e.status === 429 && /slow down/i.test(e.message));
 
 function attemptOf(p: Puzzle | null) {
   return p && "attempt" in p ? p.attempt : 0;
@@ -62,6 +64,11 @@ export default function EventPhone() {
   const [sync, setSync] = useState<{ id: string; from: string; at: number; kind: ActAction; attempt: number; okAt: number } | null>(null);
   const [slow, setSlow] = useState(false);
   const [err, setErr] = useState("");
+  const [sending, setSending] = useState(false);
+  const [retrying, setRetrying] = useState(false);
+  const [resend, setResend] = useState<{ action: ActAction; payload: Record<string, unknown> } | null>(null);
+  const sendingRef = useRef(false);
+  const backoff = useRef(0);
   const [flash, setFlash] = useState("");
   const [buzzing, setBuzzing] = useState(false);
   const [placeImg, setPlaceImg] = useState("");
@@ -96,6 +103,7 @@ export default function EventPhone() {
       if (prev && prev.step !== m.step && !syncRef.current && WEB_STEPS.has(prev.step)) setFlash("Someone on your team did it. On to the next part.");
       meRef.current = m;
       setMe(m);
+      backoff.current = 0;
       setOffline(false);
       setGameDown(!!m.stale);
       setFatal(null);
@@ -110,6 +118,7 @@ export default function EventPhone() {
         else { setDead(true); if (!tok.startsWith("mock-")) store(`th_dead_${tok}`, "1"); }
       }
       else if (te.status === 503) setGameDown(true);
+      else if (te.status === 429) backoff.current = Math.min(BACKOFF_MAX_MS, (backoff.current || POLL_MS) * 2);
       else setOffline(true);
     }
   }, [tok]);
@@ -117,8 +126,11 @@ export default function EventPhone() {
   // poll /me, and the pending command's result
   useEffect(() => {
     if (!tok || dead) return;
-    let alive = true, timer = 0;
+    // one poller per page: a tab coming back never starts a second one, and a hidden tab doesn't poll at all
+    let alive = true, timer = 0, running = false;
     const loop = async () => {
+      if (running || !alive || document.hidden) return;
+      running = true;
       const s = syncRef.current;
       if (s) {
         try {
@@ -133,7 +145,8 @@ export default function EventPhone() {
         } catch { /* keep the sync up, try again */ }
       }
       await load();
-      if (alive) timer = window.setTimeout(loop, document.hidden ? HIDDEN_MS : POLL_MS);
+      running = false;
+      if (alive) timer = window.setTimeout(loop, Math.max(POLL_MS, backoff.current));
     };
     loop();
     const vis = () => { if (!document.hidden) { clearTimeout(timer); loop(); } };
@@ -152,7 +165,7 @@ export default function EventPhone() {
     const id = setTimeout(() => setBuzzing(false), 1200);
     return () => clearTimeout(id);
   }, [buzz]);
-  useEffect(() => { setErr(""); setPlaceImg(""); }, [me?.step]);
+  useEffect(() => { setErr(""); setPlaceImg(""); setResend(null); }, [me?.step]);
   useEffect(() => { if (!err) return; const id = setTimeout(() => setErr(""), 8000); return () => clearTimeout(id); }, [err]);
 
   // the end: done or broken plays the wipe once, then the phone stays ended for this token
@@ -176,18 +189,40 @@ export default function EventPhone() {
     else if (me.step === "go_final") thImg(tok, "final").then(setPlaceImg);
   }, [me, tok, placeImg]);
 
+  // An answer that can't get through goes again by itself, and the player is told. It's never `err`: games clear their
+  // board on an error, and a solved board has to stay solved. If it still can't, "Send it again" sends the same answer.
   const act = useCallback(async (action: ActAction, payload: Record<string, unknown>) => {
     const m = meRef.current;
-    if (!tok || !m || syncRef.current) return false;
+    if (!tok || !m || syncRef.current || sendingRef.current) return false;
+    sendingRef.current = true;
+    setSending(true);
     setErr("");
+    setResend(null);
     try {
-      const r = await thAct(tok, m.step, action, payload);
-      setSync({ id: r.id ?? "", from: m.step, at: Date.now(), kind: action, attempt: attemptOf(m.puzzle), okAt: 0 });
-      return true;
-    } catch (e) {
-      setErr((e as Error).message || "That didn't go through. Try again.");
-      load();
-      return false;
+      for (let i = 0; ; i++) {
+        try {
+          const r = await thAct(tok, m.step, action, payload);
+          setSync({ id: r.id ?? "", from: m.step, at: Date.now(), kind: action, attempt: attemptOf(m.puzzle), okAt: 0 });
+          return true;
+        } catch (e) {
+          const te = e as ThError;
+          if (!canRetry(te)) {
+            setErr(te.message || "That didn't go through. Try again.");
+            load();
+            return false;
+          }
+          if (i >= RETRY_MS.length) {
+            setResend({ action, payload });
+            return false;
+          }
+          setRetrying(true);
+          await new Promise(r => setTimeout(r, RETRY_MS[i]));
+        }
+      }
+    } finally {
+      sendingRef.current = false;
+      setSending(false);
+      setRetrying(false);
     }
   }, [tok, load]);
   const solve = useCallback((p: Record<string, unknown>) => act("solve", p), [act]);
@@ -218,7 +253,7 @@ export default function EventPhone() {
 
   // ── the app ───────────────────────────────────────────────────────────────────────────────────────────────────
   const pz = me.puzzle;
-  const busy = !!sync;
+  const busy = !!sync || sending || !!resend;
   const gp = { busy, serverNow, onSolve: solve, onFail: fail, error: err };
   const attempt = attemptOf(pz);
   const webStep = WEB_STEPS.has(me.step);
@@ -289,6 +324,13 @@ export default function EventPhone() {
         {gameDown && !offline && <div className="th-err" style={{ background: "rgba(40,30,10,0.9)", borderColor: "#6a5520", color: "#e8d49a" }}>The game isn&apos;t answering right now. Hang on, this page keeps trying.</div>}
         {offline && <div className="th-err" style={{ background: "rgba(40,30,10,0.9)", borderColor: "#6a5520", color: "#e8d49a" }}>Lost the connection. This page keeps trying.</div>}
         {flash && <div className="th-err" style={{ background: "rgba(14,40,24,0.92)", borderColor: "#2c6a44", color: "#bdf0cf" }}>{flash}</div>}
+        {retrying && <div className="th-err" role="status" style={{ background: "rgba(40,30,10,0.9)", borderColor: "#6a5520", color: "#e8d49a" }}>Your answer is safe. Still sending it to the game...</div>}
+        {resend && (
+          <div className="th-err" role="alert">
+            Your answer didn&apos;t reach the game. Nothing is lost.
+            <button className="th-btn big" style={{ width: "100%", marginTop: 8 }} onClick={() => act(resend.action, resend.payload)}>Send it again</button>
+          </div>
+        )}
         {err && <div className="th-err" role="alert">{err}</div>}
         <div className="th-game" key={`${me.step}-${attempt}`}>{game(pz)}</div>
       </div>

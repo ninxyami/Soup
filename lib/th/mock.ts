@@ -19,7 +19,7 @@ const DELAY = 2500;
 interface S {
   step: Step; since: number; fails: number; fail_cap: number; mg2: "vial" | "wiring"; attempt: number;
   tries: number; patternWait: number; cipherWait: number; started: number; test: boolean; size: number; seed: number;
-  prize: string; buzz: boolean; scareAt: number;
+  prize: string; buzz: boolean; scareAt: number; refuse: number;
 }
 const teams = new Map<string, S>();
 const pending = new Map<string, { at: number; ok: boolean; msg: string; done: boolean }>();
@@ -46,6 +46,7 @@ function team(t: string): S {
     step, since: now(), fails: 0, fail_cap: 6, mg2: parts.includes("wiring") ? "wiring" : "vial", attempt: 1,
     tries: 5, patternWait: 0, cipherWait: 0, started: 0, test: parts.includes("test"), size: parts.includes("solo") ? 1 : 3,
     seed: 1938475, prize: step === "done" || step === "broken" ? "first" : "", buzz: parts.includes("buzz"), scareAt: 0,
+    refuse: parts.includes("flaky") ? 2 : parts.includes("down") ? 6 : 0, // answers refused first: a busy or broken connection
   };
   teams.set(t, s);
   return s;
@@ -177,6 +178,7 @@ function setStep(s: S, step: Step) {
 }
 
 export async function mockMe(t: string): Promise<Me> {
+  (globalThis as unknown as { __thPolls: number }).__thPolls = ((globalThis as unknown as { __thPolls?: number }).__thPolls ?? 0) + 1;
   const s = team(t);
   return {
     step: s.step, since: s.since, team_size: s.size, members_here: s.size, fails: s.fails, fail_cap: s.fail_cap,
@@ -245,6 +247,7 @@ function check(s: S, t: string, payload: Record<string, any>): string {
 
 export async function mockAct(t: string, from: string, action: ActAction, payload: Record<string, any>): Promise<ActResult> {
   const s = team(t);
+  if (s.refuse > 0) { s.refuse -= 1; throw new ThError("Slow down a little.", 429); }
   if (from !== s.step) return queue(() => ({ ok: false, msg: "stale" }));
   if (action === "scan") {
     if (s.step !== "scan") throw new ThError("Nothing to scan right now.", 400);
