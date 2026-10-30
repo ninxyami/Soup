@@ -31,6 +31,7 @@ const SWITCHES = [
   ["map_shops", "Shops on the map", "A cart at every kiosk on players' maps."], ["map_bus", "Bus stations on the map", "A bus at every station with its SAFE / DANGER mark."],
   ["quests", "Zombita's Jobs", "Quests on the phone, traps, reward codes."], ["treasury", "Treasury, in public", "The town's balance on kiosks, the Hub and the board."],
   ["notoriety", "Notoriety + bounties", "Queen Dusk's notice: warnings, Marked players, raids, posters, the tab."],
+  ["bites_public", "Cheater lines, in public", "When Zombita bites back, everyone hears it in her funny voice (pop-up, game chat, Discord game chat). Off: only the cheater and the admin channel."],
 ];
 const DOTD_FIELDS = [
   ["interval_hours", "Every (hours)", "interval_hours"], ["waves", "Waves", "waves"], ["zombies_per_wave", "Zombies per wave", "zombies"],
