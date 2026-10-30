@@ -251,6 +251,73 @@ export default function NotorietyTab() {
             }}>{label}{st.bandits && st.bandits[field] != null ? `: ${st.bandits[field]}` : ""}</button>
           ))}
         </div>
+        {/* Raid pacing (server/ZNO_Server.lua V.paceHold, Nin 10-30): same number of zombies, only the timing changes. A raid's
+            next wave waits until fewer than the cap of its zombies are alive near the target, then comes in full. Same three
+            settings as Zombita Control > NOTORIETY > RAID PACING, plus stage 2's growth top. Current values come from the game's
+            "pace" block (st.pace: on, cap, radius, held, names, growMax) when the API passes it through (bot zip Zombita_raid_pace.zip); without it the buttons
+            still work and the game's answer says the new value. */}
+        <div style={{ color: C.gold, margin: "12px 0 6px" }}>
+          Raid pacing{st.pace ? (st.pace.on ? " (on)" : " (off)") : ""}
+        </div>
+        {st.pace && (
+          <div style={{ color: st.pace.on ? C.text : C.amber, marginBottom: 6, lineHeight: 1.5 }}>
+            {st.pace.on
+              ? `Same zombies, only the timing changes: the next wave waits for under ${n(st.pace.cap)} alive within ${n(st.pace.radius)} tiles of the target. ${n(st.pace.held) > 0 ? `Waiting now: ${st.pace.names || ""}.` : "None waiting."}`
+              : "Off: every wave comes at its gap."}
+          </div>
+        )}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          <button style={btn(C.red)} disabled={busy} onClick={() => {
+            if (sure("Turn raid pacing on? Same zombies, only the timing changes: a raid's next wave waits until fewer than the cap are alive near the target, then comes in full.")) {
+              send({ cmd: "setting", key: "RAID_PACE", value: "true" }, "Turning raid pacing on");
+            }
+          }}>{st.pace && st.pace.on ? "Pacing: ON" : "Pacing on"}</button>
+          <button style={btn()} disabled={busy} onClick={() => {
+            if (sure("Turn raid pacing off? Same zombies either way, but every wave then comes at its gap, on top of whatever is still alive. The big raids lag the whole server.")) {
+              send({ cmd: "setting", key: "RAID_PACE", value: "false" }, "Turning raid pacing off");
+            }
+          }}>{st.pace && st.pace.on === false ? "Pacing: OFF" : "Pacing off"}</button>
+          {[["RAID_ALIVE_CAP", "cap", "Next wave waits until fewer than this are alive", 50, 5000],
+            ["RAID_ALIVE_RADIUS", "radius", "Tiles around the target that count", 20, 150],
+            ["HARD_ESCALATE_MAX", "growMax", "Stage 2 raids grow by at most this % (raids already under way keep their size)", 0, 2000]].map(([key, field, label, lo, hi]) => (
+            <button key={key} style={btn()} disabled={busy} onClick={() => {
+              const cur = st.pace && st.pace[field] != null ? String(st.pace[field]) : "";
+              const v = ask(`${label} (${lo}-${hi}):`, cur);
+              if (v === null || v === "") return;
+              const num = Number(v);
+              if (!Number.isFinite(num) || num < lo || num > hi) { setMsg(`${label}: ${lo} to ${hi}, please.`); return; }
+              send({ cmd: "setting", key, value: String(Math.floor(num)) }, `Setting ${key}`);
+            }}>{label}{st.pace && st.pace[field] != null ? `: ${st.pace[field]}` : ""}</button>
+          ))}
+        </div>
+        {/* The last stage (Nin 10-30, server/ZNO_Server.lua V.isFinal): from this score a Marked player only gets the Bride + one
+            pack of sprinters, growing with the score. Same four settings as Zombita Control > NOTORIETY. Current values come from
+            the game's "pace" block (finalScore, finalSprinters, finalPerPoint, finalMax). */}
+        {st.pace && st.pace.finalScore != null && <>
+        <div style={{ color: C.gold, margin: "12px 0 6px" }}>
+          Last stage{st.pace && st.pace.finalScore != null ? (n(st.pace.finalScore) > 0 ? ` (from ${n(st.pace.finalScore)})` : " (off)") : ""}
+        </div>
+        {st.pace && st.pace.finalScore != null && n(st.pace.finalScore) > 0 && (
+          <div style={{ color: C.text, marginBottom: 6, lineHeight: 1.5 }}>
+            From score {n(st.pace.finalScore)}: only the Bride + one pack of {n(st.pace.finalSprinters)} sprinters, {n(st.pace.finalPerPoint)} more a point, {n(st.pace.finalMax)} at most.
+          </div>
+        )}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          {[["FINAL_SCORE", "finalScore", "Starts at this score (0 = never)", 0, 500],
+            ["FINAL_SPRINTERS", "finalSprinters", "Sprinters at that score", 1, 500],
+            ["FINAL_PER_POINT", "finalPerPoint", "More a point above it", 0, 50],
+            ["FINAL_MAX", "finalMax", "Biggest pack", 1, 1000]].map(([key, field, label, lo, hi]) => (
+            <button key={key} style={btn()} disabled={busy} onClick={() => {
+              const cur = st.pace && st.pace[field] != null ? String(st.pace[field]) : "";
+              const v = ask(`${label} (${lo}-${hi}):`, cur);
+              if (v === null || v === "") return;
+              const num = Number(v);
+              if (!Number.isFinite(num) || num < lo || num > hi) { setMsg(`${label}: ${lo} to ${hi}, please.`); return; }
+              send({ cmd: "setting", key, value: String(Math.floor(num)) }, `Setting ${key}`);
+            }}>{label}{st.pace && st.pace[field] != null ? `: ${st.pace[field]}` : ""}</button>
+          ))}
+        </div>
+        </>}
         <p style={{ color: C.grey, lineHeight: 1.6, marginTop: 10 }}>
           Score = deeds (A and S wins, hot streaks, keeper hopping, emptying tills, buy limits, earning a lot and spending little) plus
           stats (skills, days alive, kills, bank; 30 at most, so stats alone never Mark anyone). Deeds only fade when the player is calm.
