@@ -3,8 +3,8 @@
 // Admin SHOP - the live shop network: 8 keepers, the authored catalog, what is on
 // each shelf right now, stock, and Zombita's restock decisions.
 // Backend: routers/admin_shop_live.py (/api/admin/shop/live/*).
-import { useState, useEffect, useCallback } from "react";
-import { fetchApi, postApi, fmt, fmtFull, relTime, Title, SC, TW, B, Empty, Load, useStickyState } from "./shared";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { fetchApi, postApi, fmt, fmtFull, relTime, bronzeToCoins, Title, SC, TW, B, Inp, Sel, Empty, Load, useStickyState } from "./shared";
 import { useLiveRefresh } from "../realtime";
 
 // id MUST equal the backend shop_type. Names mirror ZS_NPCData.lua.
@@ -20,6 +20,7 @@ const SHOPS = {
   global:    { icon: "⛽", npc: "General stores", label: "General Stores" },
 };
 const SHOP_ORDER = Object.keys(SHOPS);
+const ADD_SHOP_NAMES = { animals: "Hattie's Livestock & Pets" };   // a shop the keeper tables don't list
 const shopName = (st) => SHOPS[st] ? `${SHOPS[st].icon} ${SHOPS[st].npc}` : st;
 
 const TIERS = ["common", "uncommon", "rare", "epic", "legendary", "special", "transit"];
@@ -337,6 +338,206 @@ function CatalogView({ toast }) {
   </>);
 }
 
+// ── ADD ITEM: put a new item in a shop (2026-10-30, Nin: "add through website") ─────────────
+// Backend: zombita_shop_add.py through /api/admin/shop/live/item/*. The bot checks the id against what the server loads and
+// keeps the one-price rule: an item another shop sells takes its price or gets its own, it never moves theirs.
+const ADD_TIERS = TIERS.filter(t => t !== "transit");
+const ADD_EMPTY = { id: "", name: "", price: "", stock: "5", days: "3", tier: "common", permanent: true, ends: "", kind: "economy" };
+const ADD_NOT_HERE = ["mags"];                                     // her shelf comes from the cards settings
+const KIND_TEXT = {
+  economy: "Normal price, moves with the economy", fixed: "Fixed, players pay exactly this", own: "Own normal price here, moves with the economy", shared: "Same price as the other shop",
+};
+const addShopLabel = (st) => SHOPS[st]?.label || ADD_SHOP_NAMES[st] || st;
+const toLocalInput = (ts) => {
+  if (!ts) return "";
+  const d = new Date(ts * 1000);
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+};
+
+function AddItemView({ overview, toast }) {
+  const shops = (overview?.shops?.map(s => s.shop_type) || SHOP_ORDER).filter(st => !ADD_NOT_HERE.includes(st));
+  const [shop, setShop]     = useStickyState("global", "shop.add.shop");
+  const [q, setQ]           = useState("");
+  const [hits, setHits]     = useState(null);
+  const [form, setForm]     = useState(ADD_EMPTY);
+  const [seen, setSeen]     = useState(null);
+  const [added, setAdded]   = useState(null);
+  const [saving, setSaving] = useState(false);
+  const fromRow = useRef(false);                                   // the fields hold a saved row, not what was typed
+  const set = (patch) => setForm(f => ({ ...f, ...patch }));
+
+  const loadAdded = useCallback(async () => {
+    try { setAdded((await fetchApi("/api/admin/shop/live/item/added")).items); }
+    catch (e) { toast(`Failed to load added items: ${e.message}`, "error"); }
+  }, [toast]);
+  useEffect(() => { loadAdded(); }, [loadAdded]);
+  useLiveRefresh("shop", loadAdded);
+
+  useEffect(() => {                                                // type a name: the items the server really has
+    const want = q.trim();
+    if (want.length < 2) { setHits(null); return; }
+    const h = setTimeout(async () => {
+      try { setHits((await fetchApi(`/api/admin/shop/live/item/find?q=${encodeURIComponent(want)}`)).items); }
+      catch (e) { toast(`Search failed: ${e.message}`, "error"); }
+    }, 300);
+    return () => clearTimeout(h);
+  }, [q, toast]);
+
+  useEffect(() => {                                                // what the bot knows about this id in this shop
+    const id = form.id.trim();
+    setSeen(null);
+    if (!id) return;
+    const h = setTimeout(async () => {
+      try {
+        const d = await fetchApi(`/api/admin/shop/live/item/look?${new URLSearchParams({ item_id: id, shop_type: shop })}`);
+        setSeen(d);
+        const wasRow = fromRow.current;
+        fromRow.current = !!d.row;
+        if (d.row) set({ name: d.row.name, price: String(d.row.set_price), stock: String(d.row.stock), days: String(d.row.restock_days),
+                         tier: ADD_TIERS.includes(d.row.tier) ? d.row.tier : "common", permanent: d.row.permanent,
+                         ends: toLocalInput(d.row.ends_at), kind: d.shared && d.row.price_kind === "economy" ? "shared" : d.row.price_kind });
+        else if (d.known) set({ ...(wasRow ? { ...ADD_EMPTY, id } : {}), name: d.name, kind: d.shared ? "shared" : "economy" });
+      } catch (e) { toast(`Look up failed: ${e.message}`, "error"); }
+    }, 300);
+    return () => clearTimeout(h);
+  }, [form.id, shop, toast]);
+
+  const pick = (it) => { setHits(null); setQ(""); set({ ...ADD_EMPTY, id: it.item_id }); };
+  const edit = (it) => { setShop(it.shop_type); pick(it); };
+  const save = async () => {
+    setSaving(true);
+    try {
+      const d = await postApi("/api/admin/shop/live/item/add", {
+        item_id: form.id.trim(), shop_type: shop, price: form.kind === "shared" ? null : Number(form.price),
+        stock: Number(form.stock), restock_days: Number(form.days), tier: form.tier, permanent: form.permanent, price_kind: form.kind,
+        name: form.name, ends_at: form.ends ? Math.floor(new Date(form.ends).getTime() / 1000) : null, edit: !!seen?.row,
+      });
+      toast(`${d.name}: ${d.changed ? "saved" : "added"}, ${bronzeToCoins(d.price)} now. ${d.on_shelf ? "On the shelf." : "Joins the pool, a roll picks it."}`, "success");
+      setForm(ADD_EMPTY); setSeen(null); loadAdded();
+    } catch (e) { toast(e.message, "error"); }
+    setSaving(false);
+  };
+  const remove = async (it) => {
+    if (!confirm(`Take ${it.name} off sale at ${addShopLabel(it.shop_type)} now?\n\nIt leaves the shelf at once. Players keep what they bought.`)) return;
+    try {
+      await postApi("/api/admin/shop/live/item/remove", { item_id: it.item_id, shop_type: it.shop_type });
+      toast(`${it.name}: off sale`, "success");
+      loadAdded();
+    } catch (e) { toast(`Remove failed: ${e.message}`, "error"); }
+  };
+
+  const shared = seen?.shared;
+  const kinds = !shared ? ["economy", "fixed"] : shared.shop_type === shop ? ["shared"] : ["shared", "own", "fixed"];
+  const row = seen?.row;
+  const needPrice = form.kind !== "shared";
+  const ready = seen?.known && (!needPrice || Number(form.price) > 0) && Number(form.stock) > 0 && Number(form.days) > 0;
+  const radio = { display: "flex", alignItems: "center", gap: 6, fontSize: 12, cursor: "pointer", marginBottom: 4 };
+  const grid = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 };
+
+  return (<>
+    <div className="ap-note" style={{ marginBottom: 16 }}>
+      Add an item to a keeper's shop. <b>Permanent</b> items go on the shelf right away and stay there. <b>Rotating</b> items join the
+      pool and show up when a roll picks them. Stock refills every restock period, not at every roll. With an end date the item
+      leaves the shelf by itself.
+    </div>
+
+    <TW title="ADD AN ITEM">
+      <div style={grid}>
+        <Inp label="Find an item" placeholder="Type a name, like pumpkin" value={q} onChange={e => setQ(e.target.value)} />
+        <Inp label="Or type the item id" placeholder="Base.Axe" value={form.id} onChange={e => set({ id: e.target.value })} />
+        <Sel label="Shop" value={shop} onChange={e => setShop(e.target.value)}>
+          {shops.map(st => <option key={st} value={st}>{addShopLabel(st)}</option>)}
+        </Sel>
+      </div>
+
+      {hits && (
+        <div style={{ marginBottom: 14, maxHeight: 220, overflowY: "auto", border: "1px solid var(--border)", borderRadius: 6 }}>
+          {hits.length === 0 ? <Empty text="The game has no item by that name" /> : hits.map(it => (
+            <button key={it.item_id} onClick={() => pick(it)} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "6px 10px", background: "none", border: "none", borderBottom: "1px solid var(--border)", color: "var(--text)", textAlign: "left", cursor: "pointer" }}>
+              {it.icon_url && <img src={it.icon_url} alt="" style={{ width: 20, height: 20, objectFit: "contain", imageRendering: "pixelated" }} />}
+              <span style={{ fontWeight: 500 }}>{it.name}</span>
+              <span style={dim}>{it.item_id}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {seen && (
+        <div className="ap-note" style={{ marginBottom: 14 }}>
+          {seen.known
+            ? <span style={{ color: "var(--green)" }}>In the game: <b>{seen.name}</b></span>
+            : <span style={{ color: "var(--red)" }}>{seen.why}</span>}
+          {row && <div style={{ marginTop: 4 }}>Already in this shop{row.active ? "" : " (hidden)"} at {bronzeToCoins(row.price)}. Saving changes that row, it won't add a second one.</div>}
+          {seen.others.length > 0 && <div style={{ marginTop: 4 }}>Also sold at {seen.others.map(o => `${addShopLabel(o.shop_type)} (${bronzeToCoins(o.price)})`).join(", ")}.</div>}
+        </div>
+      )}
+
+      {seen?.known && (<>
+        <div style={grid}>
+          <Inp label="Name in the shop" maxLength={60} value={form.name} onChange={e => set({ name: e.target.value })} />
+          {needPrice && <div><Inp label="Price in bronze" type="number" min="1" value={form.price} onChange={e => set({ price: e.target.value })} />{form.price > 0 && <div style={{ ...dim, marginTop: -8, marginBottom: 8 }}>{bronzeToCoins(Number(form.price))}</div>}</div>}
+          <Inp label="Stock each restock" type="number" min="1" max="999" value={form.stock} onChange={e => set({ stock: e.target.value })} />
+          <Inp label="Restock every (days)" type="number" min="1" max="90" value={form.days} onChange={e => set({ days: e.target.value })} />
+          <Sel label="Rarity" value={form.tier} onChange={e => set({ tier: e.target.value })}>
+            {ADD_TIERS.map(t => <option key={t} value={t}>{t}</option>)}
+          </Sel>
+          <Inp label="Sale ends (optional)" type="datetime-local" value={form.ends} onChange={e => set({ ends: e.target.value })} />
+        </div>
+
+        <div style={{ ...grid, marginTop: 4, marginBottom: 14 }}>
+          <div>
+            <div className="ap-fl">On the shelf</div>
+            <label style={radio}><input type="radio" checked={form.permanent} onChange={() => set({ permanent: true })} /> Permanent, always listed</label>
+            <label style={radio}><input type="radio" checked={!form.permanent} onChange={() => set({ permanent: false })} /> Rotating, a roll may pick it</label>
+          </div>
+          <div>
+            <div className="ap-fl">Price</div>
+            {kinds.map(k => (
+              <label key={k} style={radio}>
+                <input type="radio" checked={form.kind === k} onChange={() => set({ kind: k })} />
+                {k !== "shared" ? KIND_TEXT[k] : shared.shop_type === shop ? `Keep it, this shop sets the shared price (${bronzeToCoins(shared.price)} now)` : `Same price as ${addShopLabel(shared.shop_type)} (${bronzeToCoins(shared.price)} now)`}
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ display: "flex", gap: 8 }}>
+          <B c="gold" onClick={save} disabled={!ready || saving}>{saving ? "Saving…" : row ? "Save changes" : "Add to shop"}</B>
+          <B c="ghost" onClick={() => { setForm(ADD_EMPTY); setSeen(null); }}>Clear</B>
+        </div>
+      </>)}
+    </TW>
+
+    <TW title={`ADDED ON THE WEBSITE${added ? ` - ${added.length}` : ""}`} right={<B c="ghost" sm onClick={loadAdded}>↻</B>}>
+      {added == null ? <Load /> : added.length === 0 ? <Empty text="Nothing added here yet." /> : (
+        <table className="ap-t">
+          <thead><tr><th>Item</th><th>Shop</th><th>Tier</th><th>Price now</th><th>Stock</th><th>Restock</th><th>Ends</th><th>Actions</th></tr></thead>
+          <tbody>{added.map(it => (
+            <tr key={`${it.shop_type}:${it.item_id}`} style={{ opacity: it.active ? 1 : 0.5 }}>
+              <td>
+                <div style={{ fontWeight: 500 }}>{it.name} {it.permanent && <Perm />}</div>
+                <div style={dim}>{it.item_id}{!it.active && " · hidden in catalog"}{it.active && !it.on_shelf && " · waiting for a roll"}</div>
+              </td>
+              <td style={{ fontSize: 12 }}>{addShopLabel(it.shop_type)}</td>
+              <td><Tier t={it.tier} /></td>
+              <td style={mono}>{bronzeToCoins(it.price)}<div style={dim}>{KIND_TEXT[it.price_kind] || it.price_kind}</div></td>
+              <td style={{ ...mono, color: stockColor(it.stock_now ?? -1, it.stock_max ?? 0) }}>{it.stock_now ?? "-"} / {it.stock}</td>
+              <td style={mono}>{it.restock_days}d</td>
+              <td style={{ ...mono, fontSize: 12 }}>{it.ends_at ? untilText(it.ends_at) : "-"}</td>
+              <td>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <B c="ghost" sm onClick={() => edit(it)}>Edit</B>
+                  <B c="red" sm onClick={() => remove(it)}>Remove</B>
+                </div>
+              </td>
+            </tr>
+          ))}</tbody>
+        </table>
+      )}
+    </TW>
+  </>);
+}
+
 // ── RESTOCKS: player requests and Zombita's verdicts ────────────────────────
 function RestocksView({ toast }) {
   const [data, setData]       = useState(null);
@@ -435,6 +636,7 @@ export default function ShopTab({ toast }) {
     { key: "shops",    icon: "🏪", label: "Shops" },
     { key: "shelf",    icon: "📦", label: "Shelf & Stock" },
     { key: "catalog",  icon: "📚", label: "Catalog" },
+    { key: "add",      icon: "➕", label: "Add Item" },
     { key: "restocks", icon: "🧟", label: "Zombita's Restocks" },
   ];
 
@@ -453,6 +655,7 @@ export default function ShopTab({ toast }) {
       : <Empty text="Shop network unavailable" />)}
     {sub === "shelf"    && <ShelfView shop={shelf} setShop={setShelf} toast={toast} />}
     {sub === "catalog"  && <CatalogView toast={toast} />}
+    {sub === "add"      && <AddItemView overview={overview} toast={toast} />}
     {sub === "restocks" && <RestocksView toast={toast} />}
   </>);
 }
