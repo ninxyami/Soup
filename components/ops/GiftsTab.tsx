@@ -10,8 +10,12 @@
 // Changes: gift_queue / gift_cancel through /api/admin/ops/do (act).
 // 2026-10-30 (ardenviel's ask, gift_announce_patch.py): Announce to everyone, off for every new gift, the same box as the in-game
 // GIFTS tab: one public line when it is queued (the game's toast, Game chat, Discord), never who gave it. The pop-up stays.
-import { useCallback, useEffect, useMemo, useState } from "react";
+// 2026-10-30 (Nin: "when you type it automatically searches, so we don't need to search for ids"): Find an item, the same search as
+// the in-game GIFTS tab. Asks the game through the Panther tab's SearchItems (POST /api/admin/ops/panther, no profile needed), one
+// question at a time; a list the game sent whole answers longer searches here without asking again. Typed ids still work.
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { API } from "@/lib/constants";
+import { ItemIcon } from "@/components/quests/ui";
 
 const C = { gold: "#c8a84b", green: "#4caf7d", red: "#e05555", grey: "#9aa", text: "#e6e6e6", bg: "#0b0d10", line: "#2a2f37", amber: "#e0a040", blue: "#4a8fc4" };
 const mono = { fontFamily: "var(--mono, monospace)" };
@@ -19,6 +23,7 @@ const inp = { ...mono, fontSize: 12, padding: "6px 8px", background: C.bg, color
 const h = { ...mono, fontSize: 12, color: C.gold, textTransform: "uppercase", letterSpacing: 1, margin: "4px 0" };
 const box = { border: `1px solid ${C.line}`, borderRadius: 3, padding: 10, display: "flex", flexDirection: "column", gap: 8 };
 const MAX_PLAYERS = 300, MAX_LINES = 20, MAX_COUNT = 100, LABEL_MAX = 60, NOTE_MAX = 200, SHOW_MAX = 400;
+const FIND_MIN = 2, FIND_PAUSE_MS = 350, FIND_POLL_MS = 400, FIND_WAIT_MS = 12000, FIND_SHOW = 60, FIND_KEEP = 60;
 const LINE_RE = /^([A-Za-z0-9_]+\.[A-Za-z0-9_\-]+)\s*(?:[*xX]\s*)?(\d*)$/;
 
 async function get(path) {
@@ -44,6 +49,133 @@ export function parseItems(text) {
   if (!lines.length) return { lines, error: "Put at least one item in the gift." };
   if (lines.length > MAX_LINES) return { lines, error: `At most ${MAX_LINES} item lines per gift.` };
   return { lines, error: "" };
+}
+
+/** Put an item in the text: more of a line that has it, else a new line. Other lines stay as typed. -> { text, note } or { error } */
+export function addItemLine(text, id, count) {
+  const parts = String(text || "").split(/[,;\r\n]+/).map((p) => p.trim()).filter(Boolean);
+  for (let i = 0; i < parts.length; i++) {
+    const m = LINE_RE.exec(parts[i]);
+    if (!m || m[1] !== id) continue;
+    const sum = (m[2] ? Number(m[2]) : 1) + count, n = Math.min(MAX_COUNT, sum);
+    parts[i] = `${id}*${n}`;
+    return { text: parts.join("\n"), note: sum > MAX_COUNT ? `${id} stays at ${MAX_COUNT}, the most per line.` : "" };
+  }
+  if (parts.length >= MAX_LINES) return { error: `At most ${MAX_LINES} item lines per gift.` };
+  parts.push(`${id}*${count}`);
+  return { text: parts.join("\n"), note: "" };
+}
+
+/** The game's text for one item, the same words its search looks in. */
+const searchText = (r) => `${r.id} ${r.name} ${r.category || ""} ${r.module || ""}`.toLowerCase();
+
+/** An answer we already have: this search, or a shorter one the game sent whole. -> { rows, total } or null */
+export function fromKnown(known, want) {
+  const same = known.get(want);
+  if (same) return same;
+  for (const [k, v] of known) {
+    if (!want.includes(k) || v.total > v.rows.length) continue;
+    const rows = v.rows.filter((r) => searchText(r).includes(want));
+    return { rows, total: rows.length };
+  }
+  return null;
+}
+
+/** Best first: the name itself, names that start with it, a word that starts with it, the rest (still by name, as the game sends them). */
+export function rankItems(rows, want) {
+  const score = (r) => { const n = String(r.name || "").toLowerCase(); return n === want ? 0 : n.startsWith(want) ? 1 : n.includes(` ${want}`) ? 2 : 3; };
+  return rows.map((r, i) => [score(r), i, r]).sort((a, b) => a[0] - b[0] || a[1] - b[1]).map((x) => x[2]);
+}
+
+/** Ask the game: queue the search, wait for its answer. -> { rows, total } */
+async function askItems(query) {
+  const r = await fetch(`${API}/api/admin/ops/panther`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ cmd: "pa_call", pc: "SearchItems", query, filter: "All Items", page: 1 }) });
+  const q = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(q.detail || `HTTP ${r.status}`);
+  for (const end = Date.now() + FIND_WAIT_MS; Date.now() < end;) {
+    await new Promise((ok) => setTimeout(ok, FIND_POLL_MS));
+    const ans = await get(`/api/admin/ops/panther/reply/${q.id}`);
+    if (ans.done === false) continue;
+    if (!ans.ok) throw new Error(ans.msg || "The game refused the search.");
+    const got = (Array.isArray(ans.replies) ? ans.replies : []).find((x) => x.command === "ItemSearchResult")?.args || {};
+    const rows = Array.isArray(got.items) ? got.items : [];
+    return { rows, total: Number(got.total) || rows.length };
+  }
+  throw new Error("No answer from the game. The search needs the server awake, and it pauses when nobody is online. You can still type ids below.");
+}
+
+function ItemSearch({ inGift, onAdd }) {
+  const [q, setQ] = useState("");
+  const [count, setCount] = useState("1");
+  const [found, setFound] = useState(null);           // { rows, total } for the box's text
+  const [asking, setAsking] = useState(false);
+  const [err, setErr] = useState("");
+  const s = useRef({ want: "", busy: false, live: true, known: new Map() }).current;
+  useEffect(() => { s.live = true; return () => { s.live = false; }; }, [s]);
+
+  // one question at a time: when it comes back, the box may already say something else
+  const ask = useCallback(async () => {
+    const want = s.want;
+    if (s.busy || !s.live || want.length < FIND_MIN) return;
+    s.busy = true;
+    setAsking(true);
+    try {
+      const res = await askItems(want);
+      if (s.known.size >= FIND_KEEP) s.known.clear();
+      s.known.set(want, res);
+    } catch (e) { if (s.want === want) { setErr(e.message); setFound(null); } }
+    s.busy = false;
+    if (!s.live) return;
+    const had = s.want.length >= FIND_MIN ? fromKnown(s.known, s.want) : null;
+    if (had) setFound(had);
+    if (!had && s.want !== want && s.want.length >= FIND_MIN) ask();
+    else setAsking(false);
+  }, [s]);
+
+  useEffect(() => {
+    s.want = q.trim().toLowerCase();
+    setErr("");
+    if (s.want.length < FIND_MIN) { setFound(null); return; }
+    const had = fromKnown(s.known, s.want);
+    if (had) { setFound(had); return; }
+    const t = setTimeout(ask, FIND_PAUSE_MS);
+    return () => clearTimeout(t);
+  }, [q, s, ask]);
+
+  const want = q.trim().toLowerCase();
+  const n = Math.min(MAX_COUNT, Math.max(1, parseInt(count, 10) || 1));
+  const usable = found ? found.rows.filter((r) => LINE_RE.test(r.id)) : [];      // the gift only takes Module.Item ids
+  const total = found ? found.total - (found.rows.length - usable.length) : 0;
+  const rows = rankItems(usable, want).slice(0, FIND_SHOW);
+  const status = err ? "" : asking ? "Asking the game..." : want.length === 1 ? `Type at least ${FIND_MIN} letters.` : !found ? ""
+    : !total ? "No item by that name." : total > rows.length ? `Showing ${rows.length} of ${total}: type more to narrow it down.`
+    : `${total} found. Click one to add it.`;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+        <input style={{ ...inp, flex: "1 1 200px", width: "auto" }} maxLength={80} placeholder="Find an item: type its name or id" value={q} onChange={(e) => setQ(e.target.value)} />
+        <label style={{ ...mono, fontSize: 11, color: C.grey, display: "flex", alignItems: "center", gap: 4 }}>Count
+          <input type="number" min={1} max={MAX_COUNT} style={{ ...inp, width: 64 }} value={count} onChange={(e) => setCount(e.target.value)} /></label>
+      </div>
+      {err && <div style={{ ...mono, fontSize: 11, color: C.amber }}>{err}</div>}
+      {status && <div style={{ ...mono, fontSize: 11, color: C.grey }}>{status}</div>}
+      {rows.length > 0 && (
+        <div style={{ maxHeight: 260, overflowY: "auto", border: `1px solid ${C.line}`, borderRadius: 3 }}>
+          {rows.map((r) => (
+            <button key={r.id} onClick={() => onAdd(r.id, n)} title={`Add ${n} to the gift`}
+              style={{ ...mono, fontSize: 12, display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "3px 8px", background: inGift[r.id] ? "#1d1a10" : "transparent",
+                color: C.text, border: 0, borderBottom: `1px solid ${C.bg}`, cursor: "pointer", textAlign: "left" }}>
+              <ItemIcon id={r.id} size={20} />
+              <span style={{ flex: 1 }}>{r.name}</span>
+              <span style={{ fontSize: 10, color: C.grey }}>{r.id}</span>
+              <span style={{ fontSize: 11, color: C.gold, minWidth: 64, textAlign: "right" }}>{inGift[r.id] ? `${inGift[r.id]} in gift` : `+${n}`}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function Btn({ children, onClick, color = C.gold, disabled = false, small = false, title = "" }) {
@@ -149,6 +281,13 @@ export default function GiftsTab({ act, players = [], setPick }) {
   };
 
   const parsed = parseItems(items);
+  const inGift = Object.fromEntries(parsed.lines);
+  const addItem = (id, n) => {
+    const r = addItemLine(items, id, n);
+    if (r.error) { setMsg(r.error); return; }
+    setItems(r.text);
+    setMsg(r.note);
+  };
   // the game says each item's own name ("1x Axe"); here the id without its module comes close
   const itemWords = parsed.lines.map(([id, n]) => `${n}x ${id.split(".").pop()}`).join(", ");
   const blocker = !tickedList.length ? "Tick at least one player." : tickedList.length > MAX_PLAYERS ? `At most ${MAX_PLAYERS} players per gift (${tickedList.length} ticked).`
@@ -241,6 +380,7 @@ export default function GiftsTab({ act, players = [], setPick }) {
 
       <div style={box}>
         <div style={h}>2. The gift</div>
+        <ItemSearch inGift={inGift} onAdd={addItem} />
         <label style={{ ...mono, fontSize: 11, color: C.grey }}>Items: one per line, Module.Item*count (1 to {MAX_COUNT}, at most {MAX_LINES} lines)
           <textarea style={{ ...inp, minHeight: 70, marginTop: 4 }} placeholder={"Base.Axe*1\nBase.Bandage*3"} value={items} onChange={(e) => setItems(e.target.value)} /></label>
         {items.trim() && <div style={{ ...mono, fontSize: 11, color: parsed.error ? C.red : C.green }}>{parsed.error || itemWords}</div>}
