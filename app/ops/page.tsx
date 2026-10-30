@@ -24,6 +24,7 @@ import PantherTab from "@/components/ops/PantherTab";
 import TigerTab from "@/components/ops/TigerTab";
 import PanelGate from "@/components/PanelGate";
 import ServerControls from "@/components/ops/ServerControls";
+import CorpseClearBox from "@/components/ops/CorpseClearBox";
 
 // the mode (Live / Zombita) and Zombita's last tab survive a reload (per browser)
 function remembered(key, fallback) { try { return localStorage.getItem(key) || fallback; } catch { return fallback; } }
@@ -1114,6 +1115,7 @@ function WorldTab({ act, spot, setSpot, setPick, players, showTrail, places = []
         </div>
       </div>
       <EventsBox act={act} spot={spot} pickSpot={pickSpot} players={players} places={places} box={box} row={row} num={num} />
+      <CorpseClearBox spot={spot} pickSpot={pickSpot} players={players} box={box} row={row} Btn={Btn} />
       <div style={box}>
         <b>Weather and events</b>
         <div style={row}>
