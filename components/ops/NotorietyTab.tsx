@@ -21,6 +21,19 @@ function money(b) {
   return parts.join(" ");
 }
 
+// Raid cleanup status (mod 1.8.77): "2 raids running, 3 areas waiting (the next in about 12 min)".
+function cleanupLine(c) {
+  const raids = n(c.raids), areas = n(c.areas);
+  let line = `${raids} ${raids === 1 ? "raid" : "raids"} running, ${areas} ${areas === 1 ? "area" : "areas"} waiting`;
+  const next = Number(c.nextIn);
+  if (areas > 0 && Number.isFinite(next) && next >= 0) {
+    const m = Math.ceil(next / 60);
+    line += m <= 0 ? " (the next one now)" : ` (the next in about ${m} min)`;
+  }
+  if (c.on === false) line = `Off: a raid's dead stay. ${line}`;
+  return line;
+}
+
 const SETTINGS = [
   ["TAB_BASE", "Tab per hour while Marked (bronze)"], ["TAB_PER_POINT", "Extra per hour for each point gained while Marked"],
   ["TAB_SINK", "Tab sinks per hour once calm (keep it small)"], ["CALM_HOURS", "Hours of play with nothing new before it fades"],
@@ -169,6 +182,43 @@ export default function NotorietyTab() {
               const v = ask(`${label}:`, cur);
               if (v !== null && v !== "") send({ cmd: "setting", key, value: v }, `Setting ${key}`);
             }}>{label}{st.hold && st.hold[field] != null ? `: ${st.hold[field]}` : ""}</button>
+          ))}
+        </div>
+        {/* Raid cleanup (mod 1.8.77, server/ZNO_Cleanup.lua): a raid's zombie bodies and its leftover zombies go this many
+            minutes after the raid is over, within this many tiles of where it was fought (players' and animals' bodies stay,
+            nothing in front of a player). Zombita tells the raided player and the friends it hit, in game only. Same three
+            settings as Zombita Control > NOTORIETY > RAID CLEANUP. Current values come from the game's "cleanup" block
+            (st.cleanup: on, min, radius, raids, areas, nextIn) when the API passes it through; without it the buttons still
+            work and the game's answer says the new value. */}
+        <div style={{ color: C.gold, margin: "12px 0 6px" }}>
+          Raid cleanup{st.cleanup ? (st.cleanup.on ? " (on)" : " (off)") : ""}
+        </div>
+        {st.cleanup && (
+          <div style={{ color: st.cleanup.on ? C.text : C.amber, marginBottom: 6 }}>
+            {cleanupLine(st.cleanup)}
+          </div>
+        )}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          <button style={btn(C.red)} disabled={busy} onClick={() => {
+            if (sure("Turn the raid cleanup on? A raid's zombie bodies and its leftover zombies go a set number of minutes after it is over. Players' and animals' bodies stay.")) {
+              send({ cmd: "setting", key: "RAID_CLEANUP", value: "true" }, "Turning the raid cleanup on");
+            }
+          }}>{st.cleanup && st.cleanup.on ? "Cleanup: ON" : "Cleanup on"}</button>
+          <button style={btn()} disabled={busy} onClick={() => {
+            if (sure("Turn the raid cleanup off? A raid's dead and its leftover zombies then stay where it was fought. Areas already waiting are not cleared.")) {
+              send({ cmd: "setting", key: "RAID_CLEANUP", value: "false" }, "Turning the raid cleanup off");
+            }
+          }}>{st.cleanup && st.cleanup.on === false ? "Cleanup: OFF" : "Cleanup off"}</button>
+          {[["RAID_CLEANUP_MIN", "min", "Minutes after a raid is over before its dead go", 5, 240],
+            ["RAID_CLEANUP_RADIUS", "radius", "Tiles around where a raid was fought", 20, 150]].map(([key, field, label, lo, hi]) => (
+            <button key={key} style={btn()} disabled={busy} onClick={() => {
+              const cur = st.cleanup && st.cleanup[field] != null ? String(st.cleanup[field]) : "";
+              const v = ask(`${label} (${lo}-${hi}):`, cur);
+              if (v === null || v === "") return;
+              const num = Number(v);
+              if (!Number.isFinite(num) || num < lo || num > hi) { setMsg(`${label}: ${lo} to ${hi}, please.`); return; }
+              send({ cmd: "setting", key, value: String(Math.floor(num)) }, `Setting ${key}`);
+            }}>{label}{st.cleanup && st.cleanup[field] != null ? `: ${st.cleanup[field]}` : ""}</button>
           ))}
         </div>
         <p style={{ color: C.grey, lineHeight: 1.6, marginTop: 10 }}>
