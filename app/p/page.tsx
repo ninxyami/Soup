@@ -41,6 +41,16 @@ function store(key: string, value?: string) {
   return null;
 }
 
+// The link was opened on another device. Never a dead end: opening it here takes it back.
+function Moved({ text }: { text: string }) {
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 2000, background: "#0b0b0c", color: "#d8d4c8", display: "flex", flexDirection: "column", gap: 18, alignItems: "center", justifyContent: "center", padding: 24, textAlign: "center", fontSize: 17 }}>
+      {text}
+      <button onClick={() => window.location.reload()} style={{ padding: "12px 22px", borderRadius: 10, border: "1px solid #6a6a62", background: "#1c1c1a", color: "#f0ead8", fontSize: 16, cursor: "pointer" }}>Use it here</button>
+    </div>
+  );
+}
+
 // A plain page: no frame, no picture, no hint of what this is
 function Plain({ text }: { text: string }) {
   return (
@@ -69,6 +79,8 @@ export default function EventPhone() {
   const [resend, setResend] = useState<{ action: ActAction; payload: Record<string, unknown> } | null>(null);
   const sendingRef = useRef(false);
   const backoff = useRef(0);
+  const opened = useRef(false);
+  const moved = useRef(false);
   const [flash, setFlash] = useState("");
   const [buzzing, setBuzzing] = useState(false);
   const [placeImg, setPlaceImg] = useState("");
@@ -97,7 +109,8 @@ export default function EventPhone() {
   const load = useCallback(async () => {
     if (!tok) return;
     try {
-      const m = await thMe(tok);
+      const m = await thMe(tok, !opened.current);
+      opened.current = true;
       if (typeof m.now === "number") offset.current = m.now - Date.now() / 1000;
       const prev = meRef.current;
       if (prev && prev.step !== m.step && !syncRef.current && WEB_STEPS.has(prev.step)) setFlash("Someone on your team did it. On to the next part.");
@@ -111,6 +124,7 @@ export default function EventPhone() {
       if (s && (m.step !== s.from || (s.kind === "fail" && attemptOf(m.puzzle) !== s.attempt))) { setSync(null); setSlow(false); }
     } catch (e) {
       const te = e as ThError;
+      if (te.status === 403) moved.current = true;
       if (te.status === 403 || te.status === 404 || te.status === 401) setFatal(te);
       else if (te.status === 410) {
         // the API says this phone is broken: play the wipe if the app is on screen, else go straight to the end
@@ -129,7 +143,7 @@ export default function EventPhone() {
     // one poller per page: a tab coming back never starts a second one, and a hidden tab doesn't poll at all
     let alive = true, timer = 0, running = false;
     const loop = async () => {
-      if (running || !alive || document.hidden) return;
+      if (running || !alive || document.hidden || moved.current) return;
       running = true;
       const s = syncRef.current;
       if (s) {
@@ -146,7 +160,7 @@ export default function EventPhone() {
       }
       await load();
       running = false;
-      if (alive) timer = window.setTimeout(loop, Math.max(POLL_MS, backoff.current));
+      if (alive && !moved.current) timer = window.setTimeout(loop, Math.max(POLL_MS, backoff.current));
     };
     loop();
     const vis = () => { if (!document.hidden) { clearTimeout(timer); loop(); } };
@@ -232,7 +246,7 @@ export default function EventPhone() {
   // ── screens before the app: nothing about the event shows until the API knows the token ────────────────────────
   if (tok === null) return <Plain text="" />;
   if (!tok) return <Plain text="Nothing here." />;
-  if (fatal) return <Plain text={fatal.status === 403 ? "This link is already open on another device." : "Nothing here."} />;
+  if (fatal) return fatal.status === 403 ? <Moved text={fatal.message} /> : <Plain text="Nothing here." />;
   if (dead) return <PhoneShell signal={0} battery={0} carrier=""><DeadScreen end={me?.text?.end ?? deadText} /></PhoneShell>;
   if (!me) return <Plain text={offline ? "No connection yet. This page keeps trying." : "Connecting..."} />;
 
@@ -354,6 +368,7 @@ function DevBar({ tok, step, reload }: { tok: string; step: string; reload: () =
       <span>MOCK {step}</span>
       <button onClick={async () => { const m = await import("@/lib/th/mock"); m.mockGameStep(tok); reload(); }}>game moves on</button>
       <button onClick={async () => { const m = await import("@/lib/th/mock"); m.mockScare(tok); reload(); }}>Dusk</button>
+      <button onClick={async () => { const m = await import("@/lib/th/mock"); m.mockMoved(tok); reload(); }}>Move away</button>
       {step === "go_final" && <button onClick={async () => { const m = await import("@/lib/th/mock"); m.mockToggleBuzz(tok); reload(); }}>buzz on/off</button>}
       <select value="" onChange={e => e.target.value && go(e.target.value)} style={{ background: "#2c1840", color: "#ead8fb", border: "1px solid #6b3f8f", font: "inherit" }}>
         <option value="">jump to...</option>

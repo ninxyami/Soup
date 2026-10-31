@@ -38,12 +38,14 @@ async function call(path: string, body?: unknown) {
   return data;
 }
 
-export async function thMe(t: string): Promise<Me> {
+// `open`: this is a real page open, so the link moves to this device. A poll never sends it, so two open pages can't
+// take the link from each other.
+export async function thMe(t: string, open = false): Promise<Me> {
   if (process.env.NODE_ENV !== "production" && t.startsWith("mock-")) {
     const m = await import("./mock");
-    return m.mockMe(t);
+    return m.mockMe(t, open);
   }
-  return call(`/api/th/me?t=${encodeURIComponent(t)}`);
+  return call(`/api/th/me?t=${encodeURIComponent(t)}${open ? "&open=1" : ""}`);
 }
 
 export async function thAct(t: string, from: string, action: ActAction, payload: Record<string, unknown>): Promise<ActResult> {
