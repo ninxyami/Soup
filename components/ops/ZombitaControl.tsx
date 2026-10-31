@@ -32,7 +32,7 @@ const SWITCHES = [
   ["quests", "Zombita's Jobs", "Quests on the phone, traps, reward codes."], ["treasury", "Treasury, in public", "The town's balance on kiosks, the Hub and the board."],
   ["notoriety", "Notoriety + bounties", "Queen Dusk's notice: warnings, Marked players, raids, posters, the tab."],
   ["bites_public", "Cheater lines, in public", "When Zombita bites back, everyone hears it in her funny voice (pop-up, game chat, Discord game chat). Off: only the cheater and the admin channel."],
-  ["chat_bubbles", "Chat bubbles", "When a player in view says or shouts nearby, their chat picture floats above the game's own text for a few seconds. No picture, no bubble. Never for staff, invisible or ghost players, or anyone you blocked or muted. Starts off. Off: only the game's own text."],
+  ["chat_bubbles", "Chat bubbles", "When a player in view says or shouts nearby, their chat picture floats above the game's own text for a few seconds. No picture, no bubble. Never for invisible or ghost players, or anyone you blocked or muted. Starts off. Off: only the game's own text."],
 ];
 const DOTD_FIELDS = [
   ["interval_hours", "Every (hours)", "interval_hours"], ["waves", "Waves", "waves"], ["zombies_per_wave", "Zombies per wave", "zombies"],
