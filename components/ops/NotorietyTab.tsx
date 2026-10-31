@@ -326,7 +326,7 @@ export default function NotorietyTab() {
           Cars (tires {st.pace.tiresOn ? "on" : "off"}, Bride flip {st.pace.flipOn ? "on" : "off"}, crowd flip {st.pace.flipCrowd ? "on" : "off"})
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-          {[["TIRES_ON", "tiresOn", "Tires"], ["FLIP_ON", "flipOn", "Bride flip"], ["FLIP_CROWD", "flipCrowd", "Crowd flip"]].map(([key, field, label]) => {
+          {[["TIRES_ON", "tiresOn", "Tires"], ["TIRE_SCRAPS", "tireScraps", "Tire scraps"], ["FLIP_ON", "flipOn", "Bride flip"], ["FLIP_CROWD", "flipCrowd", "Crowd flip"]].map(([key, field, label]) => {
             const on = st.pace && st.pace[field] === true;
             return <button key={key} style={btn(on ? C.red : C.grey)} disabled={busy} onClick={() => {
               if (sure(`${label}: turn it ${on ? "off" : "on"}?`)) send({ cmd: "setting", key, value: on ? "false" : "true" }, `Setting ${key}`);
