@@ -16,7 +16,7 @@ const FALLBACK: ServerContent = {
   max_players: "32", ram: "64 GB", region: "Singapore",
   game_version: "B42 stable",
   version_note: "The normal (stable) game - no beta needed. Steam → Project Zomboid → Properties → Betas → None",
-  discord_url: "https://discord.gg/zDwa2g37R",
+  discord_url: "https://discord.gg/D5kG4Xq7C",
   steam_collection_url: "https://steamcommunity.com/sharedfiles/filedetails/?id=3805641357",
   spreadsheet_url: "https://docs.google.com/spreadsheets/d/1kSo22-q_So3mZJ5hjYIH2oqQyOF-sIOacoV28HlQgFc/edit",
   announcement: "",

@@ -8,7 +8,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { API } from "@/lib/constants";
 
-export const DISCORD_INVITE = "https://discord.gg/zDwa2g37R";
+export const DISCORD_INVITE = "https://discord.gg/D5kG4Xq7C";
 
 export interface Review {
   id: number; kind: "rating" | "review"; name: string; stars: number | null; title: string;

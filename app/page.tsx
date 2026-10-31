@@ -350,7 +350,7 @@ export default function HomePage() {
               <span className="w-1.5 h-1.5 rounded-full bg-[#0b0d10] animate-pulse" />
               See the live map
             </Link>
-            <a href="https://discord.gg/zDwa2g37R" target="_blank" rel="noopener noreferrer"
+            <a href="https://discord.gg/D5kG4Xq7C" target="_blank" rel="noopener noreferrer"
               className="inline-block px-5 py-2.5 border border-[#5865F2] text-[#5865F2] no-underline text-[0.75rem] tracking-[0.12em] uppercase hover:bg-[#5865F2] hover:text-white transition-all">
               Join Discord
             </a>
@@ -622,7 +622,7 @@ export default function HomePage() {
             Start on Discord.
           </p>
           <div className="flex gap-3 justify-center flex-wrap">
-            <a href="https://discord.gg/zDwa2g37R" target="_blank" rel="noopener noreferrer"
+            <a href="https://discord.gg/D5kG4Xq7C" target="_blank" rel="noopener noreferrer"
               className="inline-block px-6 py-3 border border-[#5865F2] text-[#5865F2] no-underline text-[0.75rem] tracking-[0.12em] uppercase hover:bg-[#5865F2] hover:text-white transition-all">
               Join Discord
             </a>
