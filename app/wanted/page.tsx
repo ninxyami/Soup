@@ -9,7 +9,7 @@ import { API } from "@/lib/constants";
 
 interface Wanted { name: string; stage: string; marked: boolean; lastWarning: boolean; tab: number; rate: number; raids: number; remark: string }
 interface Me { on: boolean; linked: boolean; name?: string; me?: any; lines?: Record<string, number> }
-interface HallRow { rank: number; name: string; maxTab: number; at: number; first: number; title: string; remark: string; reasons: string[]; season?: string }
+interface HallRow { rank: number; name: string; maxTab: number; at: number; first: number; title: string; remark: string; reasons: string[]; season?: string; pic?: string }
 interface Hall { season: HallRow[]; alltime: HallRow[]; since: number }
 
 function money(b: number) {
@@ -71,6 +71,11 @@ function HallOfInfamy({ hall, myName }: { hall: Hall; myName?: string }) {
                   style={{ borderColor: me ? "#c8a84b" : "#1e2530" }}>
                 <div className="font-mono text-[1.1rem] font-semibold w-8 shrink-0 text-right"
                      style={{ color: RANK_COLOR[r.rank - 1] || "#5d636d" }}>{r.rank}</div>
+                {/* each player's own choice: their Discord picture, their portrait, or nothing (GET /api/notoriety "pic") */}
+                {r.pic ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={`${API}${r.pic}`} alt="" loading="lazy" onError={(e) => { e.currentTarget.style.display = "none"; }} className="w-12 h-12 object-cover shrink-0 border border-[#2a2f37]" />
+                ) : null}
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
                     <span className="text-[#e6e8ec] font-semibold break-all">{r.name}{me ? " (you)" : ""}</span>
