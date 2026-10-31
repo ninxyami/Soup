@@ -28,6 +28,7 @@ import GiftsTab from "@/components/ops/GiftsTab";
 import PanelGate from "@/components/PanelGate";
 import ServerControls from "@/components/ops/ServerControls";
 import CorpseClearBox from "@/components/ops/CorpseClearBox";
+import ZedItemsBox from "@/components/ops/ZedItemsBox";
 
 // the mode (Live / Zombita) and Zombita's last tab survive a reload (per browser)
 function remembered(key, fallback) { try { return localStorage.getItem(key) || fallback; } catch { return fallback; } }
@@ -928,6 +929,7 @@ function PlayerExtras({ p, act, cars, trailPts, setTrailPts }) {
         <Btn small onClick={() => act("thunder", { player: p.name })}>Thunder</Btn>
         <Btn small onClick={() => act("lightning", { player: p.name })}>Lightning</Btn>
       </div>
+      <ZedItemsBox key={p.name} p={p} act={act} Btn={Btn} />
     </div>
   );
 }
