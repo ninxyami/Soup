@@ -5,10 +5,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { API } from "@/lib/constants";
 
-export interface Template { key: string; look: string; group: string; name: string; desc: string }
+export interface Template { key: string; look: string; group: string; name: string; desc: string; animal?: boolean }
 export interface Upload { id: number; key: string; status: string; reason: string; created_at: number }
 export interface MyPortrait {
-  name: string; linked: boolean; pick: string; wanted: string; hall: string; head: string;
+  name: string; linked: boolean; on: boolean; pick: string; wanted: string; hall: string; head: string;
   uploads: Upload[]; upload_wait: number; upload_waiting: boolean; rules: string[];
 }
 interface Catalogue { looks: { id: string; name: string }[]; rules: string[]; items: Template[] }
@@ -313,12 +313,14 @@ export default function PortraitPicker({ discordUrl }: { discordUrl: string }) {
     } finally { setBusy(false); }
   };
 
-  const items = useMemo(() => (cat?.items || []).filter((t) => t.look === look), [cat, look]);
-  const groups = useMemo(() => [...new Set(items.map((t) => t.group).filter(Boolean))], [items]);
+  // Animals runs across the three looks, so there its chips are the looks
+  const shelf = useCallback((t: Template) => (look === "animals" ? cat?.looks.find((l) => l.id === t.look)?.name || "" : t.group), [cat, look]);
+  const items = useMemo(() => (cat?.items || []).filter((t) => (look === "animals" ? t.animal : t.look === look)), [cat, look]);
+  const groups = useMemo(() => [...new Set(items.map(shelf).filter(Boolean))], [items, shelf]);
   const shown = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return items.filter((t) => (!group || t.group === group) && (!q || `${t.name} ${t.desc} ${t.group}`.toLowerCase().includes(q)));
-  }, [items, group, search]);
+    return items.filter((t) => (!group || shelf(t) === group) && (!q || `${t.name} ${t.desc} ${t.group}`.toLowerCase().includes(q)));
+  }, [items, group, search, shelf]);
 
   if (failed) return <p className="text-[#e05555] text-[0.85rem]">The picker couldn&apos;t load. Try again in a minute.</p>;
   if (!cat || !me) return <p className="text-[#777] text-[0.85rem]">Opening your portraits...</p>;
@@ -331,6 +333,8 @@ export default function PortraitPicker({ discordUrl }: { discordUrl: string }) {
     );
   }
 
+  if (me.on === false) return <p className="text-[#8a8f98] text-[0.88rem]">Portraits are switched off right now.</p>;
+
   const current = preview ?? me.pick;
   const name = (() => {
     if (current === "") return "My 3D character";
@@ -340,7 +344,7 @@ export default function PortraitPicker({ discordUrl }: { discordUrl: string }) {
   const currentUrl = pickUrl(current, discordUrl);
   const unsaved = current !== me.pick;
   const posterUrl = me.wanted === "hidden" ? "" : me.wanted === "portrait" && current !== "" && current !== DISCORD ? portraitUrl(current) : discordUrl;
-  const looks = [...cat.looks, { id: "mine", name: "Mine" }];
+  const looks = [...cat.looks, { id: "animals", name: "Animals" }, { id: "mine", name: "Mine" }];
 
   return (
     <div className="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)] items-start">

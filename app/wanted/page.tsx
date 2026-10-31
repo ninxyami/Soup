@@ -74,7 +74,7 @@ function HallOfInfamy({ hall, myName }: { hall: Hall; myName?: string }) {
                 {/* each player's own choice: their Discord picture, their portrait, or nothing (GET /api/notoriety "pic") */}
                 {r.pic ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={`${API}${r.pic}`} alt="" loading="lazy" className="w-12 h-12 object-cover shrink-0 border border-[#2a2f37]" />
+                  <img src={`${API}${r.pic}`} alt="" loading="lazy" onError={(e) => { e.currentTarget.style.display = "none"; }} className="w-12 h-12 object-cover shrink-0 border border-[#2a2f37]" />
                 ) : null}
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
