@@ -403,7 +403,7 @@ export default function NotorietyTab() {
                         ["FAVOR_MINUTES", "favorMinutes", p.favorHeatA != null ? "Minutes to take it, and for an A tier" : "Minutes to do it", 10, 600]])}
             </div>
             {p.favorHeatA != null && <>
-              <div style={{ color: C.text, margin: "6px 0", lineHeight: 1.5 }}>Heat each tier takes off, how often it rolls (bigger odds = more often, 0 = never), and how many minutes of play pass with no new raid once it's done (a second favor replaces the first's pause).</div>
+              <div style={{ color: C.text, margin: "6px 0", lineHeight: 1.5 }}>Heat each tier takes off, how often it rolls (bigger odds = more often, 0 = never), and how many real minutes, offline too, pass with no new raid once it's done (a second favor replaces the first's pause).</div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                 {numbers(FAVOR_TIERS.map(([key, name]) => [`FAVOR_HEAT_${key}`, `favorHeat${key}`, `${name} heat`, 0, 100]))}
               </div>
