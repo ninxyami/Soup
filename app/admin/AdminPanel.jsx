@@ -38,6 +38,7 @@ import NewsTab            from "./tabs/NewsTab";
 import FactionsTab        from "./tabs/FactionsTab";
 import PlayerStatsTab     from "./tabs/PlayerStatsTab";
 import DeathsTab          from "./tabs/DeathsTab";
+import PortraitsTab       from "./tabs/PortraitsTab";
 import SecurityTab        from "./tabs/SecurityTab";
 import JobsTab            from "./tabs/JobsTab";
 import QuestControlTab    from "./tabs/QuestControlTab";
@@ -85,6 +86,7 @@ const NAV_SECTIONS = [
     { key: "leaderboards",   icon: "🏆", label: "Leaderboards" },
     { key: "player_stats",   icon: "📈", label: "Player Stats" },
     { key: "deaths",         icon: "⚰️", label: "Deaths" },
+    { key: "portraits",      icon: "🖼️", label: "Portraits" },
     { key: "security",       icon: "🛡️", label: "Security" },
     { key: "newspaper",      icon: "📰", label: "Newspaper" },
     { key: "factions",       icon: "🏴", label: "Factions" },
@@ -140,6 +142,7 @@ const PANELS = {
   factions:     FactionsTab,
   player_stats: PlayerStatsTab,
   deaths:       DeathsTab,
+  portraits:    PortraitsTab,
   security:     SecurityTab,
   system:      SystemTab,
   content:     ContentTab,

@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { API, SEASON_SHORT } from "@/lib/constants";
 import type { User } from "@/lib/types";
 import { repTier } from "@/lib/utils";
@@ -169,6 +170,10 @@ export default function ProfilePage() {
                 </div>
               </div>
             )}
+          </div>
+
+          <div className="mt-4">
+            <Link href="/profile/portrait" className="btn-submit no-underline inline-block">Change your portrait</Link>
           </div>
 
           <div className="divider" />
