@@ -4,8 +4,10 @@
 // zombita_notoriety.py). How much Queen Dusk has noticed each player: Noticed / Warned / Marked, the tab, raids.
 // Data: GET /api/admin/notoriety (the game's file). Changes: POST /api/admin/notoriety {cmd, name, value, key, kind},
 // the game's answer at /api/admin/notoriety/reply/{id}. The game keeps the score; this only asks it.
+// Send a card: AdminCardBox.tsx (an admin's own words on Zombita's or Queen Dusk's in-game card).
 import { useCallback, useEffect, useState } from "react";
 import { API } from "@/lib/constants";
+import AdminCardBox from "./AdminCardBox";
 
 const C = { gold: "#c8a84b", green: "#4caf7d", red: "#e05555", amber: "#d08c2c", grey: "#9aa", text: "#e6e6e6", bg: "#0b0d10", line: "#2a2f37" };
 const mono = { fontFamily: "var(--mono, monospace)" };
@@ -109,6 +111,7 @@ export default function NotorietyTab() {
         <a href="/wanted" target="_blank" rel="noreferrer" style={{ ...mono, fontSize: 12, color: C.gold }}>Public Wanted board</a>
       </div>
       {msg && <div style={{ ...mono, fontSize: 12, color: C.gold, marginBottom: 8 }}>{msg}</div>}
+      <AdminCardBox send={send} busy={busy} C={C} mono={mono} btn={btn} />
 
       {/* One card per player (was a 7-column table: in the narrow Live Ops panel the buttons fell off the right edge). */}
       <div style={{ ...mono, fontSize: 12 }}>
