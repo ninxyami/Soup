@@ -318,6 +318,42 @@ export default function NotorietyTab() {
           ))}
         </div>
         </>}
+        {/* No safe cars (server/ZNO_CarBreak.lua): the Bride, or a crowd of raid / Horde Night zombies around a car with a player in it,
+            burst its tires; the flip is off until Nin has tried it live. Same settings as Zombita Control > NOTORIETY. The tests go
+            through the "setting" command, value = the player in the car. */}
+        {st.pace && st.pace.tiresOn != null && <>
+        <div style={{ color: C.gold, margin: "12px 0 6px" }}>
+          Cars (tires {st.pace.tiresOn ? "on" : "off"}, Bride flip {st.pace.flipOn ? "on" : "off"}, crowd flip {st.pace.flipCrowd ? "on" : "off"})
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          {[["TIRES_ON", "tiresOn", "Tires"], ["TIRE_SCRAPS", "tireScraps", "Tire scraps"], ["FLIP_ON", "flipOn", "Bride flip"], ["FLIP_CROWD", "flipCrowd", "Crowd flip"]].map(([key, field, label]) => {
+            const on = st.pace && st.pace[field] === true;
+            return <button key={key} style={btn(on ? C.red : C.grey)} disabled={busy} onClick={() => {
+              if (sure(`${label}: turn it ${on ? "off" : "on"}?`)) send({ cmd: "setting", key, value: on ? "false" : "true" }, `Setting ${key}`);
+            }}>{label}: {on ? "ON" : "OFF"}</button>;
+          })}
+          {[["FLIP_COUNT", "flipCount", "Zombies around a car", 2, 50],
+            ["TIRES_WARN", "tiresWarn", "Warning before the tires go: a crowd (s)", 1, 60],
+            ["BRIDE_TIRES_WARN", "brideTiresWarn", "Warning before the tires go: the Bride (s)", 0, 30],
+            ["FLIP_SECONDS", "flipSeconds", "Seconds a crowd needs for a flip", 1, 60],
+            ["BRIDE_FLIP_SECONDS", "brideFlipSeconds", "Seconds the Bride needs for a flip", 0, 30]].map(([key, field, label, lo, hi]) => (
+            <button key={key} style={btn()} disabled={busy} onClick={() => {
+              const cur = st.pace && st.pace[field] != null ? String(st.pace[field]) : "";
+              const v = ask(`${label} (${lo}-${hi}):`, cur);
+              if (v === null || v === "") return;
+              const num = Number(v);
+              if (!Number.isFinite(num) || num < lo || num > hi) { setMsg(`${label}: ${lo} to ${hi}, please.`); return; }
+              send({ cmd: "setting", key, value: String(Math.floor(num)) }, `Setting ${key}`);
+            }}>{label}{st.pace && st.pace[field] != null ? `: ${st.pace[field]}` : ""}</button>
+          ))}
+          {[["CAR_TEST_FLIP", "Test flip"], ["CAR_TEST_TIRES", "Test tires"]].map(([key, label]) => (
+            <button key={key} style={btn(C.amber)} disabled={busy} onClick={() => {
+              const who = ask(`${label}: who is in the car? (The flip needs them driving, slow, no trailer. Test flip again rights it.)`, "");
+              if (who) send({ cmd: "setting", key, value: who }, label);
+            }}>{label}</button>
+          ))}
+        </div>
+        </>}
         <p style={{ color: C.grey, lineHeight: 1.6, marginTop: 10 }}>
           Score = deeds (A and S wins, hot streaks, keeper hopping, emptying tills, buy limits, earning a lot and spending little) plus
           stats (skills, days alive, kills, bank; 30 at most, so stats alone never Mark anyone). Deeds only fade when the player is calm.
