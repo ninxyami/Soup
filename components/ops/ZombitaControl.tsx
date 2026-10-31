@@ -32,6 +32,7 @@ const SWITCHES = [
   ["quests", "Zombita's Jobs", "Quests on the phone, traps, reward codes."], ["treasury", "Treasury, in public", "The town's balance on kiosks, the Hub and the board."],
   ["notoriety", "Notoriety + bounties", "Queen Dusk's notice: warnings, Marked players, raids, posters, the tab."],
   ["bites_public", "Cheater lines, in public", "When Zombita bites back, everyone hears it in her funny voice (pop-up, game chat, Discord game chat). Off: only the cheater and the admin channel."],
+  ["wash", "Washing machines", "Washers a player starts clean dirty rags, bandages and strips in bulk, dryers turn clean ones into alcohol ones. Keep it off while Clean Rags On Clothing Washer is in Mods=."],
 ];
 const DOTD_FIELDS = [
   ["interval_hours", "Every (hours)", "interval_hours"], ["waves", "Waves", "waves"], ["zombies_per_wave", "Zombies per wave", "zombies"],
@@ -670,6 +671,8 @@ function System({ b, mods, za, bridge, sw }) {
     </Box>
     <Settings title="Vehicle claims" mod="vehicles" state={mods.vehicles} za={za} />
     <Row><Btn color={C.grey} onClick={() => za("vehicles", "rebuild")}>Rebuild claim database</Btn><Btn color={C.grey} onClick={() => confirm("Expire old claims now?") && za("vehicles", "expire")}>Expire claims now</Btn></Row>
+    <Settings title="Washing machines" mod="wash" state={mods.wash} za={za} />
+    {mods.wash && <Note>per_cycle: items a machine does per game 10 minutes. soap_mult: that with soap, bleach or cleaning liquid in the washer. dry_mult: a dryer does per_cycle times this. Running now: {n(mods.wash.running)}.</Note>}
     <Settings title="Faction spaces" mod="factions" state={mods.factions} za={za} textKeys />
     <Row><Btn color={C.grey} onClick={() => za("factions", "syncClaims")}>Check claims</Btn></Row>
   </>);
