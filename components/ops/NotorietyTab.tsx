@@ -5,6 +5,7 @@
 // Data: GET /api/admin/notoriety (the game's file). Changes: POST /api/admin/notoriety {cmd, name, value, key, kind},
 // the game's answer at /api/admin/notoriety/reply/{id}. The game keeps the score; this only asks it.
 import { useCallback, useEffect, useState } from "react";
+import BrideSummonBox from "./BrideSummonBox";
 import { API } from "@/lib/constants";
 
 const C = { gold: "#c8a84b", green: "#4caf7d", red: "#e05555", amber: "#d08c2c", grey: "#9aa", text: "#e6e6e6", bg: "#0b0d10", line: "#2a2f37" };
@@ -110,6 +111,7 @@ export default function NotorietyTab() {
       </div>
       {msg && <div style={{ ...mono, fontSize: 12, color: C.gold, marginBottom: 8 }}>{msg}</div>}
 
+      <BrideSummonBox send={send} busy={busy} C={C} mono={mono} btn={btn} />
       {/* One card per player (was a 7-column table: in the narrow Live Ops panel the buttons fell off the right edge). */}
       <div style={{ ...mono, fontSize: 12 }}>
           {players.length === 0 && <div style={{ padding: 8, color: C.grey }}>Nobody yet.</div>}
