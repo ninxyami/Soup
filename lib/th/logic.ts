@@ -34,6 +34,11 @@ export function vialCanPour(vials: string[][], cap: number, from: number, to: nu
   return !b.length || b[b.length - 1] === a[a.length - 1];
 }
 
+// A rack can end with no pour left: full vials on top of each other's colours and no empty vial.
+export function vialAnyPour(vials: string[][], cap: number) {
+  return vials.some((_, from) => vials.some((__, to) => vialCanPour(vials, cap, from, to)));
+}
+
 export function vialPour(vials: string[][], cap: number, from: number, to: number) {
   const next = vials.map(v => v.slice());
   const a = next[from], b = next[to];

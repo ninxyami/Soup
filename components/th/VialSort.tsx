@@ -3,7 +3,7 @@
 // Tap a vial to pick it up, tap another to pour. The timer or the move limit running out sends a `fail`.
 import { useEffect, useRef, useState } from "react";
 import { ART, VIAL_ASPECT, VIAL_LIQUID } from "@/lib/th/art";
-import { vialCanPour, vialPour, vialSolved } from "@/lib/th/logic";
+import { vialAnyPour, vialCanPour, vialPour, vialSolved } from "@/lib/th/logic";
 import type { GameProps, VialP } from "@/lib/th/types";
 import { fmtClock, useTimer } from "./useTimer";
 
@@ -33,6 +33,16 @@ export default function VialSort({ puzzle, busy, serverNow, onSolve, onFail }: G
   }, [left, movesLeft, solved, onFail, puzzle.attempt]);
 
   const out = sent.current && !solved;
+  const dead = !solved && !out && !vialAnyPour(vials, puzzle.cap);
+
+  // The same rack from its start, as a page refresh does: the clock keeps running, and the moves start over because the
+  // server replays them from the start of the rack.
+  const again = () => {
+    if (busy) return;
+    setVials(puzzle.vials);
+    setMoves([]);
+    setHeld(null);
+  };
 
   const tap = (i: number) => {
     if (busy || solved || out) return;
@@ -85,8 +95,9 @@ export default function VialSort({ puzzle, busy, serverNow, onSolve, onFail }: G
           </button>
         ))}
       </div>
+      {dead && <button className="th-btn" style={{ width: "100%" }} disabled={busy} onClick={again}>START RACK AGAIN</button>}
       <div className="th-note">
-        {solved ? "Sorted." : out ? "Out of time or moves. A new rack is coming."
+        {solved ? "Sorted." : out ? "Out of time or moves. A new rack is coming." : dead ? "No pours left. The clock is still running."
           : held !== null ? "Now tap where to pour it." : `Tap a vial, then tap where to pour. A pour only lands on the same colour or an empty vial.`}
       </div>
     </div>
