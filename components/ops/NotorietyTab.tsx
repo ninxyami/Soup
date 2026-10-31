@@ -6,6 +6,7 @@
 // the game's answer at /api/admin/notoriety/reply/{id}. The game keeps the score; this only asks it.
 // Send a card: AdminCardBox.tsx (an admin's own words on Zombita's or Queen Dusk's in-game card).
 import { useCallback, useEffect, useState } from "react";
+import BrideSummonBox from "./BrideSummonBox";
 import { API } from "@/lib/constants";
 import AdminCardBox from "./AdminCardBox";
 
@@ -113,6 +114,7 @@ export default function NotorietyTab() {
       {msg && <div style={{ ...mono, fontSize: 12, color: C.gold, marginBottom: 8 }}>{msg}</div>}
       <AdminCardBox send={send} busy={busy} C={C} mono={mono} btn={btn} />
 
+      <BrideSummonBox send={send} busy={busy} C={C} mono={mono} btn={btn} />
       {/* One card per player (was a 7-column table: in the narrow Live Ops panel the buttons fell off the right edge). */}
       <div style={{ ...mono, fontSize: 12 }}>
           {players.length === 0 && <div style={{ padding: 8, color: C.grey }}>Nobody yet.</div>}
