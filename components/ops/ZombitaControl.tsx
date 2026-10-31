@@ -33,6 +33,7 @@ const SWITCHES = [
   ["notoriety", "Notoriety + bounties", "Queen Dusk's notice: warnings, Marked players, raids, posters, the tab."],
   ["bites_public", "Cheater lines, in public", "When Zombita bites back, everyone hears it in her funny voice (pop-up, game chat, Discord game chat). Off: only the cheater and the admin channel."],
   ["wash", "Washing machines", "Washers a player starts clean dirty rags, bandages and strips in bulk, dryers turn clean ones into alcohol ones. Keep it off while Clean Rags On Clothing Washer is in Mods=."],
+  ["chat_portraits", "Chat portraits", "Each player's Discord picture beside their name in the General, Faction, group and private tabs, and on nearby and shout lines there. Zombita shows her own face. Off: names only."],
 ];
 const DOTD_FIELDS = [
   ["interval_hours", "Every (hours)", "interval_hours"], ["waves", "Waves", "waves"], ["zombies_per_wave", "Zombies per wave", "zombies"],
