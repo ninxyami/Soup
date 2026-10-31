@@ -313,7 +313,7 @@ export default function NotorietyTab() {
           ))}
         </div>
         </>}
-        {/* Ways out of wanted and the floor break (Nin 10-31, server/ZNO_FloorBreak.lua, ZNO_HenchServer.lua, ZNO_Favors.lua). Same
+        {/* Ways out of wanted and the floor break (Nin 10-31, server/ZNO_FloorBreak.lua, ZNO_HenchServer.lua, ZNO_Favors.lua). The pay-off works at every General Store; the collectors' spots wait for real NPCs. Same
             settings as Zombita Control > WANTED. Shown once the game reports them in its "pace" block. */}
         {st.pace && st.pace.floorMin != null && (() => {
           const p = st.pace;
@@ -359,12 +359,12 @@ export default function NotorietyTab() {
                 if (v) send({ cmd: "setting", key: "FLOOR_TEST", value: v }, "Checking the floor");
               }}>Check a floor</button>
             </div>
-            <div style={{ color: C.gold, margin: "12px 0 6px" }}>Silas' collectors{p.payoffOn ? " (on)" : " (off)"}</div>
+            <div style={{ color: C.gold, margin: "12px 0 6px" }}>Bounty pay-off{p.payoffOn ? " (on)" : " (off)"}</div>
             <div style={{ color: C.text, marginBottom: 6, lineHeight: 1.5 }}>
-              A Marked player pays the whole tab in carried coin{n(p.payoffMarkup) > 0 ? `, plus ${n(p.payoffMarkup)}%` : ""}, and the Mark goes. The money goes to the treasury.
+              A Marked player pays at any General Store, in carried coin: the tab{n(p.payoffMarkup) > 0 ? ` plus ${n(p.payoffMarkup)}%` : ""}{n(p.payoffMin) > 0 ? `, ${money(p.payoffMin)} at the least` : ""}. The Mark goes and the money goes to the treasury. Silas' collectors come later: leave their spots off for now.
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-              {toggle("PAYOFF_ON", "payoffOn", "Collectors")}
+              {toggle("PAYOFF_ON", "payoffOn", "Pay-off")}
               {spot(1)}
               {spot(2)}
               {numbers([["PAYOFF_MARKUP", "payoffMarkup", "% on top of the tab", 0, 1000],
