@@ -287,12 +287,12 @@ export default function CardsPage() {
             <div className="border border-[#1e2530] bg-[#0d1117] p-3">
               <div className="text-[#555] uppercase tracking-widest text-[0.58rem] mb-1">Buy one</div>
               <div className="text-[#c8cdd6]">{money(st.price)} for {st.days} days, in the Cards app on your phone. {st.boughtSlots} of each card can be bought at a time.
-                You can't buy the same card two rounds in a row.</div>
+                After a bought card ends you wait a day before buying the same one again.</div>
             </div>
             <div className="border border-[#1e2530] bg-[#0d1117] p-3">
               <div className="text-[#555] uppercase tracking-widest text-[0.58rem] mb-1">Or earn it</div>
               <div className="text-[#c8cdd6]">{st.earnedSlots} of each card goes to whoever did the most of that work in the last {st.recentDays || 5} days
-                ({st.earnMin}+ points). Free, and it renews while you keep at it.</div>
+                ({st.earnMin}+ points) and doesn't hold that card yet. Free. Take the offer from the card's keeper within a day. It stays yours until someone who has done more accepts it.</div>
             </div>
             <div className="border border-[#1e2530] bg-[#0d1117] p-3">
               <div className="text-[#555] uppercase tracking-widest text-[0.58rem] mb-1">One at a time</div>
