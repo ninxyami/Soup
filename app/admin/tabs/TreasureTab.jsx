@@ -248,11 +248,11 @@ export default function TreasureTab({ toast }) {
   const start = (test) => {
     const msg = test
       ? "Start the event in TEST MODE?\n\nOnly admins can pick up a phone and only admins get hordes. Hints go to the admin channel."
-      : "Start the event for EVERYONE?\n\nThe start scene appears at the saved start, and the bot posts the start picture.";
+      : "Start the event for EVERYONE?\n\nThe start scene appears at the saved start, and the bot posts the start picture. It runs until you press End event.";
     if (confirm(msg)) run({ cmd: "event_start", test: test ? "1" : "0" }, test ? "Start (test)" : "Start");
   };
   const end = () => {
-    if (confirm("End the event now?\n\nEvery phone still out breaks. It also ends by itself 4 hours after the start.")) run({ cmd: "event_end" }, "End");
+    if (confirm("End the event now?\n\nEvery phone still out breaks, and everyone who took part gets their gift.")) run({ cmd: "event_end" }, "End");
   };
   const reset = (team) => {
     const to = resetTo[team.id] || team.step;
@@ -290,7 +290,7 @@ export default function TreasureTab({ toast }) {
   const teams = st?.teams || [];
   const now = Date.now() / 1000;
   const age = st?.ts ? now - st.ts : null;
-  const left = ev.on && ev.ends ? ev.ends - now : 0;
+  const ran = ev.on && ev.started ? now - ev.started : 0;
 
   return (<>
     <Title t="TREASURE" s="event phones · teams up to 4" />
@@ -300,7 +300,7 @@ export default function TreasureTab({ toast }) {
     <div className="ap-sr">
       <SC label="Event" value={ev.on ? (ev.test ? "TEST" : "ON") : "OFF"} color={ev.on ? (ev.test ? "orange" : "green") : "red"}
         sub={ev.on ? `started ${fmtFull(ev.started)}` : "press Start below"} />
-      <SC label="Time left" value={ev.on ? dur(left) : "-"} color="blue" sub={ev.on && ev.ends ? `ends ${fmtFull(ev.ends)}` : "4 h after the start"} />
+      <SC label="Running for" value={ev.on ? dur(ran) : "-"} color="blue" sub="until you press End event" />
       <SC label="Top prizes left" value={ev.prizes_left ?? "-"} color="purple" sub="for the 1st and 2nd team" />
       <SC label="Runners" value={ev.runners ?? 0} color="orange" sub={`${teams.length} team${teams.length === 1 ? "" : "s"}`} />
       <SC label="Dusk looked in" value={teams.filter(t => t.scare_at).length} color="orange" sub="once a hunt per team" />
