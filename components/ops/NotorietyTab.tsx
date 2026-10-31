@@ -290,6 +290,110 @@ export default function NotorietyTab() {
             }}>{label}{st.pace && st.pace[field] != null ? `: ${st.pace[field]}` : ""}</button>
           ))}
         </div>
+        {/* Raid heat (Nin 10-31, server/ZNO_Server.lua V.raidBurn, V.activity): a raid survived takes heat off, and raid + Horde
+            Night kills barely count toward the kill-farm rule. Same two settings as Zombita Control > NOTORIETY. Shown once the
+            game reports them in its "pace" block (heatBurn, killWeight). */}
+        {st.pace && st.pace.heatBurn != null && <>
+        <div style={{ color: C.gold, margin: "12px 0 6px" }}>Raid heat</div>
+        <div style={{ color: C.text, marginBottom: 6, lineHeight: 1.5 }}>
+          {n(st.pace.heatBurn) > 0 ? `A raid survived takes ${n(st.pace.heatBurn)} heat off.` : "A raid survived takes no heat off."}{" "}
+          Raid and Horde Night kills count 1 in {n(st.pace.killWeight)} toward the kill-farm rule.
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          {[["RAID_HEAT_BURN", "heatBurn", "Heat a survived raid takes off (0 = off)", 0, 100],
+            ["RAID_KILL_WEIGHT", "killWeight", "Raid and Horde Night kills count 1 in", 1, 1000]].map(([key, field, label, lo, hi]) => (
+            <button key={key} style={btn()} disabled={busy} onClick={() => {
+              const cur = st.pace && st.pace[field] != null ? String(st.pace[field]) : "";
+              const v = ask(`${label} (${lo}-${hi}):`, cur);
+              if (v === null || v === "") return;
+              const num = Number(v);
+              if (!Number.isFinite(num) || num < lo || num > hi) { setMsg(`${label}: ${lo} to ${hi}, please.`); return; }
+              send({ cmd: "setting", key, value: String(Math.floor(num)) }, `Setting ${key}`);
+            }}>{label}{st.pace && st.pace[field] != null ? `: ${st.pace[field]}` : ""}</button>
+          ))}
+        </div>
+        </>}
+        {/* Ways out of wanted and the floor break (Nin 10-31, server/ZNO_FloorBreak.lua, ZNO_HenchServer.lua, ZNO_Favors.lua). The pay-off works at every General Store; the collectors' spots wait for real NPCs. Same
+            settings as Zombita Control > WANTED. Shown once the game reports them in its "pace" block. */}
+        {st.pace && st.pace.floorMin != null && (() => {
+          const p = st.pace;
+          const numbers = (rows) => rows.map(([key, field, label, lo, hi]) => (
+            <button key={key} style={btn()} disabled={busy} onClick={() => {
+              const v = ask(`${label} (${lo}-${hi}):`, String(p[field]));
+              if (v === null || v === "") return;
+              const num = Number(v);
+              if (!Number.isFinite(num) || num < lo || num > hi) { setMsg(`${label}: ${lo} to ${hi}, please.`); return; }
+              send({ cmd: "setting", key, value: String(Math.floor(num)) }, `Setting ${key}`);
+            }}>{label}: {p[field]}</button>
+          ));
+          const toggle = (key, field, label) => (
+            <button key={key} style={btn(p[field] ? C.red : undefined)} disabled={busy} onClick={() => {
+              if (sure(`${label}: turn ${p[field] ? "off" : "on"}?`)) send({ cmd: "setting", key, value: p[field] ? "false" : "true" }, `Setting ${key}`);
+            }}>{label}: {p[field] ? "ON" : "OFF"}</button>
+          );
+          const spots = String(p.henchSpots || "off;off").split(";");
+          const spot = (i) => (
+            <button key={i} style={btn()} disabled={busy} onClick={() => {
+              const v = ask(`Collector ${i}: x,y to place them, or off to take them away:`, spots[i - 1] === "off" ? "" : spots[i - 1]);
+              if (v === null || v === "") return;
+              const clean = v.replace(/\s/g, "").toLowerCase();
+              if (clean !== "off" && !/^\d+,\d+$/.test(clean)) { setMsg("Collector spot: x,y or off, please."); return; }
+              send({ cmd: "setting", key: "HENCH_SPOT", value: `${i}:${clean}` }, `Placing collector ${i}`);
+            }}>Collector {i}: {spots[i - 1]}</button>
+          );
+          return <>
+            <div style={{ color: C.gold, margin: "12px 0 6px" }}>Floor break{p.floorOn ? " (on)" : " (off)"}</div>
+            <div style={{ color: C.text, marginBottom: 6, lineHeight: 1.5 }}>
+              Only floors players built, under a Marked player, in a raid or Horde Night, with {n(p.floorMin)}+ of their hunters stuck
+              underneath for {n(p.floorStuck)} s. Then a warning, and {n(p.floorWarn)} s later {n(p.floorTiles)} tiles go. Never map floors, buildings, stairs or walls.
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {toggle("FLOOR_ON", "floorOn", "Floor break")}
+              {toggle("FLOOR_IN_SAFEHOUSE", "floorInSafehouse", "In safehouses")}
+              {numbers([["FLOOR_MIN_ZOMBIES", "floorMin", "Zombies stuck underneath", 2, 200],
+                        ["FLOOR_STUCK_SEC", "floorStuck", "Seconds stuck", 10, 900],
+                        ["FLOOR_WARN", "floorWarn", "Seconds of warning", 5, 120],
+                        ["FLOOR_TILES", "floorTiles", "Tiles (3 at most)", 1, 3]])}
+              <button style={btn()} disabled={busy} onClick={() => {
+                const v = ask("Check the floor under which player? (only looks, changes nothing)", "");
+                if (v) send({ cmd: "setting", key: "FLOOR_TEST", value: v }, "Checking the floor");
+              }}>Check a floor</button>
+            </div>
+            <div style={{ color: C.gold, margin: "12px 0 6px" }}>Bounty pay-off{p.payoffOn ? " (on)" : " (off)"}</div>
+            <div style={{ color: C.text, marginBottom: 6, lineHeight: 1.5 }}>
+              A Marked player pays at any General Store, in carried coin: the tab{n(p.payoffMarkup) > 0 ? ` plus ${n(p.payoffMarkup)}%` : ""}{n(p.payoffMin) > 0 ? `, ${money(p.payoffMin)} at the least` : ""}. The Mark goes and the money goes to the treasury. Silas' collectors come later: leave their spots off for now.
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {toggle("PAYOFF_ON", "payoffOn", "Pay-off")}
+              {spot(1)}
+              {spot(2)}
+              {numbers([["PAYOFF_MARKUP", "payoffMarkup", "% on top of the tab", 0, 1000],
+                        ["PAYOFF_MIN", "payoffMin", "Lowest price in bronze", 0, 10000000]])}
+            </div>
+            <div style={{ color: C.gold, margin: "12px 0 6px" }}>Raid gap and bodies</div>
+            <div style={{ color: C.text, marginBottom: 6, lineHeight: 1.5 }}>
+              Raids never overlap: the next one is timed once the last is over, {n(p.gapMin)} to {n(p.gapMax)} minutes of play, longer when Zombita is in a good mood and shorter in a bad one.
+              A raid's bodies go {n(p.bodyMin)} minutes after it is over{p.bagOn ? `, and what they carried stays in a bag, on the map for ${n(p.bagMark)} minutes` : ""}. Leftover zombies keep their own time.
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {toggle("RAID_BAG_ON", "bagOn", "Raid bag")}
+              {numbers([["RAID_GAP_MIN", "gapMin", "Gap, fewest minutes", 10, 1440],
+                        ["RAID_GAP_MAX", "gapMax", "Gap, most minutes", 10, 1440],
+                        ["RAID_BODY_MIN", "bodyMin", "Bodies go after (minutes)", 1, 240],
+                        ["RAID_BAG_MARK_MIN", "bagMark", "Bag on the map (minutes)", 1, 240]])}
+            </div>
+            <div style={{ color: C.gold, margin: "12px 0 6px" }}>Queen Dusk's favors{p.favorOn ? " (on)" : " (off)"}</div>
+            <div style={{ color: C.text, marginBottom: 6, lineHeight: 1.5 }}>
+              One job at a time for Marked players, on the phone. Done: {n(p.favorHeat)} heat off and no pay. The next offer comes {n(p.favorCooldown)} minutes later, done or not.
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {toggle("FAVOR_ON", "favorOn", "Favors")}
+              {numbers([["FAVOR_HEAT", "favorHeat", "Heat off", 0, 100],
+                        ["FAVOR_COOLDOWN_MIN", "favorCooldown", "Minutes between offers", 1, 1440],
+                        ["FAVOR_MINUTES", "favorMinutes", "Minutes to do it", 10, 600]])}
+            </div>
+          </>;
+        })()}
         {/* The last stage (Nin 10-30, server/ZNO_Server.lua V.isFinal): from this score a Marked player only gets the Bride + one
             pack of sprinters, growing with the score. Same four settings as Zombita Control > NOTORIETY. Current values come from
             the game's "pace" block (finalScore, finalSprinters, finalPerPoint, finalMax). */}
