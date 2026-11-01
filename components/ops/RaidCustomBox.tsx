@@ -7,6 +7,26 @@
 import { useState } from "react";
 
 const MAX = 100000;
+// Before the game with the list is live: the raid templates as they stand (ZNO_Shared RAID_TEMPLATES).
+const FALLBACK = "horde|dusk|3|100|0|5|90|0|0|1;big|dusk|3|200|0|5|90|0|0|1;sprinters|dusk|1|0|10|0|90|0|0|1;wolves|dusk|2|0|10|0|60|0|0|1;siege|dusk|4|75|5|10|90|0|0|1;"
+  + "flood|dusk|1|250|0|5|90|0|0|1;ambush|crowe|1|100|0|5|90|5|12|1;warband|crowe|2|150|0|10|90|8|12|1;crowe_hunt|crowe|1|0|10|0|90|6|10|1;raiders|crowe|0|0|0|0|90|6|12|1;crowe_gang|crowe|0|0|0|0|60|10|16|2";
+
+/** The game's id|says|waves|perWave|pack|sprint|gap|banLo|banHi|banWaves;... line -> rows. */
+export function parseKinds(text) {
+  return String(text || FALLBACK).split(";").map((row) => row.split("|")).filter((f) => f.length >= 10).map((f) => ({
+    id: f[0], says: f[1], waves: Number(f[2]), perWave: Number(f[3]), pack: Number(f[4]), sprint: Number(f[5]), gap: Number(f[6]), banLo: Number(f[7]), banHi: Number(f[8]), banWaves: Number(f[9]),
+  }));
+}
+
+/** "horde: 3 waves of 100 = 300", the same words as the game's. */
+export function kindWords(k) {
+  const parts = [];
+  if (k.perWave > 0) parts.push(`${k.waves} ${k.waves === 1 ? "wave" : "waves"} of ${k.perWave} = ${k.waves * k.perWave}`);
+  if (k.pack > 0) parts.push(`${Math.max(1, k.waves)} x ${k.pack} sprinters`);
+  if (k.banHi > 0) parts.push(k.banLo === k.banHi ? `${k.banHi} bandits` : `${k.banLo}-${k.banHi} bandits`);
+  return `${k.id}: ${parts.join(", ")}`;
+}
+
 const wholeIn = (v, lo, hi) => {
   const n = Number(v);
   return v !== "" && Number.isInteger(n) && n >= lo && n <= hi;
@@ -23,7 +43,9 @@ export function raidWords({ zombies, waves, gapMin, sprint, pack, bandits, bride
   return parts.join(", ");
 }
 
-export default function RaidCustomBox({ send, busy, C, mono, btn }) {
+export default function RaidCustomBox({ send, busy, C, mono, btn, kindsText }) {
+  const kinds = parseKinds(kindsText);
+  const [kind, setKind] = useState("");
   const [name, setName] = useState("");
   const [zombies, setZombies] = useState("1000");
   const [waves, setWaves] = useState("4");
@@ -61,6 +83,26 @@ export default function RaidCustomBox({ send, busy, C, mono, btn }) {
       bandits: Number(bandits), bandit_waves: Number(groups), brides: Number(brides), maids: Number(maids), who, quiet, pace, friends, hold }, "Sending the raid");
   }
 
+  function pick(id) {
+    setKind(id);
+    const k = kinds.find((x) => x.id === id);
+    if (!k) return;
+    setZombies(String(k.waves * k.perWave));
+    setWaves(String(Math.max(1, k.waves)));
+    setGapMin(String(k.gap / 60));
+    setSprint(String(k.sprint));
+    setPack(String(k.pack));
+    setBandits(String(k.banHi));
+    setGroups(String(Math.max(1, k.banWaves)));
+    setWho(k.says);
+  }
+
+  function natural() {
+    if (busy || player === "" || kind === "") return;
+    if (!window.confirm(`Send a ${kind} raid on ${player} the natural way? They must be Marked. It grows with their score and counts as a raid.`)) return;
+    send({ cmd: "raid_now", name: player, kind }, "Sending the raid");
+  }
+
   function stop(all) {
     if (busy || player === "") return;
     const what = all ? `Stop the raid on ${player} and take away its zombies and the Bride it brought? Crowe's men already up stay.`
@@ -84,6 +126,12 @@ export default function RaidCustomBox({ send, busy, C, mono, btn }) {
       <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 14px", alignItems: "center", marginBottom: 6 }}>
         <label style={label}>Player{" "}
           <input aria-label="Player" value={name} onChange={(e) => setName(e.target.value)} maxLength={40} placeholder="Player name" style={{ ...field, width: 160 }} />
+        </label>
+        <label style={label}>Raid kind{" "}
+          <select aria-label="Raid kind" value={kind} onChange={(e) => pick(e.target.value)} style={{ ...field, maxWidth: 280 }}>
+            <option value="">My own numbers</option>
+            {kinds.map((k) => <option key={k.id} value={k.id}>{kindWords(k)}</option>)}
+          </select>
         </label>
         {num("Zombies in all", zombies, setZombies, oks.zombies, 70)}
         {num("Waves", waves, setWaves, oks.waves, 48)}
@@ -113,11 +161,15 @@ export default function RaidCustomBox({ send, busy, C, mono, btn }) {
       </div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
         <button style={btn(C.red)} disabled={!ready} onClick={go}>Send the raid</button>
+        <button style={btn(C.red)} disabled={busy || player === "" || kind === ""} onClick={natural}>Natural raid now</button>
         <button style={btn()} disabled={busy || player === ""} onClick={() => stop(false)}>Stop waves</button>
         <button style={btn(C.red)} disabled={busy || player === ""} onClick={() => stop(true)}>Stop and take it all away</button>
       </div>
+      <div style={{ color: C.grey, fontSize: 11, marginTop: 6, lineHeight: 1.5, columnCount: 2, columnGap: 16 }}>
+        {kinds.map((k) => <div key={k.id} style={{ color: k.id === kind ? C.gold : C.grey }}>{kindWords(k)}</div>)}
+      </div>
       <div style={{ color: C.grey, fontSize: 11, marginTop: 4, lineHeight: 1.4 }}>
-        {words ? `${words}. ` : ""}The real raid system on anyone online, Marked or not: tagged, hunted, paced, cleaned up, with the loot bags. Zombies in all is the total, split over the
+        {words ? `${words}. ` : ""}Picking a kind fills in today&apos;s numbers, before a Marked player&apos;s growth: send it as it is or change any of them. Natural raid now is that kind through raid_now: Marked only, it grows with their score and counts. The real raid system on anyone online, Marked or not: tagged, hunted, paced, cleaned up, with the loot bags. Zombies in all is the total, split over the
         waves. Pacing on: the next wave waits while the alive cap is reached. Off: it comes at its gap. A wave rises in one server tick, so a huge one is a hitch for everybody. Without
         Friends&apos; share the total is exact. Waits for Horde Night also waits for a raid close by. It moves no heat, tab, Mark or stage, and players never see who sent it.
       </div>

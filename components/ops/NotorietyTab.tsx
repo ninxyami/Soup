@@ -131,7 +131,7 @@ export default function NotorietyTab() {
       <AdminCardBox send={send} busy={busy} C={C} mono={mono} btn={btn} />
 
       <BrideSummonBox send={send} busy={busy} C={C} mono={mono} btn={btn} />
-      <RaidCustomBox send={send} busy={busy} C={C} mono={mono} btn={btn} />
+      <RaidCustomBox send={send} busy={busy} C={C} mono={mono} btn={btn} kindsText={st.pace && st.pace.kinds} />
       {/* One card per player (was a 7-column table: in the narrow Live Ops panel the buttons fell off the right edge). */}
       <div style={{ ...mono, fontSize: 12 }}>
           {players.length === 0 && <div style={{ padding: 8, color: C.grey }}>Nobody yet.</div>}
