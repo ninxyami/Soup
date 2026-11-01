@@ -7,6 +7,7 @@
 // Send a card: AdminCardBox.tsx (an admin's own words on Zombita's or Queen Dusk's in-game card).
 import { useCallback, useEffect, useState } from "react";
 import BrideSummonBox from "./BrideSummonBox";
+import RaidCustomBox from "./RaidCustomBox";
 import { API } from "@/lib/constants";
 import AdminCardBox from "./AdminCardBox";
 
@@ -49,6 +50,21 @@ const SETTINGS = [
   // mod 1.8.13: Dawn of the Dead is harder for the wanted
   ["DOTD_MARKED_X", "Dawn of the Dead: Marked get x zombies (2 = double)"], ["DOTD_MARKED_SPRINT", "Dawn of the Dead: Marked get +% sprinters"],
   ["DOTD_LW_X", "Dawn of the Dead: last warning gets x zombies"], ["DOTD_LW_SPRINT", "Dawn of the Dead: last warning gets +% sprinters"],
+  // Nin 11-01: every live setting has a button here (the game checks each range and says so). On / off settings take true or false.
+  ["RAID_ON", "Raids on (true or false)"], ["FRIEND_SHARE", "Friends' share of a raid (0 to 1)"], ["FADE_PER_HOUR", "Heat fades per hour of play once calm"],
+  ["OFFLINE_CALM_HOURS", "Hours offline before heat fades"], ["OFFLINE_FADE_PER_HOUR", "Heat fades per hour offline"],
+  ["BRIDE_ON", "The Bride on (true or false)"], ["BRIDE_SCORE", "Bride: score she comes at"], ["BRIDE_HEALTH", "Bride: her HP"],
+  ["BRIDESMAIDS", "Bride: her usual bridesmaids"], ["BRIDESMAIDS_SCORE", "Bride: score bridesmaids come at (0 = never)"],
+  ["NATURAL_MAIDS", "Natural bridesmaids on (true or false)"], ["MAID_SPEED", "Bridesmaid run speed (0.9 to 1.5)"], ["MAID_ODDS", "Natural bridesmaid odds, 1 in this many (0 = off)"],
+  ["MAID_GAP", "Tiles between natural bridesmaids (0 = no gap)"], ["MAID_VOICE", "Bridesmaid voices on (true or false)"],
+  ["BRIDE_FAST_SCORE", "Bride: score of her faster run (0 = never)"], ["BRIDE_FAST_SPEED", "Bride: her faster run (1.6 to 3)"],
+  ["RAID_RESTEER", "Seconds between re-steers of raid zombies"], ["RAID_FREE_PCT", "% of raid zombies that get distracted"], ["SIREN_RANGE", "Siren range, tiles"],
+  ["HARD_ESCALATE", "Stage 2: % bigger per raid survived"], ["HARD_SPRINT", "Stage 2: sprinters %"], ["HARD_SPRINT_MAX", "Stage 2: most sprinters %"],
+  ["HARD_DOTD_MAX", "Stage 2: Horde Night top x"], ["HARD_DOTD_SPRINT", "Stage 2: Horde Night +% sprinters"],
+  ["FREE_B_DAY", "Free B wins a day"], ["FREE_A_DAY", "Free A wins a day"], ["LOW_S_POINTS", "Points for a low player's S win"],
+  ["FREE_WINS_MAX_STAGE", "Highest stage with free wins (-1 = nobody)"], ["MIN_HEAT_FOR_STAGE", "Least heat that shows a stage"],
+  ["HUNT_ON", "Raid hunt on (true or false)"], ["HUNT_FAR", "Raid hunt: catch-up distance"], ["HUNT_LAND", "Raid hunt: catch-up lands this far off"], ["HUNT_EVERY", "Raid hunt: seconds between passes"],
+  ["RAID_BASE_GAP", "Minutes between two players' raids at one base (0 = off)"], ["RAID_BASE_RADIUS", "Tiles that count as one base (0 = off)"],
 ];
 
 export default function NotorietyTab() {
@@ -115,6 +131,7 @@ export default function NotorietyTab() {
       <AdminCardBox send={send} busy={busy} C={C} mono={mono} btn={btn} />
 
       <BrideSummonBox send={send} busy={busy} C={C} mono={mono} btn={btn} />
+      <RaidCustomBox send={send} busy={busy} C={C} mono={mono} btn={btn} />
       {/* One card per player (was a 7-column table: in the narrow Live Ops panel the buttons fell off the right edge). */}
       <div style={{ ...mono, fontSize: 12 }}>
           {players.length === 0 && <div style={{ padding: 8, color: C.grey }}>Nobody yet.</div>}
@@ -138,6 +155,16 @@ export default function NotorietyTab() {
                     const v = ask(`${p.name}'s tab in bronze (0 clears it):`, String(n(p.tab)));
                     if (v !== null && v !== "") send({ cmd: "set_tab", name: p.name, value: Number(v) }, "Setting the tab");
                   }}>Tab</button>
+                  <button style={btn(C.gold)} disabled={busy} onClick={() => {
+                    const v = ask(`${p.name}'s heat (now ${n(p.heat)}):`, String(n(p.heat)));
+                    if (v !== null && v !== "") send({ cmd: "set_heat", name: p.name, value: Number(v) }, "Setting the heat");
+                  }}>Heat</button>
+                  <button style={btn()} disabled={busy} onClick={() => sure(`Take ${p.name} off the Hall of Infamy, this season and all time?`) && send({ cmd: "hall_remove", name: p.name }, "Taking them off the Hall")}>Off the Hall</button>
+                  <button style={btn()} disabled={busy} onClick={() => sure(`Start ${p.name}'s Bride over at stage 1?`) && send({ cmd: "bride_duel", name: p.name }, "Bride duel")}>Bride duel</button>
+                  <button style={btn()} disabled={busy} onClick={() => {
+                    const v = ask(`A test Bride on ${p.name}, staff only. Her HP (empty = full):`, "");
+                    if (v !== null) send({ cmd: "bride_test", name: p.name, ...(v !== "" ? { hp: Number(v) } : {}) }, "Test Bride");
+                  }}>Test Bride</button>
                   {p.marked
                     ? <button style={btn(C.green)} disabled={busy} onClick={() => sure(`Let ${p.name} go? Zombita says so in public; the tab stays.`) && send({ cmd: "unmark", name: p.name }, "Unmarking")}>Unmark</button>
                     : <button style={btn(C.red)} disabled={busy} onClick={() => sure(`Mark ${p.name}? Zombita gives the last warning in public first; the Mark follows after 5 minutes of play.`) && send({ cmd: "mark", name: p.name }, "Marking")}>Mark</button>}

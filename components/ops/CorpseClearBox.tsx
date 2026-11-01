@@ -2,7 +2,7 @@
 "use client";
 // components/ops/CorpseClearBox.tsx - Live Ops > World: "Clear zombie bodies" (2026-10-30, mod 1.8.77; Nin: zombie bodies
 // around Greed's base lag). The game request is corpse_clear (player | x y [z]) radius (corpse_clear_patch.py on the bot,
-// server/ZO_Corpses.lua in the mod): ZOMBIE bodies only (players' and animals' bodies are never touched), radius 1-60,
+// server/ZO_Corpses.lua in the mod): ZOMBIE bodies only (players' and animals' bodies are never touched), radius 1-300,
 // floors z-1 to z+3, loaded squares only. A big radius answers "Started: ..." first and "Done: ..." when it has finished
 // (a second answer with the same id), so this box keeps asking for the answer until it says Done.
 // Its own file so the /ops page only gets one line (other branches edit that page too).
@@ -12,7 +12,7 @@ import { API } from "@/lib/constants";
 const mono = { fontFamily: "var(--mono, monospace)" };
 const C = { red: "#e05555", green: "#4caf7d", amber: "#e8a35c", grey: "#9aa", text: "#e6e6e6", bg: "#0b0d10", line: "#2a2f37" };
 const inp = { ...mono, fontSize: 12, padding: "6px 8px", background: C.bg, color: C.text, border: `1px solid ${C.line}`, borderRadius: 3, boxSizing: "border-box" };
-const MAX_R = 60;
+const MAX_R = 300;
 const WAIT_MS = 120000;
 
 async function api(path, body) {

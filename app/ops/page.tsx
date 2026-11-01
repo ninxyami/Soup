@@ -1117,7 +1117,7 @@ function WorldTab({ act, spot, setSpot, setPick, players, showTrail, places = []
         <div style={row}>
           <Btn small color={C.green} disabled={!picked("zombies")}onClick={() => { if (confirm(`Remove every zombie within ${r} squares of ${spot.x}, ${spot.y}?`)) act("zombies_clear", { x: spot.x, y: spot.y, radius: r }); }}>Clear zombies here</Btn>
           {num(count, setCount, 1, 500, 64)}
-          <Btn small color={C.red} disabled={!picked("zombies")}onClick={() => { if (confirm(`Spawn ${count} zombies around ${spot.x}, ${spot.y}?`)) act("horde", { x: spot.x, y: spot.y, radius: Math.min(r, 50), count }); }}>Spawn horde</Btn>
+          <Btn small color={C.red} disabled={!picked("zombies")}onClick={() => { if (confirm(`Spawn ${count} zombies around ${spot.x}, ${spot.y}?`)) act("horde", { x: spot.x, y: spot.y, radius: r, count }); }}>Spawn horde</Btn>
         </div>
       </div>
       <EventsBox act={act} spot={spot} pickSpot={pickSpot} players={players} places={places} box={box} row={row} num={num} />
@@ -1242,7 +1242,7 @@ function EventsBox({ act, spot, pickSpot, players, places = [], box, row, num })
         {target === "__spot" && <Btn small onClick={() => pickSpot("hordeto", 0, "Click where the horde should go.")}>To: {at(to)}</Btn>}
       </div>
       <div style={row}>
-        {num(count, setCount, 1, 300, 64)}<span style={{ ...mono, fontSize: 11 }}>zombies</span>
+        {num(count, setCount, 1, 100000, 64)}<span style={{ ...mono, fontSize: 11 }}>zombies</span>
         <Btn small color={C.red} disabled={!from || !goal} onClick={() => {
           if (!confirm(`Send ${count} zombies from ${from.x}, ${from.y} to ${goal}?`)) return;
           act("ev_horde", target === "__spot" ? { fx: from.x, fy: from.y, tx: to.x, ty: to.y, count } : { fx: from.x, fy: from.y, player: target, count });
@@ -1294,7 +1294,7 @@ function EventsBox({ act, spot, pickSpot, players, places = [], box, row, num })
         <div style={row}>
           <select style={{ ...inp, width: 150 }} value={bandit.cid} onChange={(e) => setBandit({ ...bandit, cid: e.target.value })}>
             <option value="">Clan...</option>{clans.map((c) => <option key={c.cid} value={c.cid}>{c.name} ({c.members})</option>)}</select>
-          {num(bandit.size, (v) => setBandit({ ...bandit, size: v }), 1, 20, 56)}
+          {num(bandit.size, (v) => setBandit({ ...bandit, size: v }), 1, 100000, 56)}
           <select style={{ ...inp, width: 110 }} value={bandit.program} onChange={(e) => setBandit({ ...bandit, program: e.target.value })}>
             {[["Bandit", "hunt players"], ["Defend", "hold the spot"], ["Looter", "loot"], ["Thief", "steal"], ["Camper", "camp"], ["Roadblock", "roadblock"]].map(([v, l]) =>
               <option key={v} value={v}>{l}</option>)}</select>

@@ -22,7 +22,7 @@ const mono = { fontFamily: "var(--mono, monospace)" };
 const inp = { ...mono, fontSize: 12, padding: "6px 8px", background: C.bg, color: C.text, border: `1px solid ${C.line}`, borderRadius: 3, width: "100%", boxSizing: "border-box" };
 const h = { ...mono, fontSize: 12, color: C.gold, textTransform: "uppercase", letterSpacing: 1, margin: "4px 0" };
 const box = { border: `1px solid ${C.line}`, borderRadius: 3, padding: 10, display: "flex", flexDirection: "column", gap: 8 };
-const MAX_PLAYERS = 300, MAX_LINES = 20, MAX_COUNT = 100, LABEL_MAX = 60, NOTE_MAX = 200, SHOW_MAX = 400;
+const MAX_PLAYERS = 300, MAX_LINES = 100, MAX_COUNT = 1000, LABEL_MAX = 60, NOTE_MAX = 200, SHOW_MAX = 400;
 const FIND_MIN = 2, FIND_PAUSE_MS = 350, FIND_POLL_MS = 400, FIND_WAIT_MS = 12000, FIND_SHOW = 60, FIND_KEEP = 60;
 const LINE_RE = /^([A-Za-z0-9_]+\.[A-Za-z0-9_\-]+)\s*(?:[*xX]\s*)?(\d*)$/;
 
