@@ -5,6 +5,7 @@
 // the game's answer shows in the tab's message line. Take her away is {cmd: "bride_remove", name}. The bot and the game both check it again.
 import { useState } from "react";
 
+const MAX = 100000;      // a typo guard, the same as the game's V.SUMMON_MAX
 const wholeIn = (v, lo, hi) => {
   const n = Number(v);
   return v !== "" && Number.isInteger(n) && n >= lo && n <= hi;
@@ -20,8 +21,8 @@ export default function BrideSummonBox({ send, busy, C, mono, btn }) {
   const field = { ...mono, fontSize: 12, background: C.bg, color: C.text, border: `1px solid ${C.line}`, borderRadius: 3, padding: "4px 6px" };
   const label = { color: C.grey, fontSize: 11 };
   const player = name.trim();
-  const maidsOk = maids.trim() === "" || wholeIn(maids.trim(), 0, 20);
-  const sprintersOk = wholeIn(sprinters.trim(), 0, 20);
+  const maidsOk = maids.trim() === "" || wholeIn(maids.trim(), 0, MAX);
+  const sprintersOk = wholeIn(sprinters.trim(), 0, MAX);
   const ready = !busy && player !== "" && maidsOk && sprintersOk;
 
   function bring() {
@@ -72,7 +73,7 @@ export default function BrideSummonBox({ send, busy, C, mono, btn }) {
       </div>
       <div style={{ color: C.grey, fontSize: 11, marginTop: 4, lineHeight: 1.4 }}>
         A real Bride on one player online, no Mark or score needed. Quiet: she rises at once, 20 to 30 tiles off, with no countdown, cards or public
-        lines. Not quiet: her normal countdown and warnings. Bridesmaids and sprinters are totals, 0 to 20; empty bridesmaids means the usual number.
+        lines. Not quiet: her normal countdown and warnings. Bridesmaids and sprinters are totals, any number; empty bridesmaids means the usual number.
         It moves no heat, tab, Mark or stage, and players never see who sent her.
       </div>
     </div>

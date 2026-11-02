@@ -16,7 +16,7 @@ const mono = { fontFamily: "var(--mono, monospace)" };
 const inp = { ...mono, fontSize: 12, padding: "6px 8px", background: C.bg, color: C.text, border: `1px solid ${C.line}`, borderRadius: 3, width: "100%", boxSizing: "border-box" };
 const small = { ...mono, fontSize: 11, color: C.grey };
 const heading = { ...mono, fontSize: 10, color: C.grey, textTransform: "uppercase", letterSpacing: 1, marginTop: 6 };
-const MAX_ZEDS = 10, DIST_MIN = 8, DIST_MAX = 40, DEF_DIST = [12, 25], MAX_ITEMS = 50, MAX_LINES = 20, NOTE_MAX = 200;
+const MAX_ZEDS = 100000, DIST_MIN = 1, DIST_MAX = 150, DEF_DIST = [12, 25], MAX_ITEMS = 200, MAX_LINES = 20, NOTE_MAX = 200;
 const FIND_MIN = 2, FIND_PAUSE_MS = 350, FIND_POLL_MS = 400, FIND_WAIT_MS = 12000, FIND_SHOW = 40, FIND_KEEP = 60;
 const LINE_RE = /^([A-Za-z0-9_]+\.[A-Za-z0-9_\-]+)\s*(?:[*xX]\s*)?(\d*)$/;
 const OUTFIT_RE = /^[A-Za-z0-9_]{1,60}$/;
@@ -55,7 +55,6 @@ export function addItemLine(text, id, count) {
 
 /** What's in the way of sending, or "". */
 export function blocker({ parsed, count, outfit, dmin, dmax }) {
-  if (!parsed.lines.length) return "Give them something to carry.";
   if (parsed.error) return parsed.error;
   if (!(count >= 1 && count <= MAX_ZEDS)) return `Zombies: 1 to ${MAX_ZEDS}.`;
   if (outfit && !OUTFIT_RE.test(outfit)) return "An outfit name is letters, digits and _ only, e.g. Tourist.";
@@ -65,10 +64,12 @@ export function blocker({ parsed, count, outfit, dmin, dmax }) {
 }
 
 /** The confirm box, in plain words. */
-export function confirmText(name, { parsed, count, who, outfit, dmin, dmax }) {
-  const what = parsed.lines.map(([id, n]) => `${n}x ${id.split(".").pop()}`).join(", ");
+export function confirmText(name, { parsed, count, who, outfit, dmin, dmax, kind, anywhere }) {
+  const side = anywhere ? "any side of them" : "behind them";
+  if (kind === "maids") return `Send ${count} real bridesmaid${count === 1 ? "" : "s"} to ${name}?\n\nHer dress, her run, they hunt ${name} and the raid cleanup takes what is left. No Mark needed. ${dmin}-${dmax} squares away, ${side}.`;
+  const what = parsed.lines.map(([id, n]) => `${n}x ${id.split(".").pop()}`).join(", ") || "nothing";
   const carry = count === 1 ? "It carries" : who === "all" ? "Each one carries" : "One of them carries";
-  return `Send ${count} zombie${count === 1 ? "" : "s"} to ${name}?\n\n${carry}: ${what}\nOutfit: ${outfit || "normal"}. ${dmin}-${dmax} squares away, behind them.\n\n`
+  return `Send ${count} zombie${count === 1 ? "" : "s"} to ${name}?\n\n${carry}: ${what}\nOutfit: ${outfit || "normal"}. ${dmin}-${dmax} squares away, ${side}.\n\n`
     + "Not killed: an ordinary zombie, and the items are gone at the next restart.";
 }
 
@@ -197,6 +198,8 @@ export default function ZedItemsBox({ p, act, Btn }) {
   const [count, setCount] = useState(1);
   const [who, setWho] = useState("first");
   const [outfit, setOutfit] = useState("");
+  const [kind, setKind] = useState("normal");
+  const [anywhere, setAnywhere] = useState(false);
   const [dmin, setDmin] = useState(DEF_DIST[0]);
   const [dmax, setDmax] = useState(DEF_DIST[1]);
   const [note, setNote] = useState("");
@@ -204,17 +207,17 @@ export default function ZedItemsBox({ p, act, Btn }) {
   if (!open) return <div><div style={heading}>Zombies with items</div><Btn small onClick={() => setOpen(true)}>Plant items in zombies</Btn></div>;
 
   const parsed = parseItems(items);
-  const form = { parsed, count, who: count > 1 ? who : "first", outfit: outfit.trim(), dmin, dmax };
+  const form = { parsed, count, who: count > 1 ? who : "first", outfit: kind === "maids" ? "" : outfit.trim(), dmin, dmax, kind, anywhere };
   const why = blocker(form);
   const send = () => {
     if (!confirm(confirmText(p.name, form))) return;
-    act("ev_zed", { player: p.name, items: parsed.lines.map(([id, n]) => ({ id, n })), count, who: form.who, outfit: form.outfit, dmin, dmax, note: note.trim() }, () => { setItems(""); setNote(""); });
+    act("ev_zed", { player: p.name, items: parsed.lines.map(([id, n]) => ({ id, n })), count, who: form.who, outfit: form.outfit, dmin, dmax, note: note.trim(), speed: kind === "maids" ? "normal" : kind, maids: kind === "maids", anywhere }, () => { setItems(""); setNote(""); });
   };
   const num = (v, set) => <input type="number" style={{ ...inp, width: 56 }} value={v} onChange={(e) => set(parseInt(e.target.value, 10) || 0)} />;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
       <div style={heading}>Zombies with items</div>
-      <div style={small}>They come up behind {p.name}, out of their view, and walk to them. The items are on the body when it dies. Players never see who sent them.</div>
+      <div style={small}>They come up behind {p.name}, or any side, and walk to them. Any items are on the body when it dies. Real bridesmaids wear her dress, run, hunt {p.name} and go with the raid cleanup, no Mark needed. Players never see who sent them.</div>
       <ItemSearch have={Object.fromEntries(parsed.lines)} onAdd={(id, n) => setItems((t) => addItemLine(t, id, n))} />
       <textarea style={{ ...inp, minHeight: 54 }} placeholder={"Zombita.PhoneFlip*1\nBase.Bandage*3"} value={items} onChange={(e) => setItems(e.target.value)} />
       <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
@@ -230,12 +233,22 @@ export default function ZedItemsBox({ p, act, Btn }) {
         <datalist id="zed-outfits">{OUTFITS.map((o) => <option key={o} value={o} />)}</datalist>
         <span style={small}>From</span>{num(dmin, setDmin)}<span style={small}>to</span>{num(dmax, setDmax)}<span style={small}>squares</span>
       </div>
+      <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+        <span style={small}>Kind</span>
+        <select style={{ ...inp, width: 170 }} value={kind} onChange={(e) => setKind(e.target.value)}>
+          <option value="normal">Normal walkers</option>
+          <option value="slow">Slow walkers</option>
+          <option value="sprint">Sprinters</option>
+          <option value="maids">Real bridesmaids</option>
+        </select>
+        <label style={small}><input type="checkbox" checked={anywhere} onChange={(e) => setAnywhere(e.target.checked)} /> Any side of them</label>
+      </div>
       <input style={inp} maxLength={NOTE_MAX} placeholder="Note for the log (optional, admins only)" value={note} onChange={(e) => setNote(e.target.value)} />
       <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
         <Btn small disabled={!!why} title={why} onClick={send}>Send the zombies</Btn>
         <Btn small color={C.grey} onClick={() => setOpen(false)}>Close</Btn>
       </div>
-      {items.trim() && why && <div style={{ ...small, color: C.red }}>{why}</div>}
+      {why && <div style={{ ...small, color: C.red }}>{why}</div>}
     </div>
   );
 }
