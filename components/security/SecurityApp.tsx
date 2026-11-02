@@ -4,18 +4,19 @@
 // (zombita_threats.py, which runs zombita_security.py's households first) checks every player: skills, kills, the game's
 // anti-cheat, movement, admin powers, money, items, ban evasion, access, Zombita Bites and households, plus the server's
 // own troubles. Top: Zombita's status line, the count per risk level and Listen now. Tabs: Players (risk list + threat
-// card), Households (the pairs view), Bites, Access, Server, Staff actions. "Write case report" opens a printable case file.
+// card), Households (the pairs view), Bites, Ban watch, Access, Server, Staff actions. "Write case report" opens a printable case file.
 // Zombita states facts; admins decide.
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { API } from "@/lib/constants";
 import Households from "./Households";
+import BanWatch from "./BanWatch";
 import CaseReport from "./CaseReport";
 import Confirm from "./Confirm";
 import { PlayersTab, BitesTab, AccessTab, ServerTab, StaffTab } from "./Panels";
 import { C, DISPLAY, BODY, PORTRAIT, RISKS, n, when, getReport, postSecurity, getThreats, postThreats } from "./lib";
 
-const TABS = [["players", "Players"], ["households", "Households"], ["bites", "Bites"], ["access", "Access"], ["server", "Server"], ["staff", "Staff actions"]];
+const TABS = [["players", "Players"], ["households", "Households"], ["bites", "Bites"], ["banwatch", "Ban watch"], ["access", "Access"], ["server", "Server"], ["staff", "Staff actions"]];
 
 function Gate({ text, link = null }) {
   return (
@@ -228,6 +229,7 @@ export default function SecurityApp() {
           {tab === "households" && <Households st={sec} busy={busy} send={sendHouse} ask={askYesNo}
             onReport={(p) => { setReport({ kind: "pair", subject: p }); window.scrollTo({ top: 0 }); }} />}
           {tab === "bites" && <BitesTab rep={thr} busy={busy} act={act} openPlayer={openPlayer} />}
+          {tab === "banwatch" && <BanWatch ask={ask} />}
           {tab === "access" && <AccessTab rep={thr} />}
           {tab === "server" && <ServerTab rep={thr} />}
           {tab === "staff" && <StaffTab rep={thr} />}

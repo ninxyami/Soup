@@ -142,6 +142,22 @@ export function hideNames(text, keep, all) {
   return t;
 }
 
+// ---- the ban watch (bot zombita_ban_watch.py): GET/POST {API}/api/admin/security/ban-watch ----
+export async function getBanWatch() {
+  const r = await fetch(`${API}/api/admin/security/ban-watch`, { credentials: "include", cache: "no-store" });
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || `HTTP ${r.status}`);
+  return r.json();
+}
+
+export async function postBanWatch(body) {
+  const r = await fetch(`${API}/api/admin/security/ban-watch`, {
+    method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.detail || `HTTP ${r.status}`);
+  return d;
+}
+
 export async function postSecurity(body) {
   const r = await fetch(`${API}/api/admin/security`, {
     method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
