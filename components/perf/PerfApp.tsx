@@ -29,8 +29,8 @@ const MARK_WORD = { restart: "Restart", stopped: "Stopped", version: "Version", 
 const utcHM = (ts) => (ts ? new Date(ts * 1000).toISOString().slice(11, 16) : "?");
 const utcDayHM = (ts) => (ts ? new Date(ts * 1000).toISOString().slice(5, 16).replace("T", " ") : "?");
 const localHM = (ts) => new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit", hour12: false, timeZoneName: "short" }).format(new Date(ts * 1000));
-const bothHM = (ts) => (ts ? `${bothHM(ts)} / ${localHM(ts)}` : "?");
-const bothDayHM = (ts) => (ts ? `${bothDayHM(ts)} / ${localHM(ts)}` : "?");
+const bothHM = (ts) => (ts ? `${utcHM(ts)} UTC / ${localHM(ts)}` : "?");
+const bothDayHM = (ts) => (ts ? `${utcDayHM(ts)} UTC / ${localHM(ts)}` : "?");
 const today = () => new Date().toISOString().slice(10 - 10, 10);
 const dayBefore = (d) => new Date(Date.parse(d + "T00:00:00Z") - 86400000).toISOString().slice(0, 10);
 const gb = (mb) => (mb == null ? "?" : `${(mb / 1024).toFixed(1)} GB`);
