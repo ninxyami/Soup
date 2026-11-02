@@ -65,6 +65,7 @@ const SETTINGS = [
   ["FREE_WINS_MAX_STAGE", "Highest stage with free wins (-1 = nobody)"], ["MIN_HEAT_FOR_STAGE", "Least heat that shows a stage"],
   ["HUNT_ON", "Raid hunt on (true or false)"], ["HUNT_FAR", "Raid hunt: catch-up distance"], ["HUNT_LAND", "Raid hunt: catch-up lands this far off"], ["HUNT_EVERY", "Raid hunt: seconds between passes"],
   ["RAID_BASE_GAP", "Minutes between two players' raids at one base (0 = off)"], ["RAID_BASE_RADIUS", "Tiles that count as one base (0 = off)"],
+  ["RAID_SAFEHOUSE_X", "Raid zombies and packs x this if the target is in a safehouse (1 to 10, 1 = off)"], ["BRIDE_SAFEHOUSE_X", "Bridesmaids x this if the target is in a safehouse (1 to 10, 1 = off)"],
 ];
 
 // Queen Dusk's favors by tier (Nin 11-01): the setting's ending, the name. Setting keys are letters and _ only, so SSS+ is SSSP.
