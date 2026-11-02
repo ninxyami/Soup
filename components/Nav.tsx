@@ -86,6 +86,11 @@ export default function Nav() {
             </Link>
           )}
           {user?.is_admin && (
+            <Link href="/performance" className={`nav-link${pathname?.startsWith("/performance") ? " active" : ""}`} style={{ color: "#c8a84b" }}>
+              Perf
+            </Link>
+          )}
+          {user?.is_admin && (
             <Link href="/quests" className={`nav-link${pathname?.startsWith("/quests") ? " active" : ""}`} style={{ color: "#c8a84b" }}>
               Quests
             </Link>
@@ -173,6 +178,9 @@ export default function Nav() {
               </Link>
               <Link href="/security" className="nav-link text-[0.8rem] block mt-2" style={{ color: "#c8a84b" }} onClick={() => setOpen(false)}>
                 Security
+              </Link>
+              <Link href="/performance" className="nav-link text-[0.8rem] block mt-2" style={{ color: "#c8a84b" }} onClick={() => setOpen(false)}>
+                Performance
               </Link>
               <Link href="/quests" className="nav-link text-[0.8rem] block mt-2" style={{ color: "#c8a84b" }} onClick={() => setOpen(false)}>
                 Quests
