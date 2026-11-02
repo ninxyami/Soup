@@ -3,7 +3,7 @@
 // components/perf/PerfApp.tsx - the staff health page (/performance, admins only, 2026-11-01).
 // Everything comes from the bot's /api/admin/perf/* (zombita_perf.py, a cron job outside the game, plus zombita_perf_staff.py);
 // the live number from /api/admin/server-health/live every 5 s. Nothing here can touch the game: the only writes are the
-// prompt library, "seen" on changes, and reports into claude_shared/to_pc.
+// prompt library, "seen" on changes, and saved reports.
 // Times are UTC, the same as the game's logs. 600 ticks a minute = full speed, normal 540-590, under 500 is weak.
 // One axis a chart: ticks, players and the rest are stacked charts on the same clock, never two scales on one chart.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -465,7 +465,7 @@ function IssuesTab({ days, day, setDay, onPrompt }) {
   const iss = useLoad(() => get(`/api/admin/perf/issues?date=${D}`), [D]);
   const rows = iss.data?.issues || [];
   return (
-    <Card title="ISSUES" right={<span style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><DayPick value={D} onChange={setDay} days={list} /><Btn onClick={() => onPrompt("why_stretch", D)}>Make a prompt for this</Btn></span>}>
+    <Card title="ISSUES" right={<span style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><DayPick value={D} onChange={setDay} days={list} />{onPrompt && <Btn onClick={() => onPrompt("why_stretch", D)}>Make a prompt for this</Btn>}</span>}>
       <Note>A cause is listed only when a measured number stands out. Otherwise it says unknown.</Note>
       <Failed err={iss.err} what="the issues" />
       <div style={{ display: "grid", gap: 10, marginTop: 10 }}>
@@ -520,7 +520,7 @@ function ChangesTab({ onSeen, onPrompt }) {
   const ch = useLoad(() => get("/api/admin/perf/changes"), []);
   const d = ch.data;
   return (
-    <Card title="MOD LIST AND SETTINGS CHANGES" right={<span style={{ display: "flex", gap: 8 }}><Btn onClick={() => onPrompt("change_check", null)}>Make a prompt</Btn><Btn primary disabled={!d?.unread} onClick={() => post("/api/admin/perf/changes/ack").then(() => { ch.reload(); onSeen(); })}>Mark as seen</Btn></span>}>
+    <Card title="MOD LIST AND SETTINGS CHANGES" right={<span style={{ display: "flex", gap: 8 }}>{onPrompt && <Btn onClick={() => onPrompt("change_check", null)}>Make a prompt</Btn>}<Btn primary disabled={!d?.unread} onClick={() => post("/api/admin/perf/changes/ack").then(() => { ch.reload(); onSeen(); })}>Mark as seen</Btn></span>}>
       <Note>servertest.ini, SandboxVars and spawn regions are compared once a minute. Passwords and keys show as [hidden].</Note>
       <Failed err={ch.err} what="the changes" />
       <div style={{ marginTop: 10 }}>{d?.changes?.length ? <ChangeList rows={d.changes} /> : !ch.err && <Note>No changes seen yet.</Note>}</div>
@@ -642,7 +642,7 @@ function PromptsTab({ days, want }) {
   const O = other || list[1] || dayBefore(D);
   useEffect(() => {
     if (want?.id && rows.length) {
-      const t = rows.find((r) => r.id === want.id);
+      const t = rows.find((r) => r.id === want.id) || rows.find((r) => r.id === "any_ai");
       if (t) { setId(t.id); setDraft({ ...t }); }
       if (want.day) setDay(want.day);
     } else if (!draft && rows.length) { setId(rows[0].id); setDraft({ ...rows[0] }); }
@@ -651,7 +651,7 @@ function PromptsTab({ days, want }) {
   const after = (d) => { if (d.error) { setMsg(d.error); return; } lib.reload(); setMsg("Saved."); };
   return (
     <div style={SIDE}>
-      <div style={SIDE_L}><Card title="TEMPLATES" right={<Btn onClick={() => choose({ id: "", title: "New template", target: "server Claude", body: "" })}>New</Btn>}>
+      <div style={SIDE_L}><Card title="TEMPLATES" right={<Btn onClick={() => choose({ id: "", title: "New template", target: "any AI", body: "" })}>New</Btn>}>
         <Failed err={lib.err} what="the library" />
         {rows.map((t) => (
           <button key={t.id} onClick={() => choose(t)} style={{ display: "block", width: "100%", textAlign: "left", background: id === t.id ? "rgba(200,168,75,0.08)" : "none", border: "none", borderBottom: `1px solid ${C.grid}`, color: C.text, padding: "6px 4px", cursor: "pointer", fontSize: 13 }}>
@@ -722,7 +722,7 @@ function ReportsTab({ days }) {
           <Btn primary disabled={busy} onClick={() => make("day")}>Day report</Btn>
           <Btn primary disabled={busy} onClick={() => make("compare")}>Compare report</Btn>
           <Btn primary disabled={busy} onClick={() => make("changes")}>Changes report</Btn>
-          <Note>Each one also lands in claude_shared/to_pc for PC Claude.</Note>
+          
         </div>
         <div style={{ marginTop: 12 }}>
           <Failed err={reports.err} what="the reports" />
@@ -733,8 +733,8 @@ function ReportsTab({ days }) {
       </Card></div>
       <div style={SIDE_R}>
         <Card title={shown?.name || "PICK A REPORT"} right={shown?.text && <Btn onClick={() => copyText(shown.text)}>Copy</Btn>}>
-          {shown?.saved && <Note>Saved to {shown.saved}.</Note>}
-          {shown ? <pre style={{ margin: 0, maxHeight: 620, overflow: "auto", fontFamily: MONO, fontSize: 12, color: C.text, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{shown.text}</pre> : <Note>Reports read like a server Claude's, without asking one.</Note>}
+          
+          {shown ? <pre style={{ margin: 0, maxHeight: 620, overflow: "auto", fontFamily: MONO, fontSize: 12, color: C.text, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{shown.text}</pre> : <Note>Pick a report, or make a new one.</Note>}
         </Card>
       </div>
     </div>
@@ -750,6 +750,7 @@ export default function PerfApp() {
   const perf = useLoad(() => get("/api/admin/perf/now"), [], 30000);
   const days = useLoad(() => get("/api/admin/perf/days"), [], 300000);
   const d = perf.data;
+  const owner = d?.owner === true;                     // the Prompts tab is the owner's alone; the bot refuses everyone else too
   useEffect(() => {
     try { const t = sessionStorage.getItem("soup:perf.tab"); if (t) setTab(t); } catch {}
   }, []);
@@ -764,7 +765,7 @@ export default function PerfApp() {
           <span style={{ fontFamily: MONO, fontSize: 11, color: C.dim }}>All times UTC. Read from files outside the game.</span>
         </div>
         <nav style={{ display: "flex", gap: 4, flexWrap: "wrap", borderBottom: `1px solid ${C.line}` }} aria-label="Performance sections">
-          {TABS.map(([k, label]) => (
+          {TABS.filter(([k]) => owner || k !== "prompts").map(([k, label]) => (
             <button key={k} onClick={() => go(k)} style={{ fontFamily: MONO, fontSize: 13, padding: "7px 12px", background: "none", border: "none", borderBottom: `2px solid ${tab === k ? C.gold : "transparent"}`, color: tab === k ? C.gold : C.muted, cursor: "pointer" }}>
               {label}{k === "changes" && d?.unread > 0 ? ` (${d.unread})` : ""}
             </button>
@@ -782,10 +783,10 @@ export default function PerfApp() {
             {tab === "now" && <NowTab perf={perf} />}
             {tab === "days" && <DaysTab days={days} onIssues={(x) => { setIssueDay(x); go("issues"); }} />}
             {tab === "compare" && <CompareTab days={days} />}
-            {tab === "issues" && <IssuesTab days={days} day={issueDay} setDay={setIssueDay} onPrompt={toPrompt} />}
-            {tab === "changes" && <ChangesTab onSeen={perf.reload} onPrompt={toPrompt} />}
+            {tab === "issues" && <IssuesTab days={days} day={issueDay} setDay={setIssueDay} onPrompt={owner ? toPrompt : null} />}
+            {tab === "changes" && <ChangesTab onSeen={perf.reload} onPrompt={owner ? toPrompt : null} />}
             {tab === "logs" && <LogsTab />}
-            {tab === "prompts" && <PromptsTab days={days} want={want} />}
+            {tab === "prompts" && owner && <PromptsTab days={days} want={want} />}
             {tab === "reports" && <ReportsTab days={days} />}
           </>
         )}
