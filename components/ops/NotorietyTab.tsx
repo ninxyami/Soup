@@ -51,6 +51,9 @@ const SETTINGS = [
   ["DOTD_LW_X", "Dawn of the Dead: last warning gets x zombies"], ["DOTD_LW_SPRINT", "Dawn of the Dead: last warning gets +% sprinters"],
 ];
 
+// Queen Dusk's favors by tier (Nin 11-01): the setting's ending, the name. Setting keys are letters and _ only, so SSS+ is SSSP.
+const FAVOR_TIERS = [["A", "A"], ["S", "S"], ["SS", "SS"], ["SSS", "SSS"], ["SSSP", "SSS+"]];
+
 export default function NotorietyTab() {
   const [st, setSt] = useState(null);
   const [err, setErr] = useState("");
@@ -389,14 +392,29 @@ export default function NotorietyTab() {
             </div>
             <div style={{ color: C.gold, margin: "12px 0 6px" }}>Queen Dusk's favors{p.favorOn ? " (on)" : " (off)"}</div>
             <div style={{ color: C.text, marginBottom: 6, lineHeight: 1.5 }}>
-              One job at a time for Marked players, on the phone. Done: {n(p.favorHeat)} heat off and no pay. The next offer comes {n(p.favorCooldown)} minutes later, done or not.
+              {p.favorHeatA != null
+                ? <>One A tier or higher job at a time for Marked players, on the phone. Done: the tier's heat off, one Dusk favor point and no pay. The next offer comes {n(p.favorCooldown)} minutes later, done or not. An offer stays up {n(p.favorMinutes)} minutes. Once taken, an A tier has {n(p.favorMinutes)} minutes and S and up have 24 hours.</>
+                : <>One job at a time for Marked players, on the phone. Done: {n(p.favorHeat)} heat off and no pay. The next offer comes {n(p.favorCooldown)} minutes later, done or not.</>}
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
               {toggle("FAVOR_ON", "favorOn", "Favors")}
-              {numbers([["FAVOR_HEAT", "favorHeat", "Heat off", 0, 100],
+              {numbers([...(p.favorHeatA != null ? [] : [["FAVOR_HEAT", "favorHeat", "Heat off", 0, 100]]),
                         ["FAVOR_COOLDOWN_MIN", "favorCooldown", "Minutes between offers", 1, 1440],
-                        ["FAVOR_MINUTES", "favorMinutes", "Minutes to do it", 10, 600]])}
+                        ["FAVOR_MINUTES", "favorMinutes", p.favorHeatA != null ? "Minutes to take it, and for an A tier" : "Minutes to do it", 10, 600]])}
             </div>
+            {p.favorHeatA != null && <>
+              <div style={{ color: C.text, margin: "6px 0", lineHeight: 1.5 }}>Heat each tier takes off, how often it rolls (bigger odds = more often, 0 = never), and how many real minutes, offline too, pass with no new raid once it's done (a second favor replaces the first's pause).</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {numbers(FAVOR_TIERS.map(([key, name]) => [`FAVOR_HEAT_${key}`, `favorHeat${key}`, `${name} heat`, 0, 100]))}
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
+                {numbers(FAVOR_TIERS.map(([key, name]) => [`FAVOR_ODDS_${key}`, `favorOdds${key}`, `${name} odds`, 0, 1000]))}
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
+                {numbers(FAVOR_TIERS.map(([key, name]) => [`FAVOR_RAID_PAUSE_${key}`, `favorPause${key}`, `${name} raid pause`, 0, 1440]))}
+              </div>
+              <div style={{ color: C.grey, marginTop: 6, lineHeight: 1.5 }}>Dusk favor points (staff only, they do nothing yet): {p.favorPoints || "nobody yet"}</div>
+            </>}
           </>;
         })()}
         {/* The last stage (Nin 10-30, server/ZNO_Server.lua V.isFinal): from this score a Marked player only gets the Bride + one
