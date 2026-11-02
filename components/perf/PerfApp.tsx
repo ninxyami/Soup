@@ -114,8 +114,8 @@ function DayPick({ value, onChange, days, label = null }) {
     </label>
   );
 }
-function Table({ head, rows, align = [] }) {
-  const cell = (i) => ({ padding: "4px 8px", textAlign: align[i] || (i ? "right" : "left"), borderBottom: `1px solid ${C.grid}`, whiteSpace: "nowrap" });
+function Table({ head, rows, align = [], wrapFirst = false }) {
+  const cell = (i) => ({ padding: "4px 8px", textAlign: align[i] || (i ? "right" : "left"), borderBottom: `1px solid ${C.grid}`, whiteSpace: wrapFirst && i === 0 ? "normal" : "nowrap", overflowWrap: wrapFirst && i === 0 ? "anywhere" : "normal" });
   return (
     <div style={{ overflowX: "auto" }}>
       <table style={{ borderCollapse: "collapse", width: "100%", fontFamily: MONO, fontSize: 12, color: C.text }}>
@@ -263,7 +263,7 @@ function Handlers({ row }) {
   return (
     <>
       <Note>Measured at {utcDayHM(row.at)} UTC: {num(row.lua)} ms in Lua that minute, {num(row.tpm)} ticks, {num(row.pl)} players.</Note>
-      <div style={{ marginTop: 6 }}><Table head={["Handler", "ms", "Calls"]} align={["left"]} rows={row.top.map((e) => [`${e.ev}  ${e.where}`, e.ms, e.n])} /></div>
+      <div style={{ marginTop: 6 }}><Table wrapFirst head={["Handler", "ms", "Calls"]} align={["left"]} rows={row.top.map((e) => [`${e.ev}  ${e.where}`, e.ms, e.n])} /></div>
     </>
   );
 }
@@ -311,12 +311,12 @@ function NowTab({ perf }) {
           <Stat label="CPU heat" value={r?.temp != null ? `${r.temp} C` : "?"} color={(r?.temp || 0) >= 90 ? C.red : C.bright} />
         </div>
       </Card>
+      <Card title="TOP LUA HANDLERS"><Handlers row={d?.latest_timed} /></Card>
       <Card title="LAST 2 HOURS">
         <Failed err={perf.err} what="the numbers" />
         <ChartStack view={d} x0={x1 - 7200} x1={x1} marks={d?.markers || []} />
       </Card>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(320px,1fr))", gap: 12 }}>
-        <Card title="TOP LUA HANDLERS"><Handlers row={d?.latest_timed} /></Card>
         <Card title="MARKERS"><MarkList marks={(d?.markers || []).slice(-10).reverse()} /></Card>
         <Card title="FREEZES AND JOBS">
           <Note>Too busy, last hour: {h ? h.busy.last60.bursts : "?"} times, {h ? h.busy.last60.dropped : "?"} packets dropped.</Note>
