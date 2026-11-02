@@ -15,11 +15,12 @@ const ORDER: Step[] = [
 ];
 export const MOCK_ANSWERS = { pattern: "15963", code: "QWERT", scan: "Q7K2M9XA" };
 const DELAY = 2500;
+const MOVED = "This link moved to another device.";
 
 interface S {
   step: Step; since: number; fails: number; fail_cap: number; mg2: "vial" | "wiring"; attempt: number;
   tries: number; patternWait: number; cipherWait: number; started: number; test: boolean; size: number; seed: number;
-  prize: string; buzz: boolean; scareAt: number; refuse: number;
+  prize: string; buzz: boolean; scareAt: number; refuse: number; movedAway: boolean;
 }
 const teams = new Map<string, S>();
 const pending = new Map<string, { at: number; ok: boolean; msg: string; done: boolean }>();
@@ -39,13 +40,13 @@ function team(t: string): S {
   let s = teams.get(t);
   if (s) return s;
   const parts = t.slice(5).split("-");
-  if (parts[0] === "notmine") throw new ThError("This link is open on another device. Ask an admin if that is wrong.", 403);
+  if (parts[0] === "notmine") throw new ThError(MOVED, 403);
   if (parts[0] === "nothing") throw new ThError("Unknown link.", 404);
   const step = (ORDER.includes(parts[0] as Step) ? parts[0] : "unlock") as Step;
   s = {
     step, since: now(), fails: 0, fail_cap: 6, mg2: parts.includes("wiring") ? "wiring" : "vial", attempt: 1,
     tries: 5, patternWait: 0, cipherWait: 0, started: 0, test: parts.includes("test"), size: parts.includes("solo") ? 1 : 3,
-    seed: 1938475, prize: step === "done" || step === "broken" ? "first" : "", buzz: parts.includes("buzz"), scareAt: 0,
+    seed: 1938475, prize: step === "done" || step === "broken" ? "first" : "", buzz: parts.includes("buzz"), scareAt: 0, movedAway: false,
     refuse: parts.includes("flaky") ? 2 : parts.includes("down") ? 6 : 0, // answers refused first: a busy or broken connection
   };
   teams.set(t, s);
@@ -177,9 +178,11 @@ function setStep(s: S, step: Step) {
   if (step === "done") s.prize = "first";
 }
 
-export async function mockMe(t: string): Promise<Me> {
+export async function mockMe(t: string, open = false): Promise<Me> {
   (globalThis as unknown as { __thPolls: number }).__thPolls = ((globalThis as unknown as { __thPolls?: number }).__thPolls ?? 0) + 1;
   const s = team(t);
+  if (open) s.movedAway = false;
+  if (s.movedAway) throw new ThError(MOVED, 403);
   return {
     step: s.step, since: s.since, team_size: s.size, members_here: s.size, fails: s.fails, fail_cap: s.fail_cap,
     broken: s.step === "broken", prize: s.prize, test: s.test, puzzle: puzzleFor(t, s), now: now(),
@@ -247,6 +250,7 @@ function check(s: S, t: string, payload: Record<string, any>): string {
 
 export async function mockAct(t: string, from: string, action: ActAction, payload: Record<string, any>): Promise<ActResult> {
   const s = team(t);
+  if (s.movedAway) throw new ThError(MOVED, 403);
   if (s.refuse > 0) { s.refuse -= 1; throw new ThError("Slow down a little.", 429); }
   if (from !== s.step) return queue(() => ({ ok: false, msg: "stale" }));
   if (action === "scan") {
@@ -294,6 +298,11 @@ export function mockToggleBuzz(t: string) {
 // The dev bar's "Dusk" button: the game's word that Queen Dusk has looked in
 export function mockScare(t: string) {
   team(t).scareAt = now();
+}
+
+// The dev bar's "Move away" button: the link was opened on another device
+export function mockMoved(t: string) {
+  team(t).movedAway = true;
 }
 
 export function mockReset(t: string) {
