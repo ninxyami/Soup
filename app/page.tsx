@@ -169,8 +169,8 @@ const FEATURES = [
   },
   {
     icon: "💀", title: "World Events", slug: "events", href: "/features/events",
-    desc: "Dawn of the Dead hordes and treasure hunts, for everyone online at once.",
-    tags: ["DotD", "Treasure Hunt", "Hordes"],
+    desc: "Dawn of the Dead hordes and Zombita's quest board, with the big ones hitting everyone online at once.",
+    tags: ["DotD", "Hordes", "Zombita's Jobs"],
   },
   {
     icon: "📱", title: "Zombita Phone", slug: null, href: "/features#phone",
@@ -535,13 +535,12 @@ export default function HomePage() {
               <p className="font-mono text-[0.65rem] tracking-[0.3em] text-[#e05555] uppercase mb-3">World Events</p>
               <h2 className="!mb-4 !normal-case text-[1.2rem] tracking-[0.1em]">The World Reacts</h2>
               <p className="text-[#666] text-[0.85rem] leading-relaxed mb-3">
-                Zombie hordes, treasure hunts and Zombita's quest board. The big ones hit everyone online at once,
+                Zombie hordes and Zombita's quest board. The big ones hit everyone online at once,
                 and people are still talking about them the week after.
               </p>
               <div className="space-y-2 mb-5">
                 {[
                   { icon: "💀", label: "Dawn of the Dead", desc: "Multi-wave hordes, spawned by the game" },
-                  { icon: "🗺️", label: "Treasure Hunt", desc: "Race to claim hidden caches" },
                   { icon: "📋", label: "Zombita's Jobs", desc: "Quests all day, D to S tier" },
                   { icon: "📰", label: "The Weekly Paper", desc: "Written by Zombita, delivered in game" },
                 ].map(item => (

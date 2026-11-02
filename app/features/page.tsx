@@ -47,8 +47,15 @@ const FEATURE_SECTIONS = [
     color: "#e05555",
     items: [
       { href: "/features/dawn-of-the-dead", icon: "💀", title: "Dawn of the Dead", desc: "Our main server event. The horde comes in waves of zombies spawned by the game across the map, announced in Discord, with its own leaderboard.", tags: ["Multi-Wave Hordes", "Discord Narration", "DotD Leaderboard"] },
-      { href: "/features/treasure-hunt", icon: "🗺️", title: "Treasure Hunt", desc: "A hidden cache guarded by zombies. Zombita drops cryptic hints. Players race in-game - first to arrive and enter the claim code wins the loot.", tags: ["Claim Code Race", "Zombie Guards", "6 Hunt Types"] },
       { href: "/jobs", icon: "📋", title: "Zombita's Jobs", desc: "Race other players for Zombita's quests on your phone: hordes, bandit camps, hidden codes, deliveries. Whoever brings her the code first wins. D to S tier, Job Rank, crews, and sometimes one of Queen Dusk's fakes. Take them on the website too.", tags: ["Races", "D to S Tier", "Crews"] },
+    ],
+  },
+  {
+    category: "Old Events",
+    id: "old-events",
+    color: "#777",
+    items: [
+      { href: "/features/treasure-hunt", icon: "🗺️", title: "Treasure Hunt", desc: "This event has ended. A hidden cache guarded by zombies, Zombita's cryptic hints, and a race in-game: the first to arrive and enter the claim code won the loot.", tags: ["Claim Code Race", "Zombie Guards", "6 Hunt Types"] },
     ],
   },
   {
@@ -78,7 +85,7 @@ const FEATURE_SECTIONS = [
     items: [
       { href: "/server", icon: "🔄", title: "Safe Restart System", desc: "Countdown warnings in game and on Discord, a save, then the restart.", tags: ["Scheduled Restarts", "Countdown Warnings"] },
       { href: "/server", icon: "💬", title: "Chat Bridge", desc: "In-game general chat and Discord are linked: what you say in one shows up in the other.", tags: ["Real-Time", "Two-Way"] },
-      { href: "/mods", icon: "📦", title: "Custom Mod Suite", desc: "Custom mods built for SoUP - kiosk shops, the F8 leaderboard, the Zombita Phone, Zombita's Jobs, treasure hunt spawning, magazines that wear out, and more. Some are public on the Workshop: Werewolf, Cards Against Zombita, Zombita Arcade, Zombita Chess, Zombita Raft.", tags: ["SoUP Exclusive", "In-Game Integration"] },
+      { href: "/mods", icon: "📦", title: "Custom Mod Suite", desc: "Custom mods built for SoUP - kiosk shops, the F8 leaderboard, the Zombita Phone, Zombita's Jobs, magazines that wear out, and more. Some are public on the Workshop: Werewolf, Cards Against Zombita, Zombita Arcade, Zombita Chess, Zombita Raft.", tags: ["SoUP Exclusive", "In-Game Integration"] },
       { href: "/mods", icon: "🚗", title: "Zombita Vehicles", desc: "Claim a vehicle with a Zombita Vehicle Orb. Faction and safehouse members can share it; manage every claimed vehicle and who may drive it.", tags: ["Vehicle Orb", "Shared Access"] },
       { href: "/server", icon: "🔒", title: "Whitelist Enforcement", desc: "Automatic whitelist checks every few minutes. Grace period for new players. Countdown warnings before auto-kick. You need to be whitelisted to use the economy.", tags: ["Auto-Enforced", "Grace Period"] },
     ],

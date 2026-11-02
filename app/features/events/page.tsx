@@ -13,8 +13,8 @@ export default function EventsPage() {
           <p className="font-mono text-[0.65rem] tracking-[0.3em] text-[#e05555] uppercase mb-3 mt-4">World Events</p>
           <h1 className="text-[1.8rem] sm:text-[2.5rem] tracking-[0.2em] mb-4">THE WORLD</h1>
           <p className="text-[#666] text-[0.88rem] max-w-[560px] leading-relaxed">
-            Things that happen to the whole server: zombie hordes, treasure races, and a quest board run
-            by Zombita herself.
+            Things that happen to the whole server: zombie hordes and a quest board run by Zombita herself.
+            Events that have ended are at the bottom of the page.
           </p>
         </div>
 
@@ -69,66 +69,6 @@ export default function EventsPage() {
                       <div key={c.key} className="flex gap-3 text-[0.72rem]">
                         <span className="font-mono text-[#444] min-w-[90px]">{c.key}</span>
                         <span className="text-[#555]">{c.val}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Treasure Hunt */}
-        <section className="mb-16">
-          <div className="border border-[#1a1a1a] bg-[#0a0d10] overflow-hidden relative">
-            <div className="absolute top-0 left-0 right-0 h-px" style={{ background: "linear-gradient(90deg, transparent, #c8a84b66, transparent)" }} />
-            <div className="p-6 sm:p-8">
-              <div className="flex items-start gap-4 mb-4">
-                <span className="text-3xl">🗺️</span>
-                <div>
-                  <h2 className="!mb-1 !normal-case text-[1.1rem] tracking-[0.1em] text-[#c8a84b]">Treasure Hunt</h2>
-                  <p className="font-mono text-[0.65rem] tracking-[0.15em] text-[#555] uppercase">Hidden cache · Zombie guards · Claim code race</p>
-                </div>
-              </div>
-              <p className="text-[#666] text-[0.85rem] leading-relaxed mb-6">
-                A world event where Zombita announces a hidden cache of supplies guarded by zombies.
-                Players race to the location in-game - the first to arrive claims the reward using a generated claim code.
-                30-minute window before the hunt expires.
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div>
-                  <p className="font-mono text-[0.6rem] tracking-widest text-[#444] uppercase mb-3">Hunt Flow</p>
-                  <ol className="space-y-2">
-                    {[
-                      "Scheduler fires or admin uses /treasurehunt trigger",
-                      "Region and exact coordinates selected",
-                      "Discord announcement: hunt type, risk, Zombita's hint",
-                      "Claim code generated and embedded in server Lua file",
-                      "Players race to the location in-game",
-                      "First arrival enters claim code → reward delivered via RCON",
-                      "Result logged with winner, coordinates, timestamps",
-                    ].map((step, i) => (
-                      <li key={i} className="flex items-start gap-2.5 text-[0.75rem] text-[#555]" style={{ paddingLeft: 0 }}>
-                        <span className="font-mono text-[0.6rem] text-[#c8a84b] flex-shrink-0 mt-0.5">{String(i + 1).padStart(2, "0")}</span>
-                        {step}
-                      </li>
-                    ))}
-                  </ol>
-                </div>
-                <div>
-                  <p className="font-mono text-[0.6rem] tracking-widest text-[#444] uppercase mb-3">Hunt Types</p>
-                  <div className="space-y-2">
-                    {[
-                      { type: "Supply Cache", risk: "Low", desc: "Basic supplies, easier location" },
-                      { type: "Weapon Cache", risk: "Medium", desc: "Weapons and ammo, guarded" },
-                      { type: "Rare Cache", risk: "High", desc: "Rare items, heavily guarded" },
-                    ].map(t => (
-                      <div key={t.type} className="border border-[#1a1a1a] p-2.5 bg-[#070a0d]">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-mono text-[0.65rem] text-[#c8a84b]">{t.type}</span>
-                          <span className="font-mono text-[0.55rem] text-[#444] border border-[#222] px-1">{t.risk}</span>
-                        </div>
-                        <p className="text-[0.7rem] text-[#444]">{t.desc}</p>
                       </div>
                     ))}
                   </div>
@@ -195,6 +135,74 @@ export default function EventsPage() {
               <div className="flex gap-4 flex-wrap mt-6">
                 <Link href="/jobs" className="font-mono text-[0.7rem] tracking-[0.15em] text-[#4caf7d] border border-[#4caf7d44] px-4 py-2 no-underline hover:bg-[#4caf7d11] uppercase">The job board →</Link>
                 <Link href="/factions" className="font-mono text-[0.7rem] tracking-[0.15em] text-[#888] border border-[#333] px-4 py-2 no-underline hover:bg-[#ffffff08] uppercase">Factions →</Link>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Old events */}
+        <section id="old-events" className="mb-16 scroll-mt-20">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="h-px flex-1 bg-[#1a1a1a]" />
+            <p className="font-mono text-[0.65rem] tracking-[0.3em] uppercase text-[#777]">Old Events</p>
+            <div className="h-px flex-1 bg-[#1a1a1a]" />
+          </div>
+          <div className="border border-[#1a1a1a] bg-[#0a0d10] overflow-hidden relative">
+            <div className="absolute top-0 left-0 right-0 h-px" style={{ background: "linear-gradient(90deg, transparent, #c8a84b66, transparent)" }} />
+            <div className="p-6 sm:p-8">
+              <div className="flex items-start gap-4 mb-4">
+                <span className="text-3xl">🗺️</span>
+                <div>
+                  <h2 className="!mb-1 !normal-case text-[1.1rem] tracking-[0.1em] text-[#c8a84b]">Treasure Hunt</h2>
+                  <p className="font-mono text-[0.65rem] tracking-[0.15em] text-[#555] uppercase">Ended · Hidden cache · Zombie guards · Claim code race</p>
+                </div>
+              </div>
+              <p className="text-[#666] text-[0.85rem] leading-relaxed mb-6">
+                This event has ended. Zombita announced a hidden cache of supplies guarded by zombies.
+                Players raced to the location in-game, and the first to arrive claimed the reward with a generated claim code.
+                Each hunt had a 30-minute window before it expired.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div>
+                  <p className="font-mono text-[0.6rem] tracking-widest text-[#444] uppercase mb-3">Hunt Flow</p>
+                  <ol className="space-y-2">
+                    {[
+                      "The scheduler or an admin started the hunt",
+                      "Region and exact coordinates were selected",
+                      "Discord announced the hunt type, risk and Zombita's hint",
+                      "A claim code was generated for the server",
+                      "Players raced to the location in-game",
+                      "The first to arrive entered the claim code and got the reward",
+                      "The result was logged with winner, coordinates and timestamps",
+                    ].map((step, i) => (
+                      <li key={i} className="flex items-start gap-2.5 text-[0.75rem] text-[#555]" style={{ paddingLeft: 0 }}>
+                        <span className="font-mono text-[0.6rem] text-[#c8a84b] flex-shrink-0 mt-0.5">{String(i + 1).padStart(2, "0")}</span>
+                        {step}
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+                <div>
+                  <p className="font-mono text-[0.6rem] tracking-widest text-[#444] uppercase mb-3">Hunt Types</p>
+                  <div className="space-y-2">
+                    {[
+                      { type: "Supply Cache", risk: "Low", desc: "Basic supplies, easier location" },
+                      { type: "Weapon Cache", risk: "Medium", desc: "Weapons and ammo, guarded" },
+                      { type: "Rare Cache", risk: "High", desc: "Rare items, heavily guarded" },
+                    ].map(t => (
+                      <div key={t.type} className="border border-[#1a1a1a] p-2.5 bg-[#070a0d]">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-mono text-[0.65rem] text-[#c8a84b]">{t.type}</span>
+                          <span className="font-mono text-[0.55rem] text-[#444] border border-[#222] px-1">{t.risk}</span>
+                        </div>
+                        <p className="text-[0.7rem] text-[#444]">{t.desc}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-4 flex-wrap mt-6">
+                <Link href="/features/treasure-hunt" className="font-mono text-[0.7rem] tracking-[0.15em] text-[#c8a84b] border border-[#c8a84b44] px-4 py-2 no-underline hover:bg-[#c8a84b11] transition-colors uppercase">Read about it →</Link>
               </div>
             </div>
           </div>
