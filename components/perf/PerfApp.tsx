@@ -4,7 +4,7 @@
 // Everything comes from the bot's /api/admin/perf/* (zombita_perf.py, a cron job outside the game, plus zombita_perf_staff.py);
 // the live number from /api/admin/server-health/live every 5 s. Nothing here can touch the game: the only writes are the
 // prompt library, "seen" on changes, and saved reports.
-// Times are UTC, the same as the game's logs. 600 ticks a minute = full speed, normal 540-590, under 500 is weak.
+// Times show UTC, the same as the game's logs, beside the viewer's own clock. Graph axes stay UTC. 600 ticks a minute = full speed, normal 540-590, under 500 is weak.
 // One axis a chart: ticks, players and the rest are stacked charts on the same clock, never two scales on one chart.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { API } from "@/lib/constants";
@@ -28,6 +28,9 @@ const MARK_WORD = { restart: "Restart", stopped: "Stopped", version: "Version", 
 
 const utcHM = (ts) => (ts ? new Date(ts * 1000).toISOString().slice(11, 16) : "?");
 const utcDayHM = (ts) => (ts ? new Date(ts * 1000).toISOString().slice(5, 16).replace("T", " ") : "?");
+const localHM = (ts) => new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit", hour12: false, timeZoneName: "short" }).format(new Date(ts * 1000));
+const bothHM = (ts) => (ts ? `${bothHM(ts)} / ${localHM(ts)}` : "?");
+const bothDayHM = (ts) => (ts ? `${bothDayHM(ts)} / ${localHM(ts)}` : "?");
 const today = () => new Date().toISOString().slice(10 - 10, 10);
 const dayBefore = (d) => new Date(Date.parse(d + "T00:00:00Z") - 86400000).toISOString().slice(0, 10);
 const gb = (mb) => (mb == null ? "?" : `${(mb / 1024).toFixed(1)} GB`);
@@ -198,7 +201,7 @@ function LineChart({ series, x0, x1, height = 170, yMin = 0, yMax = null, lines 
       </svg>
       {hover && (
         <div style={{ position: "absolute", top: 12, left: X(hover.x) > W / 2 ? X(hover.x) - 196 : X(hover.x) + 12, width: 184, background: "#11161d", border: `1px solid ${C.line}`, padding: "6px 8px", fontFamily: MONO, fontSize: 12, pointerEvents: "none", zIndex: 5 }}>
-          <div style={{ color: C.muted, fontSize: 11 }}>{fmtX(hover.x)} UTC</div>
+          <div style={{ color: C.muted, fontSize: 11 }}>{fmtX === utcHM ? bothHM(hover.x) : `${fmtX(hover.x)} UTC`}</div>
           {hover.rows.map((r, i) => (
             <div key={i} style={{ display: "flex", gap: 6, alignItems: "center" }}>
               <span style={{ width: 10, height: 2, background: r.color, display: "inline-block" }} />
@@ -235,8 +238,8 @@ function ChartStack({ view, x0, x1, marks }) {
   if (!view?.rows?.length) return <Note>No minutes here yet.</Note>;
   if (table) {
     const c = cols(view);
-    const rows = view.rows.slice(-300).reverse().map((r) => [utcDayHM(r[0]), num(r[c.tpm]), num(r[c.pl]), num(r[c.lua]), num(r[c.z]), num(r[c.busy]), num(r[c.drop]), num(r[c.load]), num(r[c.gcpu]), num(r[c.main])]);
-    return <><Btn onClick={() => setTable(false)}>Show graphs</Btn><div style={{ marginTop: 8, maxHeight: 420, overflow: "auto" }}><Table head={["UTC", "Ticks", "Players", "Lua ms", "Zombies", "Busy", "Dropped", "Load", "Game CPU %", "Main %"]} rows={rows} /></div></>;
+    const rows = view.rows.slice(-300).reverse().map((r) => [bothDayHM(r[0]), num(r[c.tpm]), num(r[c.pl]), num(r[c.lua]), num(r[c.z]), num(r[c.busy]), num(r[c.drop]), num(r[c.load]), num(r[c.gcpu]), num(r[c.main])]);
+    return <><Btn onClick={() => setTable(false)}>Show graphs</Btn><div style={{ marginTop: 8, maxHeight: 420, overflow: "auto" }}><Table head={["Time", "Ticks", "Players", "Lua ms", "Zombies", "Busy", "Dropped", "Load", "Game CPU %", "Main %"]} rows={rows} /></div></>;
   }
   return (
     <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr)", gap: 10 }}>
@@ -253,7 +256,7 @@ function MarkList({ marks }) {
   return (
     <div style={{ fontSize: 13, display: "grid", gap: 3 }}>
       {marks.map((m, i) => (
-        <div key={i}><span style={{ fontFamily: MONO, color: C.muted }}>{utcDayHM(m.at)}</span> <span style={{ fontFamily: MONO, color: MARK_COLOR[m.k] || C.muted }}>{MARK_WORD[m.k] || m.k}</span> {m.text}</div>
+        <div key={i}><span style={{ fontFamily: MONO, color: C.muted }}>{bothDayHM(m.at)}</span> <span style={{ fontFamily: MONO, color: MARK_COLOR[m.k] || C.muted }}>{MARK_WORD[m.k] || m.k}</span> {m.text}</div>
       ))}
     </div>
   );
@@ -262,7 +265,7 @@ function Handlers({ row }) {
   if (!row?.top?.length) return <Note>No measured minute yet. Handlers are timed 1 minute in 5.</Note>;
   return (
     <>
-      <Note>Measured at {utcDayHM(row.at)} UTC: {num(row.lua)} ms in Lua that minute, {num(row.tpm)} ticks, {num(row.pl)} players.</Note>
+      <Note>Measured at {bothDayHM(row.at)}: {num(row.lua)} ms in Lua that minute, {num(row.tpm)} ticks, {num(row.pl)} players.</Note>
       <div style={{ marginTop: 6 }}><Table wrapFirst head={["Handler", "ms", "Calls"]} align={["left"]} rows={row.top.map((e) => [`${e.ev}  ${e.where}`, e.ms, e.n])} /></div>
     </>
   );
@@ -285,7 +288,7 @@ function NowTab({ perf }) {
     <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr)", gap: 12 }}>
       <Card>
         <div style={{ display: "flex", gap: 28, flexWrap: "wrap", alignItems: "flex-end" }}>
-          <Stat big label="Ticks a minute" value={num(tpm)} color={LEVEL[tpmLevel(tpm)].color} sub={L?.state === "live" ? `live, last 60 s, ${L.age} s ago` : r ? `minute at ${utcHM(r.at)} UTC` : null} />
+          <Stat big label="Ticks a minute" value={num(tpm)} color={LEVEL[tpmLevel(tpm)].color} sub={L?.state === "live" ? `live, last 60 s, ${L.age} s ago` : r ? `minute at ${bothHM(r.at)}` : null} />
           <Stat big label="Players" value={num(L?.players ?? r?.pl)} />
           <div style={{ flex: "1 1 220px" }}>
             {v && <Pill level={v.level} text={v.text} />}
@@ -293,7 +296,7 @@ function NowTab({ perf }) {
           </div>
         </div>
       </Card>
-      <Card title="LOADED ON THE SERVER" right={<span style={{ fontFamily: MONO, fontSize: 11, color: C.dim }}>{r ? `${utcHM(r.at)} UTC` : ""}</span>}>
+      <Card title="LOADED ON THE SERVER" right={<span style={{ fontFamily: MONO, fontSize: 11, color: C.dim }}>{r ? `${bothHM(r.at)}` : ""}</span>}>
         {d?.loaded_line ? (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(110px,1fr))", gap: 12 }}>
             <Stat label="Zombies" value={num(r?.z)} /><Stat label="Cars" value={num(r?.v)} /><Stat label="Animals" value={num(r?.a)} />
@@ -320,10 +323,10 @@ function NowTab({ perf }) {
         <Card title="MARKERS"><MarkList marks={(d?.markers || []).slice(-10).reverse()} /></Card>
         <Card title="FREEZES AND JOBS">
           <Note>Too busy, last hour: {h ? h.busy.last60.bursts : "?"} times, {h ? h.busy.last60.dropped : "?"} packets dropped.</Note>
-          <Note>Freeze watchdog: {h?.freeze?.installed ? (h.freeze.mode || "no word yet") : "not found"}.{h?.freeze?.stalls?.length ? ` Last stall ${utcDayHM(h.freeze.stalls[0].at)} UTC.` : ""}</Note>
+          <Note>Freeze watchdog: {h?.freeze?.installed ? (h.freeze.mode || "no word yet") : "not found"}.{h?.freeze?.stalls?.length ? ` Last stall ${bothDayHM(h.freeze.stalls[0].at)}.` : ""}</Note>
           <Note>Horde Night: {h?.dotd?.phase || "not running"}.</Note>
           <Note>3D map job: {h?.map3d?.mode || "no word yet"}.</Note>
-          <Note>Running {d?.version || "?"}{d?.version_disk && d.version_disk !== d.version ? `, ${d.version_disk} waits on the disk for a restart` : ""}. Up since {d?.game_since ? `${utcDayHM(d.game_since)} UTC` : "?"}.</Note>
+          <Note>Running {d?.version || "?"}{d?.version_disk && d.version_disk !== d.version ? `, ${d.version_disk} waits on the disk for a restart` : ""}. Up since {d?.game_since ? `${bothDayHM(d.game_since)}` : "?"}.</Note>
         </Card>
       </div>
     </div>
@@ -474,7 +477,7 @@ function IssuesTab({ days, day, setDay, onPrompt }) {
           <div key={n} style={{ background: C.inner, border: `1px solid ${C.line}`, padding: "10px 12px" }}>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "baseline" }}>
               <Pill level={i.level} text={i.level === "bad" ? "Bad" : "Weak"} />
-              <span style={{ fontFamily: MONO, fontSize: 12, color: C.muted }}>{utcHM(i.at)}{i.end !== i.at ? ` to ${utcHM(i.end)}` : ""} UTC</span>
+              <span style={{ fontFamily: MONO, fontSize: 12, color: C.muted }}>{bothHM(i.at)}{i.end !== i.at ? ` to ${bothHM(i.end)}` : ""}</span>
               <span style={{ color: C.bright, fontSize: 14 }}>{i.title}</span>
             </div>
             {i.players != null && <Note>About {i.players} players. Too busy {i.busy || 0} time{i.busy === 1 ? "" : "s"}, {i.drop || 0} packets dropped.</Note>}
@@ -495,7 +498,7 @@ function ChangeList({ rows }) {
     <div style={{ display: "grid", gap: 10 }}>
       {rows.map((c, i) => (
         <div key={i} style={{ background: C.inner, border: `1px solid ${C.line}`, padding: "10px 12px", minWidth: 0 }}>
-          <div style={{ fontFamily: MONO, fontSize: 12, color: C.muted }}>{utcDayHM(c.at)} UTC</div>
+          <div style={{ fontFamily: MONO, fontSize: 12, color: C.muted }}>{bothDayHM(c.at)}</div>
           <div style={{ color: C.bright, fontSize: 14 }}>{c.title}</div>
           {Object.entries(c.lists || {}).map(([k, d]) => (
             <div key={k} style={{ fontFamily: MONO, fontSize: 12, marginTop: 4 }}>
@@ -762,7 +765,7 @@ export default function PerfApp() {
       <div style={{ maxWidth: 1240, margin: "0 auto", display: "grid", gridTemplateColumns: "minmax(0,1fr)", gap: 12 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 8 }}>
           <h1 style={{ fontFamily: DISPLAY, fontSize: 34, letterSpacing: 3, color: C.gold, margin: 0 }}>PERFORMANCE</h1>
-          <span style={{ fontFamily: MONO, fontSize: 11, color: C.dim }}>All times UTC. Read from files outside the game.</span>
+          <span style={{ fontFamily: MONO, fontSize: 11, color: C.dim }}>Times in UTC and your own clock. Graphs in UTC. Read from files outside the game.</span>
         </div>
         <nav style={{ display: "flex", gap: 4, flexWrap: "wrap", borderBottom: `1px solid ${C.line}` }} aria-label="Performance sections">
           {TABS.filter(([k]) => owner || k !== "prompts").map(([k, label]) => (
